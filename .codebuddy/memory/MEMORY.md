@@ -1,0 +1,109 @@
+# JeeSite Vue 项目长期记忆
+
+> 住更局管理后台，基于 JeeSite Vue 5.18.0。以下内容由 docs/ 目录文档提炼。
+
+## 技术栈
+
+Vue 3.5 (Composition API) + Vite 8 + TypeScript 6 + Pinia 2.3 + Ant Design Vue Next 1.3 + Vue Router 5 + Axios + Less + UnoCSS (Wind3) + ECharts 6 + vue-i18n + pnpm workspace + Turbo
+
+## 项目架构
+
+Monorepo 组织：`web/`（入口）→ `packages/core|cms|dbm|dfm`（应用层）→ `packages/vite|types`（基础层）。所有包 scope 为 `@jeesite/`，版本号 5.18.0。
+
+### 启动流程（严格顺序）
+1. createApp → 2. setupStore(Pinia) → 3. initAppConfigStore → 4. registerGlobComp(Input/Button) → 5. setupI18n(await) → 6. setupRouter → 7. setupRouterGuard(6个守卫) → 8. setupGlobDirectives → 9. setupErrorHandle → 10. app.mount → 11. setupDForm(延迟)
+
+### 应用组件树
+App.vue → AppProvider → RouterView → DefaultLayout(layouts/default/index.vue) → LayoutFeatures + LayoutHeader + LayoutSideBar + LayoutMultipleHeader + LayoutContent(RouterView+iframe) + LayoutFooter
+
+### 核心包目录
+`packages/core/`：api/ components/ design/ directives/ enums/ hooks/ layouts/ locales/ logics/ router/ settings/ store/ utils/ views/
+
+## Hooks 体系 (packages/core/hooks/)
+
+| 分类 | 路径 | 数量 | 典型 |
+|------|------|------|------|
+| core/ | hooks/core/ | 6 | useLockFn, useTimeout, onMountedOrActivated |
+| event/ | hooks/event/ | 6 | useEventListener, useBreakpoint, useIntersectionObserver |
+| web/ | hooks/web/ | 16 | usePage, usePermission, useMessage, useI18n, useTabs, useECharts |
+| setting/ | hooks/setting/ | 5 | useGlobSetting, useMenuSetting, useHeaderSetting, useRootSetting |
+| component/ | hooks/component/ | 2 | useFormItem, usePageContext |
+
+## 组件体系 (packages/core/components/，35+个)
+
+目录规范：`ComponentName/index.ts`(withInstall) + `src/index.vue` + `src/props.ts`
+
+核心组件：BasicTable(分页/排序/筛选/行内编辑)、BasicForm(JSON Schema 驱动)、BasicTree(搜索/异步/拖拽)、PageWrapper、BasicUpload、CodeEditor(Monaco/CodeMirror)、WangEditor(富文本)、Icon(Iconify+ant-design)、Dict(数据字典)、BasicModal/Drawer、Cropper、Qrcode、Verify
+
+全局注册仅 Input 和 Button。
+
+## 路由系统
+
+路由位于 `packages/core/router/`：
+- 基础路由(basicRoutes)：Login、ModPwd、Root、mainOut、Redirect、404
+- 异步路由(asyncRoutes)：通过 `import.meta.glob('./modules/**/*.ts')` 自动收集
+- 6个路由守卫(按序)：pageGuard → pageLoadingGuard → httpGuard → scrollGuard → messageGuard → permissionGuard → stateGuard
+
+### 权限模式 (projectSetting.ts)
+- **BACK**(默认)：后端返回菜单路由，动态注册组件
+- **ROUTE_MAPPING**：前端路由 + 角色过滤
+- **ROLE**：前端路由 + 角色过滤
+
+权限码冒号分隔（如 `sys:menu:edit`），通过 `usePermission().hasPermission()` 判断。
+
+### 页面三文件模式
+index.vue(入口) + list.vue(BasicTable) + form.vue(Form Schema)。树形页面用 BasicTree + PageWrapper sidebar 插槽。
+
+## 状态管理与 API
+
+### Pinia Stores
+user(app-user)：用户信息/Token/角色/登录登出
+permission(app-permission)：权限码/菜单/动态路由
+app(app)：项目配置/主题/PageLoading
+multipleTab(app-multipleTab)：多标签页状态
+errorLog(app-errorLog)：错误日志
+locale(app-locale)：国际化
+lock(app-lock)：锁屏
+
+### HTTP 封装 (packages/core/utils/http/axios/)
+- 请求头：`x-requested-with: XMLHttpRequest`, `x-ajax: json`
+- Token：`x-token` 头
+- 后端返回：`{ sessionid, result, message }`，result 为 "true"|"false"|"login"
+- result==='login' 自动跳转登录，result==='false' 按 errorMessageMode 显示错误
+- errorMessageMode：'none'(不提示) | 'message'(顶部消息) | 'modal'(弹窗)
+
+### API 目录 (packages/core/api/)
+sys/ 下含 login, menu, role, user, office, company, post, area, dictType, dictData, config, module, log, online, upload, empUser, corpAdmin, secAdmin, account
+基础模型：Page<T>, BasicModel<T>, TreeModel<T>
+
+## 布局系统
+
+### DefaultLayout
+LayoutFeatures(异步) + LayoutHeader(fixed) + LayoutSideBar(侧边栏) + LayoutMultipleHeader(多标签头部) + LayoutContent(RouterView) + LayoutFooter(异步)
+
+### 配置控制
+- Header：fixed/show/bgColor/theme/锁屏/全屏/通知/搜索（useHeaderSetting）
+- Sider：collapsed/menuWidth/mode/type/theme/split/accordion（useMenuSetting）
+- Tabs：show/cache/style/canDrag/showQuick/showRedo（useMultipleTabSetting）
+- 全局：themeColor/grayMode/colorWeak（useRootSetting）
+
+### iframe 系统
+`window.tabPage`：addTabPage/getCurrentTabPage/getPrevTabPage/closeCurrentTabPage
+`window.toastr`：showMessage/success/error/warning/info（兼容旧版 JeeSite）
+
+## 构建系统
+
+Vite 配置从 `@jeesite/vite` 导入，导出 plugins/ options/ config/ theme/ 四大模块。
+环境变量在 `web/.env*`，通过 `wrapperEnv(loadEnv(mode, root))` 加载。
+
+## 关键路径
+
+| 用途 | 路径 |
+|------|------|
+| 应用入口 | web/src/main.ts |
+| 全局设置 | packages/core/settings/projectSetting.ts |
+| HTTP 封装 | packages/core/utils/http/axios/ |
+| 路由入口 | packages/core/router/index.ts |
+| Store 入口 | packages/core/store/index.ts |
+| 布局入口 | packages/core/layouts/default/index.vue |
+| 环境变量 | web/.env* |
