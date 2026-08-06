@@ -31,6 +31,8 @@
       algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
       cssVar: { key: 'jeesite' },
       token: {
+        fontFamily:
+          "'HarmonyOS', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'",
         colorPrimary: isDark ? darkPrimaryColor : unref(getThemeColor),
         colorLink: isDark ? darkPrimaryColor : unref(getThemeColor),
         colorInfo: isDark ? darkPrimaryColor : unref(getThemeColor),
@@ -55,8 +57,9 @@
 <style lang="less">
   body {
     line-height: 1.5715;
+    font-size: 14px;
     font-family:
-      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+      'HarmonyOS', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
       'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   }
 </style>
