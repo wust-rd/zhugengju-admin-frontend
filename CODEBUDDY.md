@@ -1,5 +1,15 @@
 # CODEBUDDY.md This file provides guidance to CodeBuddy when working with code in this repository.
 
+## 会话开始必须加载的 Skill
+
+打开对话后，第一步就是用 `use_skill` 依次加载以下 3 个 skill，并在本次会话中始终遵循它们的最佳实践：
+
+1. **`vue-tsx-best-practices`** — Vue TSX 最佳实践：组件本质（setup 返回 render）、props/emits/SlotsType、v-model、ref/reactive/computed/watch+onCleanup、toRefs/unref/shallowRef、provide/inject 受控 Hook、Pinia Setup Store、ts-pattern。
+2. **`vue-sfc-best-practices`** — Vue SFC 版本最佳实践：script setup 位于 template 上方、类型化 defineProps/defineEmits。
+3. **`vue-hooks-architecture`** — 现代前端编程思想：Hook 是逻辑复用单位、provide/inject + InjectionKey、Pinia 惰性初始化、复杂 SPA 禁用 React、类型完备（ts-pattern 客户端 / zod 服务端）、抓核心弃分支（props/emits/SlotsType/v-model）。
+
+三个 skill 已随仓库内置到项目级目录 `.codebuddy/skills/`（随 git 同步，团队成员 clone 后即可使用），直接按名字调用即可。若要在个人全局环境维护一份，可复制到 `~/.codebuddy/skills/`。
+
 ## 工作流程（必读文档）
 
 开始任何任务前，先读取以下文档（按优先级）。本文件（CODEBUDDY.md）随每个会话自动全文载入，其余文档按需读取：
