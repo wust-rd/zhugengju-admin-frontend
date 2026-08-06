@@ -1,5 +1,17 @@
 # CODEBUDDY.md This file provides guidance to CodeBuddy when working with code in this repository.
 
+## 工作流程（必读文档）
+
+开始任何任务前，先读取以下文档（按优先级）。本文件（CODEBUDDY.md）随每个会话自动全文载入，其余文档按需读取：
+
+| 优先级 | 文档 | 用途 |
+|--------|------|------|
+| ★★★ | `CODE_WIKI.md` | 项目全景：依赖、技术架构、模块划分（包图）及各模块用例图/流程图/顺序图，**任何任务前先读** |
+| ★★★ | `RULES.md` | 通用开发模式 R1~R11 与规范，**写代码前对照** |
+| ★★☆ | `AGENT.md` | AI 工作指南、任务处理 SOP 与文档同步规则 |
+
+> 涉及架构、模块、通用模式的代码变更，必须按 `AGENT.md` §4 同步更新上述文档，避免文档漂移。
+
 ## 常用命令
 
 | 命令 | 说明 |
