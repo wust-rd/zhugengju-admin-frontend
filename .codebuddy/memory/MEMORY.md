@@ -2,6 +2,22 @@
 
 > 住更局管理后台，基于 JeeSite Vue 5.18.0。以下内容由 docs/ 目录文档提炼。
 
+## 项目文档体系（2026-08-05 建立）
+
+- 根目录 `CODE_WIKI.md`：代码维基（依赖/架构/模块划分包图 + 各模块用例图/流程图/顺序图，mermaid）。
+- 根目录 `RULES.md`：通用模式 R1~R11（三文件页面/API 定义/权限码/i18n/CollapseForm/树形页面/组件封装/Store/路由模块/消息提示/Checklist）。
+- 根目录 `AGENT.md`：AI 工作指南，含文档同步规则。
+- 8 个复杂实现目录各建 `README.md`（http/axios、router/guard、router/helper、store/modules、layouts/default、layouts/views/login、cms/article、dfm/designer）。
+- **规则**：业务变化时必须同步更新上述文档（见 AGENT.md §4）。
+
+## 关键业务事实（代码核对）
+
+- `@jeesite/dfm` 是薄包装：仅 re-export 独立库 `@jeesite/dfm-lib`（DDesigner/pluginManager）。
+- Store 名：`app-multiple-tab`、`app-error-log`（连字符命名），共 7 个 store。
+- app 包：`views/app/appComment`、`views/app/appUpgrade`（三文件 CRUD）。
+- 权限白名单 `[LOGIN_PATH, MOD_PWD_PAGE]`；sessionTimeoutProcessing 默认 ROUTE_JUMP。
+- BasicTable 使用面广（57 文件 import `@jeesite/core/components/Table`）。
+
 ## 技术栈
 
 Vue 3.5 (Composition API) + Vite 8 + TypeScript 6 + Pinia 2.3 + Ant Design Vue Next 1.3 + Vue Router 5 + Axios + Less + UnoCSS (Wind3) + ECharts 6 + vue-i18n + pnpm workspace + Turbo
