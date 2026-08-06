@@ -13,10 +13,20 @@ const MOD_PWD_PAGE = PageEnum.MOD_PWD_PAGE;
 // 白名单路由列表，无需权限即可访问的页面
 const whitePathList: PageEnum[] = [LOGIN_PATH, MOD_PWD_PAGE];
 
+// 临时放行开关（后台服务未搭建时使用）：true 时不验证 token，直接放行所有页面
+// 后台服务搭建完成后，请将 web/.env 与 web/.env.production 中 VITE_TEMP_AUTH_BYPASS 改为 false
+const TEMP_AUTH_BYPASS = import.meta.env.VITE_TEMP_AUTH_BYPASS === 'true';
+
 export function createPermissionGuard(router: Router) {
   const userStore = useUserStoreWithOut();
   const permissionStore = usePermissionStoreWithOut();
   router.beforeEach(async (to, from) => {
+    // 临时放行：后台服务未搭建时跳过所有登录与权限校验
+    if (TEMP_AUTH_BYPASS) {
+      console.warn('[permissionGuard] 临时放行模式已开启（VITE_TEMP_AUTH_BYPASS=true），跳过登录校验');
+      return;
+    }
+
     if (
       from.path === ROOT_PATH &&
       to.path === HOME_PATH &&
