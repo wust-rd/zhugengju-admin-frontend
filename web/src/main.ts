@@ -18,6 +18,7 @@ import { setupI18n } from '@jeesite/core/locales/setupI18n';
 import { setupRouter, router } from '@jeesite/core/router';
 import { setupRouterGuard } from '@jeesite/core/router/guard';
 import { setupStore } from '@jeesite/core/store';
+import { setupDisplay } from '@jeesite/display';
 import { setupDForm } from '@jeesite/dfm';
 
 async function bootstrap() {
@@ -37,6 +38,9 @@ async function bootstrap() {
 
   // 路由配置
   setupRouter(app);
+
+  // 演示应用（/display 独立 layout + 根路由重定向）
+  setupDisplay(router);
 
   // 路由守卫（权限控制等）
   setupRouterGuard(router);

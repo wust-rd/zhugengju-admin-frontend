@@ -17,6 +17,7 @@
 - app 包：`views/app/appComment`、`views/app/appUpgrade`（三文件 CRUD）。
 - 权限白名单 `[LOGIN_PATH, MOD_PWD_PAGE]`；sessionTimeoutProcessing 默认 ROUTE_JUMP。
 - BasicTable 使用面广（57 文件 import `@jeesite/core/components/Table`）。
+- 新增 `@jeesite/display` 演示应用包（2026-08-06）：`/display` 前缀、独立 layout、免登录（meta.ignoreAuth）；
 
 ## 技术栈
 

@@ -34,6 +34,7 @@
     "@jeesite/core": "workspace:*",
     "@jeesite/dbm": "workspace:*",
     "@jeesite/dfm": "workspace:*",
+    "@jeesite/display": "workspace:*",
     "@jeesite/test": "workspace:*",
     "@jeesite/types": "workspace:*",
     "@jeesite/vite": "workspace:*",
