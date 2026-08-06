@@ -18,6 +18,7 @@
 - 权限白名单 `[LOGIN_PATH, MOD_PWD_PAGE]`；sessionTimeoutProcessing 默认 ROUTE_JUMP。
 - BasicTable 使用面广（57 文件 import `@jeesite/core/components/Table`）。
 - 新增 `@jeesite/display` 演示应用包（2026-08-06）：`/display` 前缀、独立 layout、免登录（meta.ignoreAuth）；
+- **display 包 TSX 组件惯例（2026-08-06）**：组件文件 kebab-case 命名（`logo.tsx`/`nav-links.tsx`/`extra-area.tsx`），但必须**具名导出 PascalCase 变量**（`export const ExtraArea = defineComponent(...)` + 可选 `export default`），否则编辑器自动导入会按文件名推导出小写变量名，JSX 中小写标签被当 HTML 原生元素、组件不渲染。VSCode 无设置可改自动导入命名规则。
 
 ## 技术栈
 

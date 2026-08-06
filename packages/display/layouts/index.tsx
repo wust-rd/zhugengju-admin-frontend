@@ -1,6 +1,16 @@
-import { defineComponent } from 'vue';
+import { defineComponent, onMounted, onUnmounted } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
 import { Button } from 'antdv-next';
+import { Header } from '../components/header';
+
+/** /display 的全局 body 背景（路由进入时应用到 <body>，离开时恢复） */
+const DISPLAY_BODY_STYLE: Partial<CSSStyleDeclaration> = {
+  // background:
+  // 'linear-gradient(270deg, rgba(37, 86, 126, 0.75) 0.27%, #0F172A 98.66%)',
+  background: '#0f182a',
+  backdropFilter: 'blur(10px)',
+  color: 'white',
+};
 
 export default defineComponent({
   name: 'DisplayLayout',
@@ -12,41 +22,28 @@ export default defineComponent({
       router.push('/login');
     }
 
+    // 路由进入 /display（layout 挂载）时，body 应用渐变背景；离开（卸载）时恢复原样式
+    let prevBackground = '';
+    let prevBackdropFilter = '';
+    onMounted(() => {
+      prevBackground = document.body.style.background;
+      prevBackdropFilter = document.body.style.backdropFilter;
+      Object.assign(document.body.style, DISPLAY_BODY_STYLE);
+    });
+    onUnmounted(() => {
+      document.body.style.background = prevBackground;
+      document.body.style.backdropFilter = prevBackdropFilter;
+    });
+
     return () => (
-      <div class="flex min-h-screen flex-col bg-gray-50">
-        {/* 顶部导航：独立于后台 DefaultLayout */}
-        <header class="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur">
-          <div class="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-            <RouterLink to="/display/home" class="flex items-center gap-3">
-              <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-base font-bold text-white">
-                D
-              </div>
-              <span class="text-lg font-semibold text-gray-800">演示应用</span>
-            </RouterLink>
+      <div class="flex min-h-screen flex-col">
+        {/* 顶部导航：悬浮胶囊 Header（sticky，不占文档流） */}
+        <Header />
 
-            <nav class="hidden items-center gap-1 md:flex">
-              <RouterLink to="/display/home">
-                <Button type="link">首页</Button>
-              </RouterLink>
-            </nav>
-
-            <div class="flex items-center gap-2">
-              <Button type="primary" onClick={goAdmin}>
-                管理后台
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* 主体内容区 */}
-        <main class="flex-1">
+        {/* 内容区：pt 预留悬浮 Header 空间 */}
+        <main class="flex-1 px-8 pt-28 pb-16">
           <RouterView />
         </main>
-
-        {/* 页脚 */}
-        <footer class="border-t border-gray-200 bg-white py-6 text-center text-sm text-gray-400">
-          JeeSite 演示应用 · /display 独立布局
-        </footer>
       </div>
     );
   },

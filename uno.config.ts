@@ -16,6 +16,7 @@ export default defineConfig({
     presetWind3(),
     presetTypography(),
     presetIcons({
+      cdn: 'https://esm.sh/',
       extraProperties: {
         display: 'inline-block',
         'vertical-align': 'middle',

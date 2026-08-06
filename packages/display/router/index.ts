@@ -16,13 +16,13 @@ export const displayRoutes: RouteRecordRaw[] = [
       ignoreAuth: true,
     },
     children: [
-      { path: '', name: 'DisplayRoot', redirect: '/display/home' },
+      { path: '', name: 'DisplayRoot', redirect: '/display/inspection' },
       {
-        path: 'home',
-        name: 'DisplayHome',
-        component: () => import('../views/home/index'),
+        path: 'inspection',
+        name: 'DisplayInspection',
+        component: () => import('../views/inspection/index'),
         meta: {
-          title: '演示首页',
+          title: '城市体检',
         },
       },
       // 新增演示页面示例：

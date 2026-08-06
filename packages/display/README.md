@@ -2,7 +2,7 @@
 
 独立的 `/display` 前端应用包，与后台管理（`/a` 前缀，后端菜单动态注册）完全解耦：
 
-- 使用**独立 layout**（`layouts/index.vue`），不挂载后台 `DefaultLayout`；
+- 使用**独立 layout**（`layouts/index.tsx`），不挂载后台 `DefaultLayout`；
 - 路由**静态注册**（`router/index.ts`），组件懒加载，免登录访问（`meta.ignoreAuth`）；
 - 根路由 `/` 默认跳转 `/display`（由 `setupDisplay` 覆盖 core 的 `RootRoute` 实现）。
 
@@ -12,9 +12,11 @@
 packages/display/
 ├── index.ts               # 包入口：export { displayRoutes, setupDisplay }
 ├── router/index.ts        # /display 路由定义
-├── layouts/index.vue      # 独立布局（顶部导航 + RouterView + 页脚）
+├── layouts/index.tsx      # 独立布局（DisplayHeader 胶囊导航 + RouterView）
+├── components/
+│   └── header/index.tsx   # 悬浮胶囊导航条（默认 slot 注入内容）
 ├── views/                 # 演示页面
-│   └── home/index.vue     # 演示首页
+│   └── home/index.tsx     # 演示首页
 └── README.md
 ```
 
@@ -22,7 +24,7 @@ packages/display/
 
 1. 在 `views/` 下新建页面组件；
 2. 在 `router/index.ts` 的 `children` 中添加路由（`path` 相对 `/display`，`meta.ignoreAuth` 控制是否免登录）；
-3. 如需展示于导航栏，在 `layouts/index.vue` 中追加 `RouterLink`。
+3. 如需展示于导航栏，在 `layouts/index.tsx` 的 `DisplayHeader` 插槽中追加 `RouterLink`。
 
 ## 挂载方式
 

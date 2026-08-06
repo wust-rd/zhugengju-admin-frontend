@@ -12,6 +12,8 @@
     "mikestead.dotenv",
     "formulahendry.auto-rename-tag",
     "donjayamanne.githistory",
-    "pmneo.tsimporter"
+    "pmneo.tsimporter",
+    "christian-kohler.path-intellisense",
+    "kisstkondoros.vscode-gutter-preview"
   ]
 }
