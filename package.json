@@ -41,6 +41,7 @@
     "@jeesite/web": "workspace:*",
     "antdv-next": "1.4.4",
     "axios": "1.17.0",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dayjs": "1.11.21",
     "lodash-es": "4.18.1",

@@ -31,8 +31,9 @@ export default defineComponent({
 
     return () => (
       <div>
-        Lorem, ipsum dolor sit amet consectetur adipisicing elit. Velit illum at debitis rem libero nemo rerum deserunt
-        aliquam, explicabo exercitationem eos expedita non quo quos! Esse maxime fugiat sed praesentium.
+        Lorem ipsum dolor sit amet consectetur adipisicing elit. Consequatur tenetur esse qui voluptatibus omnis
+        explicabo ducimus sapiente provident odit cupiditate possimus placeat facilis maiores praesentium in, impedit
+        aliquid maxime doloribus!
       </div>
     );
   },
