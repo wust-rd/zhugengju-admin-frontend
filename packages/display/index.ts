@@ -26,4 +26,12 @@ export function setupDisplay(router: Router) {
   });
   // 注册演示应用路由
   displayRoutes.forEach((route) => router.addRoute(route));
+
+  // app.use(router)（setupRouter 内）会立即触发一次初始导航，其路由解析发生在
+  // 本函数注册路由之前，因此当前 URL 可能已被 404 catch-all 捕获（显示 ErrorPage）。
+  // 这里基于浏览器实际 URL 重新导航一次，让 matcher 命中新注册的 display 路由。
+  const currentRoute = router.currentRoute.value;
+  if (currentRoute.matched.length === 0 || currentRoute.name === 'PageNotFound') {
+    router.replace(window.location.pathname + window.location.search).catch(() => {});
+  }
 }

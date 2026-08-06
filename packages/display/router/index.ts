@@ -10,21 +10,19 @@ import type { RouteRecordRaw } from 'vue-router';
 export const displayRoutes: RouteRecordRaw[] = [
   {
     path: '/display',
-    name: 'DisplayRoot',
     component: () => import('../layouts/index.vue'),
     meta: {
       title: '演示应用',
       ignoreAuth: true,
     },
     children: [
-      { path: '', redirect: '/display/home' },
+      { path: '', name: 'DisplayRoot', redirect: '/display/home' },
       {
         path: 'home',
         name: 'DisplayHome',
         component: () => import('../views/home/index.vue'),
         meta: {
           title: '演示首页',
-          ignoreAuth: true,
         },
       },
       // 新增演示页面示例：
