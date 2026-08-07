@@ -18,7 +18,7 @@ export const Header = defineComponent({
   setup(_, { slots }) {
     return () => (
       <header
-        class="sticky z-50 relative flex h-90px w-full flex items-center"
+        class="sticky top-0 z-50 flex h-88px w-full items-center"
         style={{
           background: '#001F40',
           boxShadow: '0 32px 76px 0 rgba(0, 5, 26, 0.30), 0 0 16px 0 rgba(71, 152, 247, 0.60) inset',

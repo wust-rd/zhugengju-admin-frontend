@@ -22,7 +22,7 @@ export const Sidebar = defineComponent({
     const activeTo = ref(navLinks[0].to);
 
     return () => (
-      <sidebar class="sticky z-50 relative flex w-80px h-full flex-col items-center">
+      <sidebar class="sticky z-50 relative flex w-80px h-full flex-col items-center shrink-0">
         {slots.default?.()}
 
         <div class="pt-32px space-y-20px">

@@ -36,16 +36,16 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="flex min-h-screen flex-col">
-        {/* 顶部导航：悬浮胶囊 Header（sticky，不占文档流） */}
+      <div class="flex h-screen flex-col">
+        {/* 顶部导航：sticky 占文档流 88px，滚动时粘在顶部 */}
         <Header />
 
-        {/* 内容区：pt 预留悬浮 Header 空间 */}
-        <main class="flex-1 flex">
+        {/* 内容区：flex-1 占满剩余高度（min-h-0 允许压缩，否则被内容最小高度撑破） */}
+        <main class="min-h-0 flex-1 flex items-start">
           <Sidebar />
 
           {/* 路由视图：内容区 */}
-          <div class="flex-1">
+          <div class="min-h-0 flex-1 flex h-full">
             <RouterView />
           </div>
         </main>
