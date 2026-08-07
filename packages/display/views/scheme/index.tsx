@@ -1,4 +1,5 @@
 import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { animate } from 'motion-v';
 import {
   Map as MapLibreMap,
   NavigationControl,
@@ -9,6 +10,7 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './map.css';
+import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 
 /** 天地图 token（web/.env 配置） */
 const TIANDITU_TOKEN = import.meta.env.VITE_TIANDITU_TOKEN;
@@ -163,12 +165,56 @@ export default defineComponent({
   name: 'DisplayScheme',
   setup() {
     const mapContainer = ref<HTMLDivElement | null>(null);
+    const drawerRef = ref<HTMLDivElement | null>(null);
+    /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(false);
-    const leftDrawerVisible = ref(true);
-    const clickPoint = ref<{ lng: number; lat: number; x: number; y: number } | null>(null);
     const activeTab = ref<DrawerTabKey>('physical');
     const previewVisible = ref(false);
+    /** 左侧抽屉收起后，显示左上角展开按钮 */
+    const expandVisible = ref(false);
+    /** 左侧抽屉收起前的原始宽度，展开动画恢复用 */
+    let drawerWidth = 0;
     let map: MapLibreMap | null = null;
+
+    /** 点击红色方块：左侧抽屉容器宽度收缩并渐隐，动画结束后彻底隐藏，并显示展开按钮 */
+    const hideDrawer = () => {
+      const el = drawerRef.value;
+      if (!el) return;
+      drawerWidth = el.offsetWidth;
+      animate(
+        el,
+        { width: [drawerWidth, 0], opacity: [1, 0] },
+        {
+          duration: 0.3,
+          ease: 'easeInOut',
+          onComplete: () => {
+            el.style.display = 'none';
+            el.style.width = '';
+            expandVisible.value = true;
+          },
+        },
+      );
+    };
+
+    /** 点击展开按钮：抽屉宽度从 0 恢复到原宽，同时隐藏自身 */
+    const showDrawer = () => {
+      const el = drawerRef.value;
+      if (!el) return;
+      expandVisible.value = false;
+      el.style.display = '';
+      el.style.width = '0px';
+      animate(
+        el,
+        { width: [0, drawerWidth], opacity: [0, 1] },
+        {
+          duration: 0.3,
+          ease: 'easeInOut',
+          onComplete: () => {
+            el.style.width = '';
+          },
+        },
+      );
+    };
 
     onMounted(() => {
       if (!mapContainer.value) return;
@@ -187,8 +233,7 @@ export default defineComponent({
       map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-right');
 
       // 点击地图 → 右侧弹出 drawer
-      map.on('click', (e) => {
-        clickPoint.value = { lng: e.lngLat.lng, lat: e.lngLat.lat, x: e.point.x, y: e.point.y };
+      map.on('click', () => {
         drawerVisible.value = true;
       });
     });
@@ -199,34 +244,48 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="relative h-full w-full">
+      <>
+        {/* 左侧抽屉：与地图平级，向左移动渐隐（motion-v 动画） */}
         <div
           ref={(el) => {
-            mapContainer.value = el as HTMLDivElement | null;
+            drawerRef.value = el as HTMLDivElement | null;
           }}
-          class="map-custom-controls h-full w-full"
-        />
-
-        {/* 左侧 Drawer：默认打开，展示一张图片 */}
-        <div
-          class={
-            'fixed top-88px left-80px bottom-0 z-[60] flex w-460px flex-col bg-[#0f2b47] shadow-2xl transition-transform duration-300 ' +
-            (leftDrawerVisible.value ? 'translate-x-0' : '-translate-x-full')
-          }
+          class="relative h-full"
         >
-          <div class="scrollbar-none flex-1 overflow-y-auto">
-            <img src={LEFT_DRAWER_IMAGE_URL} alt="左侧抽屉" class="w-full rounded-lg" />
-          </div>
+          <img src={LEFT_DRAWER_IMAGE_URL} alt="左侧抽屉" class="h-full object-fill" />
+
+          <div
+            class="absolute bg-transparent top-36px right-24px size-40px z-100 cursor-pointer"
+            onClick={hideDrawer}
+          />
         </div>
 
-        {/* 右侧 Drawer */}
+        <div class="size-full relative">
+          <div
+            ref={(el) => {
+              mapContainer.value = el as HTMLDivElement | null;
+            }}
+            class="map-custom-controls h-full w-full relative"
+          />
+
+          {expandVisible.value && (
+            <img
+              src={expandBtnImg}
+              alt=""
+              class="absolute top-32px left-32px size-40px z-50 cursor-pointer"
+              onClick={showDrawer}
+            />
+          )}
+        </div>
+
+        {/* 右侧 Drawer：地图点击打开，Tab 切换内容 */}
         <div
           class={
             'fixed top-88px right-0 bottom-0 z-[60] flex w-420px flex-col bg-[#0f2b47] text-white shadow-2xl transition-transform duration-300 ' +
             (drawerVisible.value ? 'translate-x-0' : 'translate-x-full')
           }
         >
-          {/* 顶部 Tab 切换器（5 等分胶囊样式，关闭按钮位于右侧） */}
+          {/* 顶部 Tab 切换器（5 等分胶囊样式） */}
           <div class="flex h-44px items-stretch bg-[#1a3a5c]">
             {DRAWER_TABS.map((tab) => (
               <div
@@ -259,7 +318,7 @@ export default defineComponent({
           </div>
         </div>
 
-        {/* 预览 Modal：体检情况 / 功能策划 点击图片弹出（图片 884×640） */}
+        {/* 预览 Modal：体检情况 / 功能策划 点击图片弹出 */}
         {previewVisible.value && MODAL_IMAGE_URLS[activeTab.value] && (
           <div
             class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60"
@@ -273,7 +332,7 @@ export default defineComponent({
             />
           </div>
         )}
-      </div>
+      </>
     );
   },
 });
