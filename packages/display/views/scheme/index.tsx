@@ -128,7 +128,7 @@ export default defineComponent({
         {/* 右侧 Drawer */}
         <div
           class={
-            'fixed top-90px right-0 bottom-0 z-[60] flex w-420px flex-col bg-[#0f2b47] text-white shadow-2xl transition-transform duration-300 ' +
+            'fixed top-88px right-0 bottom-0 z-[60] flex w-420px flex-col bg-[#0f2b47] text-white shadow-2xl transition-transform duration-300 ' +
             (drawerVisible.value ? 'translate-x-0' : 'translate-x-full')
           }
         >
