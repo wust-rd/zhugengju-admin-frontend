@@ -33,6 +33,14 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '片区策划',
         },
       },
+      {
+        path: 'project',
+        name: 'DisplayProject',
+        component: () => import('../views/project/index'),
+        meta: {
+          title: '项目实施',
+        },
+      },
       // 新增演示页面示例：
       // {
       //   path: 'about',
