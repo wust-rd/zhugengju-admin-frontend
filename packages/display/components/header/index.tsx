@@ -20,7 +20,7 @@ export const Header = defineComponent({
       <header
         class="sticky z-50 relative flex h-90px w-full flex items-center"
         style={{
-          background: 'linear-gradient(180deg, rgba(0, 31, 64, 0.75) 0%, #023164 100%)',
+          background: '#001F40',
           boxShadow: '0 32px 76px 0 rgba(0, 5, 26, 0.30), 0 0 16px 0 rgba(71, 152, 247, 0.60) inset',
           backdropFilter: 'blur(18px)',
         }}

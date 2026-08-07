@@ -9,7 +9,7 @@ import userProfileImg from '@jeesite/assets/images/display/user-profile.webp';
 export const UserProfile = defineComponent({
   setup() {
     return () => (
-      <div class="w-220px h-72px relative flex items-center justify-center ml-auto mr-24px">
+      <div class="w-280px h-88px relative flex items-center justify-center ml-auto">
         <img src={userProfileImg} alt="" class="size-full" />
       </div>
     );
