@@ -25,6 +25,14 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '城市体检',
         },
       },
+      {
+        path: 'scheme',
+        name: 'DisplayScheme',
+        component: () => import('../views/scheme/index'),
+        meta: {
+          title: '片区策划',
+        },
+      },
       // 新增演示页面示例：
       // {
       //   path: 'about',

@@ -26,6 +26,8 @@ declare global {
     VITE_GLOB_ADMIN_PATH: string;
     VITE_FILE_PREVIEW: string;
     VITE_LEGACY: boolean;
+    // 天地图开放平台 token（display 包地图页面使用）
+    VITE_TIANDITU_TOKEN: string;
     // 临时放行开关（后台服务未搭建时使用）：true 时不验证 token，直接放行所有页面
     VITE_TEMP_AUTH_BYPASS: boolean;
   }
