@@ -9,6 +9,7 @@ import {
   type StyleSpecification,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import '../../utils/maplibre'; // v6 worker 配置（必须先于 new Map()）
 import './map.css';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 
@@ -32,9 +33,76 @@ const DRAWER_TABS = [
   { key: 'physical', label: '体检情况', image: `${OSS_BASE}体检情况.webp`, preview: `${OSS_BASE}片区策划图册.webp` },
   { key: 'planning', label: '功能策划', image: `${OSS_BASE}功能策划.webp`, preview: `${OSS_BASE}片区策划图册.webp` },
   { key: 'project', label: '项目情况', image: `${OSS_BASE}项目情况.webp`, preview: `${OSS_BASE}片区项目清单.webp` },
-  { key: 'evaluation', label: '实施后评估', image: `${OSS_BASE}实施后评估.webp`, preview: `${OSS_BASE}实施后评估-相册.webp` },
+  {
+    key: 'evaluation',
+    label: '实施后评估',
+    image: `${OSS_BASE}实施后评估.webp`,
+    preview: `${OSS_BASE}实施后评估-相册.webp`,
+  },
 ] as const;
 type DrawerTabKey = (typeof DRAWER_TABS)[number]['key'];
+
+/** 片区多边形 Feature（轻量类型，避免依赖 GeoJSON 全局命名空间） */
+type PolygonFeature = {
+  type: 'Feature';
+  properties: Record<string, never>;
+  geometry: { type: 'Polygon'; coordinates: number[][][] };
+};
+
+/** 五个策划片区多边形（武汉汉口/武昌/汉阳/光谷一带，demo 数据） */
+const SCHEME_POLYGONS_GEOJSON: { type: 'FeatureCollection'; features: PolygonFeature[] } = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [114.26952961137431, 30.590157896660216],
+            [114.28515272702992, 30.590157896660216],
+            [114.28515272702992, 30.575400409332417],
+            [114.26952961137431, 30.575400409332417],
+            [114.26952961137431, 30.590157896660216],
+          ],
+        ],
+      },
+    },
+    {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [114.29506644816655, 30.583030883900392],
+            [114.32479376545626, 30.583030883900392],
+            [114.32479376545626, 30.560611914344193],
+            [114.29506644816655, 30.560611914344193],
+            [114.29506644816655, 30.583030883900392],
+          ],
+        ],
+      },
+    },
+    {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [114.29810427621095, 30.60236308209285],
+            [114.31936907252049, 30.60236308209285],
+            [114.31936907252049, 30.590409327626432],
+            [114.29810427621095, 30.590409327626432],
+            [114.29810427621095, 30.60236308209285],
+          ],
+        ],
+      },
+    },
+  ],
+};
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: StyleSpecification = {
@@ -76,9 +144,7 @@ export default defineComponent({
     let drawerWidth = 0;
 
     /** 当前 Tab 配置（含内容图与预览图），单一数据源派生，避免重复查找 */
-    const activeTabConfig = computed(
-      () => DRAWER_TABS.find((t) => t.key === activeTab.value) ?? DRAWER_TABS[0],
-    );
+    const activeTabConfig = computed(() => DRAWER_TABS.find((t) => t.key === activeTab.value) ?? DRAWER_TABS[0]);
 
     /** 点击红色方块：左侧抽屉容器宽度收缩并渐隐，动画结束后彻底隐藏，并显示展开按钮 */
     const hideDrawer = () => {
@@ -133,6 +199,9 @@ export default defineComponent({
           zoom: 11,
         });
 
+        // 调试用：浏览器控制台可直接访问地图实例（如 map1.getStyle()）
+        (window as unknown as { map1: MapLibreMap }).map1 = map;
+
         // 右下角控件（水平排列见 map.css）
         map.addControl(new NavigationControl({ visualizePitch: true }), 'bottom-right');
         map.addControl(new GeolocateControl({ trackUserLocation: true }), 'bottom-right');
@@ -142,6 +211,24 @@ export default defineComponent({
         // 点击地图 → 右侧弹出 drawer
         map.on('click', () => {
           drawerVisible.value = true;
+        });
+
+        // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
+        map.once('load', () => {
+          map.addSource('scheme-polygons', {
+            type: 'geojson',
+            data: SCHEME_POLYGONS_GEOJSON,
+          });
+          map.addLayer({
+            id: 'scheme-polygons-fill',
+            type: 'fill',
+            source: 'scheme-polygons',
+            paint: {
+              'fill-color': '#FF00FF',
+              'fill-opacity': 0.45,
+              'fill-outline-color': '#D500D5',
+            },
+          });
         });
 
         onCleanup(() => map.remove());
@@ -158,11 +245,7 @@ export default defineComponent({
           }}
           class="relative h-full"
         >
-          <img
-            src={`${OSS_BASE}片区策划-左侧抽屉.webp`}
-            alt="左侧抽屉"
-            class="h-full object-fill"
-          />
+          <img src={`${OSS_BASE}片区策划-左侧抽屉.webp`} alt="左侧抽屉" class="h-full object-fill" />
 
           <div
             class="absolute bg-transparent top-36px right-24px size-40px z-100 cursor-pointer"

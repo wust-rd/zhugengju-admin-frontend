@@ -19,6 +19,7 @@
 - BasicTable 使用面广（57 文件 import `@jeesite/core/components/Table`）。
 - 新增 `@jeesite/display` 演示应用包（2026-08-06）：`/display` 前缀、独立 layout、免登录（meta.ignoreAuth）；
 - **display 包 TSX 组件惯例（2026-08-06）**：组件文件 kebab-case 命名（`logo.tsx`/`nav-links.tsx`/`extra-area.tsx`），但必须**具名导出 PascalCase 变量**（`export const ExtraArea = defineComponent(...)` + 可选 `export default`），否则编辑器自动导入会按文件名推导出小写变量名，JSX 中小写标签被当 HTML 原生元素、组件不渲染。VSCode 无设置可改自动导入命名规则。
+- **display 地图技术栈（2026-08-08）**：`packages/display` 依赖 `maplibre-gl@^6.1.0`（不是 mapboxgl）。**坑 1**：v6 下 style 对象内**内联 geojson source 的 data 不渲染**，必须 `map.once('load')` 后 `map.addSource(id, {type:'geojson', data})` + `map.addLayer({type:'fill', ...})` 动态添加。**坑 2（更隐蔽）**：v6 的 GeoJSON/矢量解析依赖独立 worker，**必须配置 worker URL，否则 geojson 图层不渲染而 raster 底图正常**（maplibre-gl-js #8109）。已建共享模块 `packages/display/utils/maplibre.ts`：`setWorkerUrl(import('maplibre-gl/dist/maplibre-gl-worker.mjs?url'))`，scheme/project 两个地图页面 import 它（须先于 new Map()）。TSX 中 `GeoJSON.FeatureCollection` 全局命名空间不可用（tsconfig 限制），用自定义轻量类型 `type PolygonFeature = { type:'Feature'; properties: Record<string, never>; geometry: { type:'Polygon'; coordinates: number[][][] } }` 标注。天地图底图用 DataServer REST 接口 + t0~t7 子域名，token 取 `import.meta.env.VITE_TIANDITU_TOKEN`。调试用 `window.map1` 需类型断言 `(window as unknown as { map1: MapLibreMap }).map1 = map`（项目无全局声明先例）。
 
 ## 技术栈
 

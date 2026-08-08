@@ -8,6 +8,7 @@ import {
   type StyleSpecification,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import '../../utils/maplibre'; // v6 worker 配置（必须先于 new Map()）
 import './map.css';
 
 /** 天地图 token（web/.env 配置） */
