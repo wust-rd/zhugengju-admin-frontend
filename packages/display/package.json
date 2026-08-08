@@ -21,7 +21,5 @@
     "email": "thinkgem@163.com",
     "url": "https://gitee.com/thinkgem"
   },
-  "dependencies": {
-    "maplibre-gl": "^6.1.0"
-  }
+  "dependencies": {}
 }

@@ -34,7 +34,8 @@
       "node",
       "vue-types",
       "vite/client",
-      "@jeesite/types/global"
+      "@jeesite/types/global",
+      "@jeesite/types/maplibre-gl-enhance"
     ]
   }
 }

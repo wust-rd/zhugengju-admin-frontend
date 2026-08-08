@@ -1,22 +1,15 @@
 import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
-import {
-  Map as MapLibreMap,
-  NavigationControl,
-  GeolocateControl,
-  FullscreenControl,
-  ScaleControl,
-  type StyleSpecification,
-} from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import '../../utils/maplibre'; // v6 worker 配置（必须先于 new Map()）
 import './map.css';
 
 /** 天地图 token（web/.env 配置） */
 const TIANDITU_TOKEN = import.meta.env.VITE_TIANDITU_TOKEN;
 
-/** 天地图 WMTS 瓦片地址生成器（layer: vec 矢量底图 / cva 中文注记） */
+/**
+ * 天地图瓦片地址生成器（DataServer REST 接口，CGCS2000 经纬度 _c 系列，EPSG:4490）
+ * 配合 Map 的 crs: 'EPSG:4490' 使用；layer 传 'vec_c'/'cva_c'
+ */
 function tiandituTiles(layer: string): string {
-  return `https://t0.tianditu.gov.cn/${layer}_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_TOKEN}`;
+  return `https://t0.tianditu.gov.cn/DataServer?T=${layer}&X={x}&Y={y}&L={z}&tk=${TIANDITU_TOKEN}`;
 }
 
 /** 内容图片地址 */
@@ -26,18 +19,18 @@ const RENOVATION_IMAGE_URL =
   'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD/%E9%A1%B9%E7%9B%AE%E6%94%B9%E9%80%A0%E6%83%85%E5%86%B5content.webp';
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
-const tiandituStyle: StyleSpecification = {
+const tiandituStyle: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
     'tianditu-vec': {
       type: 'raster',
-      tiles: [tiandituTiles('vec')],
+      tiles: [tiandituTiles('vec_c')],
       tileSize: 256,
       maxzoom: 18,
     },
     'tianditu-cva': {
       type: 'raster',
-      tiles: [tiandituTiles('cva')],
+      tiles: [tiandituTiles('cva_c')],
       tileSize: 256,
       maxzoom: 18,
     },
@@ -54,22 +47,24 @@ export default defineComponent({
     const activeTab = ref<'base' | 'renovation'>('base');
     const mapContainer = ref<HTMLDivElement | null>(null);
     const previewVisible = ref(false);
-    let map: MapLibreMap | null = null;
+    let map: maplibregl.Map | null = null;
 
     onMounted(() => {
       if (!mapContainer.value) return;
 
-      map = new MapLibreMap({
+      map = new maplibregl.Map({
         container: mapContainer.value,
         style: tiandituStyle,
+        // 天地图 _c 系列瓦片为 CGCS2000 经纬度坐标系，地图 CRS 同步切换为 EPSG:4490
+        crs: 'EPSG:4490',
         center: [116.391, 39.904],
         zoom: 11,
       });
 
-      map.addControl(new NavigationControl({ visualizePitch: true }), 'bottom-right');
-      map.addControl(new GeolocateControl({ trackUserLocation: true }), 'bottom-right');
-      map.addControl(new FullscreenControl(), 'bottom-right');
-      map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-right');
+      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+      map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
+      map.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
+      map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
     });
 
     onUnmounted(() => {

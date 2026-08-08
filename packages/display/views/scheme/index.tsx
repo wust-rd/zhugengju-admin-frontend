@@ -1,22 +1,15 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 import { animate } from 'motion-v';
-import {
-  Map as MapLibreMap,
-  NavigationControl,
-  GeolocateControl,
-  FullscreenControl,
-  ScaleControl,
-  type StyleSpecification,
-} from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import '../../utils/maplibre'; // v6 worker 配置（必须先于 new Map()）
 import './map.css';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
 
-/** 构建天地图瓦片 URL 数组（DataServer REST 接口，EPSG:3857，token 来自 web/.env） */
+/**
+ * 构建天地图瓦片 URL 数组（DataServer REST 接口，CGCS2000 经纬度 _c 系列，EPSG:4490）
+ * 配合 Map 的 crs: 'EPSG:4490' 使用；layer 传 'vec_c'/'cva_c'
+ */
 function tiandituTileUrls(layer: string): string[] {
   return TIANDITU_SUBDOMAINS.map(
     (s) =>
@@ -105,19 +98,19 @@ const SCHEME_POLYGONS_GEOJSON: { type: 'FeatureCollection'; features: PolygonFea
 };
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
-const tiandituStyle: StyleSpecification = {
+const tiandituStyle: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
     'tianditu-vec': {
       type: 'raster',
-      tiles: tiandituTileUrls('vec_w'),
+      tiles: tiandituTileUrls('vec_c'),
       tileSize: 256,
       minzoom: 2,
       maxzoom: 18,
     },
     'tianditu-cva': {
       type: 'raster',
-      tiles: tiandituTileUrls('cva_w'),
+      tiles: tiandituTileUrls('cva_c'),
       tileSize: 256,
       minzoom: 2,
       maxzoom: 18,
@@ -192,21 +185,20 @@ export default defineComponent({
       (el, _, onCleanup) => {
         if (!el) return;
 
-        const map = new MapLibreMap({
+        const map = new maplibregl.Map({
           container: el,
           style: tiandituStyle,
+          // 天地图 _c 系列瓦片为 CGCS2000 经纬度坐标系，地图 CRS 同步切换为 EPSG:4490
+          crs: 'EPSG:4490',
           center: [114.305, 30.593], // 武汉
           zoom: 11,
         });
 
-        // 调试用：浏览器控制台可直接访问地图实例（如 map1.getStyle()）
-        (window as unknown as { map1: MapLibreMap }).map1 = map;
-
         // 右下角控件（水平排列见 map.css）
-        map.addControl(new NavigationControl({ visualizePitch: true }), 'bottom-right');
-        map.addControl(new GeolocateControl({ trackUserLocation: true }), 'bottom-right');
-        map.addControl(new FullscreenControl(), 'bottom-right');
-        map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-right');
+        map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+        map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
+        map.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
+        map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
         // 点击地图 → 右侧弹出 drawer
         map.on('click', () => {
