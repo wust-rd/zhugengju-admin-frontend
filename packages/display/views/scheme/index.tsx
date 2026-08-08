@@ -1,4 +1,4 @@
-import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 import { animate } from 'motion-v';
 import {
   Map as MapLibreMap,
@@ -12,92 +12,29 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './map.css';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 
-/** 天地图 token（web/.env 配置） */
-const TIANDITU_TOKEN = import.meta.env.VITE_TIANDITU_TOKEN;
+/** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
+const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
 
-/** 天地图 WMTS 瓦片地址生成器（EPSG:3857, layer: vec 矢量底图 / cva 中文注记） */
-function tiandituTiles(layer: string): string {
-  return `https://t0.tianditu.gov.cn/${layer}_c/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=default&TILEMATRIXSET=c&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TIANDITU_TOKEN}`;
+/** 构建天地图瓦片 URL 数组（DataServer REST 接口，EPSG:3857，token 来自 web/.env） */
+function tiandituTileUrls(layer: string): string[] {
+  return TIANDITU_SUBDOMAINS.map(
+    (s) =>
+      `https://t${s}.tianditu.gov.cn/DataServer?T=${layer}&X={x}&Y={y}&L={z}&tk=${import.meta.env.VITE_TIANDITU_TOKEN}`,
+  );
 }
 
-/** 抽屉顶部 Tab 项配置 */
+/** OSS 图片基础地址 */
+const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划/';
+
+/** 抽屉 Tab 配置：label + 内容图片 + 弹窗预览图（preview 为空表示不可点击预览） */
 const DRAWER_TABS = [
-  { key: 'basic', label: '基本情况' },
-  { key: 'physical', label: '体检情况' },
-  { key: 'planning', label: '功能策划' },
-  { key: 'project', label: '项目情况' },
-  { key: 'evaluation', label: '实施后评估' },
+  { key: 'basic', label: '基本情况', image: `${OSS_BASE}基本情况.webp`, preview: '' },
+  { key: 'physical', label: '体检情况', image: `${OSS_BASE}体检情况.webp`, preview: `${OSS_BASE}片区策划图册.webp` },
+  { key: 'planning', label: '功能策划', image: `${OSS_BASE}功能策划.webp`, preview: `${OSS_BASE}片区策划图册.webp` },
+  { key: 'project', label: '项目情况', image: `${OSS_BASE}项目情况.webp`, preview: `${OSS_BASE}片区项目清单.webp` },
+  { key: 'evaluation', label: '实施后评估', image: `${OSS_BASE}实施后评估.webp`, preview: `${OSS_BASE}实施后评估-相册.webp` },
 ] as const;
 type DrawerTabKey = (typeof DRAWER_TABS)[number]['key'];
-
-/** 各 tab 内容图片地址（暂时共用同一张，后续请分别替换） */
-const TAB_IMAGE_URLS: Record<DrawerTabKey, string> = {
-  basic:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E5%9F%BA%E6%9C%AC%E6%83%85%E5%86%B5.webp',
-  physical:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E4%BD%93%E6%A3%80%E6%83%85%E5%86%B5.webp',
-  planning:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E5%8A%9F%E8%83%BD%E7%AD%96%E5%88%92.webp',
-  project:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E9%A1%B9%E7%9B%AE%E6%83%85%E5%86%B5.webp',
-  evaluation:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E5%AE%9E%E6%96%BD%E5%90%8E%E8%AF%84%E4%BC%B0.webp',
-};
-
-/** 各 tab 弹窗预览图片地址（暂共用一张，后续请分别替换） */
-const MODAL_IMAGE_URLS: Record<DrawerTabKey, string> = {
-  basic: '',
-  physical:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92%E5%9B%BE%E5%86%8C.webp',
-  planning:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92%E5%9B%BE%E5%86%8C.webp',
-  project:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E7%89%87%E5%8C%BA%E9%A1%B9%E7%9B%AE%E6%B8%85%E5%8D%95.webp',
-  evaluation:
-    'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E5%AE%9E%E6%96%BD%E5%90%8E%E8%AF%84%E4%BC%B0-%E7%9B%B8%E5%86%8C.webp',
-};
-
-/** 左侧抽屉内容图片地址 */
-const LEFT_DRAWER_IMAGE_URL =
-  'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92/%E7%89%87%E5%8C%BA%E7%AD%96%E5%88%92-%E5%B7%A6%E4%BE%A7%E6%8A%BD%E5%B1%89.webp';
-
-/** 示例点位数据，后续请替换为真实数据源 */
-const DEMO_POINTS_GEOJSON = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Point',
-        coordinates: [114.2657064, 30.601046],
-      },
-    },
-  ],
-};
-
-/** 示例 polygon 数据（蓝色区域），后续请替换为真实数据源 */
-const DEMO_POLYGON_GEOJSON = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Polygon',
-        coordinates: [
-          [
-            [114.26, 30.53],
-            [114.36, 30.53],
-            [114.36, 30.63],
-            [114.26, 30.63],
-            [114.26, 30.53],
-          ],
-        ],
-      },
-    },
-  ],
-};
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: StyleSpecification = {
@@ -105,59 +42,22 @@ const tiandituStyle: StyleSpecification = {
   sources: {
     'tianditu-vec': {
       type: 'raster',
-      tiles: [tiandituTiles('vec')],
+      tiles: tiandituTileUrls('vec_w'),
       tileSize: 256,
+      minzoom: 2,
       maxzoom: 18,
-      scheme: 'tms',
     },
     'tianditu-cva': {
       type: 'raster',
-      tiles: [tiandituTiles('cva')],
+      tiles: tiandituTileUrls('cva_w'),
       tileSize: 256,
+      minzoom: 2,
       maxzoom: 18,
-      scheme: 'tms',
-    },
-    'demo-polygon': {
-      type: 'geojson',
-      data: DEMO_POLYGON_GEOJSON,
-    },
-    'demo-points': {
-      type: 'geojson',
-      data: DEMO_POINTS_GEOJSON,
     },
   },
   layers: [
     { id: 'tianditu-vec', type: 'raster', source: 'tianditu-vec' },
     { id: 'tianditu-cva', type: 'raster', source: 'tianditu-cva' },
-    {
-      id: 'demo-points-circle',
-      type: 'circle',
-      source: 'demo-points',
-      paint: {
-        'circle-radius': 8,
-        'circle-color': '#ef4444',
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff',
-      },
-    },
-    {
-      id: 'demo-polygon-fill',
-      type: 'fill',
-      source: 'demo-polygon',
-      paint: {
-        'fill-color': '#3b82f6',
-        'fill-opacity': 1,
-      },
-    },
-    {
-      id: 'demo-polygon-outline',
-      type: 'line',
-      source: 'demo-polygon',
-      paint: {
-        'line-color': '#1d4ed8',
-        'line-width': 2,
-      },
-    },
   ],
 };
 
@@ -174,7 +74,11 @@ export default defineComponent({
     const expandVisible = ref(false);
     /** 左侧抽屉收起前的原始宽度，展开动画恢复用 */
     let drawerWidth = 0;
-    let map: MapLibreMap | null = null;
+
+    /** 当前 Tab 配置（含内容图与预览图），单一数据源派生，避免重复查找 */
+    const activeTabConfig = computed(
+      () => DRAWER_TABS.find((t) => t.key === activeTab.value) ?? DRAWER_TABS[0],
+    );
 
     /** 点击红色方块：左侧抽屉容器宽度收缩并渐隐，动画结束后彻底隐藏，并显示展开按钮 */
     const hideDrawer = () => {
@@ -216,32 +120,34 @@ export default defineComponent({
       );
     };
 
-    onMounted(() => {
-      if (!mapContainer.value) return;
+    // 地图生命周期高内聚：容器挂载后初始化，组件卸载时自动清理
+    watch(
+      mapContainer,
+      (el, _, onCleanup) => {
+        if (!el) return;
 
-      map = new MapLibreMap({
-        container: mapContainer.value,
-        style: tiandituStyle,
-        center: [114.305, 30.593], // 武汉
-        zoom: 11,
-      });
+        const map = new MapLibreMap({
+          container: el,
+          style: tiandituStyle,
+          center: [114.305, 30.593], // 武汉
+          zoom: 11,
+        });
 
-      // 右下角控件（水平排列见 map.css）
-      map.addControl(new NavigationControl({ visualizePitch: true }), 'bottom-right');
-      map.addControl(new GeolocateControl({ trackUserLocation: true }), 'bottom-right');
-      map.addControl(new FullscreenControl(), 'bottom-right');
-      map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-right');
+        // 右下角控件（水平排列见 map.css）
+        map.addControl(new NavigationControl({ visualizePitch: true }), 'bottom-right');
+        map.addControl(new GeolocateControl({ trackUserLocation: true }), 'bottom-right');
+        map.addControl(new FullscreenControl(), 'bottom-right');
+        map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-right');
 
-      // 点击地图 → 右侧弹出 drawer
-      map.on('click', () => {
-        drawerVisible.value = true;
-      });
-    });
+        // 点击地图 → 右侧弹出 drawer
+        map.on('click', () => {
+          drawerVisible.value = true;
+        });
 
-    onUnmounted(() => {
-      map?.remove();
-      map = null;
-    });
+        onCleanup(() => map.remove());
+      },
+      { immediate: true },
+    );
 
     return () => (
       <>
@@ -252,7 +158,11 @@ export default defineComponent({
           }}
           class="relative h-full"
         >
-          <img src={LEFT_DRAWER_IMAGE_URL} alt="左侧抽屉" class="h-full object-fill" />
+          <img
+            src={`${OSS_BASE}片区策划-左侧抽屉.webp`}
+            alt="左侧抽屉"
+            class="h-full object-fill"
+          />
 
           <div
             class="absolute bg-transparent top-36px right-24px size-40px z-100 cursor-pointer"
@@ -303,14 +213,14 @@ export default defineComponent({
             ))}
           </div>
 
-          {/* 内容区：每个 tab 显示一张图片（体检情况 / 功能策划可点击预览） */}
+          {/* 内容区：每个 tab 显示一张图片（有 preview 配置的 tab 可点击预览） */}
           <div class="scrollbar-none flex-1 overflow-y-auto">
             <img
-              src={TAB_IMAGE_URLS[activeTab.value]}
-              alt={DRAWER_TABS.find((t) => t.key === activeTab.value)?.label ?? '内容图片'}
-              class={'w-full rounded-lg ' + (MODAL_IMAGE_URLS[activeTab.value] ? 'cursor-pointer' : '')}
+              src={activeTabConfig.value.image}
+              alt={activeTabConfig.value.label}
+              class={'w-full rounded-lg ' + (activeTabConfig.value.preview ? 'cursor-pointer' : '')}
               onClick={() => {
-                if (MODAL_IMAGE_URLS[activeTab.value]) {
+                if (activeTabConfig.value.preview) {
                   previewVisible.value = true;
                 }
               }}
@@ -318,14 +228,14 @@ export default defineComponent({
           </div>
         </div>
 
-        {/* 预览 Modal：体检情况 / 功能策划 点击图片弹出 */}
-        {previewVisible.value && MODAL_IMAGE_URLS[activeTab.value] && (
+        {/* 预览 Modal：有 preview 配置的 tab 点击图片弹出 */}
+        {previewVisible.value && activeTabConfig.value.preview && (
           <div
             class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60"
             onClick={() => (previewVisible.value = false)}
           >
             <img
-              src={MODAL_IMAGE_URLS[activeTab.value]}
+              src={activeTabConfig.value.preview}
               alt="图片预览"
               class="max-h-[90vh] w-884px rounded-xl object-contain shadow-2xl"
               onClick={(e) => e.stopPropagation()}
