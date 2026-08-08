@@ -17,7 +17,7 @@ import { UserProfile } from './user-profile';
 export const Header = defineComponent({
   setup(_, { slots }) {
     return () => (
-      <header
+      <div
         class="sticky top-0 z-50 flex h-88px w-full items-center"
         style={{
           background: '#001F40',
@@ -44,7 +44,7 @@ export const Header = defineComponent({
             background: 'linear-gradient(90deg, rgba(95, 191, 255, 0), rgba(95, 191, 255, 0.8))',
           }}
         />
-      </header>
+      </div>
     );
   },
 });

@@ -41,14 +41,14 @@ export default defineComponent({
         <Header />
 
         {/* 内容区：flex-1 占满剩余高度（min-h-0 允许压缩，否则被内容最小高度撑破） */}
-        <main class="min-h-0 flex-1 flex items-start">
+        <div class="min-h-0 flex-1 flex items-start">
           <Sidebar />
 
           {/* 路由视图：内容区 */}
           <div class="min-h-0 flex-1 flex h-full">
             <RouterView />
           </div>
-        </main>
+        </div>
       </div>
     );
   },

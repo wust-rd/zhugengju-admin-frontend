@@ -5,7 +5,7 @@
 ## 项目文档体系（2026-08-05 建立）
 
 - 根目录 `CODE_WIKI.md`：代码维基（依赖/架构/模块划分包图 + 各模块用例图/流程图/顺序图，mermaid）。
-- 根目录 `RULES.md`：通用模式 R1~R11（三文件页面/API 定义/权限码/i18n/CollapseForm/树形页面/组件封装/Store/路由模块/消息提示/Checklist）。
+- 根目录 `RULES.md`：通用模式 R1~R12（三文件页面/API 定义/权限码/i18n/CollapseForm/树形页面/组件封装/Store/路由模块/消息提示/Checklist/**R12 UI 结构标签规范**）。
 - 根目录 `AGENT.md`：AI 工作指南，含文档同步规则。
 - 8 个复杂实现目录各建 `README.md`（http/axios、router/guard、router/helper、store/modules、layouts/default、layouts/views/login、cms/article、dfm/designer）。
 - **规则**：业务变化时必须同步更新上述文档（见 AGENT.md §4）。
@@ -19,6 +19,7 @@
 - BasicTable 使用面广（57 文件 import `@jeesite/core/components/Table`）。
 - 新增 `@jeesite/display` 演示应用包（2026-08-06）：`/display` 前缀、独立 layout、免登录（meta.ignoreAuth）；
 - **display 包 TSX 组件惯例（2026-08-06）**：组件文件 kebab-case 命名（`logo.tsx`/`nav-links.tsx`/`extra-area.tsx`），但必须**具名导出 PascalCase 变量**（`export const ExtraArea = defineComponent(...)` + 可选 `export default`），否则编辑器自动导入会按文件名推导出小写变量名，JSX 中小写标签被当 HTML 原生元素、组件不渲染。VSCode 无设置可改自动导入命名规则。
+- **UI 结构标签规范（2026-08-08，RULES.md R12）**：全项目结构容器**一律用 `<div>`，禁用 HTML5 语义标签**（header/aside/main/footer/nav/section/article 等，h1~h6 同样禁用，字号用 class 控制）；组件引用必须 PascalCase。起因：display 包 `<sidebar>` 小写非标准标签触发 Vue "Failed to resolve component" 警告。display 包全部布局组件（header/sidebar/layouts）已把 `<header>`/`<aside>`/`<main>` 改为 `<div>`。
 - **display 地图技术栈（2026-08-08，最终版）**：地图引擎为**超图定制版 `maplibre-gl-enhance.js`**（基于官方 v4.3.0 fork，20250425 构建，含 CRS 自定义坐标系 + proj4 + MGRS + mapbox 兼容，worker 内联）。**非 npm 依赖**：由 `web/index.html` 全局加载 `<script src="/maplibregl/maplibre-gl-enhance.js">`（UMD 挂 `window.maplibregl`）+ `<link href="/maplibregl/maplibre-gl-enhance.css">`；文件在 `web/public/maplibregl/`（另有 `iclient-maplibregl.min.css` 供超图 iclient 库用，当前未引）。**类型（已迁移到 types 包）**：`packages/types/maplibre-gl-enhance.d.ts` 全局 `declare namespace maplibregl`（借鉴官方 v4.3.0 d.ts 精炼公共 API + 超图增强 CRS/customprj/toMGRS），由**根 tsconfig 的 `compilerOptions.types` 数组**引用 `"@jeesite/types/maplibre-gl-enhance"` 全局加载（与 `@jeesite/types/global` 同机制，经 workspace 链接解析），全 monorepo（web/core/cms/dbm/display）生效；页面直接 `maplibregl.Map` 无需 import；官方 npm 包已删除（lockfile 无 maplibre）。**要点**：全局脚本声明（无 import/export）不能走 `index.d.ts` 的 `export *` 模块导出（会破坏全局性），必须靠 tsconfig `types` 数组加载。**坑（v4/v6 通用）**：style 对象内内联 geojson source 的 data 不渲染，需 `map.once('load')` 后动态 `addSource`/`addLayer`。TSX 中 `GeoJSON.FeatureCollection` 全局命名空间不可用，用自定义轻量类型 `PolygonFeature` 标注。天地图底图用 DataServer REST 接口 + t0~t7 子域名，token 取 `import.meta.env.VITE_TIANDITU_TOKEN`。调试用 `window.map1` 需类型断言。
 
 ## 技术栈

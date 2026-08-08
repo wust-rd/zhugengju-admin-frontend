@@ -336,6 +336,34 @@ createConfirm({
 
 ---
 
+## R12. UI 结构标签规范（统一 div，禁用 HTML5 语义标签）
+
+> 适用：所有页面/组件模板（display 包强制，全项目通用）。使用频率：display 包全部布局组件。
+>
+> **背景**：display 包曾用小写 `<sidebar>` 作为根标签（非标准 HTML 元素），Vue 报警 `Failed to resolve component: sidebar`；随后统一改为语义标签又出现 `header`/`aside`/`main` 混用。为消除歧义、统一视觉基准，规定结构容器一律用 `div`。
+
+### 规则
+
+1. **结构容器一律用 `<div>`**：禁止使用 HTML5 语义标签（`header` / `aside` / `main` / `footer` / `nav` / `section` / `article` / `figure` / `figcaption` 等）作为布局/结构元素；标题类标签（`h1~h6`）同样禁用，字号/加粗用 class 控制。
+2. **组件引用必须 PascalCase**（`<Header />`、`<NavItem />`）；小写标签一律被视为原生元素——非标准标签（如 `sidebar`）会触发 Vue 组件解析警告且不渲染。
+3. **语义通过组件命名表达**：如 `Header` 组件内部根节点是 `<div>`，业务语义由组件名承载，不依赖 HTML 标签语义。
+4. **理由**：项目为纯展示层，样式全部由 UnoCSS/内联 style 控制；语义标签引入浏览器默认样式差异（`h1~h6` 字号加粗、`button` 边框等），并造成标签风格不统一。
+
+### 示例
+
+```tsx
+// ✅ 正确：div + class 表达布局，组件 PascalCase
+<div class="sticky z-50 relative flex w-80px h-full flex-col items-center shrink-0">
+  <NavItem />
+</div>
+
+// ❌ 错误：非标准小写标签（Vue 报警） / 语义标签（风格不统一）
+<sidebar class="..."> ... </sidebar>
+<header> ... </header>
+```
+
+---
+
 ## 文档索引
 
 | 文档 | 内容 |
