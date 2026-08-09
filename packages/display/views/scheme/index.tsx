@@ -2,6 +2,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { animate } from 'motion-v';
 import './map.css';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
+import { MapControls } from '../../components/map-controls';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -16,7 +17,6 @@ function tiandituTileUrls(layer: string): string[] {
       `https://t${s}.tianditu.gov.cn/DataServer?T=${layer}&X={x}&Y={y}&L={z}&tk=${import.meta.env.VITE_TIANDITU_TOKEN}`,
   );
 }
-
 /** OSS 图片基础地址 */
 const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划/';
 
@@ -29,7 +29,7 @@ const DRAWER_TABS = [
   {
     key: 'evaluation',
     label: '实施后评估',
-    image: `${OSS_BASE}实施后评估.webp`,
+    image: `${OSS_BASE}项目情况.webp`,
     preview: `${OSS_BASE}实施后评估-相册.webp`,
   },
 ] as const;
@@ -126,6 +126,7 @@ export default defineComponent({
   name: 'DisplayScheme',
   setup() {
     const mapContainer = ref<HTMLDivElement | null>(null);
+    const mapRef = ref<maplibregl.Map | null>(null);
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(false);
@@ -185,7 +186,7 @@ export default defineComponent({
       (el, _, onCleanup) => {
         if (!el) return;
 
-        const map = new maplibregl.Map({
+        mapRef.value = new maplibregl.Map({
           container: el,
           style: tiandituStyle,
           // 天地图 _c 系列瓦片为 CGCS2000 经纬度坐标系，地图 CRS 同步切换为 EPSG:4490
@@ -194,24 +195,18 @@ export default defineComponent({
           zoom: 11,
         });
 
-        // 右下角控件（水平排列见 map.css）
-        map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-        map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
-        map.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
-        map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
-
         // 点击地图 → 右侧弹出 drawer
-        map.on('click', () => {
+        mapRef.value.on('click', () => {
           drawerVisible.value = true;
         });
 
         // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
-        map.once('load', () => {
-          map.addSource('scheme-polygons', {
+        mapRef.value.once('load', () => {
+          mapRef.value?.addSource('scheme-polygons', {
             type: 'geojson',
             data: SCHEME_POLYGONS_GEOJSON,
           });
-          map.addLayer({
+          mapRef.value?.addLayer({
             id: 'scheme-polygons-fill',
             type: 'fill',
             source: 'scheme-polygons',
@@ -223,7 +218,10 @@ export default defineComponent({
           });
         });
 
-        onCleanup(() => map.remove());
+        onCleanup(() => {
+          mapRef.value?.remove();
+          mapRef.value = null;
+        });
       },
       { immediate: true },
     );
@@ -252,6 +250,11 @@ export default defineComponent({
             }}
             class="map-custom-controls h-full w-full relative"
           />
+
+          {/* 地图控件：右下角 */}
+          <div class="absolute right-24px bottom-24px z-10">
+            <MapControls map={mapRef.value} />
+          </div>
 
           {expandVisible.value && (
             <img

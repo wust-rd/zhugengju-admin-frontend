@@ -468,6 +468,8 @@ declare namespace maplibregl {
     getCenter(): LngLat;
     setZoom(zoom: number, eventData?: unknown): this;
     getZoom(): number;
+    zoomIn(options?: { duration?: number; easing?: (t: number) => number }, eventData?: unknown): this;
+    zoomOut(options?: { duration?: number; easing?: (t: number) => number }, eventData?: unknown): this;
     setMinZoom(minZoom: number | null): this;
     getMinZoom(): number;
     setMaxZoom(maxZoom: number | null): this;

@@ -1,89 +1,25 @@
-import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
-import './map.css';
+import { defineComponent, ref } from 'vue';
 
-/** 天地图 token（web/.env 配置） */
-const TIANDITU_TOKEN = import.meta.env.VITE_TIANDITU_TOKEN;
-
-/**
- * 天地图瓦片地址生成器（DataServer REST 接口，CGCS2000 经纬度 _c 系列，EPSG:4490）
- * 配合 Map 的 crs: 'EPSG:4490' 使用；layer 传 'vec_c'/'cva_c'
- */
-function tiandituTiles(layer: string): string {
-  return `https://t0.tianditu.gov.cn/DataServer?T=${layer}&X={x}&Y={y}&L={z}&tk=${TIANDITU_TOKEN}`;
-}
+/** 项目底图 */
+const MAP_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/知音东院片.webp';
 
 /** 内容图片地址 */
-const BASE_IMAGE_URL =
-  'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD/%E9%A1%B9%E7%9B%AE%E5%9F%BA%E6%9C%AC%E4%BF%A1%E6%81%AFcontent.webp';
-const RENOVATION_IMAGE_URL =
-  'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD/%E9%A1%B9%E7%9B%AE%E6%94%B9%E9%80%A0%E6%83%85%E5%86%B5content.webp';
-
-/** 天地图底图：矢量底图 + 中文注记叠加 */
-const tiandituStyle: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'tianditu-vec': {
-      type: 'raster',
-      tiles: [tiandituTiles('vec_c')],
-      tileSize: 256,
-      maxzoom: 18,
-    },
-    'tianditu-cva': {
-      type: 'raster',
-      tiles: [tiandituTiles('cva_c')],
-      tileSize: 256,
-      maxzoom: 18,
-    },
-  },
-  layers: [
-    { id: 'tianditu-vec', type: 'raster', source: 'tianditu-vec' },
-    { id: 'tianditu-cva', type: 'raster', source: 'tianditu-cva' },
-  ],
-};
+const BASE_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/项目基本信息.webp';
+const RENOVATION_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/项目改造情况.webp';
 
 export default defineComponent({
   name: 'DisplayProject',
   setup() {
     const activeTab = ref<'base' | 'renovation'>('base');
-    const mapContainer = ref<HTMLDivElement | null>(null);
     const previewVisible = ref(false);
-    let map: maplibregl.Map | null = null;
-
-    onMounted(() => {
-      if (!mapContainer.value) return;
-
-      map = new maplibregl.Map({
-        container: mapContainer.value,
-        style: tiandituStyle,
-        // 天地图 _c 系列瓦片为 CGCS2000 经纬度坐标系，地图 CRS 同步切换为 EPSG:4490
-        crs: 'EPSG:4490',
-        center: [116.391, 39.904],
-        zoom: 11,
-      });
-
-      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-      map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }), 'bottom-right');
-      map.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
-      map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
-    });
-
-    onUnmounted(() => {
-      map?.remove();
-      map = null;
-    });
 
     return () => {
       const isBase = activeTab.value === 'base';
 
       return (
         <div class="relative h-full w-full">
-          {/* 地图底层（与 scheme 一致的容器结构） */}
-          <div
-            ref={(el) => {
-              mapContainer.value = el as HTMLDivElement | null;
-            }}
-            class="map-custom-controls h-full w-full"
-          />
+          {/* 项目底图 */}
+          <img src={MAP_IMAGE_URL} alt="项目地图" class="size-full object-cover bg-center" />
 
           {/* Tab 切换器 + 内容区（浮在地图上方右上角，宽度一致） */}
           <div class="absolute top-24px right-24px z-10 w-420px">
@@ -139,7 +75,7 @@ export default defineComponent({
               onClick={() => (previewVisible.value = false)}
             >
               <img
-                src="https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%96%BD/%E6%A1%86.webp"
+                src="https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/框.webp"
                 alt="图片预览"
                 class="w-776px h-548px bg-cover"
               />

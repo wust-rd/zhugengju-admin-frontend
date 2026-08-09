@@ -47,7 +47,7 @@ export const MapControls = defineComponent({
         {/* 罗盘：重置方位 */}
         <button
           type="button"
-          class={`${btnBase} size-60px`}
+          class={`${btnBase} size-48px`}
           title="重置方位"
           aria-label="重置方位"
           onClick={handleResetBearing}
@@ -63,7 +63,7 @@ export const MapControls = defineComponent({
         {/* 2D / 3D 切换 */}
         <button
           type="button"
-          class={`${btnBase} size-60px px-22px text-22px font-600 tracking-wider ${
+          class={`${btnBase} size-48px px-22px text-22px font-600 tracking-wider ${
             is3D.value ? 'text-[#5fbfff]' : 'text-white'
           }`}
           title={is3D.value ? '切换到 2D' : '切换到 3D'}
@@ -74,10 +74,10 @@ export const MapControls = defineComponent({
         </button>
 
         {/* 缩放：+ / - */}
-        <div class={`${btnBase} h-60px overflow-hidden`}>
+        <div class={`${btnBase} h-48px overflow-hidden`}>
           <button
             type="button"
-            class="flex h-full w-60px cursor-pointer items-center justify-center border-none bg-transparent text-26px text-white font-300 hover:bg-[#4a5b71]"
+            class="flex h-full w-48px cursor-pointer items-center justify-center border-none bg-transparent text-26px text-white font-300 hover:bg-[#4a5b71]"
             onClick={handleZoomIn}
             title="放大"
           >
@@ -86,7 +86,7 @@ export const MapControls = defineComponent({
 
           <button
             type="button"
-            class="flex h-full w-60px cursor-pointer items-center justify-center border-none bg-transparent text-28px text-white font-300 hover:bg-[#4a5b71]"
+            class="flex h-full w-48px cursor-pointer items-center justify-center border-none bg-transparent text-28px text-white font-300 hover:bg-[#4a5b71]"
             onClick={handleZoomOut}
             title="缩小"
           >
