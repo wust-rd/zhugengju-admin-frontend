@@ -2,6 +2,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { animate } from 'motion-v';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
+import { ProjectTabContent } from '../../components/project-tab-content';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -29,7 +30,7 @@ const DRAWER_TABS = [
   {
     key: 'evaluation',
     label: '实施后评估',
-    image: `${OSS_BASE}实施后评估.webp`,
+    image: `${OSS_BASE}项目情况.webp`,
     preview: `${OSS_BASE}实施后评估-相册.webp`,
   },
 ] as const;
@@ -133,6 +134,8 @@ export default defineComponent({
     const drawerVisible = ref(false);
     const activeTab = ref<DrawerTabKey>('physical');
     const previewVisible = ref(false);
+    /** 项目 tab 三个按钮点击后弹出的图片地址 */
+    const projectPreviewSrc = ref('');
     /** 左侧抽屉收起后，显示左上角展开按钮 */
     const expandVisible = ref(false);
     /** 左侧抽屉收起前的原始宽度，展开动画恢复用 */
@@ -140,6 +143,20 @@ export default defineComponent({
 
     /** 当前 Tab 配置（含内容图与预览图），单一数据源派生，避免重复查找 */
     const activeTabConfig = computed(() => DRAWER_TABS.find((t) => t.key === activeTab.value) ?? DRAWER_TABS[0]);
+    /** project / evaluation tab 使用 ProjectTabContent 多按钮组件 */
+    const isMultiButtonTab = computed(
+      () => activeTab.value === 'project' || activeTab.value === 'evaluation',
+    );
+    /** 预览弹窗的图片地址：多按钮 tab 用回调传入的地址，其余 tab 用配置的 preview */
+    const previewImageSrc = computed(() =>
+      isMultiButtonTab.value ? projectPreviewSrc.value : activeTabConfig.value.preview ?? '',
+    );
+
+    /** 关闭预览弹窗 */
+    const closePreview = () => {
+      previewVisible.value = false;
+      projectPreviewSrc.value = '';
+    };
 
     /** 点击红色方块：左侧抽屉容器宽度收缩并渐隐，动画结束后彻底隐藏，并显示展开按钮 */
     const hideDrawer = () => {
@@ -297,33 +314,46 @@ export default defineComponent({
             ))}
           </div>
 
-          {/* 内容区：每个 tab 显示一张图片（有 preview 配置的 tab 可点击预览） */}
+          {/* 内容区：多按钮 tab（project / evaluation）使用 ProjectTabContent，其余 tab 为单图点击预览 */}
           <div class="scrollbar-none flex-1 overflow-y-auto">
-            <img
-              src={activeTabConfig.value.image}
-              alt={activeTabConfig.value.label}
-              class={'w-full rounded-lg ' + (activeTabConfig.value.preview ? 'cursor-pointer' : '')}
-              onClick={() => {
-                if (activeTabConfig.value.preview) {
+            {isMultiButtonTab.value ? (
+              <ProjectTabContent
+                bgImage={activeTabConfig.value.image}
+                topImage={`${OSS_BASE}片区项目清单.webp`}
+                middleImage={`${OSS_BASE}片区资金情况.webp`}
+                bottomImage={`${OSS_BASE}实施后评估-相册.webp`}
+                onPreview={(src: string) => {
+                  projectPreviewSrc.value = src;
                   previewVisible.value = true;
-                }
-              }}
-            />
+                }}
+              />
+            ) : (
+              <img
+                src={activeTabConfig.value.image}
+                alt={activeTabConfig.value.label}
+                class={'w-full rounded-lg ' + (activeTabConfig.value.preview ? 'cursor-pointer' : '')}
+                onClick={() => {
+                  if (activeTabConfig.value.preview) {
+                    previewVisible.value = true;
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
 
-        {/* 预览 Modal：有 preview 配置的 tab 点击图片弹出 */}
-        {previewVisible.value && activeTabConfig.value.preview && (
-          <div
-            class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60"
-            onClick={() => (previewVisible.value = false)}
-          >
-            <img
-              src={activeTabConfig.value.preview}
-              alt="图片预览"
-              class="max-h-[90vh] w-884px rounded-xl object-contain shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+        {/* 预览 Modal：多按钮 tab 由 ProjectTabContent 的 onPreview 回调驱动，其余 tab 由 preview 配置驱动 */}
+        {previewVisible.value && previewImageSrc.value && (
+          <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60" onClick={closePreview}>
+            <div class="relative inline-block" onClick={(e: MouseEvent) => e.stopPropagation()}>
+              <img
+                src={previewImageSrc.value}
+                alt="图片预览"
+                class="max-h-[90vh] w-884px rounded-xl object-contain shadow-2xl"
+              />
+              {/* 右上角关闭按钮 */}
+              <div class="absolute right-0px top-0px size-64px cursor-pointer" onClick={closePreview}></div>
+            </div>
           </div>
         )}
       </>
