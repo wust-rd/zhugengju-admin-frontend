@@ -3,6 +3,11 @@ import { animate } from 'motion-v';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
 import { ProjectTabContent } from '../../components/project-tab-content';
+import { ScrollArea } from '@jeesite/display/components/scroll-area';
+/** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
+import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
+import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
+import { colors } from '@jeesite/core/libs/colors';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -35,68 +40,6 @@ const DRAWER_TABS = [
   },
 ] as const;
 type DrawerTabKey = (typeof DRAWER_TABS)[number]['key'];
-
-/** 片区多边形 Feature（轻量类型，避免依赖 GeoJSON 全局命名空间） */
-type PolygonFeature = {
-  type: 'Feature';
-  properties: Record<string, never>;
-  geometry: { type: 'Polygon'; coordinates: number[][][] };
-};
-
-/** 五个策划片区多边形（武汉汉口/武昌/汉阳/光谷一带，demo 数据） */
-const SCHEME_POLYGONS_GEOJSON: { type: 'FeatureCollection'; features: PolygonFeature[] } = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Polygon',
-        coordinates: [
-          [
-            [114.26952961137431, 30.590157896660216],
-            [114.28515272702992, 30.590157896660216],
-            [114.28515272702992, 30.575400409332417],
-            [114.26952961137431, 30.575400409332417],
-            [114.26952961137431, 30.590157896660216],
-          ],
-        ],
-      },
-    },
-    {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Polygon',
-        coordinates: [
-          [
-            [114.29506644816655, 30.583030883900392],
-            [114.32479376545626, 30.583030883900392],
-            [114.32479376545626, 30.560611914344193],
-            [114.29506644816655, 30.560611914344193],
-            [114.29506644816655, 30.583030883900392],
-          ],
-        ],
-      },
-    },
-    {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Polygon',
-        coordinates: [
-          [
-            [114.29810427621095, 30.60236308209285],
-            [114.31936907252049, 30.60236308209285],
-            [114.31936907252049, 30.590409327626432],
-            [114.29810427621095, 30.590409327626432],
-            [114.29810427621095, 30.60236308209285],
-          ],
-        ],
-      },
-    },
-  ],
-};
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: maplibregl.StyleSpecification = {
@@ -204,13 +147,16 @@ export default defineComponent({
       (el, _, onCleanup) => {
         if (!el) return;
 
+        // 组件卸载时置为 true，防止异步 fetch 完成后向已销毁的地图添加图层
+        let disposed = false;
+
         const map = new maplibregl.Map({
           container: el,
           style: tiandituStyle,
           // 天地图 _c 系列瓦片为 CGCS2000 经纬度坐标系，地图 CRS 同步切换为 EPSG:4490
           crs: 'EPSG:4490',
-          center: [114.305, 30.593], // 武汉
-          zoom: 11,
+          center: [114.386, 30.73], // 数据范围中心（武汉）
+          zoom: 10,
         });
         mapInstance.value = map;
 
@@ -225,23 +171,45 @@ export default defineComponent({
 
         // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
         map.once('load', () => {
-          map.addSource('scheme-polygons', {
-            type: 'geojson',
-            data: SCHEME_POLYGONS_GEOJSON,
-          });
-          map.addLayer({
-            id: 'scheme-polygons-fill',
-            type: 'fill',
-            source: 'scheme-polygons',
-            paint: {
-              'fill-color': '#FF00FF',
-              'fill-opacity': 0.45,
-              'fill-outline-color': '#D500D5',
-            },
-          });
+          // 范围线 line 图层（浅灰 3px）：从 area_merged_all.geojson 异步加载
+          fetch(areaUrl)
+            .then((res) => res.json())
+            .then((data) => {
+              if (disposed || map.getSource('area-lines')) return;
+              map.addSource('area-lines', { type: 'geojson', data });
+              map.addLayer({
+                id: 'area-lines',
+                type: 'line',
+                source: 'area-lines',
+                paint: {
+                  'line-color': colors.stone[400],
+                  'line-width': 4,
+                },
+              });
+            })
+            .catch(() => {});
+
+          // 项目地块 fill 图层（BATCH：第一批紫 / 第二批深蓝）：从 project_merged_all.geojson 异步加载
+          fetch(projectUrl)
+            .then((res) => res.json())
+            .then((data) => {
+              if (disposed || map.getSource('project-fills')) return;
+              map.addSource('project-fills', { type: 'geojson', data });
+              map.addLayer({
+                id: 'project-fills',
+                type: 'fill',
+                source: 'project-fills',
+                paint: {
+                  'fill-color': ['match', ['get', 'BATCH'], '第一批', '#773ceb', '第二批', '#3a86ec', '#A855F7'],
+                  'fill-opacity': 0.8,
+                },
+              });
+            })
+            .catch(() => {});
         });
 
         onCleanup(() => {
+          disposed = true;
           mapInstance.value = null;
           map.remove();
         });
@@ -340,6 +308,19 @@ export default defineComponent({
               />
             )}
           </div>
+          {/* 内容区：每个 tab 显示一张图片（有 preview 配置的 tab 可点击预览），ScrollArea 自绘滚动条使图片可滚动 */}
+          <ScrollArea className="flex-1">
+            <img
+              src={activeTabConfig.value.image}
+              alt={activeTabConfig.value.label}
+              class={'w-full rounded-lg ' + (activeTabConfig.value.preview ? 'cursor-pointer' : '')}
+              onClick={() => {
+                if (activeTabConfig.value.preview) {
+                  previewVisible.value = true;
+                }
+              }}
+            />
+          </ScrollArea>
         </div>
 
         {/* 预览 Modal：多按钮 tab 由 ProjectTabContent 的 onPreview 回调驱动，其余 tab 由 preview 配置驱动 */}
