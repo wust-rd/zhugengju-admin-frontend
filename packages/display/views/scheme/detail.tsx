@@ -22,9 +22,23 @@ const DRAWER_TABS = [
 ] as const;
 type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
 
+/** 页面涉及的全部静态图片（返回按钮 + 各 Tab 背景图 + 抽屉内容图 + 预览图 + 资金图），组件加载时统一预加载 */
+const PRELOAD_IMAGES = [
+  `${OSS_BASE}/知音东苑片-返回.webp`,
+  ...DRAWER_TABS.map((t) => `${OSS_BASE}/知音东苑片-${t.label}.webp`),
+  ...DRAWER_TABS.flatMap((t) => [t.image, t.preview].filter(Boolean)),
+  `${OSS_BASE}/片区资金情况.webp`,
+];
+
 export default defineComponent({
   name: 'DisplaySchemeDetail',
   setup() {
+    // 组件加载即预加载所有图片（触发浏览器缓存，切换 Tab / 打开预览不再闪烁）
+    PRELOAD_IMAGES.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
+
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(true);
