@@ -58,13 +58,14 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '项目实施',
         },
       },
-      // 新增演示页面示例：
-      // {
-      //   path: 'about',
-      //   name: 'DisplayAbout',
-      //   component: () => import('../views/about/index'),
-      //   meta: { title: '关于', ignoreAuth: true },
-      // },
+      {
+        path: 'evaluation',
+        name: 'DisplayEvaluation',
+        component: () => import('../views/evaluation/index'),
+        meta: {
+          title: '成果评估',
+        },
+      },
     ],
   },
 ];

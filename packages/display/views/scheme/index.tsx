@@ -299,7 +299,7 @@ export default defineComponent({
             'opacity-0': !drawerVisible.value,
           })}
         >
-          <RouterLink to="scheme/detail">
+          <RouterLink to="/display/scheme/detail">
             <img src={PIANQU_IMG} class="w-320px h-800px object-fill" />
           </RouterLink>
         </div>

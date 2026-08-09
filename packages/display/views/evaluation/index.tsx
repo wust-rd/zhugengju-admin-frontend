@@ -23,12 +23,12 @@ const DRAWER_TABS = [
 type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
 
 export default defineComponent({
-  name: 'DisplaySchemeDetail',
+  name: 'DisplayResult',
   setup() {
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(true);
-    const activeTab = ref<DrawerTabLabel>('基本情况');
+    const activeTab = ref<DrawerTabLabel>('实施后评估');
     const previewVisible = ref(false);
     /** 项目 tab 三个按钮点击后弹出的图片地址 */
     const projectPreviewSrc = ref('');
@@ -51,9 +51,9 @@ export default defineComponent({
     return () => (
       <>
         <div class="w-1430px h-full relative">
-          <RouterLink to="/display/scheme">
+          {/* <RouterLink to="/display/scheme">
             <img src={`${OSS_BASE}/知音东苑片-返回.webp`} class="absolute top-12px left-12px w-250px h-56px" />
-          </RouterLink>
+          </RouterLink> */}
 
           <img src={`${OSS_BASE}/知音东苑片-${activeTab.value}.webp`} class="h-full object-fill" />
 
