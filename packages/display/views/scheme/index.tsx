@@ -7,6 +7,7 @@ import { ScrollArea } from '@jeesite/display/components/scroll-area';
 /** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
 import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
 import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
+import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
 import { colors } from '@jeesite/core/libs/colors';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
 
@@ -25,22 +26,27 @@ function tiandituTileUrls(layer: string): string[] {
 }
 
 /** OSS 图片基础地址 */
-const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划/';
+const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划';
 
-/** 抽屉 Tab 配置：label + 内容图片 + 弹窗预览图（preview 为空表示不可点击预览） */
+/** 知音片区金字塔图片（OSS 外链） */
+const ZHIYIN_IMG = `${OSS_BASE}/金字塔.webp`;
+
+// 片区概况
+const PIANQU_IMG = `${OSS_BASE}/片区概况.webp`;
+
+/** 抽屉 Tab 配置：label（同时作为唯一标识）+ 内容图片 + 弹窗预览图（preview 为空表示不可点击预览） */
 const DRAWER_TABS = [
-  { key: 'basic', label: '基本情况', image: `${OSS_BASE}基本情况.webp`, preview: '' },
-  { key: 'physical', label: '体检情况', image: `${OSS_BASE}体检情况.webp`, preview: `${OSS_BASE}片区策划图册.webp` },
-  { key: 'planning', label: '功能策划', image: `${OSS_BASE}功能策划.webp`, preview: `${OSS_BASE}片区策划图册.webp` },
-  { key: 'project', label: '项目情况', image: `${OSS_BASE}项目情况.webp`, preview: `${OSS_BASE}片区项目清单.webp` },
+  { label: '基本情况', image: `${OSS_BASE}/基本情况.webp`, preview: '' },
+  { label: '体检情况', image: `${OSS_BASE}/体检情况.webp`, preview: `${OSS_BASE}/片区策划图册.webp` },
+  { label: '功能策划', image: `${OSS_BASE}/功能策划.webp`, preview: `${OSS_BASE}/片区策划图册.webp` },
+  { label: '项目情况', image: `${OSS_BASE}/项目情况.webp`, preview: `${OSS_BASE}/片区项目清单.webp` },
   {
-    key: 'evaluation',
     label: '实施后评估',
     image: `${OSS_BASE}项目情况.webp`,
     preview: `${OSS_BASE}实施后评估-相册.webp`,
   },
 ] as const;
-type DrawerTabKey = (typeof DRAWER_TABS)[number]['key'];
+type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: maplibregl.StyleSpecification = {
@@ -76,7 +82,7 @@ export default defineComponent({
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(false);
-    const activeTab = ref<DrawerTabKey>('physical');
+    const activeTab = ref<DrawerTabLabel>('基本情况');
     const previewVisible = ref(false);
     /** 项目 tab 三个按钮点击后弹出的图片地址 */
     const projectPreviewSrc = ref('');
@@ -86,14 +92,12 @@ export default defineComponent({
     let drawerWidth = 0;
 
     /** 当前 Tab 配置（含内容图与预览图），单一数据源派生，避免重复查找 */
-    const activeTabConfig = computed(() => DRAWER_TABS.find((t) => t.key === activeTab.value) ?? DRAWER_TABS[0]);
+    const activeTabConfig = computed(() => DRAWER_TABS.find((t) => t.label === activeTab.value) ?? DRAWER_TABS[0]);
     /** project / evaluation tab 使用 ProjectTabContent 多按钮组件 */
-    const isMultiButtonTab = computed(
-      () => activeTab.value === 'project' || activeTab.value === 'evaluation',
-    );
+    const isMultiButtonTab = computed(() => activeTab.value === '项目情况' || activeTab.value === '实施后评估');
     /** 预览弹窗的图片地址：多按钮 tab 用回调传入的地址，其余 tab 用配置的 preview */
     const previewImageSrc = computed(() =>
-      isMultiButtonTab.value ? projectPreviewSrc.value : activeTabConfig.value.preview ?? '',
+      isMultiButtonTab.value ? projectPreviewSrc.value : (activeTabConfig.value.preview ?? ''),
     );
 
     /** 关闭预览弹窗 */
@@ -165,8 +169,34 @@ export default defineComponent({
         // 比例尺保留，放左下角
         map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-        // 点击地图 → 右侧弹出 drawer
-        map.on('click', () => {
+        // 知音地块金字塔 Marker（单实例）：点击地块显示，点击其他处移除
+        let zhiyinMarker: maplibregl.Marker | null = null;
+        const hideZhiyinMarker = () => {
+          zhiyinMarker?.remove();
+          zhiyinMarker = null;
+        };
+        const showZhiyinMarker = (lngLat: maplibregl.LngLat) => {
+          hideZhiyinMarker();
+          const el = document.createElement('div');
+          el.className = 'cursor-pointer';
+          el.innerHTML = `
+            <img class="block w-365px h-260px object-cover" src="${ZHIYIN_IMG}" alt="知音片区" />
+          `;
+          el.addEventListener('click', () => hideZhiyinMarker());
+          zhiyinMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat(lngLat)
+            .setOffset([160, 0])
+            .addTo(map);
+        };
+
+        // 点击地图：命中知音地块 → 显示金字塔 Marker；否则移除 Marker 并打开右侧抽屉
+        map.on('click', (e) => {
+          const hit = map.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
+          if (hit) {
+            showZhiyinMarker(e.lngLat);
+            return;
+          }
+          hideZhiyinMarker();
           drawerVisible.value = true;
         });
 
@@ -207,9 +237,28 @@ export default defineComponent({
               });
             })
             .catch(() => {});
+
+          // 知音项目地块 fill 图层（红色）：从 zhiyin.geojson 异步加载
+          fetch(zhiyinUrl)
+            .then((res) => res.json())
+            .then((data) => {
+              if (disposed || map.getSource('zhiyin-fill')) return;
+              map.addSource('zhiyin-fill', { type: 'geojson', data });
+              map.addLayer({
+                id: 'zhiyin-fill',
+                type: 'fill',
+                source: 'zhiyin-fill',
+                paint: {
+                  'fill-color': '#ff2d2d',
+                  'fill-opacity': 0.6,
+                },
+              });
+            })
+            .catch(() => {});
         });
 
         onCleanup(() => {
+          hideZhiyinMarker();
           disposed = true;
           mapInstance.value = null;
           map.remove();
@@ -277,14 +326,14 @@ export default defineComponent({
           <div class="flex h-44px items-stretch bg-[#1a3a5c]">
             {DRAWER_TABS.map((tab) => (
               <div
-                key={tab.key}
+                key={tab.label}
                 class={
                   'flex flex-1 cursor-pointer items-center justify-center text-14px whitespace-nowrap transition-all duration-200 ' +
-                  (activeTab.value === tab.key
+                  (activeTab.value === tab.label
                     ? 'border border-[#5fbfff]/60 bg-gradient-to-r from-[#0ea5e9]/20 to-[#0E83BD] font-500 text-white shadow-lg'
                     : 'border border-transparent text-white/60 hover:text-white')
                 }
-                onClick={() => (activeTab.value = tab.key)}
+                onClick={() => (activeTab.value = tab.label)}
               >
                 {tab.label}
               </div>
@@ -317,19 +366,6 @@ export default defineComponent({
               />
             )}
           </div>
-          {/* 内容区：每个 tab 显示一张图片（有 preview 配置的 tab 可点击预览），ScrollArea 自绘滚动条使图片可滚动 */}
-          <ScrollArea className="flex-1">
-            <img
-              src={activeTabConfig.value.image}
-              alt={activeTabConfig.value.label}
-              class={'w-full rounded-lg ' + (activeTabConfig.value.preview ? 'cursor-pointer' : '')}
-              onClick={() => {
-                if (activeTabConfig.value.preview) {
-                  previewVisible.value = true;
-                }
-              }}
-            />
-          </ScrollArea>
         </div>
 
         {/* 预览 Modal：多按钮 tab 由 ProjectTabContent 的 onPreview 回调驱动，其余 tab 由 preview 配置驱动 */}
