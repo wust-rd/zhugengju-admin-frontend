@@ -16,6 +16,7 @@ import { configThemePlugin } from '../theme';
 import { configUnoCSSPlugin } from './unocss';
 import { configMonacoEditorPlugin } from './monacoEditor';
 import { configVisualizerPlugin } from './visualizer';
+import zipPack from 'vite-plugin-zip-pack';
 
 export function createVitePlugins(isBuild: boolean, viteEnv: ViteEnv) {
   const vitePlugins: PluginOption[] = [
@@ -50,6 +51,15 @@ export function createVitePlugins(isBuild: boolean, viteEnv: ViteEnv) {
 
   // @vitejs/plugin-legacy
   vitePlugins.push(configLegacyPlugin(isBuild, viteEnv));
+
+  // vite-plugin-zip-pack
+  vitePlugins.push(
+    zipPack({
+      outDir: './', // 输出目录
+      outFileName: 'dist.zip', // 输出文件名
+      pathPrefix: 'dist',
+    }),
+  );
 
   return vitePlugins;
 }

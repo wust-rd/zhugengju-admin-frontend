@@ -19,6 +19,9 @@ coverage
 .env.*.local
 .eslintcache
 
+# 压缩包
+*.zip
+
 # Log files
 npm-debug.log*
 yarn-debug.log*
