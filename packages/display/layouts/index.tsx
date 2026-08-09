@@ -36,7 +36,7 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="flex h-screen flex-col">
+      <div class="flex h-screen flex-col overflow-hidden">
         {/* 顶部导航：sticky 占文档流 88px，滚动时粘在顶部 */}
         <Header />
 
@@ -45,7 +45,7 @@ export default defineComponent({
           <Sidebar />
 
           {/* 路由视图：内容区 */}
-          <div class="min-h-0 flex-1 flex h-full">
+          <div class="min-h-0 flex-1 flex h-full relative">
             <RouterView />
           </div>
         </div>
