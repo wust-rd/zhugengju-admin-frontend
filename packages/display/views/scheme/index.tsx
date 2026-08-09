@@ -8,6 +8,7 @@ import { ScrollArea } from '@jeesite/display/components/scroll-area';
 import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
 import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
 import { colors } from '@jeesite/core/libs/colors';
+import { LayerControls } from '@jeesite/display/components/layer-controls';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -255,6 +256,14 @@ export default defineComponent({
               onClick={showDrawer}
             />
           )}
+
+          {/* 图层管理器：左上角胶囊按钮，left 随左侧抽屉展开状态切换（组件已提取） */}
+          <LayerControls
+            class={{
+              'left-80px': expandVisible.value,
+              'left-32px': !expandVisible.value,
+            }}
+          />
         </div>
 
         {/* 右侧 Drawer：地图点击打开，Tab 切换内容 */}

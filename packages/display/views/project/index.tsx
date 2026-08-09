@@ -1,5 +1,6 @@
 import { defineComponent, ref } from 'vue';
 import { ScrollArea } from '@jeesite/display/components/scroll-area';
+import { LayerControls } from '@jeesite/display/components/layer-controls';
 
 /** 项目底图 */
 const MAP_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/知音东院片.webp';
@@ -19,6 +20,8 @@ export default defineComponent({
 
       return (
         <>
+          <LayerControls />
+
           {/* 项目底图 */}
           <img src={MAP_IMAGE_URL} alt="项目地图" class="size-full object-cover bg-center" />
 
