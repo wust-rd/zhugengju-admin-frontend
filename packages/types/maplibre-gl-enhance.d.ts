@@ -15,6 +15,54 @@
  * （官方 d.ts 依赖 style-spec/geojson-vt 等包，无法直接搬入项目）。
  * declare namespace 声明全局值+类型，页面代码直接 `maplibregl.Map` 使用，无需 import。
  */
+// ===== GeoJSON 命名空间（供 MapClusterLayer/MapArc 等 generic 使用）=====
+// pnpm strict 模式下无法从 @types/geojson 自动引用，在此最小声明
+declare namespace GeoJSON {
+  type GeoJsonProperties = { [name: string]: unknown } | null;
+  type GeoJsonGeometryTypes =
+    | 'Point'
+    | 'MultiPoint'
+    | 'LineString'
+    | 'MultiLineString'
+    | 'Polygon'
+    | 'MultiPolygon'
+    | 'GeometryCollection';
+
+  interface Point {
+    type: 'Point';
+    coordinates: number[];
+  }
+
+  interface LineString {
+    type: 'LineString';
+    coordinates: number[][];
+  }
+
+  interface MultiLineString {
+    type: 'MultiLineString';
+    coordinates: number[][][];
+  }
+
+  interface Polygon {
+    type: 'Polygon';
+    coordinates: number[][][];
+  }
+
+  type Geometry = Point | LineString | MultiLineString | Polygon;
+
+  interface Feature<G extends Geometry = Geometry, P = GeoJsonProperties> {
+    type: 'Feature';
+    properties: P;
+    geometry: G;
+    id?: string | number;
+  }
+
+  interface FeatureCollection<G extends Geometry = Geometry, P = GeoJsonProperties> {
+    type: 'FeatureCollection';
+    features: Feature<G, P>[];
+  }
+}
+
 declare namespace maplibregl {
   // ===== 基础几何类型 =====
   type LngLatLike = LngLat | { lng: number; lat: number } | { lon: number; lat: number } | [number, number];
@@ -227,6 +275,46 @@ declare namespace maplibregl {
     [k: string]: unknown;
   };
 
+  // ===== Line 图层专用类型 (供 MapArc/MapRoute 等组件使用) =====
+  type LineLayerSpecification = {
+    id: string;
+    type: 'line';
+    source?: string;
+    'source-layer'?: string;
+    filter?: unknown;
+    minzoom?: number;
+    maxzoom?: number;
+    paint?: {
+      'line-color'?: string;
+      'line-width'?: number;
+      'line-opacity'?: number;
+      'line-blur'?: number;
+      'line-gap-width'?: number;
+      'line-offset'?: number;
+      'line-dasharray'?: number[];
+      [k: string]: unknown;
+    };
+    layout?: {
+      'line-cap'?: 'butt' | 'round' | 'square';
+      'line-join'?: 'bevel' | 'round' | 'miter';
+      'line-miter-limit'?: number;
+      'line-round-limit'?: number;
+      'line-sort-key'?: number;
+      visibility?: 'visible' | 'none';
+      [k: string]: unknown;
+    };
+    metadata?: unknown;
+    [k: string]: unknown;
+  };
+
+  // ===== 投影配置 =====
+  type ProjectionSpecification = {
+    name: 'mercator' | 'globe' | 'naturalEarth' | 'equalEarth' | 'winkelTripel' | 'lambertConformalConic' | 'albers' | 'azimuthalEqualArea' | 'azimuthalEquidistant' | 'conicConformal' | 'conicEqualArea' | 'conicEquidistant' | 'equirectangular' | 'gnomonic' | 'orthographic' | 'stereographic' | 'transverseMercator' | string;
+    center?: [number, number];
+    parallels?: [number, number];
+    [k: string]: unknown;
+  };
+
   // ===== 事件类型 =====
   type Listener = (a: any) => any;
 
@@ -363,8 +451,11 @@ declare namespace maplibregl {
 
   class Evented {
     on(type: string, listener: Listener): this;
+    on(type: string, layerId: string, listener: Listener): this;
     off(type: string, listener: Listener): this;
+    off(type: string, layerId: string, listener: Listener): this;
     once(type: string, listener?: Listener): this | Promise<any>;
+    fire(type: string, properties?: unknown): this;
     fire(type: string, properties?: unknown): this;
     listenTo(target: Evented, type: string, listener: (...args: unknown[]) => void): this;
     stopListening(target?: Evented, type?: string, listener?: (...args: unknown[]) => void): this;
@@ -437,9 +528,11 @@ declare namespace maplibregl {
     addSource(id: string, source: SourceSpecification, options?: StyleSetterOptions): this;
     removeSource(id: string): this;
     getSource<T extends Source = Source>(id: string): T | undefined;
-    addLayer(layer: LayerSpecification, beforeId?: string): this;
+    addLayer(layer: LayerSpecification, beforeId?: string, sourceLayer?: string): this;
     moveLayer(id: string, beforeId?: string): this;
     removeLayer(id: string): this;
+    setFeatureState(target: { source: string; sourceLayer?: string; id?: string | number }, state: { [key: string]: unknown }): this;
+    getFeatureState(target: { source: string; sourceLayer?: string; id?: string | number }): { [key: string]: unknown };
     getLayer(id: string): LayerSpecification | undefined;
     setLayerZoomRange(layerId: string, minzoom: number, maxzoom: number): this;
     setLayoutProperty(layerId: string, name: string, value: unknown, options?: StyleSetterOptions): this;
@@ -499,6 +592,9 @@ declare namespace maplibregl {
     getCanvasContainer(): HTMLElement;
     getCanvas(): HTMLCanvasElement;
     resize(eventData?: unknown): this;
+    setProjection(projection: ProjectionSpecification | string): this;
+    getProjection(): ProjectionSpecification;
+    isMoving(): boolean;
     remove(): void;
 
     // 事件（具名类型安全 + 字符串兜底）
@@ -677,7 +773,7 @@ declare namespace maplibregl {
   }
 
   type PopupOptions = {
-    offset?: PointLike | { [k in 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right']?: PointLike };
+    offset?: number | PointLike | { [k in 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right']?: PointLike };
     anchor?: 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     closeButton?: boolean;
     closeOnClick?: boolean;
@@ -698,6 +794,7 @@ declare namespace maplibregl {
     addTo(map: Map): this;
     remove(): this;
     setMaxWidth(maxWidth: string): this;
+    setOffset(offset: number | PointLike | { [k in 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right']?: PointLike }): this;
     isOpen(): boolean;
     getElement(): HTMLElement;
   }
@@ -754,6 +851,28 @@ declare namespace maplibregl {
 
 // ===== npm 包兼容：让依赖 maplibre-gl 的库 Typescript 类型解析到全局 maplibregl =====
 // 项目未安装 maplibre-gl npm 包，通过此声明让 `import maplibregl from 'maplibre-gl'` 获得完整类型
+// 同时声明命名导出（import { type Map } from 'maplibre-gl'）供第三方组件使用
 declare module 'maplibre-gl' {
+  // 默认导出 — `import maplibregl from 'maplibre-gl'`
   export = maplibregl;
+
+  // 命名类型导出 — `import { type Map } from 'maplibre-gl'`
+  // （export = namespace 默认不支持命名导出，但 declare module 中可叠加声明类型别名）
+  export type Map = maplibregl.Map;
+  export type Marker = maplibregl.Marker;
+  export type Popup = maplibregl.Popup;
+  export type LngLat = maplibregl.LngLat;
+  export type LngLatBounds = maplibregl.LngLatBounds;
+  export type GeoJSONSource = maplibregl.GeoJSONSource;
+  export type NavigationControl = maplibregl.NavigationControl;
+  export type GeolocateControl = maplibregl.GeolocateControl;
+  export type MapGeoJSONFeature = maplibregl.MapGeoJSONFeature;
+  export type MapLayerEventType = maplibregl.MapLayerEventType;
+  export type MapMouseEvent = maplibregl.MapMouseEvent;
+  export type MapTouchEvent = maplibregl.MapTouchEvent;
+  export type MapLayerMouseEvent = maplibregl.MapLayerMouseEvent;
+  export type MarkerOptions = maplibregl.MarkerOptions;
+  export type PopupOptions = maplibregl.PopupOptions;
+  export type LineLayerSpecification = maplibregl.LineLayerSpecification;
+  export type ProjectionSpecification = maplibregl.ProjectionSpecification;
 }
