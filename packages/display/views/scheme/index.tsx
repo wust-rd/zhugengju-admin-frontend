@@ -136,8 +136,8 @@ export default defineComponent({
           style: tiandituStyle,
           // 天地图 _c 系列瓦片为 CGCS2000 经纬度坐标系，地图 CRS 同步切换为 EPSG:4490
           crs: 'EPSG:4490',
-          center: [114.386, 30.73], // 数据范围中心（武汉）
-          zoom: 10,
+          center: [114.2761773, 30.5344542], // 数据范围中心（武汉）
+          zoom: 11,
         });
         mapInstance.value = map;
 
@@ -253,7 +253,7 @@ export default defineComponent({
           }}
           class="relative h-full"
         >
-          <img src={`${OSS_BASE}/片区策划-左侧抽屉.webp`} alt="左侧抽屉" class="h-full object-fill" />
+          <img src={`${OSS_BASE}/左侧抽屉.webp`} alt="左侧抽屉" class="h-full object-fill" />
 
           <div
             class="absolute bg-transparent top-36px right-24px size-40px z-100 cursor-pointer"
