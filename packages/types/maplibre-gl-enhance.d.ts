@@ -749,3 +749,9 @@ declare namespace maplibregl {
   /** 超图增强：Mapbox GL 兼容引用 */
   const mapbox: unknown;
 }
+
+// ===== npm 包兼容：让依赖 maplibre-gl 的库 Typescript 类型解析到全局 maplibregl =====
+// 项目未安装 maplibre-gl npm 包，通过此声明让 `import maplibregl from 'maplibre-gl'` 获得完整类型
+declare module 'maplibre-gl' {
+  export = maplibregl;
+}

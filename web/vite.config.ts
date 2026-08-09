@@ -28,9 +28,13 @@ export default defineConfig(async ({ command, mode }: ConfigEnv) => {
     build: createBuildOptions(viteEnv),
     css: createCSSOptions(),
     resolve: {
-      alias: {
-        '@jeesite/web': path.resolve(__dirname, './'),
-      },
+      alias: [
+        // 桥接 npm maplibre-gl → 全局 maplibre-gl-enhance (window.maplibregl)
+        // CSS 已在 index.html 中全局加载，此空文件避免构建报错
+        { find: 'maplibre-gl/dist/maplibre-gl.css', replacement: path.resolve(__dirname, '../packages/core/utils/maplibre-gl-empty.css') },
+        { find: 'maplibre-gl', replacement: path.resolve(__dirname, '../packages/core/utils/maplibre-gl-shim.ts') },
+        { find: '@jeesite/web', replacement: path.resolve(__dirname, './') },
+      ],
     },
   };
   return config;
