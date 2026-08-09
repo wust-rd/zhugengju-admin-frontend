@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { cn } from "./cn";
+import { cn } from "@jeesite/core/libs";
 
 type Props = {
   /** Visual variant: "popover" (rounded card) or "tooltip" (compact, dark). */

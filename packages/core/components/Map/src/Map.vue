@@ -17,7 +17,7 @@ import MapLibreGL, {
 } from "maplibre-gl";
 
 import "./map-popup.css";
-import { cn } from "./cn";
+import { cn } from "@jeesite/core/libs";
 import { MapContextKey } from "./context";
 import { useResolvedTheme } from "./composables/use-resolved-theme";
 import { getViewport } from "./utils";

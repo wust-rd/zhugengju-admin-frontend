@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject } from "vue";
-import { cn } from "./cn";
+import { cn } from "@jeesite/core/libs";
 import { MarkerContextKey } from "./context";
 
 type Props = {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
-import { cn } from "./cn";
+import { cn } from "@jeesite/core/libs";
 import { useMap } from "./composables/use-map";
 
 type Position = "top-left" | "top-right" | "bottom-left" | "bottom-right";
