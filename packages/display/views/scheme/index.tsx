@@ -1,15 +1,15 @@
-import { computed, defineComponent, ref, watch } from 'vue';
-import { animate } from 'motion-v';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
-import { ProjectTabContent } from '../../components/project-tab-content';
-import { ScrollArea } from '@jeesite/display/components/scroll-area';
+import { animate } from 'motion-v';
+import { defineComponent, ref, watch } from 'vue';
 /** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
+import { colors } from '@jeesite/core/libs/colors';
+import { LayerControls } from '@jeesite/display/components/layer-controls';
 import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
 import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
-import { colors } from '@jeesite/core/libs/colors';
-import { LayerControls } from '@jeesite/display/components/layer-controls';
+import { RouterLink } from 'vue-router';
+import { cn } from '@jeesite/core/libs';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -33,20 +33,6 @@ const ZHIYIN_IMG = `${OSS_BASE}/金字塔.webp`;
 
 // 片区概况
 const PIANQU_IMG = `${OSS_BASE}/片区概况.webp`;
-
-/** 抽屉 Tab 配置：label（同时作为唯一标识）+ 内容图片 + 弹窗预览图（preview 为空表示不可点击预览） */
-const DRAWER_TABS = [
-  { label: '基本情况', image: `${OSS_BASE}/基本情况.webp`, preview: '' },
-  { label: '体检情况', image: `${OSS_BASE}/体检情况.webp`, preview: `${OSS_BASE}/片区策划图册.webp` },
-  { label: '功能策划', image: `${OSS_BASE}/功能策划.webp`, preview: `${OSS_BASE}/片区策划图册.webp` },
-  { label: '项目情况', image: `${OSS_BASE}/项目情况.webp`, preview: `${OSS_BASE}/片区项目清单.webp` },
-  {
-    label: '实施后评估',
-    image: `${OSS_BASE}项目情况.webp`,
-    preview: `${OSS_BASE}实施后评估-相册.webp`,
-  },
-] as const;
-type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: maplibregl.StyleSpecification = {
@@ -82,7 +68,6 @@ export default defineComponent({
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(false);
-    const activeTab = ref<DrawerTabLabel>('基本情况');
     const previewVisible = ref(false);
     /** 项目 tab 三个按钮点击后弹出的图片地址 */
     const projectPreviewSrc = ref('');
@@ -90,15 +75,6 @@ export default defineComponent({
     const expandVisible = ref(false);
     /** 左侧抽屉收起前的原始宽度，展开动画恢复用 */
     let drawerWidth = 0;
-
-    /** 当前 Tab 配置（含内容图与预览图），单一数据源派生，避免重复查找 */
-    const activeTabConfig = computed(() => DRAWER_TABS.find((t) => t.label === activeTab.value) ?? DRAWER_TABS[0]);
-    /** project / evaluation tab 使用 ProjectTabContent 多按钮组件 */
-    const isMultiButtonTab = computed(() => activeTab.value === '项目情况' || activeTab.value === '实施后评估');
-    /** 预览弹窗的图片地址：多按钮 tab 用回调传入的地址，其余 tab 用配置的 preview */
-    const previewImageSrc = computed(() =>
-      isMultiButtonTab.value ? projectPreviewSrc.value : (activeTabConfig.value.preview ?? ''),
-    );
 
     /** 关闭预览弹窗 */
     const closePreview = () => {
@@ -194,10 +170,11 @@ export default defineComponent({
           const hit = map.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
           if (hit) {
             showZhiyinMarker(e.lngLat);
+            drawerVisible.value = true;
             return;
           }
           hideZhiyinMarker();
-          drawerVisible.value = true;
+          drawerVisible.value = false;
         });
 
         // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
@@ -276,7 +253,7 @@ export default defineComponent({
           }}
           class="relative h-full"
         >
-          <img src={`${OSS_BASE}片区策划-左侧抽屉.webp`} alt="左侧抽屉" class="h-full object-fill" />
+          <img src={`${OSS_BASE}/片区策划-左侧抽屉.webp`} alt="左侧抽屉" class="h-full object-fill" />
 
           <div
             class="absolute bg-transparent top-36px right-24px size-40px z-100 cursor-pointer"
@@ -315,73 +292,17 @@ export default defineComponent({
           />
         </div>
 
-        {/* 右侧 Drawer：地图点击打开，Tab 切换内容 */}
+        {/* 右侧 Drawer：地图点击打开，Tab 切换内容；显示时从右往左平移渐显，隐藏时向右移出并淡出 */}
         <div
-          class={
-            'fixed top-88px right-0 bottom-0 z-[60] flex w-420px flex-col bg-[#0f2b47] text-white shadow-2xl transition-transform duration-300 ' +
-            (drawerVisible.value ? 'translate-x-0' : 'translate-x-full')
-          }
+          class={cn('fixed top-100px right-12px z-50 transition-[transform,opacity] duration-200', {
+            'opacity-100': drawerVisible.value,
+            'opacity-0': !drawerVisible.value,
+          })}
         >
-          {/* 顶部 Tab 切换器（5 等分胶囊样式） */}
-          <div class="flex h-44px items-stretch bg-[#1a3a5c]">
-            {DRAWER_TABS.map((tab) => (
-              <div
-                key={tab.label}
-                class={
-                  'flex flex-1 cursor-pointer items-center justify-center text-14px whitespace-nowrap transition-all duration-200 ' +
-                  (activeTab.value === tab.label
-                    ? 'border border-[#5fbfff]/60 bg-gradient-to-r from-[#0ea5e9]/20 to-[#0E83BD] font-500 text-white shadow-lg'
-                    : 'border border-transparent text-white/60 hover:text-white')
-                }
-                onClick={() => (activeTab.value = tab.label)}
-              >
-                {tab.label}
-              </div>
-            ))}
-          </div>
-
-          {/* 内容区：多按钮 tab（project / evaluation）使用 ProjectTabContent，其余 tab 为单图点击预览 */}
-          <div class="scrollbar-none flex-1 overflow-y-auto">
-            {isMultiButtonTab.value ? (
-              <ProjectTabContent
-                bgImage={activeTabConfig.value.image}
-                topImage={`${OSS_BASE}片区项目清单.webp`}
-                middleImage={`${OSS_BASE}片区资金情况.webp`}
-                bottomImage={`${OSS_BASE}实施后评估-相册.webp`}
-                onPreview={(src: string) => {
-                  projectPreviewSrc.value = src;
-                  previewVisible.value = true;
-                }}
-              />
-            ) : (
-              <img
-                src={activeTabConfig.value.image}
-                alt={activeTabConfig.value.label}
-                class={'w-full rounded-lg ' + (activeTabConfig.value.preview ? 'cursor-pointer' : '')}
-                onClick={() => {
-                  if (activeTabConfig.value.preview) {
-                    previewVisible.value = true;
-                  }
-                }}
-              />
-            )}
-          </div>
+          <RouterLink to="scheme/detail">
+            <img src={PIANQU_IMG} class="w-320px h-800px object-fill" />
+          </RouterLink>
         </div>
-
-        {/* 预览 Modal：多按钮 tab 由 ProjectTabContent 的 onPreview 回调驱动，其余 tab 由 preview 配置驱动 */}
-        {previewVisible.value && previewImageSrc.value && (
-          <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60" onClick={closePreview}>
-            <div class="relative inline-block" onClick={(e: MouseEvent) => e.stopPropagation()}>
-              <img
-                src={previewImageSrc.value}
-                alt="图片预览"
-                class="max-h-[90vh] w-884px rounded-xl object-contain shadow-2xl"
-              />
-              {/* 右上角关闭按钮 */}
-              <div class="absolute right-0px top-0px size-64px cursor-pointer" onClick={closePreview}></div>
-            </div>
-          </div>
-        )}
       </>
     );
   },

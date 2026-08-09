@@ -33,6 +33,15 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '片区策划',
         },
       },
+      // 片区策划详情（独立完整页面，路径 /display/scheme/detail）
+      {
+        path: 'scheme/detail',
+        name: 'DisplaySchemeDetail',
+        component: () => import('../views/scheme/detail'),
+        meta: {
+          title: '片区策划详情',
+        },
+      },
       {
         path: 'plan',
         name: 'DisplayPlan',
