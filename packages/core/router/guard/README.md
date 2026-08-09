@@ -39,7 +39,9 @@ flowchart TD
   F -- 是 --> G{meta.ignoreAuth?}
   G -- 是 --> C
   G -- 否 --> H[跳转登录页, 携带 redirect]
-  F -- 否 --> I{userInfo 已获取?}
+  F -- 否 --> G2{meta.ignoreAuth?<br/>免登录公开页}
+  G2 -- 是 --> C
+  G2 -- 否 --> I{userInfo 已获取?}
   I -- 否 --> J[getUserInfoAction]
   I -- 是 --> K{动态路由已添加?}
   K -- 是 --> C
@@ -55,6 +57,7 @@ flowchart TD
 3. **404 兜底**：登录后跳转 404 会重定向到 `homePath`；非法 `desktopUrl` 则进入 `/404/`。
 4. **hash/query 保留**：动态添加路由后重定向时手动解析并携带 `query` 与 `hash`，避免刷新丢失锚点。
 5. **动态路由构建**：`permissionStore.buildRoutesAction()` 从后端菜单转换路由（`transformObjToRoute`），构建后 `setDynamicAddedRoute(true)` 避免重复构建。
+6. **免登录公开路由（meta.ignoreAuth）**：token 存在时也会直接放行，跳过 `getUserInfoAction` 与动态路由构建，避免未登录用户访问 `/display/**` 时后端返回 `result='login'` 被拦截器踢到登录页（2026-08-09 修复）。
 
 ## 关联文档
 

@@ -102,6 +102,13 @@ export function createPermissionGuard(router: Router) {
       return '/404/' + (userStore.getUserInfo.homePath || HOME_PATH);
     }
 
+    // 免登录公开路由（meta.ignoreAuth）：完全跳过鉴权，不拉取用户信息、不构建动态路由。
+    // 否则未登录时 getLastUpdateTime === 0 会触发 getUserInfoAction，后端返回 result='login'
+    // 被 HTTP 拦截器跳转到 /login，导致 /display/** 公开页间歇性被踢到登录页。
+    if (to.meta.ignoreAuth) {
+      return;
+    }
+
     // get userinfo while last fetch time is empty
     if (userStore.getLastUpdateTime === 0) {
       try {
