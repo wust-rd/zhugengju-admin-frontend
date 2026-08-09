@@ -8,7 +8,11 @@
 2. **`vue-sfc-best-practices`** — Vue SFC 版本最佳实践：script setup 位于 template 上方、类型化 defineProps/defineEmits。
 3. **`vue-hooks-architecture`** — 现代前端编程思想：Hook 是逻辑复用单位、provide/inject + InjectionKey、Pinia 惰性初始化、复杂 SPA 禁用 React、类型完备（ts-pattern 客户端 / zod 服务端）、抓核心弃分支（props/emits/SlotsType/v-model）。
 
-三个 skill 已随仓库内置到项目级目录 `.codebuddy/skills/`（随 git 同步，团队成员 clone 后即可使用），直接按名字调用即可。若要在个人全局环境维护一份，可复制到 `~/.codebuddy/skills/`。
+另有 **按需触发型** skill（不强制每次加载，任务涉及相关主题时自动/手动加载）：
+
+4. **`maplibre-gl-enhance`** — 超图定制版 MapLibre GL 地图引擎使用指南：全局 script 加载机制（`web/index.html` + `web/public/maplibregl/`）、全局类型声明（`packages/types/maplibre-gl-enhance.d.ts` + 根 tsconfig `types` 数组）、天地图瓦片（DataServer REST + `vec_c`/`cva_c`）、`crs: 'EPSG:4490'` 经纬度坐标系、动态 addSource/addLayer geojson 图层（内联 data 不渲染的坑）、MGRS/customprj 等。**任务涉及地图/底图/坐标系/瓦片/geojson 图层时务必加载**。
+
+所有 skill 已随仓库内置到项目级目录 `.codebuddy/skills/`（随 git 同步，团队成员 clone 后即可使用），直接按名字调用即可。若要在个人全局环境维护一份，可复制到 `~/.codebuddy/skills/`。
 
 ## 工作流程（必读文档）
 
