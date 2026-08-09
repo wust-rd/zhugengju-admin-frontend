@@ -435,16 +435,27 @@ declare namespace maplibregl {
     essential?: boolean;
   };
 
-  type FlyToOptions = CameraOptions & {
+  /** 动画选项（官方原版 AnimationOptions） */
+  type AnimationOptions = {
+    /** 动画时长（毫秒） */
+    duration?: number;
+    /** 缓动函数，入参 0..1，返回值 0 为初始状态、1 为结束状态 */
+    easing?: (_: number) => number;
+    /** 目标中心相对真实地图容器中心在动画结束时的偏移 */
+    offset?: PointLike;
+    /** 为 false 时不播放动画 */
+    animate?: boolean;
+    /** 为 true 时视为关键动画，不受 prefers-reduced-motion 影响 */
+    essential?: boolean;
+  };
+
+  type FlyToOptions = AnimationOptions & CameraOptions & {
     speed?: number;
     curve?: number;
     minZoom?: number;
     screenSpeed?: number;
     maxDuration?: number;
-    essential?: boolean;
     padding?: number | PaddingOptions;
-    easing?: (t: number) => number;
-    offset?: PointLike;
   };
 
   type StyleSetterOptions = { diff?: boolean; transformStyle?: unknown };
@@ -576,8 +587,12 @@ declare namespace maplibregl {
     fitBounds(bounds: LngLatBoundsLike, options?: FitBoundsOptions, eventData?: unknown): this;
     fitScreenCoordinates(p0: PointLike, p1: PointLike, bearing: number, options?: CameraOptions, eventData?: unknown): this;
     jumpTo(options: CameraOptions, eventData?: unknown): this;
-    easeTo(options: CameraOptions & { duration?: number; easing?: (t: number) => number; essential?: boolean }, eventData?: unknown): this;
+    easeTo(options: AnimationOptions & CameraOptions, eventData?: unknown): this;
     flyTo(options: FlyToOptions, eventData?: unknown): this;
+    zoomTo(zoom: number, options?: AnimationOptions | null, eventData?: unknown): this;
+    zoomIn(options?: AnimationOptions, eventData?: unknown): this;
+    zoomOut(options?: AnimationOptions, eventData?: unknown): this;
+    resetNorthPitch(options?: AnimationOptions, eventData?: unknown): this;
     stop(): this;
     getBounds(): LngLatBounds;
     getMaxBounds(): LngLatBounds | null;

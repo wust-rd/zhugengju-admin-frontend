@@ -1,7 +1,7 @@
 import { defineComponent, onMounted, onUnmounted } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
-import { Header } from '../components/header';
-import { Sidebar } from '../components/sidebar';
+import { Header } from '@jeesite/display/components/header';
+import { Sidebar } from '@jeesite/display/components/sidebar';
 
 /** /display 的全局 body 背景（路由进入时应用到 <body>，离开时恢复） */
 const DISPLAY_BODY_STYLE: Partial<CSSStyleDeclaration> = {

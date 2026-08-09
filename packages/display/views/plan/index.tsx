@@ -1,7 +1,7 @@
 import { defineComponent, ref } from 'vue';
 import { animate } from 'motion-v';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
-import { MapControls } from '../../components/map-controls';
+import { MapControls } from '@jeesite/display/components/map-controls';
 
 /** OSS 图片基础地址 */
 const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/更新规划/';

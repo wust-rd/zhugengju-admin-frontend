@@ -36,6 +36,9 @@
       "vite/client",
       "@jeesite/types/global",
       "@jeesite/types/maplibre-gl-enhance"
-    ]
+    ],
+    "paths": {
+      "@jeesite/display/*": ["./packages/display/*"]
+    }
   }
 }

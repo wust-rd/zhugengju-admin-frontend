@@ -2,7 +2,8 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@jeesite/web/*": ["./*"]
+      "@jeesite/web/*": ["./*"],
+      "@jeesite/display/*": ["../packages/display/*"]
     }
   },
   "include": [

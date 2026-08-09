@@ -1,4 +1,4 @@
-import { defineComponent, ref, type PropType } from 'vue';
+import { defineComponent, onBeforeUnmount, ref, watch, type PropType } from 'vue';
 
 /**
  * 地图控件条：罗盘重置方位 / 2D-3D 切换 / 缩放
@@ -15,10 +15,41 @@ export const MapControls = defineComponent({
   setup(props) {
     const is3D = ref(false);
 
+    // 罗盘 SVG 元素引用，随地图方位转动
+    const compassRef = ref<SVGSVGElement | null>(null);
+
     // 罗盘：重置方位（指北 + 俯视）
     const handleResetBearing = () => {
       props.map?.easeTo({ bearing: 0, pitch: 0, duration: 600 });
     };
+
+    // 罗盘随地图 bearing / pitch 转动（参考 core MapControls）
+    let cleanupCompass: (() => void) | null = null;
+
+    watch(
+      [() => props.map, compassRef],
+      ([m, compass]) => {
+        cleanupCompass?.();
+        cleanupCompass = null;
+        if (!m || !compass) return;
+
+        const update = () => {
+          const bearing = m.getBearing();
+          const pitch = m.getPitch();
+          compass.style.transform = `rotateX(${pitch}deg) rotateZ(${-bearing}deg)`;
+        };
+        m.on('rotate', update);
+        m.on('pitch', update);
+        update();
+        cleanupCompass = () => {
+          m.off('rotate', update);
+          m.off('pitch', update);
+        };
+      },
+      { immediate: true },
+    );
+
+    onBeforeUnmount(() => cleanupCompass?.());
 
     // 3D 切换：60° 俯视 ↔ 0° 顶视
     const handleToggle3D = () => {
@@ -40,19 +71,30 @@ export const MapControls = defineComponent({
 
     // 共用按钮基础样式
     const btnBase =
-      'flex items-center justify-center text-white bg-[#3a4a5e] hover:bg-[#4a5b71] transition-colors duration-200 rounded-12px';
+      'flex items-center justify-center text-white bg-[#3a4a5e] hover:bg-[#4a5b71] transition-colors duration-200 rounded-12px cursor-pointer';
 
     return () => (
       <div class="flex items-center gap-2 select-none">
         {/* 罗盘：重置方位 */}
         <button
           type="button"
-          class={`${btnBase} size-48px`}
+          class={`${btnBase} size-60px`}
           title="重置方位"
           aria-label="重置方位"
           onClick={handleResetBearing}
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <svg
+            ref={compassRef}
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            style={{
+              transformOrigin: 'center',
+              transformStyle: 'preserve-3d',
+              transition: 'transform 0.2s ease',
+            }}
+          >
             {/* 北指针（蓝色尖三角） */}
             <polygon points="12,3 16,12 12,10 8,12" fill="#5fbfff" />
             {/* 南指针（白色半透明三角） */}
@@ -63,7 +105,7 @@ export const MapControls = defineComponent({
         {/* 2D / 3D 切换 */}
         <button
           type="button"
-          class={`${btnBase} size-48px px-22px text-22px font-600 tracking-wider ${
+          class={`${btnBase} size-60px px-22px text-22px font-600 tracking-wider ${
             is3D.value ? 'text-[#5fbfff]' : 'text-white'
           }`}
           title={is3D.value ? '切换到 2D' : '切换到 3D'}
@@ -74,10 +116,10 @@ export const MapControls = defineComponent({
         </button>
 
         {/* 缩放：+ / - */}
-        <div class={`${btnBase} h-48px overflow-hidden`}>
+        <div class="flex h-60px items-center overflow-hidden rounded-12px bg-[#3a4a5e]">
           <button
             type="button"
-            class="flex h-full w-48px cursor-pointer items-center justify-center border-none bg-transparent text-26px text-white font-300 hover:bg-[#4a5b71]"
+            class="flex h-full w-60px cursor-pointer items-center justify-center border-none bg-transparent text-26px text-white font-300 transition-colors duration-200 hover:bg-[#4a5b71]"
             onClick={handleZoomIn}
             title="放大"
           >
@@ -86,7 +128,7 @@ export const MapControls = defineComponent({
 
           <button
             type="button"
-            class="flex h-full w-48px cursor-pointer items-center justify-center border-none bg-transparent text-28px text-white font-300 hover:bg-[#4a5b71]"
+            class="flex h-full w-60px cursor-pointer items-center justify-center border-none bg-transparent text-28px text-white font-300 transition-colors duration-200 hover:bg-[#4a5b71]"
             onClick={handleZoomOut}
             title="缩小"
           >
