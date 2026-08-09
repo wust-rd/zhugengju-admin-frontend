@@ -1,4 +1,5 @@
 import { defineComponent, ref } from 'vue';
+import { ScrollArea } from '@jeesite/display/components/scroll-area';
 
 /** 项目底图 */
 const MAP_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/知音东院片.webp';
@@ -48,8 +49,8 @@ export default defineComponent({
               </div>
             </div>
 
-            {/* 内容区：与 tab 同宽，位于 tab 下方 */}
-            <div class="scrollbar-none mt-6px max-h-[calc(100vh_-_246px)] overflow-y-auto">
+            {/* 内容区：与 tab 同宽，位于 tab 下方，ScrollArea 自绘滚动条使图片可滚动 */}
+            <ScrollArea className="mt-6px max-h-[calc(100vh_-_246px)]">
               {isBase ? (
                 <img
                   src={BASE_IMAGE_URL}
@@ -65,7 +66,7 @@ export default defineComponent({
                   onClick={() => (previewVisible.value = true)}
                 />
               )}
-            </div>
+            </ScrollArea>
           </div>
 
           {/* 图片预览 Modal：点击图片弹出，居中显示（长 776 宽 548） */}
