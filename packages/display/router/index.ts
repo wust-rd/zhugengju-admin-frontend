@@ -34,6 +34,14 @@ export const displayRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'plan',
+        name: 'DisplayPlan',
+        component: () => import('../views/plan/index'),
+        meta: {
+          title: '更新规划',
+        },
+      },
+      {
         path: 'project',
         name: 'DisplayProject',
         component: () => import('../views/project/index'),
