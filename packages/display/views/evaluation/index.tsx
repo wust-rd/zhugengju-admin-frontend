@@ -50,12 +50,12 @@ export default defineComponent({
 
     return () => (
       <>
-        <div class="w-1430px h-full relative">
+        <div class="flex-1 w-1430px h-full relative">
           {/* <RouterLink to="/display/scheme">
             <img src={`${OSS_BASE}/知音东苑片-返回.webp`} class="absolute top-12px left-12px w-250px h-56px" />
           </RouterLink> */}
 
-          <img src={`${OSS_BASE}/知音东苑片-${activeTab.value}.webp`} class="h-full object-fill" />
+          <img src={`${OSS_BASE}/知音东苑片-${activeTab.value}.webp`} class="w-full h-full object-fill" />
 
           {/* 地图控件：右下角 */}
           <div class="absolute right-24px bottom-24px z-10">
@@ -66,7 +66,7 @@ export default defineComponent({
         {/* 右侧 Drawer：地图点击打开，Tab 切换内容 */}
         <div
           class={
-            'fixed top-88px right-0 bottom-0 z-[60] flex w-420px flex-col bg-[#0f2b47] text-white shadow-2xl transition-transform duration-300 ' +
+            'w-420px flex flex-col bg-[#0f2b47] text-white shadow-2xl transition-transform duration-300 ' +
             (drawerVisible.value ? 'translate-x-0' : 'translate-x-full')
           }
         >
