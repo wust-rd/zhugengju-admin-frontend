@@ -137,7 +137,7 @@ export default defineComponent({
               <img
                 src={previewImageSrc.value}
                 alt="图片预览"
-                class="max-h-[90vh] w-884px rounded-xl object-contain shadow-2xl"
+                class="max-h-[90vh] w-1100px rounded-xl object-contain shadow-2xl"
               />
               {/* 右上角关闭按钮 */}
               <div class="absolute right-0px top-0px size-64px cursor-pointer" onClick={closePreview}></div>
