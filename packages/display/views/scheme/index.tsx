@@ -1,7 +1,7 @@
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
 import { animate } from 'motion-v';
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, ref, shallowRef, watch } from 'vue';
 /** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
 import { colors } from '@jeesite/core/libs/colors';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
@@ -63,7 +63,7 @@ export default defineComponent({
   name: 'DisplayScheme',
   setup() {
     /** Map 实例（供右下角自绘控件条 MapControls 使用） */
-    const mapInstance = ref<maplibregl.Map | null>(null);
+    const mapInstance = shallowRef<maplibregl.Map | null>(null);
     const mapContainer = ref<HTMLDivElement | null>(null);
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */

@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@jeesite/assets/*": ["./*"]
+      "maplibre-gl": [
+        "../../packages/types/maplibre-gl-enhance.d.ts"
+      ],
+      "@jeesite/assets/*": [
+        "./*"
+      ]
     }
   },
   "include": [

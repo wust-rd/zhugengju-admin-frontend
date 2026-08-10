@@ -16,6 +16,7 @@
     "preserveWatchOutput": true,
     "removeComments": true,
     "skipLibCheck": true,
+    "allowUmdGlobalAccess": true,
     "noImplicitAny": false,
     "strictPropertyInitialization": true,
     "strictBindCallApply": true,
@@ -38,6 +39,7 @@
       "@jeesite/types/maplibre-gl-enhance"
     ],
     "paths": {
+      "maplibre-gl": ["./packages/types/maplibre-gl-enhance.d.ts"],
       "@jeesite/display/*": ["./packages/display/*"]
     }
   }
