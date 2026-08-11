@@ -35,6 +35,7 @@ export default defineConfig(async ({ command, mode }: ConfigEnv) => {
         { find: 'maplibre-gl', replacement: path.resolve(__dirname, '../packages/core/utils/maplibre-gl-shim.ts') },
         { find: '@jeesite/web', replacement: path.resolve(__dirname, './') },
         { find: '@jeesite/display', replacement: path.resolve(__dirname, '../packages/display') },
+        { find: '@jeesite/vmap', replacement: path.resolve(__dirname, '../packages/vmap') },
       ],
     },
   };

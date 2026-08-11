@@ -44,6 +44,9 @@ importers:
       '@jeesite/vite':
         specifier: workspace:*
         version: link:packages/vite
+      '@jeesite/vmap':
+        specifier: workspace:*
+        version: link:packages/vmap
       '@jeesite/web':
         specifier: workspace:*
         version: link:web
@@ -495,6 +498,8 @@ importers:
       vite-plugin-vue-setup-extend:
         specifier: 0.4.0
         version: 0.4.0(vite@8.0.10(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.6)(terser@5.49.0)(yaml@2.9.0))
+
+  packages/vmap: {}
 
   web: {}
 

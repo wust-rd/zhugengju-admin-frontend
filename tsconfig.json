@@ -40,7 +40,8 @@
     ],
     "paths": {
       "maplibre-gl": ["./packages/types/maplibre-gl-enhance.d.ts"],
-      "@jeesite/display/*": ["./packages/display/*"]
+      "@jeesite/display/*": ["./packages/display/*"],
+      "@jeesite/vmap/*": ["./packages/vmap/*"]
     }
   }
 }
