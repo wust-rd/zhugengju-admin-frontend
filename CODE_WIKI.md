@@ -781,3 +781,4 @@ flowchart TD
 | core 登录模块 | `packages/core/layouts/views/login/README.md` | 登录状态机与会话超时 |
 | cms 文章表单 | `packages/cms/views/cms/article/README.md` | 分区表单实现 |
 | dfm 设计器 | `packages/dfm/views/dfm/designer/README.md` | 动态表单设计器 |
+| vmap 地图组件 | `packages/vmap/README.md` | MapLibre 封装：useMap 注入约束、useMapLayer 生命周期 |

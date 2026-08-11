@@ -1,13 +1,9 @@
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { VMap, VMapControls } from '@jeesite/vmap';
 import { animate } from 'motion-v';
-import { defineComponent, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
-/** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
-import { colors } from '@jeesite/core/libs/colors';
+import { defineComponent, ref } from 'vue';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
-import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
-import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
-import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
+import { SchemeMapLayers } from './map-layers';
 import { RouterLink } from 'vue-router';
 import { cn } from '@jeesite/core/libs';
 
@@ -27,9 +23,6 @@ function tiandituTileUrls(layer: string): string[] {
 
 /** OSS 图片基础地址 */
 const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划';
-
-/** 知音片区金字塔图片（OSS 外链） */
-const ZHIYIN_IMG = `${OSS_BASE}/金字塔.webp`;
 
 // 片区概况
 const PIANQU_IMG = `${OSS_BASE}/片区概况.webp`;
@@ -62,18 +55,13 @@ const tiandituStyle: maplibregl.StyleSpecification = {
 export default defineComponent({
   name: 'DisplayScheme',
   setup() {
-    /** VMap 组件实例引用：expose 的 map 字段为底层 MapLibre 实例 */
-    const vmapRef = ref<{ map: maplibregl.Map | null } | null>(null);
-    /** Map 实例（供右下角自绘控件条 MapControls 使用） */
-    const mapInstance = shallowRef<maplibregl.Map | null>(null);
-    /** 组件卸载时置为 true，防止异步 fetch 完成后向已销毁的地图添加图层 */
-    let disposed = false;
     /** 天地图原生构造选项（_c 系列瓦片为 CGCS2000 经纬度坐标系，CRS 切 EPSG:4490） */
     const mapOptions: Partial<maplibregl.MapOptions> = {
       crs: 'EPSG:4490',
       center: [114.2761773, 30.5344542] as [number, number], // 数据范围中心（武汉）
       zoom: 11,
     };
+
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(false);
@@ -131,118 +119,6 @@ export default defineComponent({
       );
     };
 
-    // 知音地块金字塔 Marker（单实例）：点击地块显示，点击其他处移除
-    let zhiyinMarker: maplibregl.Marker | null = null;
-    const hideZhiyinMarker = () => {
-      zhiyinMarker?.remove();
-      zhiyinMarker = null;
-    };
-
-    // // VMap 组件在 onMounted 中创建地图并 expose map 实例；拿到实例后挂接交互与图层逻辑
-    // watch(
-    //   () => vmapRef.value?.map,
-    //   (map) => {
-    //     if (!map) return;
-    //     mapInstance.value = map;
-
-    //     // 右下角由自绘控件条 MapControls 接管（罗盘 / 2D-3D / 缩放），官方导航控件不再添加
-    //     // 比例尺保留，放左下角
-    //     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
-
-    //     const showZhiyinMarker = (lngLat: maplibregl.LngLat) => {
-    //       hideZhiyinMarker();
-    //       const el = document.createElement('div');
-    //       el.className = 'cursor-pointer';
-    //       el.innerHTML = `
-    //         <img class="block w-365px h-260px object-cover" src="${ZHIYIN_IMG}" alt="知音片区" />
-    //       `;
-    //       el.addEventListener('click', () => hideZhiyinMarker());
-    //       zhiyinMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-    //         .setLngLat(lngLat)
-    //         .setOffset([160, 0])
-    //         .addTo(map);
-    //     };
-
-    //     // 点击地图：命中知音地块 → 显示金字塔 Marker；否则移除 Marker 并打开右侧抽屉
-    //     map.on('click', (e) => {
-    //       const hit = map.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
-    //       if (hit) {
-    //         showZhiyinMarker(e.lngLat);
-    //         drawerVisible.value = true;
-    //         return;
-    //       }
-    //       hideZhiyinMarker();
-    //       drawerVisible.value = false;
-    //     });
-
-    //     // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
-    //     map.once('load', () => {
-    //       // 范围线 line 图层（浅灰 3px）：从 area_merged_all.geojson 异步加载
-    //       fetch(areaUrl)
-    //         .then((res) => res.json())
-    //         .then((data) => {
-    //           if (disposed || map.getSource('area-lines')) return;
-    //           map.addSource('area-lines', { type: 'geojson', data });
-    //           map.addLayer({
-    //             id: 'area-lines',
-    //             type: 'line',
-    //             source: 'area-lines',
-    //             paint: {
-    //               'line-color': colors.stone[400],
-    //               'line-width': 4,
-    //             },
-    //           });
-    //         })
-    //         .catch(() => {});
-
-    //       // 项目地块 fill 图层（BATCH：第一批紫 / 第二批深蓝）：从 project_merged_all.geojson 异步加载
-    //       fetch(projectUrl)
-    //         .then((res) => res.json())
-    //         .then((data) => {
-    //           if (disposed || map.getSource('project-fills')) return;
-    //           map.addSource('project-fills', { type: 'geojson', data });
-    //           map.addLayer({
-    //             id: 'project-fills',
-    //             type: 'fill',
-    //             source: 'project-fills',
-    //             paint: {
-    //               'fill-color': ['match', ['get', 'BATCH'], '第一批', '#773ceb', '第二批', '#3a86ec', '#A855F7'],
-    //               'fill-opacity': 0.8,
-    //             },
-    //           });
-    //         })
-    //         .catch(() => {});
-
-    //       // 知音项目地块 fill 图层（红色）：从 zhiyin.geojson 异步加载
-    //       fetch(zhiyinUrl)
-    //         .then((res) => res.json())
-    //         .then((data) => {
-    //           if (disposed || map.getSource('zhiyin-fill')) return;
-    //           map.addSource('zhiyin-fill', { type: 'geojson', data });
-    //           map.addLayer({
-    //             id: 'zhiyin-fill',
-    //             type: 'fill',
-    //             source: 'zhiyin-fill',
-    //             paint: {
-    //               'fill-color': '#ff2d2d',
-    //               'fill-opacity': 0.6,
-    //             },
-    //           });
-    //         })
-    //         .catch(() => {});
-    //     });
-
-    //   },
-    //   { immediate: true },
-    // );
-
-    // 组件卸载：地图实例由 VMap 内部销毁，这里只需清理外部挂接的资源
-    onBeforeUnmount(() => {
-      hideZhiyinMarker();
-      disposed = true;
-      mapInstance.value = null;
-    });
-
     return () => (
       <>
         {/* 左侧抽屉：与地图平级，向左移动渐隐（motion-v 动画） */}
@@ -262,8 +138,14 @@ export default defineComponent({
 
         <div class="size-full relative">
           {/* 地图：VMap 组件内部创建/销毁 MapLibre 实例，crs/center/zoom 走 options prop */}
-          <VMap ref={vmapRef} class="map-custom-controls" style={tiandituStyle} options={mapOptions}>
+          <VMap style={tiandituStyle} options={mapOptions}>
             <VMapControls class="absolute right-24px bottom-24px z-10" />
+            {/* 图层 / 交互逻辑子组件：必须在 VMap 插槽内才能 useMap */}
+            <SchemeMapLayers
+              onUpdate:drawer={(v: boolean) => {
+                drawerVisible.value = v;
+              }}
+            />
           </VMap>
 
           {expandVisible.value && (

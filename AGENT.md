@@ -52,6 +52,7 @@
 | `packages/core/layouts/views/login/` | [README](packages/core/layouts/views/login/README.md) | 登录流程、状态机、会话超时 |
 | `packages/cms/views/cms/article/` | [README](packages/cms/views/cms/article/README.md) | CollapseForm 分区表单范例 |
 | `packages/dfm/views/dfm/designer/` | [README](packages/dfm/views/dfm/designer/README.md) | 动态表单设计器入口 |
+| `packages/vmap/` | [README](packages/vmap/README.md) | MapLibre 地图组件：useMap 注入约束、useMapLayer 图层生命周期 |
 
 ## 4. 文档同步规则
 
