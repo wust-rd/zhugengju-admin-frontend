@@ -1,7 +1,7 @@
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
-import { MapControls } from '@jeesite/display/components/map-controls';
+import { VMap, VMapControls } from '@jeesite/vmap';
 import { animate } from 'motion-v';
-import { defineComponent, ref, shallowRef, watch } from 'vue';
+import { defineComponent, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 /** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
 import { colors } from '@jeesite/core/libs/colors';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
@@ -62,9 +62,18 @@ const tiandituStyle: maplibregl.StyleSpecification = {
 export default defineComponent({
   name: 'DisplayScheme',
   setup() {
+    /** VMap 组件实例引用：expose 的 map 字段为底层 MapLibre 实例 */
+    const vmapRef = ref<{ map: maplibregl.Map | null } | null>(null);
     /** Map 实例（供右下角自绘控件条 MapControls 使用） */
     const mapInstance = shallowRef<maplibregl.Map | null>(null);
-    const mapContainer = ref<HTMLDivElement | null>(null);
+    /** 组件卸载时置为 true，防止异步 fetch 完成后向已销毁的地图添加图层 */
+    let disposed = false;
+    /** 天地图原生构造选项（_c 系列瓦片为 CGCS2000 经纬度坐标系，CRS 切 EPSG:4490） */
+    const mapOptions: Partial<maplibregl.MapOptions> = {
+      crs: 'EPSG:4490',
+      center: [114.2761773, 30.5344542] as [number, number], // 数据范围中心（武汉）
+      zoom: 11,
+    };
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(false);
@@ -122,127 +131,117 @@ export default defineComponent({
       );
     };
 
-    // 地图生命周期高内聚：容器挂载后初始化，组件卸载时自动清理
-    watch(
-      mapContainer,
-      (el, _, onCleanup) => {
-        if (!el) return;
+    // 知音地块金字塔 Marker（单实例）：点击地块显示，点击其他处移除
+    let zhiyinMarker: maplibregl.Marker | null = null;
+    const hideZhiyinMarker = () => {
+      zhiyinMarker?.remove();
+      zhiyinMarker = null;
+    };
 
-        // 组件卸载时置为 true，防止异步 fetch 完成后向已销毁的地图添加图层
-        let disposed = false;
+    // // VMap 组件在 onMounted 中创建地图并 expose map 实例；拿到实例后挂接交互与图层逻辑
+    // watch(
+    //   () => vmapRef.value?.map,
+    //   (map) => {
+    //     if (!map) return;
+    //     mapInstance.value = map;
 
-        const map = new maplibregl.Map({
-          container: el,
-          style: tiandituStyle,
-          // 天地图 _c 系列瓦片为 CGCS2000 经纬度坐标系，地图 CRS 同步切换为 EPSG:4490
-          crs: 'EPSG:4490',
-          center: [114.2761773, 30.5344542], // 数据范围中心（武汉）
-          zoom: 11,
-        });
-        mapInstance.value = map;
+    //     // 右下角由自绘控件条 MapControls 接管（罗盘 / 2D-3D / 缩放），官方导航控件不再添加
+    //     // 比例尺保留，放左下角
+    //     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-        // 右下角由自绘控件条 MapControls 接管（罗盘 / 2D-3D / 缩放），官方导航控件不再添加
-        // 比例尺保留，放左下角
-        map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    //     const showZhiyinMarker = (lngLat: maplibregl.LngLat) => {
+    //       hideZhiyinMarker();
+    //       const el = document.createElement('div');
+    //       el.className = 'cursor-pointer';
+    //       el.innerHTML = `
+    //         <img class="block w-365px h-260px object-cover" src="${ZHIYIN_IMG}" alt="知音片区" />
+    //       `;
+    //       el.addEventListener('click', () => hideZhiyinMarker());
+    //       zhiyinMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+    //         .setLngLat(lngLat)
+    //         .setOffset([160, 0])
+    //         .addTo(map);
+    //     };
 
-        // 知音地块金字塔 Marker（单实例）：点击地块显示，点击其他处移除
-        let zhiyinMarker: maplibregl.Marker | null = null;
-        const hideZhiyinMarker = () => {
-          zhiyinMarker?.remove();
-          zhiyinMarker = null;
-        };
-        const showZhiyinMarker = (lngLat: maplibregl.LngLat) => {
-          hideZhiyinMarker();
-          const el = document.createElement('div');
-          el.className = 'cursor-pointer';
-          el.innerHTML = `
-            <img class="block w-365px h-260px object-cover" src="${ZHIYIN_IMG}" alt="知音片区" />
-          `;
-          el.addEventListener('click', () => hideZhiyinMarker());
-          zhiyinMarker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-            .setLngLat(lngLat)
-            .setOffset([160, 0])
-            .addTo(map);
-        };
+    //     // 点击地图：命中知音地块 → 显示金字塔 Marker；否则移除 Marker 并打开右侧抽屉
+    //     map.on('click', (e) => {
+    //       const hit = map.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
+    //       if (hit) {
+    //         showZhiyinMarker(e.lngLat);
+    //         drawerVisible.value = true;
+    //         return;
+    //       }
+    //       hideZhiyinMarker();
+    //       drawerVisible.value = false;
+    //     });
 
-        // 点击地图：命中知音地块 → 显示金字塔 Marker；否则移除 Marker 并打开右侧抽屉
-        map.on('click', (e) => {
-          const hit = map.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
-          if (hit) {
-            showZhiyinMarker(e.lngLat);
-            drawerVisible.value = true;
-            return;
-          }
-          hideZhiyinMarker();
-          drawerVisible.value = false;
-        });
+    //     // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
+    //     map.once('load', () => {
+    //       // 范围线 line 图层（浅灰 3px）：从 area_merged_all.geojson 异步加载
+    //       fetch(areaUrl)
+    //         .then((res) => res.json())
+    //         .then((data) => {
+    //           if (disposed || map.getSource('area-lines')) return;
+    //           map.addSource('area-lines', { type: 'geojson', data });
+    //           map.addLayer({
+    //             id: 'area-lines',
+    //             type: 'line',
+    //             source: 'area-lines',
+    //             paint: {
+    //               'line-color': colors.stone[400],
+    //               'line-width': 4,
+    //             },
+    //           });
+    //         })
+    //         .catch(() => {});
 
-        // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
-        map.once('load', () => {
-          // 范围线 line 图层（浅灰 3px）：从 area_merged_all.geojson 异步加载
-          fetch(areaUrl)
-            .then((res) => res.json())
-            .then((data) => {
-              if (disposed || map.getSource('area-lines')) return;
-              map.addSource('area-lines', { type: 'geojson', data });
-              map.addLayer({
-                id: 'area-lines',
-                type: 'line',
-                source: 'area-lines',
-                paint: {
-                  'line-color': colors.stone[400],
-                  'line-width': 4,
-                },
-              });
-            })
-            .catch(() => {});
+    //       // 项目地块 fill 图层（BATCH：第一批紫 / 第二批深蓝）：从 project_merged_all.geojson 异步加载
+    //       fetch(projectUrl)
+    //         .then((res) => res.json())
+    //         .then((data) => {
+    //           if (disposed || map.getSource('project-fills')) return;
+    //           map.addSource('project-fills', { type: 'geojson', data });
+    //           map.addLayer({
+    //             id: 'project-fills',
+    //             type: 'fill',
+    //             source: 'project-fills',
+    //             paint: {
+    //               'fill-color': ['match', ['get', 'BATCH'], '第一批', '#773ceb', '第二批', '#3a86ec', '#A855F7'],
+    //               'fill-opacity': 0.8,
+    //             },
+    //           });
+    //         })
+    //         .catch(() => {});
 
-          // 项目地块 fill 图层（BATCH：第一批紫 / 第二批深蓝）：从 project_merged_all.geojson 异步加载
-          fetch(projectUrl)
-            .then((res) => res.json())
-            .then((data) => {
-              if (disposed || map.getSource('project-fills')) return;
-              map.addSource('project-fills', { type: 'geojson', data });
-              map.addLayer({
-                id: 'project-fills',
-                type: 'fill',
-                source: 'project-fills',
-                paint: {
-                  'fill-color': ['match', ['get', 'BATCH'], '第一批', '#773ceb', '第二批', '#3a86ec', '#A855F7'],
-                  'fill-opacity': 0.8,
-                },
-              });
-            })
-            .catch(() => {});
+    //       // 知音项目地块 fill 图层（红色）：从 zhiyin.geojson 异步加载
+    //       fetch(zhiyinUrl)
+    //         .then((res) => res.json())
+    //         .then((data) => {
+    //           if (disposed || map.getSource('zhiyin-fill')) return;
+    //           map.addSource('zhiyin-fill', { type: 'geojson', data });
+    //           map.addLayer({
+    //             id: 'zhiyin-fill',
+    //             type: 'fill',
+    //             source: 'zhiyin-fill',
+    //             paint: {
+    //               'fill-color': '#ff2d2d',
+    //               'fill-opacity': 0.6,
+    //             },
+    //           });
+    //         })
+    //         .catch(() => {});
+    //     });
 
-          // 知音项目地块 fill 图层（红色）：从 zhiyin.geojson 异步加载
-          fetch(zhiyinUrl)
-            .then((res) => res.json())
-            .then((data) => {
-              if (disposed || map.getSource('zhiyin-fill')) return;
-              map.addSource('zhiyin-fill', { type: 'geojson', data });
-              map.addLayer({
-                id: 'zhiyin-fill',
-                type: 'fill',
-                source: 'zhiyin-fill',
-                paint: {
-                  'fill-color': '#ff2d2d',
-                  'fill-opacity': 0.6,
-                },
-              });
-            })
-            .catch(() => {});
-        });
+    //   },
+    //   { immediate: true },
+    // );
 
-        onCleanup(() => {
-          hideZhiyinMarker();
-          disposed = true;
-          mapInstance.value = null;
-          map.remove();
-        });
-      },
-      { immediate: true },
-    );
+    // 组件卸载：地图实例由 VMap 内部销毁，这里只需清理外部挂接的资源
+    onBeforeUnmount(() => {
+      hideZhiyinMarker();
+      disposed = true;
+      mapInstance.value = null;
+    });
 
     return () => (
       <>
@@ -262,17 +261,10 @@ export default defineComponent({
         </div>
 
         <div class="size-full relative">
-          <div
-            ref={(el) => {
-              mapContainer.value = el as HTMLDivElement | null;
-            }}
-            class="map-custom-controls h-full w-full relative"
-          />
-
-          {/* 地图控件条：右下角（罗盘重置方位 / 2D-3D 切换 / 缩放） */}
-          <div class="absolute right-24px bottom-24px z-10">
-            <MapControls map={mapInstance.value} />
-          </div>
+          {/* 地图：VMap 组件内部创建/销毁 MapLibre 实例，crs/center/zoom 走 options prop */}
+          <VMap ref={vmapRef} class="map-custom-controls" style={tiandituStyle} options={mapOptions}>
+            <VMapControls class="absolute right-24px bottom-24px z-10" />
+          </VMap>
 
           {expandVisible.value && (
             <img
@@ -296,7 +288,8 @@ export default defineComponent({
         <div
           class={cn('fixed top-100px right-12px z-50 transition-[transform,opacity] duration-200', {
             'opacity-100': drawerVisible.value,
-            'opacity-0': !drawerVisible.value,
+            // opacity-0 仅不可见，仍需 pointer-events-none 禁用鼠标穿透
+            'pointer-events-none opacity-0': !drawerVisible.value,
           })}
         >
           <RouterLink to="/display/scheme/detail">

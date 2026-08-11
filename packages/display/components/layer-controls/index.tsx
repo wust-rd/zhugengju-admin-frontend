@@ -1,11 +1,9 @@
 import { defineComponent, type PropType } from 'vue';
-import { cn } from '@jeesite/core/libs';
-
-/** cn 支持的所有 class 形式（字符串 / 条件对象 / 数组），供调用方控制按钮位置等 */
-type ClassValue = Parameters<typeof cn>[0];
+import { cn, type ClassValue } from '@jeesite/core/libs';
 
 export const LayerControls = defineComponent({
   props: {
+    // ClassValue 是纯类型，运行时需用构造函数组合，编译期用 PropType 约束
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: 'left-32px' },
   },
   setup(props) {

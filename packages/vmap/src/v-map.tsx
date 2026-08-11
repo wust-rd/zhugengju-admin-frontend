@@ -70,6 +70,9 @@ export const VMap = defineComponent({
     style: { type: [String, Object] as PropType<MapStyleOption> },
     /** 投影类型，传 { type: "globe" } 可切 3D 地球 */
     projection: { type: Object as PropType<ProjectionSpecification> },
+    /** 原生 MapLibre 构造选项（crs/center/zoom/scrollZoom 等）。
+     *  显式声明以获得 TSX 类型安全；$attrs 透传仅作补充，同名字段以此 prop 优先 */
+    options: { type: Object as PropType<Partial<MapOptions>> },
     /** 受控视口（配合 update:viewport 实现 v-model:viewport） */
     viewport: { type: Object as PropType<Partial<MapViewport>> },
     /** 是否强制显示加载遮罩 */
@@ -149,9 +152,9 @@ export const VMap = defineComponent({
 
     /**
      * 收集 MapLibre 构造选项：
-     *   $attrs（用户透传的原生选项）→ 过滤 → 与受控 viewport 合并
+     *   $attrs（用户透传的原生选项）→ 过滤 → 合并 options prop → 与受控 viewport 合并
      * 过滤规则：undefined 跳过 / Vue 事件监听器跳过 / 保留键跳过
-     * 最后 viewport 合并进来覆盖同名字段（受控值优先）
+     * 优先级：attrs < options（显式 prop）< viewport（受控值最高）
      */
     const collectMapOptions = (): Partial<MapOptions> => {
       const out: Record<string, unknown> = {};
@@ -162,7 +165,11 @@ export const VMap = defineComponent({
         if (RESERVED_ATTR_KEYS.has(key)) continue;
         out[key] = value;
       }
-      // 受控 viewport 最后合并，覆盖 attrs 中的同名字段
+      // 显式 options prop 覆盖 attrs 同名字段
+      for (const [key, value] of Object.entries(props.options ?? {})) {
+        if (value !== undefined) out[key] = value;
+      }
+      // 受控 viewport 最后合并，覆盖上面的字段
       for (const [key, value] of Object.entries(props.viewport ?? {})) {
         if (value !== undefined) out[key] = value;
       }

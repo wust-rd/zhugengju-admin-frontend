@@ -18,7 +18,8 @@
  * 注意：依赖 maplibre-gl 全局脚本（web/index.html 加载 maplibre-gl-enhance.js），
  * 运行时经 Vite alias 桥接到 window.maplibregl。
  */
-export { VMap } from './src/vmap';
+export { VMap } from './src/v-map';
+export { VMapControls } from './src/v-map-controls';
 export type { MapViewport, MapRef, MapArcDatum, MapArcEvent, MapArcLinePaint, MapArcLineLayout } from './src/types';
 export { useMap } from './src/composables/use-map';
 export { useMapLayer } from './src/composables/use-map-layer';

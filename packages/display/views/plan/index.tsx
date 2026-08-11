@@ -2,6 +2,7 @@ import { defineComponent, ref } from 'vue';
 import { animate } from 'motion-v';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
+import { VMap, VMapControls } from '@jeesite/vmap';
 
 /** OSS 图片基础地址 */
 const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/更新规划/';
@@ -82,9 +83,7 @@ export default defineComponent({
           <img src={MAP_IMAGE} alt="地图" class="size-full object-cover bg-center" />
 
           {/* 地图控件：右下角 */}
-          <div class="absolute right-24px bottom-24px z-10">
-            <MapControls />
-          </div>
+          <VMapControls class="absolute right-24px bottom-24px z-10" map={null} />
 
           {/* 抽屉收起后显示的圆形展开按钮 */}
           {expandVisible.value && (

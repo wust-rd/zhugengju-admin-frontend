@@ -2,6 +2,7 @@ import { computed, defineComponent, ref } from 'vue';
 import { ProjectTabContent } from '../../components/project-tab-content';
 import { RouterLink } from 'vue-router';
 import { MapControls } from '@jeesite/display/components/map-controls';
+import { VMapControls } from '@jeesite/vmap/index';
 
 /** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
 
@@ -72,9 +73,7 @@ export default defineComponent({
           <img src={`${OSS_BASE}/知音东苑片-${activeTab.value}.webp`} class="w-full h-full object-fill -ml-4px" />
 
           {/* 地图控件：右下角 */}
-          <div class="absolute right-24px bottom-24px z-10">
-            <MapControls />
-          </div>
+          <VMapControls class="absolute right-24px bottom-24px z-10" map={null} />
         </div>
 
         {/* 右侧 Drawer：地图点击打开，Tab 切换内容 */}
