@@ -7,7 +7,7 @@ export const Logo = defineComponent({
       <div class="w-420px h-full relative flex items-center justify-center">
         <img src={logoBgImg} alt="" class="size-full" />
 
-        <div class="absolute text-24px font-900 text-white">武汉市更新综合管理平台</div>
+        <div class="absolute text-24px font-900 text-white whitespace-nowrap">武汉市更新综合管理平台</div>
       </div>
     );
   },
