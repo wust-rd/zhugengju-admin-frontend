@@ -1,6 +1,7 @@
 import { cn } from '@jeesite/core/libs';
 import MapLibreGL, { type MapOptions, type ProjectionSpecification, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import './maplibre-gl-empty.css';
 import {
   computed,
   defineComponent,

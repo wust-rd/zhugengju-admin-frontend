@@ -1,5 +1,5 @@
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
-import { VMap, VMapControls } from '@jeesite/vmap';
+import { VMap, VMapControls, VMarker, VMarkerContent, VMarkerLabel, VMarkerTooltip } from '@jeesite/vmap';
 import { animate } from 'motion-v';
 import { defineComponent, ref } from 'vue';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
@@ -146,6 +146,14 @@ export default defineComponent({
                 drawerVisible.value = v;
               }}
             />
+            {/* Marker 示例：坐标 114.2913547, 30.5635014（需在 VMap 插槽内才可注入地图实例） */}
+            <VMarker longitude={114.2913547} latitude={30.5635014}>
+              <VMarkerContent>
+                <div class="bg-primary size-4 rounded-full border-2 border-white shadow-lg" />
+                <VMarkerLabel position="bottom">示例标注</VMarkerLabel>
+              </VMarkerContent>
+              <VMarkerTooltip>啊 12345</VMarkerTooltip>
+            </VMarker>
           </VMap>
 
           {expandVisible.value && (

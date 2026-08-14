@@ -20,6 +20,11 @@
  */
 export { VMap } from './src/v-map';
 export { VMapControls } from './src/v-map-controls';
+export { VMarker } from './src/v-marker';
+export { VMarkerContent } from './src/v-marker-content';
+export { VMarkerLabel } from './src/v-marker-label';
+export { VPopupShell } from './src/v-popup-shell';
+export { VMarkerTooltip } from './src/v-marker-tooltip';
 export type { MapViewport, MapRef, MapArcDatum, MapArcEvent, MapArcLinePaint, MapArcLineLayout } from './src/types';
 export { useMap } from './src/composables/use-map';
 export { useMapLayer } from './src/composables/use-map-layer';
