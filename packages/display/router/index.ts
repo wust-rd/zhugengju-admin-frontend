@@ -43,6 +43,23 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '片区策划详情',
         },
       },
+      // reuseMaps 演示：两个路由共享复用同一个地图实例（验证图层 / marker / 视口保留）
+      {
+        path: 'reuse/a',
+        name: 'DisplayReuseA',
+        component: () => import('../views/reuse-maps/a'),
+        meta: {
+          title: 'ReuseMaps A',
+        },
+      },
+      {
+        path: 'reuse/b',
+        name: 'DisplayReuseB',
+        component: () => import('../views/reuse-maps/b'),
+        meta: {
+          title: 'ReuseMaps B',
+        },
+      },
       {
         path: 'plan',
         name: 'DisplayPlan',

@@ -33,6 +33,12 @@ type MapStyleOption = string | StyleSpecification;
  *   - 用户传 <Map :style="myStyle"> → 加载用户自定义底图
  *   - 什么都不传                    → 加载默认 Carto Positron（亮）
  *
+ * ★ reuseMaps（跨路由复用）：参考 react-map-gl 的 reuseMaps。
+ *   开启后组件卸载时不销毁 MapLibre 实例（入池），另一个 <VMap reuseMaps>
+ *   挂载时复用同一实例：DOM 搬移 + 尺寸适配，保留底图、已添加图层 / marker 与视口。
+ *   适用于“地图挂载在 layout，路由切换只做隐藏/复显”的场景；
+ *   约束：跨实例复用应保持底图一致（复用不 setStyle，保留旧实例状态）。
+ *
  * 转换对照表：
  *
  * | Map.vue (SFC)            | Map.tsx (TSX)                        |
@@ -53,6 +59,61 @@ type MapStyleOption = string | StyleSpecification;
 
 // 默认底图：Carto 免费 CDN 的亮色矢量风格
 const defaultStyle: MapStyleOption = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+
+/**
+ * 已回收待复用的 MapLibre 实例池（LIFO）。
+ * reuseMaps 模式下，组件卸载时不销毁实例而是推入此池；
+ * 新 <VMap reuseMaps> 挂载时优先从池中取出复用，保留图层 / marker / 视口。
+ *
+ * 内存说明：池内实例为强引用、不会自动 GC，需通过 setSavedMapsLimit / clearSavedMaps 控制。
+ */
+const savedMaps: MapLibreGL.Map[] = [];
+
+/** 池容量上限（0 = 不限制，默认）。超过上限时新回收的实例直接销毁，避免内存无限堆积 */
+let savedMapsLimit = 0;
+
+/**
+ * 设置复用池容量上限（0 = 不限制）。
+ * 例如 setSavedMapsLimit(1) 表示最多保留 1 个待复用实例，其余回收的实例立即销毁。
+ */
+export function setSavedMapsLimit(limit: number) {
+  savedMapsLimit = limit;
+}
+
+/**
+ * 销毁并清空复用池（真正释放内存）。
+ * 适合在退出地图应用 / 注销登录 / 明确不再复用地图时调用；
+ * 调用后下一次 <VMap reuseMaps> 会重新创建实例。
+ */
+export function clearSavedMaps() {
+  const maps = savedMaps.splice(0, savedMaps.length);
+  for (const map of maps) {
+    try {
+      map.remove();
+    } catch {
+      // 实例可能已被销毁，忽略
+    }
+  }
+}
+
+/**
+ * 从池中复用地图实例：
+ * 1. 把旧容器（已从 document 摘除但 DOM 节点仍在内存）的全部子节点搬到新容器；
+ * 2. 替换 MapLibre 内部 container 引用（私有字段，需 cast）；
+ * 3. resize() 适配新容器尺寸。
+ * 池空时返回 null，由调用方新建实例。
+ */
+function reuseMap(container: HTMLDivElement): MapLibreGL.Map | null {
+  const map = savedMaps.pop();
+  if (!map) return null;
+  const oldContainer = map.getContainer();
+  while (oldContainer.childNodes.length > 0) {
+    container.appendChild(oldContainer.childNodes[0]);
+  }
+  (map as unknown as { _container: HTMLDivElement })._container = container;
+  map.resize();
+  return map;
+}
 
 export const VMap = defineComponent({
   name: 'VMap',
@@ -78,6 +139,13 @@ export const VMap = defineComponent({
     viewport: { type: Object as PropType<Partial<MapViewport>> },
     /** 是否强制显示加载遮罩 */
     loading: { type: Boolean, default: false },
+    /**
+     * 是否复用已回收的地图实例（默认 false）。
+     * 开启后，组件卸载时不销毁 MapLibre 实例（入池），另一个 <VMap reuseMaps>
+     * 挂载时复用同一实例：DOM 搬移 + 尺寸适配，保留底图、已添加图层 / marker 与视口。
+     * 适合地图挂载在 layout、跨路由切换的场景；底图一致时效果最佳。
+     */
+    reuseMaps: { type: Boolean, default: false },
   },
 
   // ---- 输出约束：唯一事件 ----
@@ -135,6 +203,28 @@ export const VMap = defineComponent({
     // ★ 子组件真正能开始画图层的时机：load && styledata
     const isLoadedAndStyleLoaded = computed(() => isLoaded.value && isStyleLoaded.value);
 
+    // ==================== 地图事件处理器（顶层定义，卸载回收时需 off） ====================
+    // styledata —— 样式数据到达（加载/换底图时触发），100ms 防抖只认最后一次
+    const styleDataHandler = () => {
+      clearStyleTimeout();
+      styleTimeout = setTimeout(() => {
+        isStyleLoaded.value = true;
+        if (props.projection) {
+          mapInstance.value?.setProjection(props.projection);
+        }
+      }, 100);
+    };
+    // load —— 地图资源加载完成
+    const loadHandler = () => {
+      isLoaded.value = true;
+    };
+    // move —— 相机位置/角度变化；★ 防重入：内部 jumpTo 触发的 move（internalUpdate=true）直接 return
+    const handleMove = () => {
+      if (internalUpdate) return;
+      const m = mapInstance.value;
+      if (m) emit('update:viewport', getViewport(m));
+    };
+
     // ==================== 上下文注入 ====================
     // 把「地图实例 + 加载状态」注入组件树，
     // 所有子组件通过 useMap() inject 后 watch isLoaded 决定建图时机
@@ -181,43 +271,44 @@ export const VMap = defineComponent({
     onMounted(() => {
       if (!containerRef.value) return;
 
-      // 初始底图：用户自定义优先，否则默认 Carto 亮色
-      currentStyle = styleOption.value;
+      let map: MapLibreGL.Map | null = null;
+      // reuseMaps 优先复用池中已回收实例（保留图层 / marker / 视口）
+      if (props.reuseMaps) map = reuseMap(containerRef.value);
 
-      // ★ 创建 MapLibre 底层实例
-      const map = new MapLibreGL.Map({
-        container: containerRef.value,
-        style: styleOption.value,
-        renderWorldCopies: false,
-        attributionControl: { compact: true },
-        ...collectMapOptions(),
-      });
+      if (!map) {
+        // 初始底图：用户自定义优先，否则默认 Carto 亮色
+        currentStyle = styleOption.value;
 
-      // 事件处理器 1：styledata —— 样式数据到达（加载/换底图时触发）
-      // 100ms 防抖：一次样式加载可能连续触发多次，只认最后一次
-      const styleDataHandler = () => {
-        clearStyleTimeout();
-        styleTimeout = setTimeout(() => {
-          isStyleLoaded.value = true;
-          if (props.projection) {
-            map.setProjection(props.projection);
-          }
-        }, 100);
-      };
-      // 事件处理器 2：load —— 地图资源加载完成
-      const loadHandler = () => {
-        isLoaded.value = true;
-      };
-      // 事件处理器 3：move —— 相机位置/角度变化
-      // ★ 防重入：内部 jumpTo 触发的 move（internalUpdate=true）直接 return
-      const handleMove = () => {
-        if (internalUpdate) return;
-        emit('update:viewport', getViewport(map));
-      };
+        // ★ 创建 MapLibre 底层实例
+        map = new MapLibreGL.Map({
+          container: containerRef.value,
+          style: styleOption.value,
+          renderWorldCopies: false,
+          attributionControl: { compact: true },
+          ...collectMapOptions(),
+        });
+      }
 
+      // 统一注册监听（新建 / 复用一致）；复用已加载实例时 load/styledata 不会再触发，
+      // 改由下方手动置位 isLoaded / isStyleLoaded 模拟 load 事件
       map.on('load', loadHandler);
       map.on('styledata', styleDataHandler);
       map.on('move', handleMove);
+
+      if (props.reuseMaps) {
+        // 复用已加载实例：手动同步加载状态，子组件（useMapLayer 等）随即挂接图层
+        // ★ 注意：不能用 map.loaded() —— 增强版它依赖 _styleDirty/_sourcesDirty，
+        //   复用后刚执行过 resize() 会置 dirty 标志导致其返回 false；
+        //   isStyleLoaded() 只查 style 内部状态、不依赖 dirty 标志，更可靠
+        if (map.isStyleLoaded()) {
+          isLoaded.value = true;
+          isStyleLoaded.value = true;
+        }
+        // 复用不 setStyle（保留旧底图与已添加图层）；currentStyle 同步为期望值，
+        // 防止 watch(styleOption) 误判“底图变化”而 setStyle 清空图层
+        currentStyle = styleOption.value;
+      }
+
       // ★ 最后才赋值：provide 出去的 map 变为可用，
       //   render 里 <slots.default> 也因 mapInstance 非空而开始渲染子组件
       mapInstance.value = map;
@@ -228,7 +319,19 @@ export const VMap = defineComponent({
       clearStyleTimeout();
       const map = mapInstance.value;
       if (map) {
-        map.remove(); // 销毁 MapLibre 实例
+        if (props.reuseMaps) {
+          // 回收而非销毁：先摘除本组件注册的监听器（避免复用后重复触发），实例入池
+          map.off('move', handleMove);
+          map.off('load', loadHandler);
+          map.off('styledata', styleDataHandler);
+          if (savedMapsLimit > 0 && savedMaps.length >= savedMapsLimit) {
+            map.remove(); // 池已满：直接销毁而非入池
+          } else {
+            savedMaps.push(map);
+          }
+        } else {
+          map.remove(); // 销毁 MapLibre 实例
+        }
       }
       mapInstance.value = null;
       isLoaded.value = false;
@@ -306,7 +409,7 @@ export const VMap = defineComponent({
       <div ref={containerRef} class={containerClass.value}>
         {/* 加载遮罩：地图未加载完成或用户强制 loading */}
         {(!isLoaded.value || props.loading) && (
-          <div class="bg-background/50 absolute inset-0 z-10 flex items-center justify-center backdrop-blur-xs">
+          <div class="bg-background/50 absolute inset-0 z-10 flex items-center justify-center">
             <div class="flex gap-1">
               {/* 三个圆点用 animation-delay 错峰，形成依次闪烁效果 */}
               <span class="bg-muted-foreground/60 size-1.5 animate-pulse rounded-full" />
