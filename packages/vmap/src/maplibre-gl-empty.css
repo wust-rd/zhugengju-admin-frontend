@@ -9,3 +9,43 @@
 .maplibregl-popup-tip {
   display: none !important;
 }
+
+/* ============================================================
+ * 轻位移弹窗动画（Animate.css 风格，位移缩至 20px）
+ *
+ * 供 VMapPopup / VMarkerPopup 默认进/离场使用：
+ *   class="animated animated-duration-300ms fade-in-down-sm"
+ *   leaveClass="animated animated-duration-300ms fade-out-up-sm"
+ *
+ * .animated 基类负责 animation-duration 默认值 / fill-mode（unocss-preset-extra），
+ * animated-duration-300ms 覆盖时长为 300ms，此处只提供 animation-name + keyframes。
+ * ============================================================ */
+.fade-in-down-sm {
+  animation-name: fade-in-down-sm;
+}
+
+@keyframes fade-in-down-sm {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.fade-out-up-sm {
+  animation-name: fade-out-up-sm;
+}
+
+@keyframes fade-out-up-sm {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0);
+  }
+}

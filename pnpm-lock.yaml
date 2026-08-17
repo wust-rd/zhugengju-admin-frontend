@@ -80,6 +80,9 @@ importers:
       unocss-merge:
         specifier: ^0.10.0
         version: 0.10.0
+      unocss-preset-extra:
+        specifier: ^1.0.0
+        version: 1.0.0(unocss@66.7.2(vite@8.0.10(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.6)(terser@5.49.0)(yaml@2.9.0)))
       vue:
         specifier: 3.5.38
         version: 3.5.38(typescript@6.0.3)
@@ -5817,6 +5820,11 @@ packages:
         optional: true
       react:
         optional: true
+
+  unocss-preset-extra@1.0.0:
+    resolution: {integrity: sha512-TByZwhEp3ChfND2fSiMTz023m1ghUPmuKpnhFG5/Uc9mCmL7eEV7y6nw06IE48m1niG1fI9THI4hWn5CpQ4JdA==}
+    peerDependencies:
+      unocss: '>= 0.31.0'
 
   unocss@66.7.2:
     resolution: {integrity: sha512-yB0yOpJTtlyGH/HAe4QdnjgjSP6z9ItTdrObvagc8ZEwRY1D2GbfUABwDKyZzXs19gXebqThMG9f+W0hPhDIPA==}
@@ -11588,6 +11596,10 @@ snapshots:
   unocss-merge@0.10.0:
     dependencies:
       clsx: 2.1.1
+
+  unocss-preset-extra@1.0.0(unocss@66.7.2(vite@8.0.10(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.6)(terser@5.49.0)(yaml@2.9.0))):
+    dependencies:
+      unocss: 66.7.2(vite@8.0.10(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.6)(terser@5.49.0)(yaml@2.9.0))
 
   unocss@66.7.2(vite@8.0.10(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.6)(terser@5.49.0)(yaml@2.9.0)):
     dependencies:

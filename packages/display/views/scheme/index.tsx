@@ -1,5 +1,14 @@
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
-import { VMap, VMapControls, VMarker, VMarkerContent, VMarkerLabel, VMarkerTooltip } from '@jeesite/vmap';
+import {
+  VMap,
+  VMapControls,
+  VMarker,
+  VMarkerContent,
+  VMarkerLabel,
+  VMarkerTooltip,
+  VMapPopup,
+  VMarkerPopup,
+} from '@jeesite/vmap';
 import { animate } from 'motion-v';
 import { defineComponent, ref } from 'vue';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
@@ -119,6 +128,8 @@ export default defineComponent({
       );
     };
 
+    const popupOpen = ref(false);
+
     return () => (
       <>
         {/* 左侧抽屉：与地图平级，向左移动渐隐（motion-v 动画） */}
@@ -149,11 +160,37 @@ export default defineComponent({
             {/* Marker 示例：坐标 114.2913547, 30.5635014（需在 VMap 插槽内才可注入地图实例） */}
             <VMarker longitude={114.2913547} latitude={30.5635014}>
               <VMarkerContent>
-                <div class="bg-primary size-4 rounded-full border-2 border-white shadow-lg" />
-                <VMarkerLabel position="bottom">示例标注</VMarkerLabel>
+                <div class="bg-red-500 size-4 rounded-full border-2 border-white shadow-lg" />
+                <VMarkerLabel position="bottom">VMarkerTooltip</VMarkerLabel>
               </VMarkerContent>
-              <VMarkerTooltip>啊 12345</VMarkerTooltip>
+              <VMarkerTooltip>VMarkerTooltip</VMarkerTooltip>
             </VMarker>
+
+            <VMarker longitude={114.3313547} latitude={30.5635014}>
+              <VMarkerContent>
+                <div class="bg-yellow-500 size-4 rounded-full border-2 border-white shadow-lg" />
+                <VMarkerLabel position="bottom">VMarkerPopup</VMarkerLabel>
+              </VMarkerContent>
+              <VMarkerPopup closeButton>
+                <div>VMarkerPopup</div>
+                <button class="b" onClick={() => (popupOpen.value = true)}>
+                  打开 Mappopup
+                </button>
+              </VMarkerPopup>
+            </VMarker>
+
+            {popupOpen.value && (
+              <VMapPopup
+                longitude={114.3313547}
+                latitude={30.5235014}
+                closeButton
+                onClose={() => {
+                  popupOpen.value = false;
+                }}
+              >
+                我是 VMapPopup
+              </VMapPopup>
+            )}
           </VMap>
 
           {expandVisible.value && (

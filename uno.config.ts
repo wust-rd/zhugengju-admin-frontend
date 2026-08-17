@@ -1,7 +1,7 @@
-import { defineConfig, UserConfig, presetTypography, presetIcons, transformerDirectives } from 'unocss';
-import { FileSystemIconLoader } from '@iconify/utils/lib/loader/node-loaders';
-import { presetWind3 } from '@unocss/preset-wind3';
 import { presetAntd } from '@antdv-next/unocss';
+import { FileSystemIconLoader } from '@iconify/utils/lib/loader/node-loaders';
+import { defineConfig, presetIcons, presetTypography, presetWind4, transformerDirectives, UserConfig } from 'unocss';
+import { presetExtra } from 'unocss-preset-extra';
 
 export default defineConfig({
   inspector: false,
@@ -13,8 +13,9 @@ export default defineConfig({
   },
   presets: [
     presetAntd(),
-    presetWind3(),
+    presetWind4(),
     presetTypography(),
+    presetExtra(),
     presetIcons({
       cdn: 'https://esm.sh/',
       extraProperties: {

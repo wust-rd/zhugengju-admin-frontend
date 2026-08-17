@@ -1,6 +1,6 @@
 import { computed, defineComponent, type PropType, type SlotsType } from 'vue';
 import { X } from 'lucide-vue-next';
-import { cn, type ClassValue } from '@jeesite/core/libs';
+import { clsx, type ClassValue } from '@jeesite/core/libs';
 
 type PopupVariant = 'popover' | 'tooltip';
 
@@ -35,17 +35,12 @@ export const VPopupShell = defineComponent({
 
   setup(props, { emit, slots }) {
     const cls = computed(() =>
-      props.variant === 'tooltip'
-        ? cn(
-            'bg-slate-900 text-white pointer-events-none rounded-md px-12px py-6px text-14px text-balance shadow-md',
-            'animate-in fade-in-0 zoom-in-95 duration-200 ease-out',
-            props.class,
-          )
-        : cn(
-            'bg-white text-black relative max-w-62 rounded-md border p-3 shadow-md',
-            'animate-in fade-in-0 zoom-in-95 duration-200 ease-out',
-            props.class,
-          ),
+      clsx(
+        props.variant === 'tooltip'
+          ? 'bg-slate-900 text-white pointer-events-none rounded-md px-12px py-6px text-14px text-balance shadow-md'
+          : 'bg-white relative max-w-62 rounded-8px px-16px py-12px shadow-md',
+        props.class,
+      ),
     );
 
     return () => (
@@ -54,10 +49,10 @@ export const VPopupShell = defineComponent({
           <button
             type="button"
             aria-label="Close popup"
-            class="focus-visible:ring-ring hover:bg-muted text-foreground absolute top-0.5 right-0.5 z-10 inline-flex size-5 cursor-pointer items-center justify-center rounded-sm transition-colors focus:outline-none focus-visible:ring-2"
+            class="hover:bg-gray-200 absolute top-2px right-2px z-50 inline-flex rd-4px size-16px cursor-pointer items-center justify-center transition-colors"
             onClick={() => emit('close')}
           >
-            <X class="size-4" />
+            <X class="size-12px" />
           </button>
         )}
         {slots.default?.()}
