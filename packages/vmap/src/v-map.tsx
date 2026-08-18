@@ -233,9 +233,10 @@ export const VMap = defineComponent({
       isLoaded: isLoadedAndStyleLoaded,
     });
 
-    // 暴露底层实例：<Map ref="mapRef" /> → mapRef.map 直接拿 MapLibre 实例
+    // 暴露底层实例：<Map ref="mapRef" /> → mapRef.map 直接拿 MapLibre 实例，
+    // mapRef.isLoaded 为“load && styledata 都完成”的响应式状态（如 Compare 等需要等地图就绪的组件使用）
     // （TSX 中 defineExpose 宏不可用，改用 setup 的 expose() 函数）
-    expose({ map: mapInstance });
+    expose({ map: mapInstance, isLoaded: isLoadedAndStyleLoaded });
 
     // ==================== attrs 收集 ====================
     // 这些 attrs 不应该转发给 MapLibre 构造器

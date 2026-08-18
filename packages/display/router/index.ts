@@ -43,6 +43,15 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '片区策划详情',
         },
       },
+      // 地图滑动对比页（@geoql/maplibre-gl-compare）
+      {
+        path: 'compare',
+        name: 'DisplayCompare',
+        component: () => import('../views/compare/index'),
+        meta: {
+          title: '地图对比',
+        },
+      },
       // reuseMaps 演示：两个路由共享复用同一个地图实例（验证图层 / marker / 视口保留）
       {
         path: 'reuse/a',
