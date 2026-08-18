@@ -1,7 +1,9 @@
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import { match, P } from 'ts-pattern';
 import linkImg from '@jeesite/assets/images/display/link.webp';
 import activeLinkImg from '@jeesite/assets/images/display/active-link.webp';
+import hoverLinkImg from '@jeesite/assets/images/display/hover-link.webp';
 
 import { cn } from '@jeesite/core/libs';
 
@@ -15,8 +17,15 @@ export const LinkItem = defineComponent({
   setup(props) {
     const route = useRoute();
     // 前缀匹配：/display/scheme 及 /display/scheme/detail 等子路径都点亮
-    const isActive = computed(
-      () => route.path === props.to || route.path.startsWith(`${props.to}/`),
+    const isActive = computed(() => route.path === props.to || route.path.startsWith(`${props.to}/`));
+    const isHover = ref(false);
+
+    // 优先级：active 恒显示 active 图；非 active 时 hover 显示 hover 图；否则默认图
+    const imgSrc = computed(() =>
+      match([isActive.value, isHover.value] as const)
+        .with([true, P.any], () => activeLinkImg)
+        .with([false, true], () => hoverLinkImg)
+        .otherwise(() => linkImg),
     );
 
     const renderContent = (navigate?: () => void) => (
@@ -27,8 +36,10 @@ export const LinkItem = defineComponent({
             navigate();
           }
         }}
+        onMouseenter={() => (isHover.value = true)}
+        onMouseleave={() => (isHover.value = false)}
       >
-        <img src={isActive.value ? activeLinkImg : linkImg} alt="tab" class="size-full" />
+        <img src={imgSrc.value} alt="tab" class="size-full" />
 
         <div
           class={cn('size-20px absolute left-20px', props.icon, {
@@ -48,15 +59,15 @@ export const LinkItem = defineComponent({
     );
 
     return () =>
-      props.disabled
-        ? renderContent()
-        : (
-            <RouterLink
-              to={props.to}
-              v-slots={{
-                default: ({ navigate }) => renderContent(navigate),
-              }}
-            />
-          );
+      props.disabled ? (
+        renderContent()
+      ) : (
+        <RouterLink
+          to={props.to}
+          v-slots={{
+            default: ({ navigate }) => renderContent(navigate),
+          }}
+        />
+      );
   },
 });
