@@ -278,7 +278,7 @@ export default defineComponent({
               </div>
             </div>
 
-            <CornerPanel />
+            <CornerPanel highlight="line" />
           </div>
         </div>
 
