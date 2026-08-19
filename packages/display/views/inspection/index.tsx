@@ -1,9 +1,38 @@
 import { defineComponent, ref } from 'vue';
 import type { MenuItemType } from 'antdv-next';
 import chartSvg from '@jeesite/assets/svg/display/chart.svg';
-import { buildYearItems } from '@jeesite/core/libs';
+import { buildYearItems, cn } from '@jeesite/core/libs';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlowButton } from '@jeesite/display/components/glow-button';
+import { AnimatePresence, motion } from 'motion-v';
+
+// 区域 tabs：激活项发光（白色 icon + 文字），未激活项仅灰色 icon（文字隐藏）
+const regionTabs = [
+  { key: 'city', label: '城区', icon: 'i-ri-map-2-line' },
+  { key: 'factory', label: '工厂', icon: 'i-ri-community-line' },
+  { key: 'enterprise', label: '企业', icon: 'i-ri-building-2-line' },
+  { key: 'residence', label: '住宅', icon: 'i-ri-home-smile-line' },
+] as const;
+
+// icon 左移动画时长（s）：文字需等 icon 左移完成后再渐显
+const ICON_MOVE_DURATION = 0.2;
+
+// 文字动画方式：'slide-right'（右滑）| 'slide-up'（自下而上），改这里即可切换
+const TEXT_ANIMATION_MODE: 'slide-right' | 'slide-up' = 'slide-up';
+
+// 两种文字进出动画：位移方向不同（x 右滑 / y 上移），透明渐显逻辑相同
+const textMotion = {
+  'slide-right': {
+    initial: { opacity: 0, x: 10 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: 10 },
+  },
+  'slide-up': {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 10 },
+  },
+};
 
 export default defineComponent({
   name: 'DisplayInspection',
@@ -35,6 +64,9 @@ export default defineComponent({
     const indicatorKey = ref<string | number>('4');
     const yearKey = ref<string | number>(yearItems[0]?.key ?? '');
 
+    // 区域 tabs 当前激活项（点击切换，单选）
+    const activeRegionKey = ref<string>('city');
+
     return () => (
       <>
         <img
@@ -50,11 +82,43 @@ export default defineComponent({
             <DropdownSelector v-model:activeKey={yearKey.value} width="w-120px" items={yearItems} class="ml-auto" />
           </div>
 
-          <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6">
-            <GlowButton class="px-12px w-102px h-42px rd-12px">
-              <div class="i-ri-map-2-line text-white size-20px"></div>
-              <div class="ml-6px text-14px text-white font-500">城区</div>
-            </GlowButton>
+          <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6 flex items-center">
+            {regionTabs.map((tab) => {
+              const active = tab.key === activeRegionKey.value;
+              return (
+                <GlowButton
+                  key={tab.key}
+                  class="px-12px w-102px h-42px rd-12px"
+                  isActive={active}
+                  onClick={() => {
+                    activeRegionKey.value = tab.key;
+                  }}
+                >
+                  {/* 内容动画（motion-v）：激活时 icon 先左移，文本随后渐显；文字绝对定位不参与布局，避免 flex 重排跳变 */}
+                  <motion.div
+                    class="relative flex items-center"
+                    animate={{ x: active ? -16 : 0 }}
+                    transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
+                  >
+                    <div class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')} />
+                    <AnimatePresence>
+                      {active && (
+                        <motion.div
+                          key={`${tab.key}-label`}
+                          class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
+                          initial={textMotion[TEXT_ANIMATION_MODE].initial}
+                          animate={textMotion[TEXT_ANIMATION_MODE].animate}
+                          exit={textMotion[TEXT_ANIMATION_MODE].exit}
+                          transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
+                        >
+                          {tab.label}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                </GlowButton>
+              );
+            })}
           </div>
         </div>
 

@@ -9,12 +9,14 @@ import { cn, type ClassValue } from '@jeesite/core/libs';
  * 定位、交互与文字内容（插槽），两层穿插叠加。
  *
  * 可调细节（props）：
- * - width / height:   尺寸（长版 202×42 / 短版 102×42；数字为 px，字符串透传 CSS 值，
- *                     SVG 用兜底 viewBox + preserveAspectRatio=none 拉伸铺满，视觉近似）
- * - radius:           圆角半径（原 SVG rx=10；'9999px' 变纯胶囊）
- * - borderGlow:       边框发光开关：true 渲染渐变描边，false 不渲染
- * - bottomGlow:       底部光晕开关
- * - glowOpacity:      底部光晕亮度 0~1（原 SVG fill-opacity=0.75）
+ * - isActive:          激活状态：false 时不渲染任何 SVG 视觉层（渐变底 / 光晕 / 描边），
+ *                      按钮透明仅留内容；true 时按下方开关渲染
+ * - width / height:    尺寸（长版 202×42 / 短版 102×42；数字为 px，字符串透传 CSS 值，
+ *                      SVG 用兜底 viewBox + preserveAspectRatio=none 拉伸铺满，视觉近似）
+ * - radius:            圆角半径（原 SVG rx=10；'9999px' 变纯胶囊）
+ * - borderGlow:        边框发光开关：true 渲染渐变描边，false 不渲染（需 isActive=true）
+ * - bottomGlow:        底部光晕开关（需 isActive=true）
+ * - glowOpacity:       底部光晕亮度 0~1（原 SVG fill-opacity=0.75）
  *
  * 尺寸也可以直接写在 class 里（UnoCSS 工具类，class 优先于 props）：
  * - w-<size> / h-<size>：如 w-102px、h-50%、w-100（无单位按 px）
@@ -23,7 +25,8 @@ import { cn, type ClassValue } from '@jeesite/core/libs';
  * 用法：
  * ```tsx
  * <GlowButton width={202} height={42} radius={10} glowOpacity={0.75}>开始巡检</GlowButton>
- * <GlowButton class="w-102px h-42px rd-42px px-12px">城区</GlowButton>
+ * <GlowButton isActive class="w-102px h-42px rd-42px">激活态（发光）</GlowButton>
+ * <GlowButton class="w-102px h-42px rd-42px">非激活（透明，无视觉）</GlowButton>
  * <GlowButton width={102} height={42} borderGlow={false} bottomGlow={false}>纯色按钮</GlowButton>
  * ```
  */
@@ -93,18 +96,25 @@ function parseSizeFromClass(classValue: ClassValue): SizeFromClass {
 
 export const GlowButton = defineComponent({
   name: 'GlowButton',
+  // 输出约束：对象形式声明事件及参数校验（见 vue-tsx-best-practices skill）
+  emits: {
+    // click：透传原生鼠标事件
+    click: (_e: MouseEvent) => true,
+  },
   props: {
     /** 根元素 id（可配合 CSS 选择器 / 事件委托定位） */
     id: { type: String, default: '' },
+    /** 激活状态：false 时不渲染任何 SVG 视觉（渐变底 / 光晕 / 描边），按钮透明仅留内容 */
+    isActive: { type: Boolean, default: false },
     /** 按钮宽度：数字为 px，字符串作为 CSS 值透传（如 '100%'、'18rem'） */
     width: { type: [Number, String] as PropType<number | string>, default: 202 },
     /** 按钮高度：数字为 px，字符串作为 CSS 值透传 */
     height: { type: [Number, String] as PropType<number | string>, default: 42 },
     /** 圆角半径：数字为 px，字符串作为 CSS 值透传（'9999px' 变纯胶囊） */
     radius: { type: [Number, String] as PropType<number | string>, default: 12 },
-    /** 边框发光开关：true 渲染青色渐变描边，false 不渲染描边 */
+    /** 边框发光开关：true 渲染青色渐变描边，false 不渲染描边（需 isActive=true 才生效） */
     borderGlow: { type: Boolean, default: true },
-    /** 底部光晕开关 */
+    /** 底部光晕开关（需 isActive=true 才生效） */
     bottomGlow: { type: Boolean, default: true },
     /** 底部光晕亮度 0~1（原 SVG fill-opacity=0.75） */
     glowOpacity: {
@@ -114,7 +124,7 @@ export const GlowButton = defineComponent({
     },
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: '' },
   },
-  setup(props, { slots }) {
+  setup(props, { slots, emit }) {
     // SVG defs id 前缀：useId 保证多实例互不冲突
     const uid = useId();
     const ids = {
@@ -182,96 +192,104 @@ export const GlowButton = defineComponent({
       const { w, h, r, strokeP, filterRegion } = dims.value;
 
       return (
-        <div id={props.id || undefined} role="button" class={cn('select-none', props.class)} style={rootStyle.value}>
-          {/* SVG 层：全部视觉（底色 / 光晕 / 描边），铺满且不拦截指针事件 */}
-          <svg
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${w} ${h}`}
-            preserveAspectRatio="none"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            class="absolute inset-0"
-            style={{ pointerEvents: 'none' }}
-          >
-            <g clip-path={`url(#${ids.clip})`}>
-              {/* 半透明渐变底（对应 SVG fill-opacity=0.1） */}
-              <rect width={w} height={h} rx={r} fill={`url(#${ids.bodyGrad})`} fill-opacity="0.1" />
+        <div
+          id={props.id || undefined}
+          role="button"
+          class={cn('select-none', props.class)}
+          style={rootStyle.value}
+          onClick={(e: MouseEvent) => emit('click', e)}
+        >
+          {/* SVG 视觉层：全部视觉（渐变底 / 光晕 / 描边）；isActive=false 时不渲染任何视觉 */}
+          {props.isActive && (
+            <svg
+              width="100%"
+              height="100%"
+              viewBox={`0 0 ${w} ${h}`}
+              preserveAspectRatio="none"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              class="absolute inset-0"
+              style={{ pointerEvents: 'none' }}
+            >
+              <g clip-path={`url(#${ids.clip})`}>
+                {/* 半透明渐变底（对应 SVG fill-opacity=0.1） */}
+                <rect width={w} height={h} rx={r} fill={`url(#${ids.bodyGrad})`} fill-opacity="0.1" />
 
-              {/* 底部光晕（对应 SVG ellipse + feGaussianBlur 12） */}
-              {props.bottomGlow && (
-                <g filter={`url(#${ids.glowFilter})`}>
-                  <ellipse
-                    cx={w / 2}
-                    cy={h}
-                    rx={GLOW_RX}
-                    ry={GLOW_RY}
-                    fill={GLOW_COLOR}
-                    fill-opacity={props.glowOpacity}
-                  />
-                </g>
+                {/* 底部光晕（对应 SVG ellipse + feGaussianBlur 12） */}
+                {props.bottomGlow && (
+                  <g filter={`url(#${ids.glowFilter})`}>
+                    <ellipse
+                      cx={w / 2}
+                      cy={h}
+                      rx={GLOW_RX}
+                      ry={GLOW_RY}
+                      fill={GLOW_COLOR}
+                      fill-opacity={props.glowOpacity}
+                    />
+                  </g>
+                )}
+              </g>
+
+              {/* 渐变描边（对应 SVG stroke-opacity=0.45 的渐变线） */}
+              {props.borderGlow && (
+                <rect
+                  x={0.5}
+                  y={0.5}
+                  width={w - STROKE_WIDTH}
+                  height={h - STROKE_WIDTH}
+                  rx={r - 0.5}
+                  stroke={`url(#${ids.strokeGrad})`}
+                  stroke-opacity="0.45"
+                />
               )}
-            </g>
 
-            {/* 渐变描边（对应 SVG stroke-opacity=0.45 的渐变线） */}
-            {props.borderGlow && (
-              <rect
-                x={0.5}
-                y={0.5}
-                width={w - STROKE_WIDTH}
-                height={h - STROKE_WIDTH}
-                rx={r - 0.5}
-                stroke={`url(#${ids.strokeGrad})`}
-                stroke-opacity="0.45"
-              />
-            )}
+              <defs>
+                {props.bottomGlow && (
+                  <filter
+                    id={ids.glowFilter}
+                    x={filterRegion.x}
+                    y={filterRegion.y}
+                    width={filterRegion.width}
+                    height={filterRegion.height}
+                    filterUnits="userSpaceOnUse"
+                    color-interpolation-filters="sRGB"
+                  >
+                    <feGaussianBlur stdDeviation={GLOW_BLUR} result="blur" />
+                  </filter>
+                )}
 
-            <defs>
-              {props.bottomGlow && (
-                <filter
-                  id={ids.glowFilter}
-                  x={filterRegion.x}
-                  y={filterRegion.y}
-                  width={filterRegion.width}
-                  height={filterRegion.height}
-                  filterUnits="userSpaceOnUse"
-                  color-interpolation-filters="sRGB"
+                <linearGradient
+                  id={ids.bodyGrad}
+                  x1={w / 2}
+                  y1={0}
+                  x2={w / 2}
+                  y2={h}
+                  gradientUnits="userSpaceOnUse"
                 >
-                  <feGaussianBlur stdDeviation={GLOW_BLUR} result="blur" />
-                </filter>
-              )}
+                  <stop stop-color={BODY_TOP} />
+                  <stop offset="1" stop-color={BODY_BOTTOM} />
+                </linearGradient>
 
-              <linearGradient
-                id={ids.bodyGrad}
-                x1={w / 2}
-                y1={0}
-                x2={w / 2}
-                y2={h}
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop stop-color={BODY_TOP} />
-                <stop offset="1" stop-color={BODY_BOTTOM} />
-              </linearGradient>
+                <linearGradient
+                  id={ids.strokeGrad}
+                  // 发光位置按宽/高百分比分配：x = 宽度×百分比，y = 高度×百分比
+                  x1={w * strokeP.x1}
+                  y1={h * strokeP.y1}
+                  x2={w * strokeP.x2}
+                  y2={h * strokeP.y2}
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop stop-color={STROKE_TOP} stop-opacity="0.1" />
+                  <stop offset="0.51354" stop-color={STROKE_MID} />
+                  <stop offset="1" stop-color={STROKE_TOP} stop-opacity="0.1" />
+                </linearGradient>
 
-              <linearGradient
-                id={ids.strokeGrad}
-                // 发光位置按宽/高百分比分配：x = 宽度×百分比，y = 高度×百分比
-                x1={w * strokeP.x1}
-                y1={h * strokeP.y1}
-                x2={w * strokeP.x2}
-                y2={h * strokeP.y2}
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop stop-color={STROKE_TOP} stop-opacity="0.1" />
-                <stop offset="0.51354" stop-color={STROKE_MID} />
-                <stop offset="1" stop-color={STROKE_TOP} stop-opacity="0.1" />
-              </linearGradient>
-
-              <clipPath id={ids.clip}>
-                <rect width={w} height={h} rx={r} fill="white" />
-              </clipPath>
-            </defs>
-          </svg>
+                <clipPath id={ids.clip}>
+                  <rect width={w} height={h} rx={r} fill="white" />
+                </clipPath>
+              </defs>
+            </svg>
+          )}
 
           {/* 内容层：覆盖在 SVG 之上，flex 保证图标+文字横向排列 */}
           <div class="relative z-10 flex items-center">{slots.default?.()}</div>
