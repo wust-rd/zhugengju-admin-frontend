@@ -2,6 +2,7 @@ import { defineComponent, ref } from 'vue';
 import { animate } from 'motion-v';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
+import { AreaOverviewModal } from '@jeesite/display/components/plan/area-overview-modal';
 import { VMap, VMapControls } from '@jeesite/vmap';
 
 /** OSS 图片基础地址 */
@@ -81,6 +82,9 @@ export default defineComponent({
         {/* 右侧：地图图片 */}
         <div class="relative min-w-0 flex-1 h-full">
           <img src={MAP_IMAGE} alt="地图" class="size-full object-cover bg-center" />
+
+          {/* 右侧上方 Modal（区域 area-overview-modal 组件） */}
+          {/* <AreaOverviewModal /> */}
 
           {/* 地图控件：右下角 */}
           <VMapControls class="absolute right-24px bottom-24px z-10" map={null} />
