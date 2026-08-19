@@ -13,6 +13,8 @@ import { GlowingButton } from '@jeesite/display/components/glowing-button';
 import { Light } from '@jeesite/display/components/light';
 import { Input } from 'antdv-next';
 import { Search, CircleX, Funnel } from 'lucide-vue-next';
+import glassPanelImg from '@jeesite/assets/images/display/glass-panel.webp';
+import { CornerPanel } from '@jeesite/display/components/corner-panel';
 
 // 指标评价结果分布：饼图与右侧统计网格共用同一份数据（数值为百分数）
 const ratingData = [
@@ -143,13 +145,13 @@ export default defineComponent({
 
     return () => (
       <>
-        <img
+        {/* <img
           src="https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/首页/首页drawer.webp"
           alt=""
           class="h-full object-fill"
-        />
+        /> */}
 
-        <div class="blue-bg pl-12px pt-24px pr-20px w-460px h-full">
+        <div class="blue-bg pl-16px pt-24px pr-24px w-460px h-full">
           <div class="flex items-center w-full">
             <DropdownSelector v-model:activeKey={indicatorKey.value} items={items} class="w-208px">
               {{
@@ -200,7 +202,7 @@ export default defineComponent({
           </div>
 
           <div class="mt-20px">
-            <GlowTitle class="w-404px mx-auto">
+            <GlowTitle class="w-full">
               <div class="pl-52px mb-4px text-white font-500 text-18px">指标评价结果</div>
             </GlowTitle>
 
@@ -219,7 +221,7 @@ export default defineComponent({
 
               <div class="ml-16px flex-1 grid grid-cols-2 gap-x-12px gap-y-8px">
                 {ratingData.map((item) => (
-                  <div key={item.label} class="flex items-center gap-8px px-8px py-6px">
+                  <div key={item.label} class="flex items-center gap-8px px-8px py-6px whitespace-nowrap">
                     <div class="w-2px h-6px rd-full" style={{ backgroundColor: item.color }} />
                     <span class="text-white text-14px">{item.label}</span>
                     <span class="text-white text-16px ml-auto">{item.value}%</span>
@@ -227,54 +229,56 @@ export default defineComponent({
                 ))}
               </div>
             </div>
+          </div>
 
-            <div class="mt-20px flex items-center gap-x-12px h-40px">
-              {/* 搜索输入框：前缀为 lucide-vue-next 搜索 icon；root 定制背景/边框，input 定制 placeholder 颜色
+          <div class="mt-20px flex items-center gap-x-12px h-40px">
+            {/* 搜索输入框：前缀为 lucide-vue-next 搜索 icon；root 定制背景/边框，input 定制 placeholder 颜色
                   （antdv cssinjs 运行时注入会覆盖普通类，故用 !important 前缀的 UnoCSS 类） */}
-              <Input
-                classes={{
-                  root: '!bg-white/6 !border-gray-500 focus-within:!border-cyan-500 w-280px h-40px text-white !rd-8px',
-                  input: 'placeholder:!text-gray-500 !pl-4px',
-                }}
-                prefix={<Search class="size-20px text-gray-400" />}
-                placeholder="输入指标 / 类别名称"
-                allowClear
-              >
-                {{
-                  // 清除按钮：替换 antdv 默认图标为 lucide 的 X
-                  clearIcon: () => <CircleX class="size-20px text-gray-400" />,
-                }}
-              </Input>
+            <Input
+              classes={{
+                root: '!bg-white/6 !border-gray-500 focus-within:!border-cyan-500 w-280px h-40px text-white !rd-8px',
+                input: 'placeholder:!text-gray-500 !pl-4px',
+              }}
+              prefix={<Search class="size-20px text-gray-400" />}
+              placeholder="输入指标 / 类别名称"
+              allowClear
+            >
+              {{
+                // 清除按钮：替换 antdv 默认图标为 lucide 的 X
+                clearIcon: () => <CircleX class="size-20px text-gray-400" />,
+              }}
+            </Input>
 
-              <DropdownSelector
-                v-model:activeKey={yearKey.value}
-                items={ratingData}
-                placeholder="全部"
-                class="w-136px rd-8px px-12px"
-                allowClear
-              >
-                {{
-                  prefix: () => <Funnel class="size-20px text-gray-400" />,
-                  suffix: () => null,
-                }}
-              </DropdownSelector>
-            </div>
+            <DropdownSelector
+              v-model:activeKey={yearKey.value}
+              items={ratingData}
+              placeholder="全部"
+              class="w-136px rd-8px px-12px"
+              allowClear
+            >
+              {{
+                prefix: () => <Funnel class="size-20px text-gray-400" />,
+                suffix: () => null,
+              }}
+            </DropdownSelector>
+          </div>
 
-            <div class="mt-16px flex items-center">
-              <div class="p-6px flex items-center w-full cursor-pointer">
-                {/* 白色荧光点（figma 样式）：多层白色 box-shadow 叠加出泛光效果 */}
-                <Light />
+          <div class="mt-16px">
+            <div class="p-6px flex items-center w-full cursor-pointer">
+              {/* 白色荧光点（figma 样式）：多层白色 box-shadow 叠加出泛光效果 */}
+              <Light />
 
-                <div class="mx-12px text-16px text-white font-500">生态宜居</div>
+              <div class="mx-12px text-16px text-white font-500">生态宜居</div>
 
-                {/* 绿色荧光胶囊徽章：GlowBadge 组件（figma 样式封装，见 components/glow-badge），数字由 value 传入 */}
-                <GlowBadge value={25} />
+              {/* 绿色荧光胶囊徽章：GlowBadge 组件（figma 样式封装，见 components/glow-badge），数字由 value 传入 */}
+              <GlowBadge value={25} />
 
-                <div class="ml-auto b b-gray-500 size-24px rd-full flex items-center justify-center bg-white/12 cursor-pointer">
-                  <div class="i-ri-arrow-down-s-line size-14px text-gray-300"></div>
-                </div>
+              <div class="ml-auto b b-gray-500 size-24px rd-full flex items-center justify-center bg-white/12 cursor-pointer">
+                <div class="i-ri-arrow-down-s-line size-14px text-gray-300"></div>
               </div>
             </div>
+
+            <CornerPanel />
           </div>
         </div>
 

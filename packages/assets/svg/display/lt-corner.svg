@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <!--
+    角落折线图标（L 形）：从左上角横向折向下方。
+    - 发光：青色（#00BBFF）投影 + 模糊，hard-light 混合增强霓虹感
+    - 填充：浅蓝 → 蓝 垂直渐变（#75D8FA → #419DFF）
+  -->
+  <g filter="url(#corner-glow)">
+    <path
+      fill-rule="evenodd"
+      clip-rule="evenodd"
+      d="M8 9
+         C8 8.44772 8.44771 8 9 8
+         L15.2 8
+         C15.6418 8 16 8.35817 16 8.8
+         C16 9.24183 15.6418 9.6 15.2 9.6
+         L10.6 9.6
+         C10.0477 9.6 9.6 10.0477 9.6 10.6
+         L9.6 15.2
+         C9.6 15.6418 9.24183 16 8.8 16
+         C8.35817 16 8 15.6418 8 15.2
+         L8 9
+         Z"
+      fill="url(#corner-gradient)"
+      style="mix-blend-mode: hard-light"
+      shape-rendering="crispEdges"
+    />
+  </g>
+
+  <defs>
+    <!-- 霓虹发光滤镜：青色投影 + 4px 模糊，自动保留原形状（等价于原 7 层滤镜链） -->
+    <filter
+      id="corner-glow"
+      x="0"
+      y="0"
+      width="24"
+      height="24"
+      filterUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB"
+    >
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#00BBFF" flood-opacity="1" />
+    </filter>
+
+    <!-- 主体渐变：浅蓝 → 蓝，自上而下 -->
+    <linearGradient
+      id="corner-gradient"
+      x1="12"
+      y1="8"
+      x2="12"
+      y2="16"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#75D8FA" />
+      <stop offset="1" stop-color="#419DFF" />
+    </linearGradient>
+  </defs>
+</svg>
