@@ -2,9 +2,9 @@ import { defineComponent, type CSSProperties, type PropType } from 'vue';
 import { cn, type ClassValue } from '@jeesite/core/libs';
 
 /**
- * GlowBadge —— 绿色荧光胶囊徽章（figma 样式封装）
+ * GlowBadge —— 青色荧光胶囊徽章（figma 样式封装）
  *
- * 底部绿色→青色径向渐变向上发散 + 深蓝黑半透明底 + 毛玻璃模糊，
+ * 底部青色荧光径向渐变（#00EAFF）向上发散 + 深蓝黑半透明底 + 毛玻璃模糊，
  * 配合页面霓虹风格显示数量 / 指标值。
  *
  * props：
@@ -19,9 +19,9 @@ import { cn, type ClassValue } from '@jeesite/core/libs';
  */
 
 // figma 原始样式常量
-const FIGMA_BORDER_RADIUS = '200px';
+// radial-gradient 取色为青色荧光 #00EAFF（rgb(0, 234, 255)）：底部向上发散，末端透明
 const FIGMA_BACKGROUND =
-  'radial-gradient(88.65% 51.18% at 50% 100%, rgba(64, 255, 140, 0.30) 0%, rgba(12, 198, 255, 0.00) 100%), var(--alpha---ui-bg-inverted-30, rgba(15, 23, 42, 0.30))';
+  'radial-gradient(88.65% 51.18% at 50% 100%, rgba(0, 234, 255, 0.45) 0%, rgba(0, 234, 255, 0.00) 100%), rgba(15, 23, 42, 0.30)';
 const FIGMA_BACKGROUND_BLEND_MODE = 'plus-lighter, color-dodge';
 
 export const GlowBadge = defineComponent({
