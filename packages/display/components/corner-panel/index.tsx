@@ -1,6 +1,7 @@
-import { cn, type ClassValue } from '@jeesite/core/libs';
-import { defineComponent, ref, type CSSProperties, type PropType } from 'vue';
+import { cn, withAlpha, type ClassValue } from '@jeesite/core/libs';
+import { defineComponent, ref, type PropType } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
+import { Light, MotionLight } from '@jeesite/display/components/light';
 import ltCornerSvg from '@jeesite/assets/svg/display/lt-corner.svg';
 import rtCornerSvg from '@jeesite/assets/svg/display/rt-corner.svg';
 import lbCornerSvg from '@jeesite/assets/svg/display/lb-corner.svg';
@@ -38,15 +39,9 @@ const RATING_COLOR: Record<string, string> = {
   较差: '#F472B6',
 };
 
-// 左右荧光条（参考 Light 组件，颜色 #00EAFF）：多层 box-shadow 叠加泛光
-const CYAN_BAR_SHADOW =
-  '0 0 32px 0 rgba(0, 234, 255, 0.30), 0 0 24px 0 #00EAFF, 1px 0 12px 0 rgba(0, 234, 255, 0.30), 2px 0 8px 0 rgba(0, 234, 255, 0.60)';
-const cyanBarStyle = (): CSSProperties => ({
-  width: '2px',
-  height: '20px',
-  background: '#00EAFF',
-  boxShadow: CYAN_BAR_SHADOW,
-});
+// line 形式：左右荧光条用 Light 组件（color="#00EAFF"），开/关灯动画用 MotionLight
+const LINE_BAR_WIDTH = 2;
+const LINE_BAR_HEIGHT = 20;
 
 // line 形式：上下线生长时长（s），左右灯需等线完成后才开灯
 const LINE_GROW_DURATION = 0.3;
@@ -103,15 +98,14 @@ export const CornerPanel = defineComponent({
     };
 
     return () => (
-      <div class={cn('relative mt-8px w-full h-400px b b-cyan-900 rd-4px bg-[#162a43]', props.class)}>
+      <div class={cn('relative mt-8px w-full b b-cyan-900 rd-4px bg-[#162a43]', props.class)}>
         {/* 四角装饰：不拦截指针事件 */}
         <img src={ltCornerSvg} alt="" class="absolute -top-14px -left-14px size-36px z-50 pointer-events-none" />
         <img src={rtCornerSvg} alt="" class="absolute -top-14px -right-14px size-36px z-50 pointer-events-none" />
-        <img src={lbCornerSvg} alt="" class="absolute -bottom-4px -left-10px w-80px h-4px z-50 pointer-events-none" />
-        <img src={rbCornerSvg} alt="" class="absolute -bottom-2px -right-2px size-48px z-50 pointer-events-none" />
+        <img src={lbCornerSvg} alt="" class="absolute bottom-0 -left-10px w-80px h-4px z-50 pointer-events-none" />
 
         {/* 指标列表：纵向排列，超出滚动；点击行时高亮滑块滑动到目标行 */}
-        <div class="relative z-10 flex flex-col gap-8px h-full overflow-y-auto py-12px">
+        <div class="relative z-10 flex flex-col gap-8px py-12px">
           {/* slide 形式：高亮滑块，渐变背景 + 上下渐变边框 + 左右荧光条，点击选中时滑动而来 */}
           {props.highlight === 'slide' && (
             <div
@@ -124,9 +118,19 @@ export const CornerPanel = defineComponent({
                   'linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10)) top/100% 1px no-repeat, linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10)) bottom/100% 1px no-repeat, linear-gradient(87deg, rgba(41,79,132,0.60) -3.66%, rgba(41,79,132,0.27) 47.74%, rgba(25,140,169,0.60) 103.8%)',
               }}
             >
-              {/* 左右荧光条（#00EAFF） */}
-              <div class="absolute left-0 top-1/2 -translate-y-1/2" style={cyanBarStyle()} />
-              <div class="absolute right-0 top-1/2 -translate-y-1/2" style={cyanBarStyle()} />
+              {/* 左右荧光条（#00EAFF，Light 组件） */}
+              <Light
+                color="#00EAFF"
+                width={LINE_BAR_WIDTH}
+                height={LINE_BAR_HEIGHT}
+                class="absolute left-0 top-1/2 -translate-y-1/2"
+              />
+              <Light
+                color="#00EAFF"
+                width={LINE_BAR_WIDTH}
+                height={LINE_BAR_HEIGHT}
+                class="absolute right-0 top-1/2 -translate-y-1/2"
+              />
             </div>
           )}
 
@@ -191,43 +195,54 @@ export const CornerPanel = defineComponent({
                       />
                     )}
                     {active && (
-                      <motion.div
+                      <MotionLight
                         key={`${item.seq}-left`}
-                        class="absolute left-0 top-1/2"
+                        color="#00EAFF"
+                        width={LINE_BAR_WIDTH}
+                        height={LINE_BAR_HEIGHT}
                         variants={lightVariants}
                         initial="exit"
                         animate="enter"
                         exit="exit"
-                        style={{ ...cyanBarStyle(), marginTop: '-10px' }}
+                        class="absolute left-0 top-1/2"
+                        style={{ marginTop: '-10px' }}
                       />
                     )}
                     {active && (
-                      <motion.div
+                      <MotionLight
                         key={`${item.seq}-right`}
-                        class="absolute right-0 top-1/2"
+                        color="#00EAFF"
+                        width={LINE_BAR_WIDTH}
+                        height={LINE_BAR_HEIGHT}
                         variants={lightVariants}
                         initial="exit"
                         animate="enter"
                         exit="exit"
-                        style={{ ...cyanBarStyle(), marginTop: '-10px' }}
+                        class="absolute right-0 top-1/2"
+                        style={{ marginTop: '-10px' }}
                       />
                     )}
                   </AnimatePresence>
                 )}
 
                 {/* 序号 */}
-                <span class="relative z-10 text-14px text-cyan-300 font-500 shrink-0">{item.seq}</span>
-                {/* 指标名称：弹性占位 */}
-                <span class="relative z-10 text-14px text-white truncate flex-1">{item.label}</span>
+                <span class="relative z-10 text-14px text-white shrink-0">{item.seq}</span>
+                {/* 指标名称：固定 164px，超长自动换行 */}
+                <span class="relative z-10 w-164px text-14px text-white">{item.label}</span>
                 {/* 数值 */}
-                <span class="relative z-10 text-14px text-white font-500 shrink-0">{item.value}</span>
+                <span class="relative z-10 w-84px text-center text-14px text-white shrink-0">{item.value}</span>
                 {/* 评级：语义色 */}
-                <span
-                  class="relative z-10 text-14px font-500 shrink-0"
-                  style={{ color: RATING_COLOR[item.rating] ?? '#FFFFFF' }}
+                {/* 评级胶囊：背景为评级色 0.1 透明度，边框 0.2 透明度，文字保持原色 */}
+                <div
+                  class="b rd-full w-48px h-24px flex items-center justify-center"
+                  style={{
+                    background: withAlpha(RATING_COLOR[item.rating] ?? '#FFFFFF', 0.1),
+                    borderColor: withAlpha(RATING_COLOR[item.rating] ?? '#FFFFFF', 0.2),
+                    color: RATING_COLOR[item.rating] ?? '#FFFFFF',
+                  }}
                 >
                   {item.rating}
-                </span>
+                </div>
               </div>
             );
           })}

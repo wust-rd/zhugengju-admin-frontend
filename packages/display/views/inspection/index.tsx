@@ -5,12 +5,11 @@ import chartSvg from '@jeesite/assets/svg/display/chart.svg';
 import { buildYearItems, cn } from '@jeesite/core/libs';
 import { useECharts } from '@jeesite/core/hooks/web/useECharts';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
-import { GlowBadge } from '@jeesite/display/components/glow-badge';
+import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
 import { GlowButton } from '@jeesite/display/components/glow-button';
 import { AnimatePresence, motion } from 'motion-v';
 import { GlowTitle } from '@jeesite/display/components/glow-title';
 import { GlowingButton } from '@jeesite/display/components/glowing-button';
-import { Light } from '@jeesite/display/components/light';
 import { Input } from 'antdv-next';
 import { Search, CircleX, Funnel } from 'lucide-vue-next';
 import glassPanelImg from '@jeesite/assets/images/display/glass-panel.webp';
@@ -153,13 +152,13 @@ export default defineComponent({
 
         <div class="blue-bg pl-16px pt-24px pr-24px w-460px h-full">
           <div class="flex items-center w-full">
-            <DropdownSelector v-model:activeKey={indicatorKey.value} items={items} class="w-208px">
+            <DropdownSelector v-model:activeKey={yearKey.value} items={yearItems} class="w-120px" />
+
+            <DropdownSelector v-model:activeKey={indicatorKey.value} items={items} class="ml-auto w-208px">
               {{
                 prefix: () => <img src={chartSvg} alt="" class="size-32px" />,
               }}
             </DropdownSelector>
-
-            <DropdownSelector v-model:activeKey={yearKey.value} items={yearItems} class="ml-auto w-120px" />
           </div>
 
           <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6 flex items-center">
@@ -263,22 +262,19 @@ export default defineComponent({
             </DropdownSelector>
           </div>
 
-          <div class="mt-16px">
-            <div class="p-6px flex items-center w-full cursor-pointer">
-              {/* 白色荧光点（figma 样式）：多层白色 box-shadow 叠加出泛光效果 */}
-              <Light />
+          <div class="mt-16px space-y-12px">
+            {/* 折叠面板：标题 + 徽章 + 箭头，点击展开/收起（GlowCollapse 组件） */}
+            <GlowCollapse title="生态宜居" badgeValue={25}>
+              <CornerPanel highlight="line" />
+            </GlowCollapse>
 
-              <div class="mx-12px text-16px text-white font-500">生态宜居</div>
+            <GlowCollapse title="历史文化保护利用" badgeValue={18}>
+              <CornerPanel highlight="line" />
+            </GlowCollapse>
 
-              {/* 绿色荧光胶囊徽章：GlowBadge 组件（figma 样式封装，见 components/glow-badge），数字由 value 传入 */}
-              <GlowBadge value={25} />
-
-              <div class="ml-auto b b-gray-500 size-24px rd-full flex items-center justify-center bg-white/12 cursor-pointer">
-                <div class="i-ri-arrow-down-s-line size-14px text-gray-300"></div>
-              </div>
-            </div>
-
-            <CornerPanel highlight="line" />
+            <GlowCollapse title="特色活力" badgeValue={12}>
+              <CornerPanel highlight="line" />
+            </GlowCollapse>
           </div>
         </div>
 

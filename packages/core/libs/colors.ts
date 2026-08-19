@@ -324,3 +324,11 @@ export const colors = {
     900: '#18181b',
   },
 };
+
+/** hex（#RRGGBB）→ rgba，带指定透明度（半透明背景/边框用） */
+export const withAlpha = (hex: string, alpha: number): string => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
