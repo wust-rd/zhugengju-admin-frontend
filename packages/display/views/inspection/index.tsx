@@ -5,17 +5,22 @@ import chartSvg from '@jeesite/assets/svg/display/chart.svg';
 import { buildYearItems, cn } from '@jeesite/core/libs';
 import { useECharts } from '@jeesite/core/hooks/web/useECharts';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
+import { GlowBadge } from '@jeesite/display/components/glow-badge';
 import { GlowButton } from '@jeesite/display/components/glow-button';
 import { AnimatePresence, motion } from 'motion-v';
 import { GlowTitle } from '@jeesite/display/components/glow-title';
+import { GlowingButton } from '@jeesite/display/components/glowing-button';
+import { Light } from '@jeesite/display/components/light';
+import { Input } from 'antdv-next';
+import { Search, CircleX, Funnel } from 'lucide-vue-next';
 
 // 指标评价结果分布：饼图与右侧统计网格共用同一份数据（数值为百分数）
 const ratingData = [
-  { label: '很好', value: 18.7, color: '#22D3EE' },
-  { label: '无标准', value: 20.1, color: '#CBD5E1' },
-  { label: '较好', value: 32.5, color: '#4ADE80' },
-  { label: '较差', value: 32.5, color: '#F472B6' },
-  { label: '一般', value: 23.7, color: '#FBBF24' },
+  { key: '很好', label: '很好', value: 18.7, color: '#22D3EE' },
+  { key: '无标准', label: '无标准', value: 20.1, color: '#CBD5E1' },
+  { key: '较好', label: '较好', value: 32.5, color: '#4ADE80' },
+  { key: '较差', label: '较差', value: 32.5, color: '#F472B6' },
+  { key: '一般', label: '一般', value: 23.7, color: '#FBBF24' },
 ];
 
 // 区域 tabs：激活项发光（白色 icon + 文字），未激活项仅灰色 icon（文字隐藏）
@@ -146,9 +151,13 @@ export default defineComponent({
 
         <div class="blue-bg pl-12px pt-24px pr-20px w-460px h-full">
           <div class="flex items-center w-full">
-            <DropdownSelector v-model:activeKey={indicatorKey.value} icon={chartSvg} items={items} />
+            <DropdownSelector v-model:activeKey={indicatorKey.value} items={items} class="w-208px">
+              {{
+                prefix: () => <img src={chartSvg} alt="" class="size-32px" />,
+              }}
+            </DropdownSelector>
 
-            <DropdownSelector v-model:activeKey={yearKey.value} width="w-120px" items={yearItems} class="ml-auto" />
+            <DropdownSelector v-model:activeKey={yearKey.value} items={yearItems} class="ml-auto w-120px" />
           </div>
 
           <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6 flex items-center">
@@ -216,6 +225,54 @@ export default defineComponent({
                     <span class="text-white text-16px ml-auto">{item.value}%</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div class="mt-20px flex items-center gap-x-12px h-40px">
+              {/* 搜索输入框：前缀为 lucide-vue-next 搜索 icon；root 定制背景/边框，input 定制 placeholder 颜色
+                  （antdv cssinjs 运行时注入会覆盖普通类，故用 !important 前缀的 UnoCSS 类） */}
+              <Input
+                classes={{
+                  root: '!bg-white/6 !border-gray-500 focus-within:!border-cyan-500 w-280px h-40px text-white !rd-8px',
+                  input: 'placeholder:!text-gray-500 !pl-4px',
+                }}
+                prefix={<Search class="size-20px text-gray-400" />}
+                placeholder="输入指标 / 类别名称"
+                allowClear
+              >
+                {{
+                  // 清除按钮：替换 antdv 默认图标为 lucide 的 X
+                  clearIcon: () => <CircleX class="size-20px text-gray-400" />,
+                }}
+              </Input>
+
+              <DropdownSelector
+                v-model:activeKey={yearKey.value}
+                items={ratingData}
+                placeholder="全部"
+                class="w-136px rd-8px px-12px"
+                allowClear
+              >
+                {{
+                  prefix: () => <Funnel class="size-20px text-gray-400" />,
+                  suffix: () => null,
+                }}
+              </DropdownSelector>
+            </div>
+
+            <div class="mt-16px flex items-center">
+              <div class="p-6px flex items-center w-full cursor-pointer">
+                {/* 白色荧光点（figma 样式）：多层白色 box-shadow 叠加出泛光效果 */}
+                <Light />
+
+                <div class="mx-12px text-16px text-white font-500">生态宜居</div>
+
+                {/* 绿色荧光胶囊徽章：GlowBadge 组件（figma 样式封装，见 components/glow-badge），数字由 value 传入 */}
+                <GlowBadge value={25} />
+
+                <div class="ml-auto b b-gray-500 size-24px rd-full flex items-center justify-center bg-white/12 cursor-pointer">
+                  <div class="i-ri-arrow-down-s-line size-14px text-gray-300"></div>
+                </div>
               </div>
             </div>
           </div>
