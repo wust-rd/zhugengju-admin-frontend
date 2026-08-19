@@ -3,6 +3,7 @@ import type { MenuItemType } from 'antdv-next';
 import chartSvg from '@jeesite/assets/svg/display/chart.svg';
 import { buildYearItems } from '@jeesite/core/libs';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
+import { GlowButton } from '@jeesite/display/components/glow-button';
 
 export default defineComponent({
   name: 'DisplayInspection',
@@ -44,21 +45,17 @@ export default defineComponent({
 
         <div class="blue-bg pl-12px pt-24px pr-20px w-460px h-full">
           <div class="flex items-center w-full">
-            <DropdownSelector
-              v-model:activeKey={indicatorKey.value}
-              icon={chartSvg}
-              items={items}
-            />
+            <DropdownSelector v-model:activeKey={indicatorKey.value} icon={chartSvg} items={items} />
 
-            <DropdownSelector
-              v-model:activeKey={yearKey.value}
-              width="w-120px"
-              items={yearItems}
-              class="ml-auto"
-            />
+            <DropdownSelector v-model:activeKey={yearKey.value} width="w-120px" items={yearItems} class="ml-auto" />
           </div>
 
-          <div class="mt-16px rd-full p-6px w-full h-54px b b-gray-500 bg-white/6"></div>
+          <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6">
+            <GlowButton class="px-12px w-102px h-42px rd-12px">
+              <div class="i-ri-map-2-line text-white size-20px"></div>
+              <div class="ml-6px text-14px text-white font-500">城区</div>
+            </GlowButton>
+          </div>
         </div>
 
         {/* <img
