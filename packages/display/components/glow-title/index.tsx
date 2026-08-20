@@ -11,7 +11,7 @@ export const GlowTitle = defineComponent({
   slots: {} as SlotsType<{ default: () => unknown }>,
   setup(props, { slots }) {
     return () => (
-      <div class={cn('w-full h-full flex items-center relative', props.class)}>
+      <div class={cn('w-full h-28px flex items-center relative', props.class)}>
         <img src={logoTitle1Img} alt="" class="size-full absolute inset-0 px-12px" />
 
         {slots.default?.()}

@@ -41,7 +41,8 @@ export const GlowCollapse = defineComponent({
     const expanded = ref(props.defaultExpanded);
 
     return () => (
-      <div class={cn('', props.class)}>
+      // w-full：撑满父级宽度，滚动条贴容器（blue-bg）边缘而非内容窄边
+      <div class={cn('w-full', props.class)}>
         {/* 折叠面板头部：点击展开 / 收起 */}
         <div
           class="p-6px flex items-center w-full cursor-pointer"

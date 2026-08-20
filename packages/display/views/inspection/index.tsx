@@ -1,19 +1,17 @@
-import { defineComponent, onMounted, ref, shallowRef } from 'vue';
-import type { Ref } from 'vue';
-import type { MenuItemType } from 'antdv-next';
 import chartSvg from '@jeesite/assets/svg/display/chart.svg';
-import { buildYearItems, cn } from '@jeesite/core/libs';
 import { useECharts } from '@jeesite/core/hooks/web/useECharts';
-import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
-import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
-import { GlowButton } from '@jeesite/display/components/glow-button';
-import { AnimatePresence, motion } from 'motion-v';
-import { GlowTitle } from '@jeesite/display/components/glow-title';
-import { GlowingButton } from '@jeesite/display/components/glowing-button';
-import { Input } from 'antdv-next';
-import { Search, CircleX, Funnel } from 'lucide-vue-next';
-import glassPanelImg from '@jeesite/assets/images/display/glass-panel.webp';
+import { buildYearItems, cn } from '@jeesite/core/libs';
 import { CornerPanel } from '@jeesite/display/components/corner-panel';
+import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
+import { GlowButton } from '@jeesite/display/components/glow-button';
+import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
+import { GlowTitle } from '@jeesite/display/components/glow-title';
+import type { MenuItemType } from 'antdv-next';
+import { Input } from 'antdv-next';
+import { CircleX, Funnel, Search } from 'lucide-vue-next';
+import { AnimatePresence, motion } from 'motion-v';
+import type { Ref } from 'vue';
+import { defineComponent, onMounted, ref, shallowRef } from 'vue';
 
 // 指标评价结果分布：饼图与右侧统计网格共用同一份数据（数值为百分数）
 const ratingData = [
@@ -36,7 +34,7 @@ const regionTabs = [
 const ICON_MOVE_DURATION = 0.2;
 
 // 文字动画方式：'slide-right'（右滑）| 'slide-up'（自下而上），改这里即可切换
-const TEXT_ANIMATION_MODE: 'slide-right' | 'slide-up' = 'slide-up';
+const TEXT_ANIMATION_MODE: 'slide-right' | 'slide-up' = 'slide-right';
 
 // 两种文字进出动画：位移方向不同（x 右滑 / y 上移），透明渐显逻辑相同
 const textMotion = {
@@ -143,147 +141,133 @@ export default defineComponent({
     });
 
     return () => (
-      <>
-        {/* <img
-          src="https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/首页/首页drawer.webp"
-          alt=""
-          class="h-full object-fill"
-        /> */}
+      <div class="blue-bg px-16px pt-24px w-460px h-full flex flex-col">
+        <div class="flex items-center w-full">
+          <DropdownSelector v-model:activeKey={yearKey.value} items={yearItems} class="w-120px" />
 
-        <div class="blue-bg pl-16px pt-24px pr-24px w-460px h-full">
-          <div class="flex items-center w-full">
-            <DropdownSelector v-model:activeKey={yearKey.value} items={yearItems} class="w-120px" />
+          <DropdownSelector v-model:activeKey={indicatorKey.value} items={items} class="ml-auto w-208px">
+            {{
+              prefix: () => <img src={chartSvg} alt="" class="size-32px" />,
+            }}
+          </DropdownSelector>
+        </div>
 
-            <DropdownSelector v-model:activeKey={indicatorKey.value} items={items} class="ml-auto w-208px">
-              {{
-                prefix: () => <img src={chartSvg} alt="" class="size-32px" />,
-              }}
-            </DropdownSelector>
-          </div>
-
-          <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6 flex items-center">
-            {regionTabs.map((tab) => {
-              const active = tab.key === activeRegionKey.value;
-              return (
-                <GlowButton
-                  key={tab.key}
-                  class="px-12px w-102px h-42px rd-12px"
-                  isActive={active}
-                  onClick={() => {
-                    activeRegionKey.value = tab.key;
-                  }}
+        <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6 flex items-center">
+          {regionTabs.map((tab) => {
+            const active = tab.key === activeRegionKey.value;
+            return (
+              <GlowButton
+                key={tab.key}
+                class="px-12px w-102px h-42px rd-12px"
+                isActive={active}
+                onClick={() => {
+                  activeRegionKey.value = tab.key;
+                }}
+              >
+                {/* 内容动画（motion-v）：激活时 icon 先左移，文本随后渐显；文字绝对定位不参与布局，避免 flex 重排跳变 */}
+                <motion.div
+                  class="relative flex items-center"
+                  animate={{ x: active ? -16 : 0 }}
+                  transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
                 >
-                  {/* 内容动画（motion-v）：激活时 icon 先左移，文本随后渐显；文字绝对定位不参与布局，避免 flex 重排跳变 */}
-                  <motion.div
-                    class="relative flex items-center"
-                    animate={{ x: active ? -16 : 0 }}
-                    transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
-                  >
-                    <div class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')} />
-                    <AnimatePresence>
-                      {active && (
-                        <motion.div
-                          key={`${tab.key}-label`}
-                          class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
-                          initial={textMotion[TEXT_ANIMATION_MODE].initial}
-                          animate={textMotion[TEXT_ANIMATION_MODE].animate}
-                          exit={textMotion[TEXT_ANIMATION_MODE].exit}
-                          transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
-                        >
-                          {tab.label}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                </GlowButton>
-              );
-            })}
-          </div>
+                  <div class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')} />
+                  <AnimatePresence>
+                    {active && (
+                      <motion.div
+                        key={`${tab.key}-label`}
+                        class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
+                        initial={textMotion[TEXT_ANIMATION_MODE].initial}
+                        animate={textMotion[TEXT_ANIMATION_MODE].animate}
+                        exit={textMotion[TEXT_ANIMATION_MODE].exit}
+                        transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
+                      >
+                        {tab.label}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </GlowButton>
+            );
+          })}
+        </div>
 
-          <div class="mt-20px">
-            <GlowTitle class="w-full">
-              <div class="pl-52px mb-4px text-white font-500 text-18px">指标评价结果</div>
-            </GlowTitle>
+        <div class="mt-20px">
+          <GlowTitle class="w-full">
+            <div class="pl-52px mb-4px text-white font-500 text-18px">指标评价结果</div>
+          </GlowTitle>
 
-            <div class="mt-16px flex items-center">
-              <div class="relative w-160px h-160px shrink-0">
-                <div ref={chartRef} class="w-full h-full" />
-                {/* 中心文字 overlay：hover 某段时显示其名称与数值，pointer-events-none 不挡图表交互 */}
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  {/* —— 文本大小 —— */}
-                  {/* 名称：text-12px 小号，可改 text-14px 等调整 */}
-                  <span class="text-white text-16px leading-6">{centerLabel.value}</span>
-                  {/* 数值：text-26px 大号，可改 text-30px 等调整 */}
-                  <span class="text-white text-20px font-500 leading-8">{centerValue.value}</span>
-                </div>
-              </div>
-
-              <div class="ml-16px flex-1 grid grid-cols-2 gap-x-12px gap-y-8px">
-                {ratingData.map((item) => (
-                  <div key={item.label} class="flex items-center gap-8px px-8px py-6px whitespace-nowrap">
-                    <div class="w-2px h-6px rd-full" style={{ backgroundColor: item.color }} />
-                    <span class="text-white text-14px">{item.label}</span>
-                    <span class="text-white text-16px ml-auto">{item.value}%</span>
-                  </div>
-                ))}
+          <div class="mt-16px flex items-center">
+            <div class="relative w-160px h-160px shrink-0">
+              <div ref={chartRef} class="w-full h-full" />
+              {/* 中心文字 overlay：hover 某段时显示其名称与数值，pointer-events-none 不挡图表交互 */}
+              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                {/* —— 文本大小 —— */}
+                {/* 名称：text-12px 小号，可改 text-14px 等调整 */}
+                <span class="text-white text-16px leading-6">{centerLabel.value}</span>
+                {/* 数值：text-26px 大号，可改 text-30px 等调整 */}
+                <span class="text-white text-20px font-500 leading-8">{centerValue.value}</span>
               </div>
             </div>
-          </div>
 
-          <div class="mt-20px flex items-center gap-x-12px h-40px">
-            {/* 搜索输入框：前缀为 lucide-vue-next 搜索 icon；root 定制背景/边框，input 定制 placeholder 颜色
-                  （antdv cssinjs 运行时注入会覆盖普通类，故用 !important 前缀的 UnoCSS 类） */}
-            <Input
-              classes={{
-                root: '!bg-white/6 !border-gray-500 focus-within:!border-cyan-500 w-280px h-40px text-white !rd-8px',
-                input: 'placeholder:!text-gray-500 !pl-4px',
-              }}
-              prefix={<Search class="size-20px text-gray-400" />}
-              placeholder="输入指标 / 类别名称"
-              allowClear
-            >
-              {{
-                // 清除按钮：替换 antdv 默认图标为 lucide 的 X
-                clearIcon: () => <CircleX class="size-20px text-gray-400" />,
-              }}
-            </Input>
-
-            <DropdownSelector
-              v-model:activeKey={yearKey.value}
-              items={ratingData}
-              placeholder="全部"
-              class="w-136px rd-8px px-12px"
-              allowClear
-            >
-              {{
-                prefix: () => <Funnel class="size-20px text-gray-400" />,
-                suffix: () => null,
-              }}
-            </DropdownSelector>
-          </div>
-
-          <div class="mt-16px space-y-12px">
-            {/* 折叠面板：标题 + 徽章 + 箭头，点击展开/收起（GlowCollapse 组件） */}
-            <GlowCollapse title="生态宜居" badgeValue={25}>
-              <CornerPanel highlight="line" />
-            </GlowCollapse>
-
-            <GlowCollapse title="历史文化保护利用" badgeValue={18}>
-              <CornerPanel highlight="line" />
-            </GlowCollapse>
-
-            <GlowCollapse title="特色活力" badgeValue={12}>
-              <CornerPanel highlight="line" />
-            </GlowCollapse>
+            <div class="ml-16px flex-1 grid grid-cols-2 gap-x-12px gap-y-8px">
+              {ratingData.map((item) => (
+                <div key={item.label} class="flex items-center gap-8px px-8px py-6px whitespace-nowrap">
+                  <div class="w-2px h-6px rd-full" style={{ backgroundColor: item.color }} />
+                  <span class="text-white text-14px">{item.label}</span>
+                  <span class="text-white text-16px ml-auto">{item.value}%</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* <img
-          src="https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/首页/底图.webp"
-          alt=""
-          class="flex-1 h-full object-fill"
-        /> */}
-      </>
+        <div class="mt-20px flex items-center gap-x-12px h-40px">
+          {/* 搜索输入框：前缀为 lucide-vue-next 搜索 icon；root 定制背景/边框，input 定制 placeholder 颜色
+                  （antdv cssinjs 运行时注入会覆盖普通类，故用 !important 前缀的 UnoCSS 类） */}
+          <Input
+            classes={{
+              root: '!bg-white/6 !border-gray-500 focus-within:!border-cyan-500 w-280px h-40px text-white !rd-8px',
+              input: 'placeholder:!text-gray-500 !pl-4px',
+            }}
+            prefix={<Search class="size-20px text-gray-400" />}
+            placeholder="输入指标 / 类别名称"
+            allowClear
+          >
+            {{
+              // 清除按钮：替换 antdv 默认图标为 lucide 的 X
+              clearIcon: () => <CircleX class="size-20px text-gray-400" />,
+            }}
+          </Input>
+
+          <DropdownSelector
+            v-model:activeKey={yearKey.value}
+            items={ratingData}
+            placeholder="全部"
+            class="w-136px rd-8px px-12px"
+            allowClear
+          >
+            {{
+              prefix: () => <Funnel class="size-20px text-gray-400" />,
+              suffix: () => null,
+            }}
+          </DropdownSelector>
+        </div>
+
+        <div class="mt-16px space-y-12px flex-1 min-h-0 overflow-y-auto pr-16px -mr-16px scrollbar-gutter-stable">
+          {/* 折叠面板：标题 + 徽章 + 箭头，点击展开/收起（GlowCollapse 组件） */}
+          <GlowCollapse title="生态宜居" badgeValue={25}>
+            <CornerPanel highlight="line" />
+          </GlowCollapse>
+
+          <GlowCollapse title="历史文化保护利用" badgeValue={18}>
+            <CornerPanel highlight="line" />
+          </GlowCollapse>
+
+          <GlowCollapse title="特色活力" badgeValue={12}>
+            <CornerPanel highlight="line" />
+          </GlowCollapse>
+        </div>
+      </div>
     );
   },
 });
