@@ -1,4 +1,28 @@
+/* 优设标题黑（YouSheBiaoTiHei）：本地字体，文件放 web/public/fonts/（woff2 或 ttf 均可） */
+@font-face {
+  font-family: YouSheBiaoTiHei;
+  src:
+    url('/fonts/youshe-biaotihei.woff2') format('woff2'),
+    url('/fonts/youshe-biaotihei.ttf') format('truetype');
+  font-display: swap;
+}
+
 .blue-bg {
-  background: linear-gradient(270deg, rgba(37, 86, 126, 0.75) 0.27%, #0f172a 98.66%);
+  background: linear-gradient(270deg, rgb(37 86 126 / 75%) 0.27%, #0f172a 98.66%);
   backdrop-filter: blur(10px);
+}
+
+/* 优设标题黑工具类（presetWind4 不生成 theme.fontFamily 工具，这里直接定义为普通类） */
+.font-youshe {
+  font-family: YouSheBiaoTiHei, sans-serif;
+}
+
+/* 隐藏滚动条但保留滚动能力（scrollbar-none 在 presetWind4 下不生成工具类，这里直接定义为普通类） */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

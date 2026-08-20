@@ -44,6 +44,7 @@ vite.config.ts.timestamp*
 # AI agents
 .agents
 .claude
+.dsh
 # 项目级共享 Skill（团队成员随仓库获取，需提交）
 .codebuddy/*
 !.codebuddy/skills/

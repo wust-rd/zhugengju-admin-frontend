@@ -3,6 +3,7 @@ import { animate } from 'motion-v';
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
 import { AreaOverviewModal } from '@jeesite/display/components/plan/area-overview-modal';
+import { RightDrawer } from '@jeesite/display/components/plan/right-drawer';
 import { VMap, VMapControls } from '@jeesite/vmap';
 
 /** OSS 图片基础地址 */
@@ -99,6 +100,9 @@ export default defineComponent({
             />
           )}
         </div>
+
+        {/* 右侧抽屉：常显示，内容为空待填充（见 right-drawer 组件） */}
+        <RightDrawer />
       </div>
     );
   },
