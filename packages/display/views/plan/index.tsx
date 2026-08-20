@@ -1,14 +1,25 @@
+import { cn } from '@jeesite/core/libs';
 import { ArtFont } from '@jeesite/display/components/art-font';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlassRing } from '@jeesite/display/components/glass-ring';
+import { GlowTabs, type GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { type MenuItemType } from 'antdv-next';
 import { AnimatePresence, animate, motion } from 'motion-v';
 import { defineComponent, ref } from 'vue';
 
+// 区域 tabs：激活项由 GlowTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
+const regionTabs: GlowTabItem[] = [
+  { key: 'district', label: '行政区划', icon: 'i-ri-road-map-line' },
+  { key: 'progress', label: '推进情况', icon: 'i-ri-list-check-3' },
+];
+
 export default defineComponent({
   name: 'DisplayPlan',
   setup() {
+    // 区域 tabs 当前激活项（点击切换，单选）
+    const activeRegionKey = ref<string>('district');
+
     // 指标分类下拉菜单项
     const batches: MenuItemType[] = [
       {
@@ -81,6 +92,31 @@ export default defineComponent({
               <div class="i-ri-arrow-left-double-fill size-20px text-white" />
             </GlassRing>
           </GlowTitle2>
+
+          {/* 区域 tabs：svg 发光胶囊滑动指示器（GlowTabs 抽象组件，tab 内容由调用方渲染） */}
+          <GlowTabs v-model:activeKey={activeRegionKey.value} class="mt-16px">
+            {{
+              // tab 完全由调用方渲染（GlowTabs 抽象组件）：每个元素带 data-glow-tab-key 供点击委托与指示器测量
+              default: () =>
+                regionTabs.map((tab) => {
+                  const active = tab.key === activeRegionKey.value;
+                  return (
+                    <div
+                      key={tab.key}
+                      data-glow-tab-key={tab.key}
+                      class="shrink-0 px-12px flex-1 h-42px rd-10px flex items-center justify-center gap-8px select-none cursor-pointer"
+                    >
+                      <div
+                        class={cn(tab.icon, 'size-20px transition-colors', active ? 'text-white' : 'text-gray-500')}
+                      />
+                      <span class={cn('text-16px transition-colors', active ? 'text-white' : 'text-gray-500')}>
+                        {tab.label}
+                      </span>
+                    </div>
+                  );
+                }),
+            }}
+          </GlowTabs>
         </div>
       </div>
     );

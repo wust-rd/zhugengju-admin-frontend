@@ -155,39 +155,40 @@ export default defineComponent({
         <GlowTabs v-model:activeKey={activeRegionKey.value} class="mt-16px">
           {{
             // tab 完全由调用方渲染（GlowTabs 抽象组件）：每个元素带 data-glow-tab-key 供点击委托与指示器测量
-            default: () => regionTabs.map((tab) => {
-              const active = tab.key === activeRegionKey.value;
-              return (
-                <div
-                  key={tab.key}
-                  data-glow-tab-key={tab.key}
-                  class="shrink-0 px-12px w-102px h-42px rd-12px flex items-center justify-center select-none cursor-pointer"
-                >
-                  {/* 内容动画（motion-v）：激活时 icon 先左移，文本随后渐显；文字绝对定位不参与布局，避免 flex 重排跳变 */}
-                  <motion.div
-                    class="relative flex items-center"
-                    animate={{ x: active ? -16 : 0 }}
-                    transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
+            // 内容动画（motion-v）：非激活仅灰色 icon；激活时 icon 左移变白，文字随后渐显
+            default: () =>
+              regionTabs.map((tab) => {
+                const active = tab.key === activeRegionKey.value;
+                return (
+                  <div
+                    key={tab.key}
+                    data-glow-tab-key={tab.key}
+                    class="shrink-0 px-12px w-102px h-42px rd-12px flex items-center justify-center select-none cursor-pointer"
                   >
-                    <div class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')} />
-                    <AnimatePresence>
-                      {active && (
-                        <motion.div
-                          key={`${tab.key}-label`}
-                          class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
-                          initial={textMotion[TEXT_ANIMATION_MODE].initial}
-                          animate={textMotion[TEXT_ANIMATION_MODE].animate}
-                          exit={textMotion[TEXT_ANIMATION_MODE].exit}
-                          transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
-                        >
-                          {tab.label}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                </div>
-              );
-            }),
+                    <motion.div
+                      class="relative flex items-center"
+                      animate={{ x: active ? -16 : 0 }}
+                      transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
+                    >
+                      <div class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')} />
+                      <AnimatePresence>
+                        {active && (
+                          <motion.div
+                            key={`${tab.key}-label`}
+                            class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
+                            initial={textMotion[TEXT_ANIMATION_MODE].initial}
+                            animate={textMotion[TEXT_ANIMATION_MODE].animate}
+                            exit={textMotion[TEXT_ANIMATION_MODE].exit}
+                            transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
+                          >
+                            {tab.label}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  </div>
+                );
+              }),
           }}
         </GlowTabs>
 
