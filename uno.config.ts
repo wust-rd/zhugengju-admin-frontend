@@ -5,6 +5,12 @@ import { presetExtra } from 'unocss-preset-extra';
 
 export default defineConfig({
   inspector: false,
+  rules: [
+    // 优设标题黑：对应 custom/font.less 的 @font-face，用于大屏标题
+    ['font-youshe', { 'font-family': '"YouSheBiaoTiHei", "PingFang SC", "Microsoft YaHei", sans-serif' }],
+    // 鸿蒙字体：对应 custom/harmony-os.less 的分片 @font-face
+    ['font-harmony', { 'font-family': '"HarmonyOS", sans-serif' }],
+  ],
   content: {
     pipeline: {
       include: ['**/*.vue', '**/*.tsx', '**/*.ts'],
