@@ -10,6 +10,8 @@ export default defineConfig({
     ['font-youshe', { 'font-family': '"YouSheBiaoTiHei", "PingFang SC", "Microsoft YaHei", sans-serif' }],
     // 鸿蒙字体：对应 custom/harmony-os.less 的分片 @font-face
     ['font-harmony', { 'font-family': '"HarmonyOS", sans-serif' }],
+    // Subway Ticker Grid 地铁信息牌点阵：对应 custom/subway.less 的 @font-face，用于数字/时间显示
+    ['font-subway', { 'font-family': '"SubwayTickerGrid", sans-serif' }],
   ],
   content: {
     pipeline: {
