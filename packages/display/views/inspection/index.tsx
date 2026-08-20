@@ -3,8 +3,8 @@ import { useECharts } from '@jeesite/core/hooks/web/useECharts';
 import { buildYearItems, cn } from '@jeesite/core/libs';
 import { CornerPanel } from '@jeesite/display/components/corner-panel';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
-import { GlowButton } from '@jeesite/display/components/glow-button';
 import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
+import { GlowTabs, type GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { GlowTitle1 } from '@jeesite/display/components/glow-title/title1';
 import type { MenuItemType } from 'antdv-next';
 import { Input } from 'antdv-next';
@@ -22,13 +22,13 @@ const ratingData = [
   { key: '一般', label: '一般', value: 23.7, color: '#FBBF24' },
 ];
 
-// 区域 tabs：激活项发光（白色 icon + 文字），未激活项仅灰色 icon（文字隐藏）
-const regionTabs = [
+// 区域 tabs：激活项由 GlowTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
+const regionTabs: GlowTabItem[] = [
   { key: 'city', label: '城区', icon: 'i-ri-map-2-line' },
   { key: 'factory', label: '工厂', icon: 'i-ri-community-line' },
   { key: 'enterprise', label: '企业', icon: 'i-ri-building-2-line' },
   { key: 'residence', label: '住宅', icon: 'i-ri-home-smile-line' },
-] as const;
+];
 
 // icon 左移动画时长（s）：文字需等 icon 左移完成后再渐显
 const ICON_MOVE_DURATION = 0.2;
@@ -152,44 +152,44 @@ export default defineComponent({
           </DropdownSelector>
         </div>
 
-        <div class="mt-16px rd-12px p-6px w-full h-54px b b-gray-500 bg-black/6 flex items-center">
-          {regionTabs.map((tab) => {
-            const active = tab.key === activeRegionKey.value;
-            return (
-              <GlowButton
-                key={tab.key}
-                class="px-12px w-102px h-42px rd-12px"
-                isActive={active}
-                onClick={() => {
-                  activeRegionKey.value = tab.key;
-                }}
-              >
-                {/* 内容动画（motion-v）：激活时 icon 先左移，文本随后渐显；文字绝对定位不参与布局，避免 flex 重排跳变 */}
-                <motion.div
-                  class="relative flex items-center"
-                  animate={{ x: active ? -16 : 0 }}
-                  transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
+        <GlowTabs v-model:activeKey={activeRegionKey.value} class="mt-16px">
+          {{
+            // tab 完全由调用方渲染（GlowTabs 抽象组件）：每个元素带 data-glow-tab-key 供点击委托与指示器测量
+            default: () => regionTabs.map((tab) => {
+              const active = tab.key === activeRegionKey.value;
+              return (
+                <div
+                  key={tab.key}
+                  data-glow-tab-key={tab.key}
+                  class="shrink-0 px-12px w-102px h-42px rd-12px flex items-center justify-center select-none cursor-pointer"
                 >
-                  <div class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')} />
-                  <AnimatePresence>
-                    {active && (
-                      <motion.div
-                        key={`${tab.key}-label`}
-                        class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
-                        initial={textMotion[TEXT_ANIMATION_MODE].initial}
-                        animate={textMotion[TEXT_ANIMATION_MODE].animate}
-                        exit={textMotion[TEXT_ANIMATION_MODE].exit}
-                        transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
-                      >
-                        {tab.label}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              </GlowButton>
-            );
-          })}
-        </div>
+                  {/* 内容动画（motion-v）：激活时 icon 先左移，文本随后渐显；文字绝对定位不参与布局，避免 flex 重排跳变 */}
+                  <motion.div
+                    class="relative flex items-center"
+                    animate={{ x: active ? -16 : 0 }}
+                    transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
+                  >
+                    <div class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')} />
+                    <AnimatePresence>
+                      {active && (
+                        <motion.div
+                          key={`${tab.key}-label`}
+                          class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
+                          initial={textMotion[TEXT_ANIMATION_MODE].initial}
+                          animate={textMotion[TEXT_ANIMATION_MODE].animate}
+                          exit={textMotion[TEXT_ANIMATION_MODE].exit}
+                          transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
+                        >
+                          {tab.label}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                </div>
+              );
+            }),
+          }}
+        </GlowTabs>
 
         <div class="mt-20px">
           <GlowTitle1 class="w-full h-28px">
