@@ -43,10 +43,8 @@ export const RightDrawer = defineComponent({
     };
 
     return () => (
-      <div class="absolute inset-0 pointer-events-none">
-        {/* 右侧抽屉 */}
         <div
-          class="absolute right-0 top-0 flex h-full w-420px shrink-0 flex-col b-l-1 b-solid b-white/6 bg-[#01213B] pointer-events-auto"
+          class="absolute right-0 top-0 flex h-full w-420px shrink-0 flex-col b-l-1 b-solid b-white/6 bg-[#01213B]"
           // style={{ background: 'linear-gradient(171deg, #0F172A -11.93%, #1A5072 99.26%)' }}
         >
           {/* 顶部 Tab 切换器 */}
@@ -82,9 +80,6 @@ export const RightDrawer = defineComponent({
             })}
           </div>
         </div>
-
-        {/* 中间modal */}
-      </div>
     );
   },
 });
