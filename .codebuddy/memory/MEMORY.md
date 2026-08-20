@@ -117,6 +117,13 @@ LayoutFeatures(异步) + LayoutHeader(fixed) + LayoutSideBar(侧边栏) + Layout
 Vite 配置从 `@jeesite/vite` 导入，导出 plugins/ options/ config/ theme/ 四大模块。
 环境变量在 `web/.env*`，通过 `wrapperEnv(loadEnv(mode, root))` 加载。
 
+### Display 包发光标题组件（packages/display/components/glow-title/，2026-08-20）
+
+三种实现并列，display 包的标准霓虹标题三件套：
+- **GlowTitle1** (`title1.tsx`)：基于 `glow-title-1.webp` 图片底板（横长条 + 两侧装饰），适合横向标题。
+- **GlowTitle2** (`title2.tsx`)：基于 `glow-title-2.webp` 图片底板（左侧大圆 + 蓝色发光），类似对话框/数据卡片头。
+- **GlowTitle3** (`title3.tsx`，2026-08-20 新增)：**纯 CSS 实现**——深蓝渐变 `#0A2454→#0E3275` 容器 + 1px 青色描边 + 内发光 + 文字 4 层青色 text-shadow（白描边→青硬光→青软光→青蓝长尾），不需要 webp 资源。适合程序化控制颜色/尺寸的场景（如"数据看板"面板）。API 与 1/2 一致（仅 `class` prop + default slot），内部固定 `text-white font-bold + 20px + letterSpacing 0.08em`。**`glow-title-3.webp` 已存在但实际只是左侧一个小图标（与矩形大字风格不匹配），未采用。**
+
 ## 关键路径
 
 | 用途 | 路径 |

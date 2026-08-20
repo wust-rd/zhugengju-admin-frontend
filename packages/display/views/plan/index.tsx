@@ -1,108 +1,87 @@
+import { ArtFont } from '@jeesite/display/components/art-font';
+import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
+import { GlassRing } from '@jeesite/display/components/glass-ring';
+import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
+import { type MenuItemType } from 'antdv-next';
+import { AnimatePresence, animate, motion } from 'motion-v';
 import { defineComponent, ref } from 'vue';
-import { animate } from 'motion-v';
-import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
-import { MapControls } from '@jeesite/display/components/map-controls';
-import { AreaOverviewModal } from '@jeesite/display/components/plan/area-overview-modal';
-import { RightDrawer } from '@jeesite/display/components/plan/right-drawer';
-import { VMap, VMapControls } from '@jeesite/vmap';
-
-/** OSS 图片基础地址 */
-const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/更新规划/';
-
-/** 左侧抽屉内容图：图层管理 */
-const DRAWER_IMAGE = `${OSS_BASE}更新规划-图层管理.webp`;
-/** 右侧地图图 */
-const MAP_IMAGE = `${OSS_BASE}更新规划图-地图.webp`;
 
 export default defineComponent({
   name: 'DisplayPlan',
   setup() {
-    const drawerRef = ref<HTMLDivElement | null>(null);
-    /** 抽屉收起后显示圆形展开按钮 */
-    const expandVisible = ref(false);
-    let drawerWidth = 0;
+    // 指标分类下拉菜单项
+    const batches: MenuItemType[] = [
+      {
+        key: '1',
+        label: '第一批 80',
+      },
+      {
+        key: '2',
+        label: ' 第二批 120',
+      },
+    ];
 
-    /** 隐藏抽屉 */
-    const hideDrawer = () => {
-      const el = drawerRef.value;
-      if (!el) return;
-      drawerWidth = el.offsetWidth;
-      animate(
-        el,
-        { width: [drawerWidth, 0], opacity: [1, 0] },
-        {
-          duration: 0.3,
-          ease: 'easeInOut',
-          onComplete: () => {
-            el.style.display = 'none';
-            el.style.width = '';
-            expandVisible.value = true;
-          },
-        },
-      );
-    };
+    const activeBatch = ref('1');
 
-    /** 展开抽屉 */
-    const showDrawer = () => {
-      const el = drawerRef.value;
+    /** 左侧面板引用：向左平移收起的动画目标 */
+    const panelRef = ref<HTMLDivElement | null>(null);
+    /** 收起按钮（GlassRing）引用：motion-v 通过该 ref 关联触发元素 */
+    const ringRef = ref<InstanceType<typeof GlassRing> | null>(null);
+    /** 收起状态：true = 面板已向左平移收起 */
+    const collapsed = ref(false);
+
+    /**
+     * 点击收起/展开按钮：
+     * - 收起：面板整体向左平移（x: 0 → -460px，移出屏幕左侧）
+     * - 展开：面板向右平移回原位（x: -460 → 0）
+     * 用 motion-v 的 animate() 命令式驱动，保证与 UI 状态 ref 同步。
+     */
+    const toggleCollapse = () => {
+      const el = panelRef.value;
       if (!el) return;
-      expandVisible.value = false;
-      el.style.display = '';
-      el.style.width = '0px';
-      animate(
-        el,
-        { width: [0, drawerWidth], opacity: [0, 1] },
-        {
-          duration: 0.3,
-          ease: 'easeInOut',
-          onComplete: () => {
-            el.style.width = '';
-          },
-        },
-      );
+      animate(el, collapsed.value ? { x: [-460, 0] } : { x: [0, -460] }, {
+        duration: 0.3,
+        ease: 'easeInOut',
+      });
+      collapsed.value = !collapsed.value;
     };
 
     return () => (
-      <div class="flex h-full w-full">
-        {/* 左侧抽屉 */}
-        <div
-          ref={(el) => {
-            drawerRef.value = el as HTMLDivElement | null;
-          }}
-          class="relative h-full shrink-0"
-        >
-          <img src={DRAWER_IMAGE} alt="图层管理" class="h-full object-fill" />
-
-          {/* 图片右上角透明点击区：收起抽屉 */}
-          <div
-            class="absolute right-12px top-12px size-40px cursor-pointer bg-transparent z-100"
-            onClick={hideDrawer}
-          />
-        </div>
-
-        {/* 右侧：地图图片 */}
-        <div class="relative min-w-0 flex-1 h-full">
-          <img src={MAP_IMAGE} alt="地图" class="size-full object-cover bg-center" />
-
-          {/* 右侧上方 Modal（区域 area-overview-modal 组件） */}
-          {/* <AreaOverviewModal /> */}
-
-          {/* 地图控件：右下角 */}
-          <VMapControls class="absolute right-24px bottom-24px z-10" map={null} />
-
-          {/* 抽屉收起后显示的圆形展开按钮 */}
-          {expandVisible.value && (
-            <img
-              src={expandBtnImg}
-              alt="展开"
-              class="absolute left-32px top-32px size-40px z-50 cursor-pointer"
-              onClick={showDrawer}
-            />
+      <div class="relative h-full">
+        {/* 展开按钮：面板收起后固定在左边缘，点击展开面板 */}
+        <AnimatePresence>
+          {collapsed.value && (
+            <motion.div
+              key="expand-btn"
+              initial={{ opacity: 0, x: -32 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -32 }}
+              transition={{ duration: 0.2 }}
+              class="absolute left-8px top-32px"
+            >
+              <GlassRing class="w-32px h-32px flex items-center justify-center cursor-pointer" onClick={toggleCollapse}>
+                <div class="i-ri-arrow-right-double-fill size-20px text-white" />
+              </GlassRing>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
 
-        {/* 右侧抽屉：常显示，内容为空待填充（见 right-drawer 组件） */}
-        <RightDrawer />
+        {/* 左侧面板：点击 GlassRing 后整体向左平移收起 */}
+        <div ref={panelRef} class="blue-bg pl-16px pr-24px pt-24px w-460px h-full flex flex-col">
+          <GlowTitle2 class="w-full h-56px">
+            <ArtFont class="ml-72px text-20px">数据看板</ArtFont>
+
+            <DropdownSelector v-model:activeKey={activeBatch.value} items={batches} class="ml-auto w-128px" ghost />
+
+            <GlassRing
+              ref={ringRef}
+              class="ml-16px w-32px h-32px flex items-center justify-center cursor-pointer"
+              onClick={toggleCollapse}
+            >
+              <div class="i-ri-arrow-left-double-fill size-20px text-white" />
+            </GlassRing>
+          </GlowTitle2>
+        </div>
       </div>
     );
   },

@@ -1,5 +1,5 @@
 import { computed, defineComponent, useId, type CSSProperties, type PropType } from 'vue';
-import { cn, type ClassValue } from '@jeesite/core/libs';
+import { cn, parseSizeFromClass, type ClassValue } from '@jeesite/core/libs';
 
 /**
  * GlowButton —— 霓虹发光胶囊按钮（SVG + div 穿插实现）
@@ -50,50 +50,6 @@ const FALLBACK_RADIUS = 10;
 const STROKE_P_SHORT = { x1: 0.322, y1: -0.146, x2: 0.731, y2: 1.141 }; // 短版 102×42
 const STROKE_P_LONG = { x1: 0.322, y1: -0.146, x2: 0.466, y2: 1.638 }; // 长版 202×42
 
-interface SizeFromClass {
-  width?: number | string;
-  height?: number | string;
-  radius?: number | string;
-}
-
-/**
- * 从 class（字符串 / 数组 / 对象）中解析 UnoCSS 尺寸工具类：
- * - w-102px / h-42px / rd-42px：px 转数字（与 props 数字=px 语义一致）
- * - w-50% / h-1.5rem / rd-100%：% / rem / em 保留字符串透传
- * - w-100（无单位）：按数字 px 处理
- * - w-full / w-1/2 等非数值类忽略
- * 返回的 class 值优先于 props（class 后写覆盖）。
- */
-function parseSizeFromClass(classValue: ClassValue): SizeFromClass {
-  const tokens: string[] = [];
-  const collect = (v: ClassValue): void => {
-    if (typeof v === 'string') tokens.push(...v.trim().split(/\s+/).filter(Boolean));
-    else if (Array.isArray(v)) v.forEach(collect);
-    else if (v && typeof v === 'object') {
-      for (const [key, on] of Object.entries(v)) if (on) tokens.push(key);
-    }
-  };
-  collect(classValue);
-
-  const out: SizeFromClass = {};
-  const toValue = (raw: string): number | string => {
-    const m = raw.match(/^(\d+(?:\.\d+)?)(px|rem|em|%)$/);
-    if (!m) return Number(raw); // 无单位按数字（px 语义）
-    return m[2] === 'px' ? Number(m[1]) : `${m[1]}${m[2]}`;
-  };
-
-  for (const token of tokens) {
-    const m = token.match(/^(w|h|rd)-(.+)$/);
-    if (!m) continue;
-    const [, kind, raw] = m;
-    if (!/^\d+(?:\.\d+)?(px|rem|em|%)?$/.test(raw)) continue; // 忽略 w-full、w-1/2 等非数值类
-    if (kind === 'w' && out.width === undefined) out.width = toValue(raw);
-    else if (kind === 'h' && out.height === undefined) out.height = toValue(raw);
-    else if (kind === 'rd' && out.radius === undefined) out.radius = toValue(raw);
-  }
-  return out;
-}
-
 export const GlowButton = defineComponent({
   name: 'GlowButton',
   // 输出约束：对象形式声明事件及参数校验（见 vue-tsx-best-practices skill）
@@ -140,10 +96,10 @@ export const GlowButton = defineComponent({
     // 尺寸解析：class 中的 w-*/h-*/rd-* 工具类优先，其次 props。
     // 用 computed 保证 class / props 运行时变化也能驱动 SVG 重算。
     const dims = computed(() => {
-      const fromClass = parseSizeFromClass(props.class);
-      const width = fromClass.width ?? props.width;
-      const height = fromClass.height ?? props.height;
-      const radius = fromClass.radius ?? props.radius;
+      const { size } = parseSizeFromClass(props.class);
+      const width = size.width ?? props.width;
+      const height = size.height ?? props.height;
+      const radius = size.radius ?? props.radius;
 
       // SVG 坐标系：仅数字尺寸可驱动 viewBox，字符串尺寸回退到兜底值 + CSS 拉伸
       const w = typeof width === 'number' ? width : FALLBACK_SIZE;

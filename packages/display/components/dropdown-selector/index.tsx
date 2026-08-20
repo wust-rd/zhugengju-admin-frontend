@@ -46,6 +46,8 @@ export const DropdownSelector = defineComponent({
     items: { type: Array as PropType<MenuItemType[]>, default: () => [] },
     /** 清除开关：true 且已有选中值时显示清除按钮（点击置空 activeKey） */
     allowClear: { type: Boolean, default: false },
+    /** 幽灵模式：去掉外圈描边与浅白底（b b-gray-500 bg-white/6），改用深色半透明底 bg-black/10；箭头同时去掉描边与底 */
+    ghost: { type: Boolean, default: false },
     // ClassValue 是纯类型，运行时需用构造函数组合，编译期用 PropType 约束
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: '' },
   },
@@ -89,7 +91,14 @@ export const DropdownSelector = defineComponent({
 
     return () => (
       <Dropdown menu={{ items: props.items, onClick: handleMenuClick }} trigger={['click']}>
-        <div class={cn('flex items-center rd-full p-4px h-40px b b-gray-500 bg-white/6 cursor-pointer', props.class)}>
+        {/* 外圈：ghost 时去掉描边+浅白底，换深色半透明底 */}
+        <div
+          class={cn(
+            'flex items-center rd-full p-4px h-40px cursor-pointer',
+            props.ghost ? 'bg-black/10' : 'b b-gray-500 bg-white/6',
+            props.class,
+          )}
+        >
           {slots.prefix?.()}
 
           <div class={cn('text-14px text-white whitespace-nowrap', hasPrefix ? 'ml-12px' : 'ml-16px')}>
@@ -107,7 +116,13 @@ export const DropdownSelector = defineComponent({
           {slots.suffix ? (
             slots.suffix()
           ) : (
-            <div class="ml-auto b b-gray-500 size-32px rd-full flex items-center justify-center bg-white/12 cursor-pointer">
+            /* 默认箭头：ghost 时去掉描边与底，仅保留圆形图标 */
+            <div
+              class={cn(
+                'ml-auto size-32px rd-full flex items-center justify-center cursor-pointer',
+                props.ghost ? '' : 'b b-gray-500 bg-white/12',
+              )}
+            >
               <div class="i-ri-arrow-down-s-line size-20px text-gray-300"></div>
             </div>
           )}

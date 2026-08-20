@@ -5,7 +5,7 @@ import { CornerPanel } from '@jeesite/display/components/corner-panel';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlowButton } from '@jeesite/display/components/glow-button';
 import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
-import { GlowTitle } from '@jeesite/display/components/glow-title';
+import { GlowTitle1 } from '@jeesite/display/components/glow-title/title1';
 import type { MenuItemType } from 'antdv-next';
 import { Input } from 'antdv-next';
 import { CircleX, Funnel, Search } from 'lucide-vue-next';
@@ -141,7 +141,7 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="blue-bg px-16px pt-24px w-460px h-full flex flex-col">
+      <div class="blue-bg pl-16px pr-24px pt-24px w-460px h-full flex flex-col">
         <div class="flex items-center w-full">
           <DropdownSelector v-model:activeKey={yearKey.value} items={yearItems} class="w-120px" />
 
@@ -192,9 +192,9 @@ export default defineComponent({
         </div>
 
         <div class="mt-20px">
-          <GlowTitle class="w-full">
+          <GlowTitle1 class="w-full h-28px">
             <div class="pl-52px mb-4px text-white font-500 text-18px">指标评价结果</div>
-          </GlowTitle>
+          </GlowTitle1>
 
           <div class="mt-16px flex items-center">
             <div class="relative w-160px h-160px shrink-0">
@@ -253,7 +253,7 @@ export default defineComponent({
           </DropdownSelector>
         </div>
 
-        <div class="mt-16px space-y-12px flex-1 min-h-0 overflow-y-auto pr-16px -mr-16px scrollbar-gutter-stable">
+        <div class="mt-16px space-y-12px flex-1 min-h-0 overflow-y-auto pr-24px -mr-24px scrollbar-gutter-stable">
           {/* 折叠面板：标题 + 徽章 + 箭头，点击展开/收起（GlowCollapse 组件） */}
           <GlowCollapse title="生态宜居" badgeValue={25}>
             <CornerPanel highlight="line" />

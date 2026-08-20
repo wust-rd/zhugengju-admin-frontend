@@ -12,3 +12,6 @@ export function cn(...inputs: ClassValue[]) {
 export { buildYearItems } from './year';
 
 export { withAlpha } from './colors';
+
+export { parseSizeFromClass } from './size';
+export type { SizeFromClass, SizeParseResult } from './size';
