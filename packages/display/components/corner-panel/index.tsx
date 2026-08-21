@@ -1,5 +1,5 @@
-import { cn, withAlpha, type ClassValue } from '@jeesite/core/libs';
-import { defineComponent, ref, type PropType } from 'vue';
+import { cn, type ClassValue } from '@jeesite/core/libs';
+import { defineComponent, provide, ref, type PropType, type SlotsType, type VNode } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
 import { Light, MotionLight } from '@jeesite/display/components/light';
 import ltCornerSvg from '@jeesite/assets/svg/display/lt-corner.svg';
@@ -7,43 +7,41 @@ import rtCornerSvg from '@jeesite/assets/svg/display/rt-corner.svg';
 import lbCornerSvg from '@jeesite/assets/svg/display/lb-corner.svg';
 import rbCornerSvg from '@jeesite/assets/svg/display/rb-corner.svg';
 
-/** 指标行：序号 + 指标名称 + 数值 + 评级 */
-interface CornerItem {
-  /** 序号（如 01、02） */
-  seq: string;
-  /** 指标名称 */
-  label: string;
-  /** 数值（如 77.8%、5个、7.03Km） */
-  value: string;
-  /** 评级（很好 / 较好 / 一般 / 较差） */
-  rating: string;
-}
+// 配套行组件、注入标识与类型：调用方可从同一路径导入（见 row.tsx）
+export { CornerPanelRow, RATING_COLOR, CORNER_ACTIVE_KEY, type CornerItem } from './row';
+import { CORNER_ACTIVE_KEY } from './row';
 
-// 默认指标数据（来自「指标评价结果」面板截图）
-const DEFAULT_ITEMS: CornerItem[] = [
-  { seq: '01', label: '公园绿化活动场地服务半径', value: '77.8%', rating: '很好' },
-  { seq: '02', label: '城市绿地率', value: '28.58%', rating: '一般' },
-  { seq: '03', label: '城市绿化覆盖率', value: '84.0%', rating: '较好' },
-  { seq: '04', label: '10万人拥有综合公园数量', value: '5个', rating: '很好' },
-  { seq: '05', label: '人均公园绿地面积', value: '0.16m²/人', rating: '较差' },
-  { seq: '06', label: '公园综合吸引半径', value: '7.03Km', rating: '较好' },
-  { seq: '07', label: '年度主要城市公园游客量', value: '3万人', rating: '一般' },
-  { seq: '08', label: '公园内年举办活动数量', value: '25场', rating: '一般' },
-];
-
-/** 评级语义色（与「指标评价结果分布」色系一致） */
-const RATING_COLOR: Record<string, string> = {
-  很好: '#22D3EE',
-  较好: '#4ADE80',
-  一般: '#FBBF24',
-  较差: '#F472B6',
-};
+/**
+ * CornerPanel —— 四角发光面板容器 + 点击行高亮动画
+ *
+ * 只负责四角装饰 / 背景 / 高亮动画层，内容（items 数据 + 行 div）完全由调用方
+ * 通过默认插槽控制，文本内容可动态变更。
+ *
+ * 高亮动画通过「事件委托 + 行协议」实现，不依赖组件内部的数据结构：
+ * - 插槽内的行 div 需带 `data-corner-row` 属性，组件点击时用 closest 定位该行，
+ *   读取 offsetTop / offsetHeight 驱动高亮层（slide 滑块 / line 荧光线）
+ * - 可选 `data-corner-key` 用作切换行的动画 key（不传则按行位置生成）
+ * - 推荐直接使用配套的 CornerPanelRow 组件（自带协议属性与行布局）
+ * - 行 div 不带协议属性时，组件退化为纯容器（无高亮交互）
+ *
+ * props：
+ * - highlight: 'slide' 整块滑块滑动（默认）；'line' 上下线生长 + 左右灯开合（motion-v）
+ * - class / isRound：透传样式
+ *
+ * 用法：
+ * ```tsx
+ * <CornerPanel>
+ *   {items.map((item) => <CornerPanelRow key={item.seq} item={item} />)}
+ * </CornerPanel>
+ * <CornerPanel>任意自由内容</CornerPanel>
+ * ```
+ */
 
 // line 形式：左右荧光条用 Light 组件（color="#00EAFF"），开/关灯动画用 MotionLight
 const LINE_BAR_WIDTH = 2;
 const LINE_BAR_HEIGHT = 20;
 
-// line 形式：上下线生长时长（s），左右灯需等线完成后才开灯
+// line 形式：上下线生长时长（s），左右灯需等线完成后再开灯
 const LINE_GROW_DURATION = 0.3;
 // line 形式：左右灯开/关时长（s）
 const LIGHT_FADE_DURATION = 0.2;
@@ -68,57 +66,80 @@ const lightVariants = {
   exit: { opacity: 0, scale: 0.4, transition: { duration: LIGHT_FADE_DURATION, ease: 'easeOut' } },
 };
 
+// slide 形式：高亮滑块背景（渐变 + 上下渐变边框）
+const SLIDE_BACKGROUND =
+  'linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10)) top/100% 1px no-repeat, linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10)) bottom/100% 1px no-repeat, linear-gradient(87deg, rgba(41,79,132,0.60) -3.66%, rgba(41,79,132,0.27) 47.74%, rgba(25,140,169,0.60) 103.8%)';
+
+// line 形式：选中行渐变背景
+const LINE_BG =
+  'linear-gradient(87deg, rgba(41,79,132,0.60) -3.66%, rgba(41,79,132,0.27) 47.74%, rgba(25,140,169,0.60) 103.8%)';
+
+// line 形式：渐变线（中间实色、两端浅青渐隐）
+const LINE_GRADIENT =
+  'linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10))';
+
+/** 行协议选择器：插槽内行 div 带此属性时，点击可触发高亮动画 */
+const ROW_SELECTOR = '[data-corner-row]';
+
 export const CornerPanel = defineComponent({
+  name: 'CornerPanel',
   props: {
-    /** 指标列表；不传则渲染默认「指标评价结果」数据 */
-    items: { type: Array as PropType<CornerItem[]>, default: () => DEFAULT_ITEMS },
     /** 高亮形式：'slide' 整块滑块滑动（默认）；'line' 上下线生长 + 左右灯开合（motion-v） */
-    highlight: { type: String as PropType<'slide' | 'line'> },
+    highlight: { type: String as PropType<'slide' | 'line'>, default: 'line' },
     // ClassValue 是纯类型，运行时需用构造函数组合，编译期用 PropType 约束
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: '' },
+    isRound: { type: Boolean, default: false },
   },
-  setup(props) {
-    // 当前选中序号：默认不选中任何项（点击后才出现高亮滑块）
-    const activeSeq = ref<string>('');
+  // 内容（items 数据 + 行 div）完全由默认插槽传入，文本可动态变更
+  slots: {} as SlotsType<{ default: () => unknown }>,
+  setup(props, { slots }) {
+    // 当前选中行：data-corner-key（或行位置兜底），用于切换行动画
+    const activeKey = ref('');
+    // 选中行几何：点击时从行 div 读取，驱动高亮层定位
+    const activeTop = ref(-80);
+    const activeHeight = ref(40);
 
-    // 滑块位置：点击选中时滑动到目标行（初始在列表上方不可见）
-    const slideTop = ref(-80);
-    const slideHeight = ref(40);
-    // 行 DOM 引用：点击时读取 offsetTop / offsetHeight 计算滑块落点
-    const rowRefs = new Map<string, HTMLElement>();
+    // 注入选中行 key：插槽内行组件（CornerPanelRow）据此感知自身是否被选中
+    provide(CORNER_ACTIVE_KEY, activeKey);
 
-    /** 点击行：滑块从当前位置滑到目标行，并选中该行 */
-    const handleSelect = (item: CornerItem) => {
-      const el = rowRefs.get(item.seq);
-      if (el) {
-        slideTop.value = el.offsetTop;
-        slideHeight.value = el.offsetHeight;
-      }
-      activeSeq.value = item.seq;
+    /** 点击容器：事件委托找到带 data-corner-row 的行，读取几何触发高亮 */
+    const handleClick = (e: MouseEvent) => {
+      const row = (e.target as HTMLElement).closest?.(ROW_SELECTOR) as HTMLElement | null;
+      if (!row) return;
+      activeTop.value = row.offsetTop;
+      activeHeight.value = row.offsetHeight;
+      activeKey.value = row.getAttribute('data-corner-key') ?? `row-${row.offsetTop}`;
     };
 
-    return () => (
-      <div class={cn('relative mt-8px w-full b b-cyan-900 rd-4px bg-[#162a43]', props.class)}>
-        {/* 四角装饰：不拦截指针事件 */}
-        <img src={ltCornerSvg} alt="" class="absolute -top-14px -left-14px size-36px z-50 pointer-events-none" />
-        <img src={rtCornerSvg} alt="" class="absolute -top-14px -right-14px size-36px z-50 pointer-events-none" />
-        <img src={lbCornerSvg} alt="" class="absolute bottom-0 -left-10px w-80px h-4px z-50 pointer-events-none" />
+    return () => {
+      return (
+        <div class={cn('relative mt-8px w-full b b-cyan-900 rd-4px bg-[#162a43]', props.class)} onClick={handleClick}>
+          {!props.isRound && (
+            <>
+              {/* 四角装饰：不拦截指针事件 */}
+              <img src={ltCornerSvg} alt="" class="absolute -top-14px -left-14px size-36px z-50 pointer-events-none" />
+              <img src={rtCornerSvg} alt="" class="absolute -top-14px -right-14px size-36px z-50 pointer-events-none" />
+              <img
+                src={lbCornerSvg}
+                alt=""
+                class="absolute bottom-0 -left-10px w-80px h-4px z-50 pointer-events-none"
+              />
+            </>
+          )}
 
-        {/* 指标列表：纵向排列，超出滚动；点击行时高亮滑块滑动到目标行 */}
-        <div class="relative z-10 flex flex-col gap-8px py-12px">
-          {/* slide 形式：高亮滑块，渐变背景 + 上下渐变边框 + 左右荧光条，点击选中时滑动而来 */}
-          {props.highlight === 'slide' && (
+          {/* —— 高亮动画层：绝对定位覆盖在内容之上，不拦截指针 —— */}
+
+          {/* slide 形式：整块滑块，渐变背景 + 上下渐变边框 + 左右荧光条，点击选中行时滑动而来 */}
+          {props.highlight === 'slide' && activeKey.value !== '' && (
             <div
               class="absolute left-0 right-0 pointer-events-none"
               style={{
-                top: `${slideTop.value}px`,
-                height: `${slideHeight.value}px`,
+                top: `${activeTop.value}px`,
+                height: `${activeHeight.value}px`,
                 transition: 'top 0.35s cubic-bezier(0.4, 0, 0.2, 1), height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                background:
-                  'linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10)) top/100% 1px no-repeat, linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10)) bottom/100% 1px no-repeat, linear-gradient(87deg, rgba(41,79,132,0.60) -3.66%, rgba(41,79,132,0.27) 47.74%, rgba(25,140,169,0.60) 103.8%)',
+                background: SLIDE_BACKGROUND,
               }}
             >
-              {/* 左右荧光条（#00EAFF，Light 组件） */}
               <Light
                 color="#00EAFF"
                 width={LINE_BAR_WIDTH}
@@ -134,120 +155,76 @@ export const CornerPanel = defineComponent({
             </div>
           )}
 
-          {props.items.map((item) => {
-            const active = item.seq === activeSeq.value;
-            return (
-              <div
-                key={item.seq}
-                ref={(el) => {
-                  if (el) rowRefs.set(item.seq, el as HTMLElement);
+          {/* line 形式：选中行上绘制上下线生长 + 左右灯开合（切换行时旧层退场、新层进场） */}
+          {props.highlight === 'line' && activeKey.value !== '' && (
+            <AnimatePresence>
+              <motion.div
+                key={`${activeKey.value}-bg`}
+                class="absolute inset-x-0 pointer-events-none"
+                variants={lineBgVariants}
+                initial="exit"
+                animate="enter"
+                exit="exit"
+                style={{ top: `${activeTop.value}px`, height: `${activeHeight.value}px`, background: LINE_BG }}
+              />
+              <motion.div
+                key={`${activeKey.value}-top`}
+                class="absolute inset-x-0 h-1px"
+                variants={lineVariants}
+                initial="exit"
+                animate="enter"
+                exit="exit"
+                style={{
+                  top: `${activeTop.value}px`,
+                  background: LINE_GRADIENT,
+                  transformOrigin: 'left center',
                 }}
-                class="relative flex items-center gap-16px self-stretch py-10px px-16px cursor-pointer"
-                onClick={() => handleSelect(item)}
-              >
-                {/* line 形式：上边线从左往右生长、下边线从右往左生长，左右灯开灯/关灯（含离场动画） */}
-                {props.highlight === 'line' && (
-                  <AnimatePresence>
-                    {/* 选中行渐变背景：与线同步淡入，退场时灯关完后淡出 */}
-                    {active && (
-                      <motion.div
-                        key={`${item.seq}-bg`}
-                        class="absolute inset-0 pointer-events-none"
-                        variants={lineBgVariants}
-                        initial="exit"
-                        animate="enter"
-                        exit="exit"
-                        style={{
-                          background:
-                            'linear-gradient(87deg, rgba(41,79,132,0.60) -3.66%, rgba(41,79,132,0.27) 47.74%, rgba(25,140,169,0.60) 103.8%)',
-                        }}
-                      />
-                    )}
-                    {active && (
-                      <motion.div
-                        key={`${item.seq}-top`}
-                        class="absolute top-0 left-0 right-0 h-1px"
-                        variants={lineVariants}
-                        initial="exit"
-                        animate="enter"
-                        exit="exit"
-                        style={{
-                          // 渐变线：中间实色、两端浅青渐隐（非纯色 border）
-                          background:
-                            'linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10))',
-                          transformOrigin: 'left center',
-                        }}
-                      />
-                    )}
-                    {active && (
-                      <motion.div
-                        key={`${item.seq}-bottom`}
-                        class="absolute bottom-0 left-0 right-0 h-1px"
-                        variants={lineVariants}
-                        initial="exit"
-                        animate="enter"
-                        exit="exit"
-                        style={{
-                          background:
-                            'linear-gradient(to right, rgba(9,150,175,0.10), rgba(9,150,175,0.45) 20%, #00EAFF 40%, #00EAFF 60%, rgba(9,150,175,0.45) 80%, rgba(9,150,175,0.10))',
-                          transformOrigin: 'right center',
-                        }}
-                      />
-                    )}
-                    {active && (
-                      <MotionLight
-                        key={`${item.seq}-left`}
-                        color="#00EAFF"
-                        width={LINE_BAR_WIDTH}
-                        height={LINE_BAR_HEIGHT}
-                        variants={lightVariants}
-                        initial="exit"
-                        animate="enter"
-                        exit="exit"
-                        class="absolute left-0 top-1/2"
-                        style={{ marginTop: '-10px' }}
-                      />
-                    )}
-                    {active && (
-                      <MotionLight
-                        key={`${item.seq}-right`}
-                        color="#00EAFF"
-                        width={LINE_BAR_WIDTH}
-                        height={LINE_BAR_HEIGHT}
-                        variants={lightVariants}
-                        initial="exit"
-                        animate="enter"
-                        exit="exit"
-                        class="absolute right-0 top-1/2"
-                        style={{ marginTop: '-10px' }}
-                      />
-                    )}
-                  </AnimatePresence>
-                )}
+              />
+              <motion.div
+                key={`${activeKey.value}-bottom`}
+                class="absolute inset-x-0 h-1px"
+                variants={lineVariants}
+                initial="exit"
+                animate="enter"
+                exit="exit"
+                style={{
+                  top: `${activeTop.value + activeHeight.value}px`,
+                  background: LINE_GRADIENT,
+                  transformOrigin: 'right center',
+                }}
+              />
+              <MotionLight
+                key={`${activeKey.value}-left`}
+                color="#00EAFF"
+                width={LINE_BAR_WIDTH}
+                height={LINE_BAR_HEIGHT}
+                variants={lightVariants}
+                initial="exit"
+                animate="enter"
+                exit="exit"
+                class="absolute left-0"
+                style={{ top: `${activeTop.value}px`, marginTop: activeHeight.value / 2 - LINE_BAR_HEIGHT / 2 }}
+              />
+              <MotionLight
+                key={`${activeKey.value}-right`}
+                color="#00EAFF"
+                width={LINE_BAR_WIDTH}
+                height={LINE_BAR_HEIGHT}
+                variants={lightVariants}
+                initial="exit"
+                animate="enter"
+                exit="exit"
+                class="absolute right-0"
+                style={{ top: `${activeTop.value}px`, marginTop: activeHeight.value / 2 - LINE_BAR_HEIGHT / 2 }}
+              />
+            </AnimatePresence>
+          )}
 
-                {/* 序号 */}
-                <span class="relative z-10 text-14px text-white shrink-0">{item.seq}</span>
-                {/* 指标名称：固定 164px，超长自动换行 */}
-                <span class="relative z-10 w-164px text-14px text-white">{item.label}</span>
-                {/* 数值 */}
-                <span class="relative z-10 w-84px text-center text-14px text-white shrink-0">{item.value}</span>
-                {/* 评级：语义色 */}
-                {/* 评级胶囊：背景为评级色 0.1 透明度，边框 0.2 透明度，文字保持原色 */}
-                <div
-                  class="b rd-full w-48px h-24px flex items-center justify-center"
-                  style={{
-                    background: withAlpha(RATING_COLOR[item.rating] ?? '#FFFFFF', 0.1),
-                    borderColor: withAlpha(RATING_COLOR[item.rating] ?? '#FFFFFF', 0.2),
-                    color: RATING_COLOR[item.rating] ?? '#FFFFFF',
-                  }}
-                >
-                  {item.rating}
-                </div>
-              </div>
-            );
-          })}
+          {/* 内容区：完全由调用方插槽控制（行 div 带 data-corner-row 即可联动高亮）
+            无内容时不加 py-8px，避免空面板残留内边距高度 */}
+          <div class={cn('relative z-10 py-8px')}>{slots.default?.()}</div>
         </div>
-      </div>
-    );
+      );
+    };
   },
 });

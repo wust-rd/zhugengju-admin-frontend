@@ -12,6 +12,8 @@ export default defineConfig({
     ['font-harmony', { 'font-family': '"HarmonyOS", sans-serif' }],
     // Subway Ticker Grid 地铁信息牌点阵：对应 custom/subway.less 的 @font-face，用于数字/时间显示
     ['font-subway', { 'font-family': '"SubwayTickerGrid", sans-serif' }],
+    // Chakra Petch：Figma 大屏西文字体，对应 custom/chakra-petch.less 的 @font-face，用于胶囊缩写/西文文本
+    ['font-chakra', { 'font-family': '"Chakra Petch", "PingFang SC", "Microsoft YaHei", sans-serif' }],
   ],
   content: {
     pipeline: {

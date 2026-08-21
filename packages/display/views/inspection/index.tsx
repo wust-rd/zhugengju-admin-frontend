@@ -1,7 +1,7 @@
 import chartSvg from '@jeesite/assets/svg/display/chart.svg';
 import { useECharts } from '@jeesite/core/hooks/web/useECharts';
 import { buildYearItems, cn } from '@jeesite/core/libs';
-import { CornerPanel } from '@jeesite/display/components/corner-panel';
+import { CornerPanel, CornerPanelRow, type CornerItem } from '@jeesite/display/components/corner-panel';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
 import { GlowTabs, type GlowTabItem } from '@jeesite/display/components/glow-tabs';
@@ -20,6 +20,35 @@ const ratingData = [
   { key: '较好', label: '较好', value: 32.5, color: '#4ADE80' },
   { key: '较差', label: '较差', value: 32.5, color: '#F472B6' },
   { key: '一般', label: '一般', value: 23.7, color: '#FBBF24' },
+];
+
+// —— 三个折叠面板的指标列表（占位数据，接入接口后替换） ——
+// 生态宜居：公园绿化 / 绿地率等指标
+const ecoItems: CornerItem[] = [
+  { seq: '01', label: '公园绿化活动场地服务半径', value: '77.8%', rating: '很好' },
+  { seq: '02', label: '城市绿地率', value: '28.58%', rating: '一般' },
+  { seq: '03', label: '城市绿化覆盖率', value: '84.0%', rating: '较好' },
+  { seq: '04', label: '10万人拥有综合公园数量', value: '5个', rating: '很好' },
+  { seq: '05', label: '人均公园绿地面积', value: '0.16m²/人', rating: '较差' },
+  { seq: '06', label: '公园综合吸引半径', value: '7.03Km', rating: '较好' },
+  { seq: '07', label: '年度主要城市公园游客量', value: '3万人', rating: '一般' },
+  { seq: '08', label: '公园内年举办活动数量', value: '25场', rating: '一般' },
+];
+
+// 历史文化保护利用：历史建筑 / 街区 / 非遗等指标
+const heritageItems: CornerItem[] = [
+  { seq: '01', label: '历史文化街区保护率', value: '92.5%', rating: '很好' },
+  { seq: '02', label: '历史建筑修缮率', value: '68.0%', rating: '较好' },
+  { seq: '03', label: '非遗代表性项目数量', value: '36项', rating: '一般' },
+  { seq: '04', label: '古树名木保护率', value: '100%', rating: '很好' },
+];
+
+// 特色活力：夜间经济 / 活动等指标
+const vitalityItems: CornerItem[] = [
+  { seq: '01', label: '夜间经济活跃度', value: '87.3%', rating: '很好' },
+  { seq: '02', label: '网红打卡点数量', value: '42处', rating: '较好' },
+  { seq: '03', label: '文化活动年举办场次', value: '128场', rating: '较好' },
+  { seq: '04', label: '青年人口占比', value: '24.6%', rating: '一般' },
 ];
 
 // 区域 tabs：激活项由 GlowTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
@@ -257,15 +286,27 @@ export default defineComponent({
         <div class="mt-16px space-y-12px flex-1 min-h-0 overflow-y-auto pr-24px -mr-24px scrollbar-gutter-stable">
           {/* 折叠面板：标题 + 徽章 + 箭头，点击展开/收起（GlowCollapse 组件） */}
           <GlowCollapse title="生态宜居" badgeValue={25}>
-            <CornerPanel highlight="line" />
+            <CornerPanel>
+              {ecoItems.map((item) => (
+                <CornerPanelRow key={item.seq} item={item} />
+              ))}
+            </CornerPanel>
           </GlowCollapse>
 
           <GlowCollapse title="历史文化保护利用" badgeValue={18}>
-            <CornerPanel highlight="line" />
+            <CornerPanel>
+              {heritageItems.map((item) => (
+                <CornerPanelRow key={item.seq} item={item} />
+              ))}
+            </CornerPanel>
           </GlowCollapse>
 
           <GlowCollapse title="特色活力" badgeValue={12}>
-            <CornerPanel highlight="line" />
+            <CornerPanel>
+              {vitalityItems.map((item) => (
+                <CornerPanelRow key={item.seq} item={item} />
+              ))}
+            </CornerPanel>
           </GlowCollapse>
         </div>
       </div>
