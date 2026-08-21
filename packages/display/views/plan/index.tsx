@@ -247,7 +247,7 @@ export default defineComponent({
     ];
 
     return () => (
-      <div class="relative h-full">
+      <>
         {/* 展开按钮：面板收起后固定在左边缘，点击展开面板 */}
         <AnimatePresence>
           {collapsed.value && (
@@ -412,7 +412,7 @@ export default defineComponent({
             </GlowCollapse>
           </div>
         </div>
-      </div>
+      </>
     );
   },
 });
