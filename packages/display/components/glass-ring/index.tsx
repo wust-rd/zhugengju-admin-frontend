@@ -77,25 +77,9 @@ export const GlassRing = defineComponent({
           overflow="visible"
         >
           {/* 1. 玻璃底色：青蓝渐变 + 10% 透明度 */}
-          <rect
-            x="0"
-            y="0"
-            width="32"
-            height="32"
-            rx="16"
-            fill={`url(#${bgId})`}
-            fill-opacity="0.1"
-          />
+          <rect x="0" y="0" width="32" height="32" rx="16" fill={`url(#${bgId})`} fill-opacity="1" />
           {/* 2. 淡蓝描边：10% 透明度勾勒圆环外缘 */}
-          <rect
-            x="0"
-            y="0"
-            width="32"
-            height="32"
-            rx="16"
-            stroke="#17B9FF"
-            stroke-opacity="0.1"
-          />
+          <rect x="0" y="0" width="32" height="32" rx="16" stroke="#17B9FF" stroke-opacity="0.1" />
           {/* 3. 左上角高亮描边：白 → 透明渐变 + overlay 混合，玻璃高光 */}
           <rect
             x="0"
@@ -107,20 +91,13 @@ export const GlassRing = defineComponent({
             style={{ mixBlendMode: 'overlay' }}
           />
           <defs>
-            {/* 底色渐变：纵向 #00B8D4 → #0899E2（青蓝玻璃色） */}
-            <linearGradient id={bgId} x1="16" y1="0" x2="16" y2="32" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#00B8D4" />
-              <stop offset="1" stop-color="#0899E2" />
+            {/* 底色渐变：从左 → 右水平 #0b1631 → #305e9d（青蓝玻璃色） */}
+            <linearGradient id={bgId} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#0b1631" />
+              <stop offset="1" stop-color="#305e9d" />
             </linearGradient>
             {/* 高亮渐变：左上角白色 → 右下透明（角度由原 SVG x1/y1/x2/y2 决定） */}
-            <linearGradient
-              id={hlId}
-              x1="1.47027"
-              y1="0"
-              x2="13.6679"
-              y2="19.3449"
-              gradientUnits="userSpaceOnUse"
-            >
+            <linearGradient id={hlId} x1="1.47027" y1="0" x2="13.6679" y2="19.3449" gradientUnits="userSpaceOnUse">
               <stop stop-color="white" />
               <stop offset="1" stop-color="white" stop-opacity="0" />
             </linearGradient>
