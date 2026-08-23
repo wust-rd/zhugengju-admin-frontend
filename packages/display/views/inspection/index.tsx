@@ -69,10 +69,10 @@ export default defineComponent({
 
     // 年份下拉：最近 N 年（当前改为最近两年，变更年数只改 buildYearItems 参数）
     const yearItems = buildYearItems(2);
+    const yearKey = ref<string | number>(yearItems[0]?.key ?? '');
 
     // 受控选中项：指标分类默认选中「四好基础指标」，年份默认选中最近一年（当前年）
     const indicatorKey = ref<string | number>('4');
-    const yearKey = ref<string | number>(yearItems[0]?.key ?? '');
 
     // 区域 tabs 当前激活项（点击切换，单选）
     const activeRegionKey = ref<string>('city');

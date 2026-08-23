@@ -40,5 +40,3 @@ export const StatCard = defineComponent({
     );
   },
 });
-
-export default StatCard;
