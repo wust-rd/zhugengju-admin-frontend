@@ -1,9 +1,8 @@
-import { cn } from '@jeesite/core/libs';
 import { ArtFont } from '@jeesite/display/components/art-font';
 import { DoubleRing } from '@jeesite/display/components/double-ring';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlassRing } from '@jeesite/display/components/glass-ring';
-import { GlowTabs, type GlowTabItem } from '@jeesite/display/components/glow-tabs';
+import { type GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { StatCard } from '@jeesite/display/components/stat-card';
@@ -12,8 +11,8 @@ import { Tooltip, type MenuItemType } from 'antdv-next';
 import type { Ref } from 'vue';
 import { defineComponent, onMounted, ref, shallowRef } from 'vue';
 import arrow1Svg from '@jeesite/assets/svg/display/arrow1.svg';
-import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
-import { CornerPanel } from '@jeesite/display/components/corner-panel';
+import { CollapseGroups } from '@jeesite/display/components/collapse-groups';
+import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import { XodItem, XodRow } from '@jeesite/display/components/corner-panel/xod-row';
 
 // 区域 tabs：激活项由 GlowTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
@@ -286,30 +285,13 @@ export default defineComponent({
             </div>
           </StatCard>
 
-          {/* 区域 tabs：svg 发光胶囊滑动指示器（GlowTabs 抽象组件，tab 内容由调用方渲染） */}
-          <GlowTabs v-model:activeKey={activeRegionKey.value} class="mt-20px">
-            {{
-              // tab 完全由调用方渲染（GlowTabs 抽象组件）：每个元素带 data-glow-tab-key 供点击委托与指示器测量
-              default: () =>
-                regionTabs.map((tab) => {
-                  const active = tab.key === activeRegionKey.value;
-                  return (
-                    <div
-                      key={tab.key}
-                      data-glow-tab-key={tab.key}
-                      class="shrink-0 px-12px flex-1 h-42px rd-10px flex items-center justify-center gap-8px select-none cursor-pointer"
-                    >
-                      <div
-                        class={cn(tab.icon, 'size-20px transition-colors', active ? 'text-white' : 'text-gray-500')}
-                      />
-                      <div class={cn('text-16px transition-colors', active ? 'text-white' : 'text-gray-500')}>
-                        {tab.label}
-                      </div>
-                    </div>
-                  );
-                }),
-            }}
-          </GlowTabs>
+          {/* 区域 tabs：RegionTabs 业务组件（发光胶囊指示器 + tab 渲染），animated=false 简单样式 */}
+          <RegionTabs
+            v-model:activeKey={activeRegionKey.value}
+            items={regionTabs}
+            animated={false}
+            class="mt-20px"
+          />
 
           {/* 片区行政区划分布 */}
           <StatCard class="mt-24px">
@@ -336,39 +318,21 @@ export default defineComponent({
           </div>
 
           <div class="mt-16px space-y-12px flex-1 min-h-0 overflow-y-auto pr-24px -mr-24px scrollbar-gutter-stable">
-            {/* 折叠面板：标题 + 徽章 + 箭头，点击展开/收起（GlowCollapse 组件）
-               内容为 CornerPanel 容器（深蓝面板 + 点击高亮）+ XodRow 片区行 */}
-            <GlowCollapse title="江岸区">
-              <CornerPanel isRound class="rd-8px">
-                {xodItems.map((item) => (
-                  <XodRow key={item.label} item={item} />
-                ))}
-              </CornerPanel>
-            </GlowCollapse>
-
-            <GlowCollapse title="江汉区">
-              <CornerPanel isRound class="rd-8px">
-                {xodItems.map((item) => (
-                  <XodRow key={item.label} item={item} />
-                ))}
-              </CornerPanel>
-            </GlowCollapse>
-
-            <GlowCollapse title="硚口区">
-              <CornerPanel isRound class="rd-8px">
-                {xodItems.map((item) => (
-                  <XodRow key={item.label} item={item} />
-                ))}
-              </CornerPanel>
-            </GlowCollapse>
-
-            <GlowCollapse title="汉阳区">
-              <CornerPanel isRound class="rd-8px">
-                {xodItems.map((item) => (
-                  <XodRow key={item.label} item={item} />
-                ))}
-              </CornerPanel>
-            </GlowCollapse>
+            {/* 折叠分组：CollapseGroups 业务组件（GlowCollapse + CornerPanel + XodRow 片区行） */}
+            <CollapseGroups
+              groups={[
+                { title: '江岸区', items: xodItems },
+                { title: '江汉区', items: xodItems },
+                { title: '硚口区', items: xodItems },
+                { title: '汉阳区', items: xodItems },
+              ]}
+              isRound
+              panelClass="rd-8px"
+            >
+              {{
+                row: (item) => <XodRow item={item as XodItem} />,
+              }}
+            </CollapseGroups>
           </div>
             </>
           ),

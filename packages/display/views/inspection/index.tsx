@@ -1,16 +1,16 @@
 import chartSvg from '@jeesite/assets/svg/display/chart.svg';
 import { useECharts } from '@jeesite/core/hooks/web/useECharts';
-import { buildYearItems, cn } from '@jeesite/core/libs';
-import { CornerPanel, CornerPanelRow, type CornerItem } from '@jeesite/display/components/corner-panel';
+import { buildYearItems } from '@jeesite/core/libs';
+import { CornerPanelRow, type CornerItem } from '@jeesite/display/components/corner-panel';
+import { CollapseGroups } from '@jeesite/display/components/collapse-groups';
+import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
-import { GlowCollapse } from '@jeesite/display/components/glow-collapse';
-import { GlowTabs, type GlowTabItem } from '@jeesite/display/components/glow-tabs';
+import { type GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { GlowTitle1 } from '@jeesite/display/components/glow-title/title1';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import type { MenuItemType } from 'antdv-next';
 import { Input } from 'antdv-next';
 import { CircleX, Funnel, Search } from 'lucide-vue-next';
-import { AnimatePresence, motion } from 'motion-v';
 import type { Ref } from 'vue';
 import { defineComponent, onMounted, ref, shallowRef } from 'vue';
 
@@ -52,33 +52,13 @@ const vitalityItems: CornerItem[] = [
   { seq: '04', label: '青年人口占比', value: '24.6%', rating: '一般' },
 ];
 
-// 区域 tabs：激活项由 GlowTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
+// 区域 tabs：激活项由 RegionTabs 业务组件的 svg 发光胶囊指示器表达（按钮本身不再发光）
 const regionTabs: GlowTabItem[] = [
   { key: 'city', label: '城区', icon: 'i-ri-map-2-line' },
   { key: 'factory', label: '工厂', icon: 'i-ri-community-line' },
   { key: 'enterprise', label: '企业', icon: 'i-ri-building-2-line' },
   { key: 'residence', label: '住宅', icon: 'i-ri-home-smile-line' },
 ];
-
-// icon 左移动画时长（s）：文字需等 icon 左移完成后再渐显
-const ICON_MOVE_DURATION = 0.2;
-
-// 文字动画方式：'slide-right'（右滑）| 'slide-up'（自下而上），改这里即可切换
-const TEXT_ANIMATION_MODE: 'slide-right' | 'slide-up' = 'slide-right';
-
-// 两种文字进出动画：位移方向不同（x 右滑 / y 上移），透明渐显逻辑相同
-const textMotion = {
-  'slide-right': {
-    initial: { opacity: 0, x: 10 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: 10 },
-  },
-  'slide-up': {
-    initial: { opacity: 0, y: 10 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: 10 },
-  },
-};
 
 export default defineComponent({
   name: 'DisplayInspection',
@@ -185,47 +165,8 @@ export default defineComponent({
               </DropdownSelector>
             </div>
 
-            <GlowTabs v-model:activeKey={activeRegionKey.value} class="mt-16px">
-              {{
-                // tab 完全由调用方渲染（GlowTabs 抽象组件）：每个元素带 data-glow-tab-key 供点击委托与指示器测量
-                // 内容动画（motion-v）：非激活仅灰色 icon；激活时 icon 左移变白，文字随后渐显
-                default: () =>
-                  regionTabs.map((tab) => {
-                    const active = tab.key === activeRegionKey.value;
-                    return (
-                      <div
-                        key={tab.key}
-                        data-glow-tab-key={tab.key}
-                        class="shrink-0 px-12px w-102px h-42px rd-12px flex items-center justify-center select-none cursor-pointer"
-                      >
-                        <motion.div
-                          class="relative flex items-center"
-                          animate={{ x: active ? -16 : 0 }}
-                          transition={{ duration: ICON_MOVE_DURATION, ease: 'easeOut' }}
-                        >
-                          <div
-                            class={cn(tab.icon, 'size-20px transition-all', active ? 'text-white' : 'text-gray-500')}
-                          />
-                          <AnimatePresence>
-                            {active && (
-                              <motion.div
-                                key={`${tab.key}-label`}
-                                class="absolute left-full ml-6px text-16px text-white font-500 whitespace-nowrap"
-                                initial={textMotion[TEXT_ANIMATION_MODE].initial}
-                                animate={textMotion[TEXT_ANIMATION_MODE].animate}
-                                exit={textMotion[TEXT_ANIMATION_MODE].exit}
-                                transition={{ duration: 0.2, ease: 'easeOut', delay: ICON_MOVE_DURATION }}
-                              >
-                                {tab.label}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </motion.div>
-                      </div>
-                    );
-                  }),
-              }}
-            </GlowTabs>
+            {/* 区域 tabs：RegionTabs 业务组件（发光胶囊指示器 + 文字动画） */}
+            <RegionTabs v-model:activeKey={activeRegionKey.value} items={regionTabs} class="mt-16px" />
 
             <div class="mt-20px">
               <GlowTitle1 class="w-full h-28px">
@@ -290,30 +231,18 @@ export default defineComponent({
             </div>
 
             <div class="mt-16px space-y-12px flex-1 min-h-0 overflow-y-auto pr-24px -mr-24px scrollbar-gutter-stable">
-              {/* 折叠面板：标题 + 徽章 + 箭头，点击展开/收起（GlowCollapse 组件） */}
-              <GlowCollapse title="生态宜居" badgeValue={25}>
-                <CornerPanel>
-                  {ecoItems.map((item) => (
-                    <CornerPanelRow key={item.seq} item={item} />
-                  ))}
-                </CornerPanel>
-              </GlowCollapse>
-
-              <GlowCollapse title="历史文化保护利用" badgeValue={18}>
-                <CornerPanel>
-                  {heritageItems.map((item) => (
-                    <CornerPanelRow key={item.seq} item={item} />
-                  ))}
-                </CornerPanel>
-              </GlowCollapse>
-
-              <GlowCollapse title="特色活力" badgeValue={12}>
-                <CornerPanel>
-                  {vitalityItems.map((item) => (
-                    <CornerPanelRow key={item.seq} item={item} />
-                  ))}
-                </CornerPanel>
-              </GlowCollapse>
+              {/* 折叠分组：CollapseGroups 业务组件（GlowCollapse + CornerPanel + CornerPanelRow 指标行） */}
+              <CollapseGroups
+                groups={[
+                  { title: '生态宜居', badgeValue: 25, items: ecoItems },
+                  { title: '历史文化保护利用', badgeValue: 18, items: heritageItems },
+                  { title: '特色活力', badgeValue: 12, items: vitalityItems },
+                ]}
+              >
+                {{
+                  row: (item) => <CornerPanelRow item={item as CornerItem} />,
+                }}
+              </CollapseGroups>
             </div>
             </>
           ),
