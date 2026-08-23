@@ -5,10 +5,10 @@ import { DropdownSelector } from '@jeesite/display/components/dropdown-selector'
 import { GlassRing } from '@jeesite/display/components/glass-ring';
 import { GlowTabs, type GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
+import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { StatCard } from '@jeesite/display/components/stat-card';
 import { useECharts } from '@jeesite/core/hooks/web/useECharts';
 import { Tooltip, type MenuItemType } from 'antdv-next';
-import { AnimatePresence, animate, motion } from 'motion-v';
 import type { Ref } from 'vue';
 import { defineComponent, onMounted, ref, shallowRef } from 'vue';
 import arrow1Svg from '@jeesite/assets/svg/display/arrow1.svg';
@@ -41,13 +41,6 @@ export default defineComponent({
     ];
 
     const activeBatch = ref('1');
-
-    /** 左侧面板引用：向左平移收起的动画目标 */
-    const panelRef = ref<HTMLDivElement | null>(null);
-    /** 收起按钮（GlassRing）引用：motion-v 通过该 ref 关联触发元素 */
-    const ringRef = ref<InstanceType<typeof GlassRing> | null>(null);
-    /** 收起状态：true = 面板已向左平移收起 */
-    const collapsed = ref(false);
 
     // 片区投资总额右侧环形图
     const chartRef = shallowRef<HTMLDivElement | null>(null);
@@ -219,22 +212,6 @@ export default defineComponent({
       });
     });
 
-    /**
-     * 点击收起/展开按钮：
-     * - 收起：面板整体向左平移（x: 0 → -460px，移出屏幕左侧）
-     * - 展开：面板向右平移回原位（x: -460 → 0）
-     * 用 motion-v 的 animate() 命令式驱动，保证与 UI 状态 ref 同步。
-     */
-    const toggleCollapse = () => {
-      const el = panelRef.value;
-      if (!el) return;
-      animate(el, collapsed.value ? { x: [-460, 0] } : { x: [0, -460] }, {
-        duration: 0.3,
-        ease: 'easeInOut',
-      });
-      collapsed.value = !collapsed.value;
-    };
-
     // 更新片区列表假数据（XodRow 行）：片区名 + 更新类型布尔任意组合，接入接口后替换
     const xodItems: XodItem[] = [
       { label: '西马片', tod: true, eod: true, iod: false, sod: true },
@@ -247,40 +224,22 @@ export default defineComponent({
     ];
 
     return () => (
-      <>
-        {/* 展开按钮：面板收起后固定在左边缘，点击展开面板 */}
-        <AnimatePresence>
-          {collapsed.value && (
-            <motion.div
-              key="expand-btn"
-              initial={{ opacity: 0, x: -32 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -32 }}
-              transition={{ duration: 0.2 }}
-              class="absolute left-8px top-32px"
-            >
-              <GlassRing class="w-32px h-32px flex items-center justify-center cursor-pointer" onClick={toggleCollapse}>
-                <div class="i-ri-arrow-right-double-fill size-20px text-white" />
-              </GlassRing>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <DisplayPageLayout>
+        {{
+          left: ({ toggle }) => (
+            <>
+              <GlowTitle2 class="w-full h-56px">
+                <ArtFont class="ml-72px text-20px">数据看板</ArtFont>
 
-        {/* 左侧面板：点击 GlassRing 后整体向左平移收起 */}
-        <div ref={panelRef} class="blue-bg pl-16px pr-24px pt-24px w-460px h-full flex flex-col">
-          <GlowTitle2 class="w-full h-56px">
-            <ArtFont class="ml-72px text-20px">数据看板</ArtFont>
+                <DropdownSelector v-model:activeKey={activeBatch.value} items={batches} class="ml-auto w-128px" ghost />
 
-            <DropdownSelector v-model:activeKey={activeBatch.value} items={batches} class="ml-auto w-128px" ghost />
-
-            <GlassRing
-              ref={ringRef}
-              class="ml-16px w-32px h-32px flex items-center justify-center cursor-pointer"
-              onClick={toggleCollapse}
-            >
-              <div class="i-ri-arrow-left-double-fill size-20px text-white" />
-            </GlassRing>
-          </GlowTitle2>
+                <GlassRing
+                  class="ml-16px w-32px h-32px flex items-center justify-center cursor-pointer"
+                  onClick={toggle}
+                >
+                  <div class="i-ri-arrow-left-double-fill size-20px text-white" />
+                </GlassRing>
+              </GlowTitle2>
 
           {/* 统计卡片：StatCard 只提供边框容器，内容由调用方渲染 */}
           <StatCard class="mt-24px">
@@ -411,8 +370,11 @@ export default defineComponent({
               </CornerPanel>
             </GlowCollapse>
           </div>
-        </div>
-      </>
+            </>
+          ),
+          right: () => <div class="size-full relative" />,
+        }}
+      </DisplayPageLayout>
     );
   },
 });
