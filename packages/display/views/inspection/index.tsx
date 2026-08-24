@@ -99,7 +99,7 @@ export default defineComponent({
               {/* 搜索筛选行：搜索框 + 全部筛选下拉 */}
               <SearchFilter v-model:activeKey={yearKey.value} items={ratingData as unknown as MenuItemType[]} />
 
-              <div class="mt-16px space-y-12px flex-1 min-h-0 overflow-y-auto pr-24px -mr-24px scrollbar-gutter-stable">
+              <div class="mt-16px space-y-12px">
                 {/* 折叠分组：CollapseGroups 组件（GlowCollapse + CornerPanel + CornerPanelRow 指标行） */}
                 <CollapseGroups
                   groups={[

@@ -89,7 +89,8 @@ export const DisplayPageLayout = defineComponent({
 
         {/* 左侧面板：收起时宽度收缩到 0（内容固定宽、溢出裁剪），右侧自动扩展 */}
         <div ref={panelRef} class="shrink-0 w-460px h-full blue-bg overflow-hidden">
-          <div class="w-460px h-full flex flex-col pl-16px pr-24px pt-24px">
+          {/* 内容容器：纵向流式堆叠，高度不足时出现纵向滚动条 */}
+          <div class="w-460px h-full overflow-y-auto overflow-x-hidden pl-16px pr-24px pt-24px pb-24px">
             {slots.left?.({ collapsed: collapsed.value, toggle })}
           </div>
         </div>
