@@ -1,8 +1,15 @@
-import { defineComponent, ref, watch, type PropType } from 'vue';
+import { defineComponent, ref, watch, type CSSProperties, type PropType } from 'vue';
 import { cn } from '@jeesite/core/libs';
 
 import frameImg from '@jeesite/assets/images/display/plan/相框.webp';
+import pictureBoxImg from '@jeesite/assets/images/display/plan/picture-box-plus.webp';
 
+/** 磨砂卡片外壳：与标题栏下载/关闭按钮同类（0.5px 细边框 + white/6 磨砂底 + 右下柔和阴影） */
+const FROST_SHELL: CSSProperties = {
+  border: '0.5px solid #57859E30',
+  background: 'var(--alpha---ui-bg-6, rgba(255, 255, 255, 0.06))',
+  boxShadow: '4.364px 4.364px 8.727px 0 rgba(0, 0, 0, 0.16)',
+};
 /**
  * 图册预览弹窗：屏幕中央展示大图，底部横向滑动选择图片
  *
@@ -45,6 +52,34 @@ export const AlbumPreviewModal = defineComponent({
 
     const close = () => emit('update:visible', false);
 
+    // 底部缩略图滚动容器
+    const stripRef = ref<HTMLElement | null>(null);
+
+    /** 左右翻页：按单张图片宽度平滑滚动 */
+    const scrollStrip = (dir: number) => {
+      stripRef.value?.scrollBy({ left: dir * 144, behavior: 'smooth' });
+    };
+
+    /** 上/下一张（循环切换，配合翻页箭头） */
+    const stepImage = (dir: number) => {
+      const len = props.images.length;
+      if (len === 0) return;
+      activeIndex.value = (activeIndex.value + dir + len) % len;
+    };
+
+    /** 下载当前大图 */
+    const handleDownload = () => {
+      const len = props.images.length;
+      const img = props.images[Math.min(activeIndex.value, Math.max(len - 1, 0))];
+      if (!img) return;
+      const a = document.createElement('a');
+      a.href = img;
+      a.download = `图册-${activeIndex.value + 1}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
     return () => {
       if (!props.visible) return null;
 
@@ -54,48 +89,113 @@ export const AlbumPreviewModal = defineComponent({
       return (
         <div class="fixed inset-0 z-50 flex items-center justify-center" onClick={close}>
           {/* 遮罩：点击关闭 */}
-          <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div class="absolute inset-0 bg-black/10 backdrop-blur-sm" />
 
           {/* 弹窗主体：相框背景 + 内容层 */}
-          <div class="relative z-10 mx-16px p-20px" onClick={(e) => e.stopPropagation()}>
+          <div class="relative z-10 w-884px h-640px" onClick={(e) => e.stopPropagation()}>
             {/* 相框背景 */}
             <img src={frameImg} alt="" class="pointer-events-none absolute inset-0 size-full object-fill" />
 
             {/* 内容层（盖在相框之上） */}
-            <div class="relative z-10 flex flex-col items-center gap-16px">
+            <div class="relative z-10 size-full">
+              {/* 标题 */}
+              <div class="flex items-center px-32px pt-24px h-68px pb-12px">
+                <div
+                  class="text-20px font-700 text-white"
+                  style={{
+                    background: 'linear-gradient(180deg, #FFF 20.83%, #8AC9FF 83.33%)',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  片区策划图册
+                </div>
 
-              <div class="text-24px font-bold text-white">片区策划图册</div>
+                {/* 下载按钮 */}
+                <div
+                  class="ml-auto flex size-32px cursor-pointer items-center justify-center rd-8px transition-all duration-200 hover:brightness-125"
+                  style={{
+                    border: '0.5px solid #57859E30',
+                    background: 'var(--alpha---ui-bg-6, rgba(255, 255, 255, 0.06))',
+                    boxShadow: '4.364px 4.364px 8.727px 0 rgba(0, 0, 0, 0.16)',
+                  }}
+                  onClick={handleDownload}
+                >
+                  <div class="i-ri:download-line size-18px bg-linear-to-b from-[#40DFFF] to-[#FFFFFF]"></div>
+                </div>
 
-              {/* 关闭按钮 */}
-              <div
-                class="absolute -right-10px -top-10px flex size-28px cursor-pointer items-center justify-center rd-full bg-[#183048] text-white/80 transition-colors hover:text-white"
-                style={{ boxShadow: 'inset 0 0 6px rgba(125, 190, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4)' }}
-                onClick={close}
-              >
-                <div class="i-ri:close-line size-16px" />
+                <div
+                  class="ml-12px flex size-32px cursor-pointer items-center justify-center rd-8px transition-all duration-200 hover:brightness-125"
+                  style={{
+                    border: '0.5px solid #57859E30',
+                    background: 'var(--alpha---ui-bg-6, rgba(255, 255, 255, 0.06))',
+                    boxShadow: '4.364px 4.364px 8.727px 0 rgba(0, 0, 0, 0.16)',
+                  }}
+                  onClick={close}
+                >
+                  <div class="i-ri-close-line size-18px bg-linear-to-b from-[#40DFFF] to-[#FFFFFF]"></div>
+                </div>
               </div>
 
-              {/* 大图 */}
-              <div class="flex max-h-60vh max-w-full items-center justify-center">
-                <img src={current} alt="图册预览" class="max-h-60vh max-w-full object-contain rd-8px" />
+              <div class="w-full h-1px bg-white/6"></div>
+
+              {/* 相框：图片垫底，相框覆盖层叠在图片上面 */}
+              <div class="relative mx-auto mt-24px h-420px w-812px overflow-hidden">
+                {/* 当前大图（红色区域） */}
+                <div
+                  class="absolute inset-10px rd-20px bg-center"
+                  style={{
+                    backgroundImage: `url(${current})`,
+                  }}
+                ></div>
+
+                {/* 相框覆盖层 */}
+                <img src={pictureBoxImg} alt="" class="pointer-events-none absolute inset-0 object-fill" />
               </div>
 
-              {/* 底部横向缩略图选择 */}
-              <div class="scrollbar-none flex w-full max-w-full gap-8px overflow-x-auto">
-                {images.map((src, i) => (
-                  <img
-                    key={i}
-                    src={src}
-                    alt={`图册 ${i + 1}`}
-                    class={cn(
-                      'size-56px shrink-0 cursor-pointer object-cover rd-6px border b-1 transition-all duration-150',
-                      i === activeIndex.value
-                        ? 'border-[#4FD8FF] shadow-[0_0_8px_rgba(79,216,255,0.5)]'
-                        : 'border-white/15 opacity-60 hover:opacity-100',
-                    )}
-                    onClick={() => (activeIndex.value = i)}
-                  />
-                ))}
+              {/* 底部横向缩略图选择（轮播） */}
+              <div class="mt-24px flex items-center justify-between h-72px px-60px">
+                {/* 左翻按钮（与关闭按钮同类外壳） */}
+                <div
+                  class="flex size-32px shrink-0 cursor-pointer items-center justify-center rd-full transition-all duration-200 hover:brightness-125"
+                  style={FROST_SHELL}
+                  onClick={() => {
+                    stepImage(-1);
+                    scrollStrip(-1);
+                  }}
+                >
+                  <div class="i-ri-arrow-left-double-line size-18px bg-white"></div>
+                </div>
+
+                {/* 图片条：横向滚动 */}
+                <div ref={stripRef} class="scrollbar-none flex max-w-full gap-8px overflow-x-auto">
+                  {images.map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      alt={`图册 ${i + 1}`}
+                      class={cn(
+                        'h-72px w-72px shrink-0 cursor-pointer rd-10px object-cover transition-all duration-150',
+                        i === activeIndex.value
+                          ? 'border-2 border-[#4FD8FF] shadow-[0_0_10px_rgba(79,216,255,0.55)]'
+                          : 'border-b-1 border-white/20 opacity-80 hover:opacity-100',
+                      )}
+                      onClick={() => (activeIndex.value = i)}
+                    />
+                  ))}
+                </div>
+
+                {/* 右翻按钮（与关闭按钮同类外壳） */}
+                <div
+                  class="flex size-32px shrink-0 cursor-pointer items-center justify-center rd-full transition-all duration-200 hover:brightness-125"
+                  style={FROST_SHELL}
+                  onClick={() => {
+                    stepImage(1);
+                    scrollStrip(1);
+                  }}
+                >
+                  <div class="i-ri-arrow-right-double-line size-18px bg-white"></div>
+                </div>
               </div>
             </div>
           </div>

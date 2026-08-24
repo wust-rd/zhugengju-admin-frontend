@@ -12,6 +12,8 @@ import type { MenuItemType } from 'antdv-next';
 import { defineComponent, ref } from 'vue';
 import { DistrictChart } from './district-chart';
 import { InvestTotalCard } from './invest-total-card';
+import { RightDrawer } from '@jeesite/display/components/plan/right-drawer';
+import { AreaOverviewModal } from '@jeesite/display/components/plan/area-overview-modal';
 
 // 区域 tabs：激活项由 RegionTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
 const regionTabs: GlowTabItem[] = [
@@ -104,7 +106,11 @@ export default defineComponent({
               </div>
             </>
           ),
-          right: () => <div class="size-full relative" />,
+          right: () => <div class="size-full relative bg-white">
+          <RightDrawer />
+          {/* <AreaOverviewModal /> */}
+          
+          </div>,
         }}
       </DisplayPageLayout>
     );
