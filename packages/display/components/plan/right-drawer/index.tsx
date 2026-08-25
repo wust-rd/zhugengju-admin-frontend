@@ -8,7 +8,7 @@ import { PostEvaluation } from './post-evaluation';
 import { ProjectInfo } from './project-info';
 
 /** 抽屉 Tab 配置 */
-const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况', '实施后评估', '资金方案'] as const;
+const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况','资金方案', '实施后评估', ] as const;
 type DrawerTabLabel = (typeof DRAWER_TABS)[number];
 
 /** Tab 对应的内容组件 */
@@ -17,8 +17,8 @@ const TAB_COMPONENTS = {
   体检情况: PhysicalExam,
   功能策划: FeaturePlan,
   项目情况: ProjectInfo,
-  实施后评估: PostEvaluation,
   资金方案: FundPlan,
+  实施后评估: PostEvaluation,
 };
 
 /**
