@@ -20,6 +20,7 @@ import { RouterLink } from 'vue-router';
 import { DistrictChart } from './district-chart';
 import { InvestStats } from './invest-stats';
 import { Monitoring } from '@jeesite/display/components/scheme/monitoring';
+import { ProjectInfoTabs } from '@jeesite/display/components/scheme/project-info-tabs';
 import { ProgressChart } from './progress-chart';
 import { SchemeMapLayers } from './map-layers';
 import { RatingResult } from './rating-result';
@@ -186,9 +187,12 @@ export default defineComponent({
 
               {/* 监测面板：右上角（内容留空，待填充） 小雨说先不做，可能没有这个功能*/}
               {/* <Monitoring class="absolute right-24px top-24px z-10 w-320px" /> */}
-              
+
               {/* 项目进度总览 */}
-              <ProjectProgress class="absolute right-24px top-24px z-10 w-420px" />
+              {/* <ProjectProgress class="absolute right-24px top-24px z-10 w-420px" /> */}
+
+              {/* 项目基本信息/项目改造情况 */}
+              <ProjectInfoTabs class="absolute right-24px top-24px z-10" />
             </>
           ),
         }}
