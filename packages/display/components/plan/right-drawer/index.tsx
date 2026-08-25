@@ -8,7 +8,7 @@ import { PostEvaluation } from './post-evaluation';
 import { ProjectInfo } from './project-info';
 
 /** 抽屉 Tab 配置 */
-const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况','资金方案', '实施后评估', ] as const;
+const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况', '资金方案', '实施后评估'] as const;
 type DrawerTabLabel = (typeof DRAWER_TABS)[number];
 
 /** Tab 对应的内容组件 */
@@ -34,6 +34,10 @@ export const RightDrawer = defineComponent({
     const activeTab = ref<DrawerTabLabel>('基本情况');
     const contentRef = ref<HTMLElement | null>(null);
 
+    // 点击 Tab 平滑滚动期间锁定 scrollspy，避免高亮在中间区块间闪烁
+    let lockScrollSync = false;
+    let lockTimer: number | undefined;
+
     /** 点击 Tab：平滑滚动到对应内容区块 */
     const scrollToTab = (tab: DrawerTabLabel) => {
       const container = contentRef.value;
@@ -41,7 +45,36 @@ export const RightDrawer = defineComponent({
       const target = container.querySelector<HTMLElement>(`[data-tab="${tab}"]`);
       if (!target) return;
       const top = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+      activeTab.value = tab;
+      lockScrollSync = true;
       container.scrollTo({ top, behavior: 'smooth' });
+      // 平滑滚动结束后解锁并校准高亮（保险计时，覆盖不支持 scrollend 的浏览器）
+      window.clearTimeout(lockTimer);
+      lockTimer = window.setTimeout(() => {
+        lockScrollSync = false;
+        syncActiveTab();
+      }, 1200);
+    };
+
+    /** 滚动时同步高亮当前 Tab（scrollspy） */
+    const syncActiveTab = () => {
+      // 程序化平滑滚动期间不覆盖高亮（点击已设置目标 tab）
+      if (lockScrollSync) return;
+      const container = contentRef.value;
+      if (!container) return;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // 滚到底部时直接高亮最后一个 Tab（最后一块内容可能不够高，永远到不了顶部）
+      if (scrollTop + clientHeight >= scrollHeight - 2) {
+        activeTab.value = DRAWER_TABS[DRAWER_TABS.length - 1];
+        return;
+      }
+      let current: DrawerTabLabel = DRAWER_TABS[0];
+      for (const tab of DRAWER_TABS) {
+        const el = container.querySelector<HTMLElement>(`[data-tab="${tab}"]`);
+        // offsetTop 相对容器（容器需 relative），区块顶到容器顶部附近即切换
+        if (el && el.offsetTop <= scrollTop + 24) current = tab;
+      }
+      activeTab.value = current;
     };
 
     return () => (
@@ -71,7 +104,7 @@ export const RightDrawer = defineComponent({
         </div>
 
         {/* 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 滚动定位到对应区块 */}
-        <div ref={contentRef} class="scrollbar-none flex-1 overflow-y-auto">
+        <div ref={contentRef} onScroll={syncActiveTab} class="scrollbar-none relative flex-1 overflow-y-auto">
           {DRAWER_TABS.map((tab) => {
             const TabContent = TAB_COMPONENTS[tab];
             return (
