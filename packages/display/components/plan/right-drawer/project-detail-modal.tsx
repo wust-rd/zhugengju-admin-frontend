@@ -78,7 +78,7 @@ export const ProjectDetailModal = defineComponent({
           <div class="absolute inset-0 bg-black/10 backdrop-blur-sm" />
 
           {/* 弹窗主体：相框背景 + 内容层 */}
-          <div class="relative z-10 w-1200px max-h-640px bg-[#01213B80] pb-42px" onClick={(e) => e.stopPropagation()}>
+          <div class="relative z-10 w-1200px max-h-640px pb-42px" onClick={(e) => e.stopPropagation()}>
             {/* 相框背景 */}
             <img src={frameImg} alt="" class="pointer-events-none absolute inset-0 size-full object-fill" />
 
