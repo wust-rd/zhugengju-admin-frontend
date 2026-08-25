@@ -5,7 +5,7 @@ import diamond from '@jeesite/assets/images/display/plan/diamond.svg';
 import bottomImg from '@jeesite/assets/images/display/plan/底部.png';
 import arrowImg from '@jeesite/assets/images/display/plan/箭头开关.svg';
 
-import { CollapsibleSection } from '../collapsible-section';
+import { CollapsibleSection } from '../../collapsible-section';
 import { ViewDetailButton } from './view-detail-button';
 import { FundDetailModal } from './fund-detail-modal';
 

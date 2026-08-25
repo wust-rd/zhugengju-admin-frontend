@@ -1,5 +1,5 @@
 import { defineComponent, ref } from 'vue';
-import { CollapsibleSection } from '../collapsible-section';
+import { CollapsibleSection } from '../../collapsible-section';
 import { cn } from '@jeesite/core/libs';
 
 import diamond from '@jeesite/assets/images/display/plan/diamond.svg';

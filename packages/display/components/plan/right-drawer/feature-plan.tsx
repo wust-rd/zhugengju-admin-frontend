@@ -8,7 +8,7 @@ import albumPic1 from '@jeesite/assets/images/display/plan/picture-box.webp';
 import albumPic2 from '@jeesite/assets/images/display/plan/test.webp';
 import albumPic3 from '@jeesite/assets/images/display/plan/area-overview-modal-header.png';
 
-import { CollapsibleSection } from '../collapsible-section';
+import { CollapsibleSection } from '../../collapsible-section';
 import { AlbumPreviewModal } from './album-preview-modal';
 
 /** 图册占位图（TODO: 替换为真实图册图片） */

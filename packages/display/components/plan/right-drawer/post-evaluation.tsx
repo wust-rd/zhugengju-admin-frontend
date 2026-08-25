@@ -8,7 +8,7 @@ import albumPic1 from '@jeesite/assets/images/display/plan/picture-box.webp';
 import albumPic2 from '@jeesite/assets/images/display/plan/test.webp';
 import albumPic3 from '@jeesite/assets/images/display/plan/area-overview-modal-header.png';
 
-import { CollapsibleSection } from '../collapsible-section';
+import { CollapsibleSection } from '../../collapsible-section';
 import { ViewDetailButton } from './view-detail-button';
 import { PostEvaluationModal } from './post-evaluation-modal';
 

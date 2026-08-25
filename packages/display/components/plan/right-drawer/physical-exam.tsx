@@ -1,6 +1,6 @@
 import { defineComponent, ref } from 'vue';
 import { cn } from '@jeesite/core/libs';
-import { CollapsibleSection } from '../collapsible-section';
+import { CollapsibleSection } from '../../collapsible-section';
 import { GlowButton } from '../../glow-button';
 
 import diamond from '@jeesite/assets/images/display/plan/diamond.svg';
@@ -93,10 +93,7 @@ export const PhysicalExam = defineComponent({
                           body: () => (
                             <div class="mt-8px space-y-8px">
                               {PROBLEM_LIST.map((item, index) => (
-                                <div
-                                  key={index}
-                                  class="flex items-start mt-8px"
-                                >
+                                <div key={index} class="flex items-start mt-8px">
                                   <div class="rd-full size-12px bg-white text-black flex items-center justify-center text-8px shrink-0 font-600 mt-7px">
                                     {index + 1}
                                   </div>
