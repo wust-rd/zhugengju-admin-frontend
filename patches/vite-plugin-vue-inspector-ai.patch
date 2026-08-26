@@ -1,0 +1,29 @@
+diff --git a/src/Overlay.vue b/src/Overlay.vue
+index 067e418c6ebce68a1118b7331ae491506c3ece38..a00178fcf80411209fa4610d2b7b2fe7500c06ca 100644
+--- a/src/Overlay.vue
++++ b/src/Overlay.vue
+@@ -229,20 +229,20 @@ export default {
+       this.holdEnabled = false;
+       this.requireActivationReset = true;
+ 
++      // 【Proma patch】普通单击 / Cmd(Ctrl)+左键 = 复制位置；Cmd(Ctrl)+Shift+左键 = 复制位置并在 IDE 中打开
++      const shouldOpenInEditor = e.shiftKey && (e.metaKey || e.ctrlKey);
+       const clipboardText = `Vue组件: ${file} | 起始行: ${line} | 结束行: ${endLine}\n`;
+       navigator.clipboard
+         .writeText(clipboardText)
+         .then(() => {
+-          this.showToast("已复制组件位置信息");
++          this.showToast(shouldOpenInEditor ? "已复制位置，并在 IDE 中打开组件" : "已复制组件位置信息");
+         })
+         .catch((err) => {
+           this.showToast("复制失败，请检查剪贴板权限", "error");
+           console.error("[Vue Inspector] Failed to copy to clipboard:", err);
+         });
+ 
+-      const shouldOpenEditor =
+-        this.manualEnabled && (e.ctrlKey || e.metaKey);
+-      if (shouldOpenEditor) {
++      if (shouldOpenInEditor) {
+         const url = new URL(
+           `${base}__open-in-editor?file=${encodeURIComponent(`${file}:${line}:${column}`)}`,
+           import.meta.url,

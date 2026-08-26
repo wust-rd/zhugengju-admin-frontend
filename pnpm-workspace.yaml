@@ -34,3 +34,5 @@ minimumReleaseAgeExclude:
   - '@unocss/transformer-variant-group@66.8.0'
   - '@unocss/vite@66.8.0'
   - unocss@66.8.0
+patchedDependencies:
+  vite-plugin-vue-inspector-ai: patches/vite-plugin-vue-inspector-ai.patch

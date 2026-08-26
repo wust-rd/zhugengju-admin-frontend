@@ -17,6 +17,7 @@ import { configUnoCSSPlugin } from './unocss';
 import { configMonacoEditorPlugin } from './monacoEditor';
 import { configVisualizerPlugin } from './visualizer';
 import zipPack from 'vite-plugin-zip-pack';
+import Inspector from 'vite-plugin-vue-inspector-ai';
 
 export function createVitePlugins(isBuild: boolean, viteEnv: ViteEnv) {
   const vitePlugins: PluginOption[] = [
@@ -58,6 +59,15 @@ export function createVitePlugins(isBuild: boolean, viteEnv: ViteEnv) {
       outDir: './', // 输出目录
       outFileName: 'dist.zip', // 输出文件名
       pathPrefix: 'dist',
+    }),
+  );
+
+  // vite-plugin-vue-inspector
+  vitePlugins.push(
+    Inspector({
+      enabled: false,
+      toggleButtonVisibility: 'active',
+      launchEditor: 'code',
     }),
   );
 
