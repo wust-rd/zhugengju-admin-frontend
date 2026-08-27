@@ -1,6 +1,9 @@
 import type { Router } from 'vue-router';
 import { displayRoutes } from './router';
 
+// 加载 display 全局样式（.font-youshe / .scrollbar-none / .blue-bg / YouSheBiaoTiHei 字体）
+import './styles/index.less';
+
 export { displayRoutes };
 
 /**

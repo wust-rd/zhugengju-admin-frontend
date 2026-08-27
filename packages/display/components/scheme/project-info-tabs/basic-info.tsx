@@ -38,7 +38,7 @@ export const BasicInfo = defineComponent({
   setup() {
     return () => (
       <div
-        class="p-12px rd-16px backdrop-blur-10px max-h-600px overflow-auto"
+        class="p-12px rd-16px backdrop-blur-10px max-h-600px overflow-auto scrollbar-none"
         style={{ background: 'linear-gradient(270deg, #0F172A 1.26%, rgba(37, 86, 126, 0.90) 99.65%)' }}
       >
         <div class="grid grid-cols-2 gap-x-32px gap-y-24px p-8px">
