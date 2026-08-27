@@ -19,7 +19,8 @@
   import { useLayoutHeight } from '../content/useContentViewHeight';
   import { useMultipleTabStore } from '@jeesite/core/store/modules/multipleTab';
 
-  const HEADER_HEIGHT = 48;
+  // 顶栏已换为 display 导航条（h-88px），与 @header-height 保持一致
+  const HEADER_HEIGHT = 88;
   const TABS_HEIGHT = 32;
   const TABS_HEIGHT_LARGE = 37;
 
