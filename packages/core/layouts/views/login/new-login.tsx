@@ -1,5 +1,6 @@
 import { useI18n } from '@jeesite/core/hooks/web/useI18n';
 import { darkPrimaryColor } from '@jeesite/vite/theme/themeConfig';
+import loginBgImg from '@jeesite/assets/images/login-bg.webp';
 import { ConfigProvider, Tabs, theme } from 'antdv-next';
 import dayjs from 'dayjs';
 import { defineComponent, ref } from 'vue';
@@ -50,7 +51,7 @@ export default defineComponent({
       <div
         class="new-login-panel flex size-full items-center justify-center bg-cover bg-no-repeat"
         style={{
-          backgroundImage: 'url(https://city-update-public.oss-cn-wuhan-lr.aliyuncs.com/img/login-bg.webp)',
+          backgroundImage: `url(${loginBgImg})`,
         }}
       >
         <div class="rd-12px flex flex-col w-600px h-640px items-center border-1px border-white/15 bg-black/25 text-white backdrop-blur pt-32px">
