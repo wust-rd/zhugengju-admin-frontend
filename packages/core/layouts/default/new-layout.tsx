@@ -1,19 +1,18 @@
-import { computed, defineComponent, unref, type CSSProperties } from 'vue';
-import { Layout } from 'antdv-next';
 import { createAsyncComponent } from '@jeesite/core/utils/factory/createAsyncComponent';
+import { Layout } from 'antdv-next';
+import { computed, defineComponent, unref, type CSSProperties } from 'vue';
 
+import NewContent from './content/new-content';
+import NewMultipleHeader from './header/new-multiple-header';
 import NewHeader from './header/new-header';
-import LayoutContent from './content/index.vue';
-import LayoutSideBar from './sider/index.vue';
 import NewSider from './sider/new-sider';
-import LayoutMultipleHeader from './header/MultipleHeader.vue';
 
 import { useHeaderSetting } from '@jeesite/core/hooks/setting/useHeaderSetting';
 import { useMenuSetting } from '@jeesite/core/hooks/setting/useMenuSetting';
 import { useLockPage } from '@jeesite/core/hooks/web/useLockPage';
 
-import { useAppInject } from '@jeesite/core/hooks/web/useAppInject';
 import { switchSkin } from '@jeesite/core/api/sys/login';
+import { useAppInject } from '@jeesite/core/hooks/web/useAppInject';
 
 import './new-layout.less';
 
@@ -67,8 +66,8 @@ export default defineComponent({
         <Layout class={layoutClass.value}>
           {(unref(getShowSidebar) || unref(getIsMobile)) && <NewSider style={getSiderStyle.value} />}
           <Layout class="ant-layout jeesite-default-layout-main">
-            <LayoutMultipleHeader />
-            <LayoutContent />
+            <NewMultipleHeader />
+            <NewContent />
             <LayoutFooter />
           </Layout>
         </Layout>
