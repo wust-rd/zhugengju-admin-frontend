@@ -29,8 +29,6 @@ export const Header = defineComponent({
         class="sticky top-0 z-50 flex h-88px w-full items-center"
         style={{
           background: '#001F40',
-          boxShadow: '0 32px 76px 0 rgba(0, 5, 26, 0.30), 0 0 16px 0 rgba(71, 152, 247, 0.60) inset',
-          backdropFilter: 'blur(18px)',
         }}
       >
         {slots.default?.()}
