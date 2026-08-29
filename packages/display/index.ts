@@ -1,8 +1,9 @@
 import type { Router } from 'vue-router';
 import { displayRoutes } from './router';
 
-// display 全局样式（.font-youshe / .scrollbar-none / .blue-bg / YouSheBiaoTiHei 字体）已迁移至
-// packages/core/design/custom/（font.less / display.less），由 web/src/main.ts 全局加载，此处不再单独引入。
+// 加载 display 全局样式（.font-youshe / .scrollbar-none / .blue-bg / YouSheBiaoTiHei 字体）
+import '@jeesite/core/design/custom/index.less';
+
 export { displayRoutes };
 
 /**
@@ -30,16 +31,4 @@ export function setupDisplay(router: Router) {
   });
   // 注册演示应用路由
   displayRoutes.forEach((route) => router.addRoute(route));
-
-  // app.use(router)（setupRouter 内）会立即触发一次初始导航，其路由解析发生在
-  // 本函数注册路由之前，因此当前 URL 可能已被 404 catch-all 捕获（显示 ErrorPage）。
-  // 这里基于浏览器实际 URL 重新导航一次，让 matcher 命中新注册的 display 路由。
-  const currentRoute = router.currentRoute.value;
-  if (currentRoute.matched.length === 0 || currentRoute.name === 'PageNotFound') {
-    // 全局 router 使用 strict: true（严格匹配），'/display/' 无法命中 path: '/display'，
-    // 会再次落入 404。因此先归一化尾斜杠（保留根路径 '/'），再触发重新导航。
-    const path = window.location.pathname;
-    const normalized = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
-    router.replace(normalized + window.location.search).catch(() => {});
-  }
 }

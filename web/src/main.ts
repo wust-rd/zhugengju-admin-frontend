@@ -36,14 +36,11 @@ async function bootstrap() {
   // 国际化配置（await 确保首屏文案正确渲染）
   await setupI18n(app);
 
-  // 演示应用（/display 独立 layout + 根路由重定向）
-  // 必须在 setupRouter(app) 之前注册：app.use(router) 会立即触发初始导航，若此时
-  // display 路由尚未注册，/display/* 会被 404 catch-all 捕获，短暂挂载后台 DefaultLayout
-  // （发出 switchSkin / online/count / userInfo 等后台请求，页面显示后台 404）。
-  setupDisplay(router);
-
-  // 路由配置（app.use 触发初始导航，此时 display 路由已注册，/display/* 可直接命中）
+  // 路由配置
   setupRouter(app);
+
+  // 演示应用（/display 独立 layout + 根路由重定向）
+  setupDisplay(router);
 
   // 路由守卫（权限控制等）
   setupRouterGuard(router);

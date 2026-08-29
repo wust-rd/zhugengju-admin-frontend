@@ -1,0 +1,29 @@
+.jeesite-layout-content {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 12px 0;
+  background-color: @content-bg;
+
+  &.fixed {
+    width: 1200px;
+    margin: 0 auto;
+  }
+
+  &-loading {
+    position: absolute;
+    top: 200px;
+    z-index: @page-loading-z-index;
+  }
+
+  // 沉浸式全屏：去掉 padding，让内容占满（供大屏/看板页面）
+  &.immersive {
+    padding: 0;
+  }
+}
+
+html[data-theme='dark'] {
+  .jeesite-layout-content {
+    background: #000;
+  }
+}

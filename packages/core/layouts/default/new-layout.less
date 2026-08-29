@@ -1,0 +1,16 @@
+/* NewLayout 布局样式 —— 与原 layouts/default/index.vue 的 style 块一致 */
+
+.ant-layout.jeesite-default-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100%;
+  flex-direction: column;
+  background-color: @content-bg;
+
+  &-main {
+    width: 100%;
+    // 真傻逼, 留 1 像素的 margin 搞毛, 害我调半天
+    // margin-left: 1px;
+    background-color: @content-bg;
+  }
+}

@@ -26,6 +26,8 @@ interface AppState {
   projectConfig: ProjectConfig | null;
   // When the window shrinks, remember some states, and restore these states when the window is restored
   beforeMiniInfo: BeforeMiniState;
+  // 沉浸式全屏：进入时隐藏顶部标签栏并去掉内容区 padding（用于大屏/看板页面），离开时恢复
+  immersive: boolean;
 }
 
 let timeId: TimeoutHandle;
@@ -35,10 +37,14 @@ export const useAppStore = defineStore('app', {
     pageLoading: false,
     projectConfig: Persistent.getLocal(PROJ_CFG_KEY),
     beforeMiniInfo: {},
+    immersive: false,
   }),
   getters: {
     getPageLoading(): boolean {
       return this.pageLoading;
+    },
+    getImmersive(): boolean {
+      return this.immersive;
     },
     getDarkMode(): 'light' | 'dark' | string {
       return this.darkMode || localStorage.getItem(APP_DARK_MODE_KEY) || darkMode;
@@ -68,6 +74,9 @@ export const useAppStore = defineStore('app', {
   actions: {
     setPageLoading(loading: boolean): void {
       this.pageLoading = loading;
+    },
+    setImmersive(immersive: boolean): void {
+      this.immersive = immersive;
     },
 
     setDarkMode(mode: ThemeEnum): void {

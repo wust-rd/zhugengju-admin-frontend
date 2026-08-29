@@ -1,0 +1,21 @@
+/* NewLogin 专属视觉微调（仅作用于 .new-login-panel 作用域） */
+
+.new-login-panel {
+  // Tab 未选中项白色，提高深色面板上的对比度；选中项保持主题蓝
+  .ant-tabs-tab-btn {
+    color: rgba(255, 255, 255, 85%);
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: var(--jeesite-color-primary, @primary-color);
+  }
+
+  // 二维码横向始终居中（QrCodeForm 内 QrCode 自带 xl:justify-start，原为后台分栏大屏设计）
+  .ant-tabs-content .flex {
+    justify-content: center !important;
+  }
+}

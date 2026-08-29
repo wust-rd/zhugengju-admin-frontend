@@ -4,8 +4,9 @@ export const PAGE_NOT_FOUND_NAME = 'PageNotFound';
 
 /**
  * @description: default layout
+ * 使用 display 导航条版布局（原 index.vue 保留不动）
  */
-export const LAYOUT = () => import('@jeesite/core/layouts/default/index.vue');
+export const LAYOUT = () => import('@jeesite/core/layouts/default/new-layout');
 export const IFRAME_BLANK = () => import('@jeesite/core/layouts/iframe/FrameBlank.vue');
 export const IFRAME_SIMPLE = () => import('@jeesite/core/layouts/iframe/FrameSimple.vue');
 export const EXCEPTION_COMPONENT = () => import('@jeesite/core/layouts/views/exception/Exception.vue');
