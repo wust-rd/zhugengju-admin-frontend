@@ -50,7 +50,13 @@ export function dynamicImport(component: string) {
     dynamicViewsModules = import.meta.glob('../../../../**/views/**/*.{vue,tsx}');
   }
   const keys = Object.keys(dynamicViewsModules);
+
   const matchKeys = keys.filter((key) => {
+    // 排除 node_modules / .history / dist / build / target 等非源码目录，
+    // 避免编辑器历史、产物目录里的同名文件重复命中（多命中会返回 undefined，进而回退到 404 组件）。
+    if (/(^|\/)(node_modules|\.history|dist|build|target)(\/|$)/.test(key)) {
+      return false;
+    }
     const viewsPath = '/views',
       l = viewsPath.length,
       index = key.indexOf(viewsPath);
