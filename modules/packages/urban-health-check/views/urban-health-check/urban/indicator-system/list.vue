@@ -4,7 +4,8 @@
   组件格式 / 页面布局对齐 packages/core/views/sys/area：
    - BasicTable + useTable + 搜索 FormProps（schemas） + actionColumn
    - 新增/编辑/查看 表单使用 BasicDrawer（useDrawer），而非 Modal
-  字段与接口走 @jeesite/urban-health-check 的 indicatorSystem API（defHttp + adminPath）。
+  当前后端尚未介入，页面为纯 UI：不发起任何接口请求；
+  字段与常量定义见 @jeesite/urban-health-check/api/urban-health-check/urban/indicator-system。
 -->
 <template>
   <PageWrapper>
@@ -46,9 +47,8 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemList">
-  import { ref, unref } from 'vue';
+  import { unref } from 'vue';
   import { Switch, Tag } from 'antdv-next';
-  import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { router } from '@jeesite/core/router';
   import { Icon } from '@jeesite/core/components/Icon';
   import { PageWrapper } from '@jeesite/core/components/Page';
@@ -59,14 +59,9 @@
   import {
     ENABLED_STATUS,
     SUBMIT_STATUS,
-    indicatorSystemDelete,
-    indicatorSystemDisable,
-    indicatorSystemEnable,
-    indicatorSystemListData,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import InputForm from './form.vue';
 
-  const { showMessage } = useMessage();
   const { meta } = unref(router.currentRoute);
   const getTitle = {
     icon: meta.icon || 'ant-design:book-outlined',
@@ -136,8 +131,7 @@
   };
 
   const [registerDrawer, { openDrawer }] = useDrawer();
-  const [registerTable, { reload }] = useTable({
-    api: indicatorSystemListData,
+  const [registerTable] = useTable({
     columns: tableColumns,
     actionColumn: actionColumn,
     formConfig: searchForm,
@@ -151,25 +145,19 @@
     openDrawer(true, record);
   }
 
-  /** 启用状态切换 */
-  async function handleToggleEnabled(record: IndicatorSystem, checked: boolean) {
+  /** 启用状态切换（纯 UI，仅更新本地行数据） */
+  function handleToggleEnabled(record: IndicatorSystem, checked: boolean) {
+    // TODO: 后端接入后调用启用/停用接口
     record.enabled = checked ? ENABLED_STATUS.ENABLED : ENABLED_STATUS.DISABLED;
-    const api = checked ? indicatorSystemEnable : indicatorSystemDisable;
-    const res = await api({ code: record.code });
-    if (res) {
-      showMessage(res.message);
-    }
-    reload();
   }
 
   /** 删除 */
-  async function handleDelete(record: IndicatorSystem) {
-    const res = await indicatorSystemDelete({ code: record.code });
-    showMessage(res.message);
-    reload();
+  function handleDelete(_record: IndicatorSystem) {
+    // TODO: 后端接入后调用删除接口并刷新列表
   }
 
+  /** 表单保存成功回调（后端接入后在此 reload 列表） */
   function handleSuccess() {
-    reload();
+    // TODO: 后端接入后刷新列表
   }
 </script>

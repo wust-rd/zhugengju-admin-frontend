@@ -5,6 +5,7 @@
    - BasicDrawer + useDrawerInner + BasicForm（FormSchema），而非 Modal；
    - 通过 defineEmits(['register', 'success']) 与父级 useDrawer 联动；
    - 查看模式：表单 disabled + 抽屉隐藏底部按钮。
+  当前后端尚未介入：保存仅做表单校验后关闭抽屉，不发起任何接口请求。
 -->
 <template>
   <BasicDrawer
@@ -33,7 +34,6 @@
   import {
     ENABLED_STATUS,
     SUBMIT_STATUS,
-    indicatorSystemSave,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
 
   const emit = defineEmits(['success', 'register']);
@@ -182,18 +182,8 @@
       }
       return;
     }
-    setDrawerProps({ confirmLoading: true });
-    try {
-      const params: any = {
-        isNewRecord: record.value.isNewRecord,
-        code: data.code || record.value.code,
-      };
-      const res = await indicatorSystemSave({ ...data, ...params } as any);
-      showMessage(res.message);
-      setTimeout(closeDrawer);
-      emit('success', data);
-    } finally {
-      setDrawerProps({ confirmLoading: false });
-    }
+    // TODO: 后端接入后在此调用保存接口
+    setTimeout(closeDrawer);
+    emit('success', data);
   }
 </script>

@@ -1,18 +1,20 @@
 /**
- * 市住更局 —— 体检指标体系管理（列表页数据模型与接口）
+ * 市住更局 —— 体检指标体系 数据模型（类型与常量）
  *
  * 说明：
- *  - 后端响应统一为 JeeSite 格式：`{ result: 'true'|'false'|'login', message, sessionid }`，
- *    `defHttp` 已自动处理 `result === 'login'`（跳登录）与 `result === 'false'`（错误提示）。
- *  - 列表接口返回 `{ list: T[], count: number, pageNo, pageSize }`，与
- *    `packages/core/settings/componentSetting.ts` 的 fetchSetting（list / count / pageNo / pageSize）对齐。
- *  - 页面约定见 `docs/`：统一 `defHttp` + `adminPath`，adminPath 来自 `useGlobSetting()`（此处为 `/a`）。
+ *  - 当前后端尚未介入，本文件不包含任何接口请求，仅保留页面所需的
+ *    类型定义与常量定义，页面为纯 UI 展示。
+ *  - 后端就绪后，在本文件中补充接口即可（页面代码无需调整结构）：
+ *      import { defHttp } from '@jeesite/core/utils/http/axios';
+ *      import { useGlobSetting } from '@jeesite/core/hooks/setting';
+ *      const { adminPath } = useGlobSetting();
+ *    接口约定：
+ *      - 响应统一为 JeeSite 格式 `{ result: 'true'|'false'|'login', message, sessionid }`，
+ *        `defHttp` 已自动处理 `result === 'login'`（跳登录）与 `result === 'false'`（错误提示）；
+ *      - 列表接口返回 `{ list: T[], count: number, pageNo, pageSize }`，与
+ *        `packages/core/settings/componentSetting.ts` 的 fetchSetting（list / count / pageNo / pageSize）对齐。
  */
 import type { Result } from '@jeesite/types/axios';
-import { defHttp } from '@jeesite/core/utils/http/axios';
-import { useGlobSetting } from '@jeesite/core/hooks/setting';
-
-const { adminPath } = useGlobSetting();
 
 /** 提交状态：0 待提交，1 已提交 */
 export const SUBMIT_STATUS = {
@@ -68,59 +70,3 @@ export interface IndicatorSystemQuery {
   year?: string; // 体检年份
   indicatorName?: string; // 指标体系名称
 }
-
-/** 列表接口：POST，返回 `{ result, message, list, count }` */
-export const indicatorSystemListData = (params?: IndicatorSystemQuery) =>
-  defHttp.post<IndicatorSystemPage>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/listData', params },
-    { errorMessageMode: 'none' },
-  );
-
-/** 表单详情接口：GET */
-export const indicatorSystemForm = (params?: { code?: string }) =>
-  defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/form', params },
-    { errorMessageMode: 'none' },
-  );
-
-/** 保存接口：POST JSON */
-export const indicatorSystemSave = (data?: IndicatorSystem) =>
-  defHttp.postJson<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/save', data },
-    { errorMessageMode: 'message' },
-  );
-
-/** 删除接口：GET（单个） */
-export const indicatorSystemDelete = (params?: { code?: string }) =>
-  defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/delete', params },
-    { errorMessageMode: 'message' },
-  );
-
-/** 批量删除接口：GET，codes 为逗号分隔的编码串 */
-export const indicatorSystemDeleteAll = (params?: { codes?: string }) =>
-  defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/deleteAll', params },
-    { errorMessageMode: 'message' },
-  );
-
-/** 启用 */
-export const indicatorSystemEnable = (params?: { code?: string }) =>
-  defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/enable', params },
-    { errorMessageMode: 'message' },
-  );
-
-/** 停用 */
-export const indicatorSystemDisable = (params?: { code?: string }) =>
-  defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/disable', params },
-    { errorMessageMode: 'message' },
-  );
-
-/** 提交 */
-export const indicatorSystemSubmit = (params?: { code?: string }) =>
-  defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/urban/indicatorSystem/submit', params },
-    { errorMessageMode: 'message' },
-  );
