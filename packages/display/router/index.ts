@@ -86,9 +86,9 @@ export const displayRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'evaluation',
-        name: 'DisplayEvaluation',
-        component: () => import('../views/evaluation/index'),
+        path: 'urban-protection',
+        name: 'DisplayUrbanProtection',
+        component: () => import('../views/urban-protection/index'),
         meta: {
           title: '名城保护',
         },

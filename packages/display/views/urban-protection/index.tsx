@@ -22,7 +22,7 @@ const DRAWER_TABS = [
 type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
 
 export default defineComponent({
-  name: 'DisplayResult',
+  name: 'DisplayUrbanProtection',
   setup() {
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
