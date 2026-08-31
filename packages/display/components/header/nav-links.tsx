@@ -14,7 +14,7 @@ export const NavLinks = defineComponent({
       { label: '城市体检', icon: 'i-ri-focus-3-fill', to: '/urban-health-check/overview/index' },
       { label: '前期规划', icon: 'i-ri-route-fill rotate-90', to: '/display/early-stage-planning' },
       { label: '投融建运', icon: 'i-famicons-folder-open', to: '/display/ifco' },
-      { label: '征收管理', icon: 'i-ri-target-fill', to: '/display/project' },
+      { label: '征收管理', icon: 'i-ri-target-fill', to: '/display/expropriation-management' },
       { label: '名城保护', icon: 'i-ri-ancient-gate-fill', to: '/display/evaluation' },
     ];
 

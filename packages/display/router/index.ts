@@ -78,9 +78,9 @@ export const displayRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'project',
-        name: 'DisplayProject',
-        component: () => import('../views/project/index'),
+        path: 'expropriation-management',
+        name: 'DisplayExpropriationManagement',
+        component: () => import('../views/expropriation-management/index'),
         meta: {
           title: '征收管理',
         },

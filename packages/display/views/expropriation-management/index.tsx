@@ -10,7 +10,7 @@ const BASE_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/�
 const RENOVATION_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/项目改造情况.webp';
 
 export default defineComponent({
-  name: 'DisplayProject',
+  name: 'DisplayExpropriationManagement',
   setup() {
     const activeTab = ref<'base' | 'renovation'>('base');
     const previewVisible = ref(false);

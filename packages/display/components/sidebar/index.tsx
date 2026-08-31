@@ -15,7 +15,7 @@ export const Sidebar = defineComponent({
       { icon: 'i-ri-todo-fill', to: '/display/urban-health-check' },
       { icon: 'i-ri-map-2-fill', to: '/display/early-stage-planning' },
       { icon: 'i-ri-pie-chart-2-fill', to: '/display/ifco' },
-      { icon: 'i-ri-user-fill', to: '/display/project' },
+      { icon: 'i-ri-user-fill', to: '/display/expropriation-management' },
     ];
 
     // 单选激活：点击的链接成为当前激活项
