@@ -31,7 +31,7 @@ export const displayRoutes: RouteRecordRaw[] = [
         name: 'DisplayScheme',
         component: () => import('../views/scheme/index'),
         meta: {
-          title: '片区策划',
+          title: '投融建运',
         },
       },
       // 片区策划详情（独立完整页面，路径 /display/scheme/detail）
@@ -70,11 +70,11 @@ export const displayRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'plan',
-        name: 'DisplayPlan',
-        component: () => import('../views/plan/index'),
+        path: 'early-stage-planning',
+        name: 'DisplayEarlyStagePlanning',
+        component: () => import('../views/early-stage-planning/index'),
         meta: {
-          title: '更新规划',
+          title: '前期规划',
         },
       },
       {
@@ -82,7 +82,7 @@ export const displayRoutes: RouteRecordRaw[] = [
         name: 'DisplayProject',
         component: () => import('../views/project/index'),
         meta: {
-          title: '项目实施',
+          title: '征收管理',
         },
       },
       {
@@ -90,7 +90,7 @@ export const displayRoutes: RouteRecordRaw[] = [
         name: 'DisplayEvaluation',
         component: () => import('../views/evaluation/index'),
         meta: {
-          title: '成果评估',
+          title: '名城保护',
         },
       },
     ],

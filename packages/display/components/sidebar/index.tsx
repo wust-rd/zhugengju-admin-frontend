@@ -13,7 +13,7 @@ export const Sidebar = defineComponent({
   setup(_, { slots }) {
     const navLinks: NavLink[] = [
       { icon: 'i-ri-todo-fill', to: '/display/urban-health-check' },
-      { icon: 'i-ri-map-2-fill', to: '/display/plan' },
+      { icon: 'i-ri-map-2-fill', to: '/display/early-stage-planning' },
       { icon: 'i-ri-pie-chart-2-fill', to: '/display/scheme' },
       { icon: 'i-ri-user-fill', to: '/display/project' },
     ];
