@@ -4,7 +4,7 @@
   组件格式 / 页面布局对齐 packages/core/views/sys/area：
    - BasicTable + useTable + 搜索 FormProps（schemas） + actionColumn
    - 新增/编辑/查看 表单使用 BasicDrawer（useDrawer），而非 Modal
-  字段与接口走 @jeesite/inspection 的 indicatorSystem API（defHttp + adminPath）。
+  字段与接口走 @jeesite/urban-health-check 的 indicatorSystem API（defHttp + adminPath）。
 -->
 <template>
   <PageWrapper>
@@ -45,7 +45,7 @@
     <InputForm @register="registerDrawer" @success="handleSuccess" />
   </PageWrapper>
 </template>
-<script lang="ts" setup name="ViewsInspectionMunicipalIndicatorSystemList">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemList">
   import { ref, unref } from 'vue';
   import { Switch, Tag } from 'antdv-next';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -55,7 +55,7 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { FormProps } from '@jeesite/core/components/Form';
-  import type { IndicatorSystem } from '@jeesite/inspection/api/inspection/municipal/indicator-system';
+  import type { IndicatorSystem } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import {
     ENABLED_STATUS,
     SUBMIT_STATUS,
@@ -63,7 +63,7 @@
     indicatorSystemDisable,
     indicatorSystemEnable,
     indicatorSystemListData,
-  } from '@jeesite/inspection/api/inspection/municipal/indicator-system';
+  } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import InputForm from './form.vue';
 
   const { showMessage } = useMessage();

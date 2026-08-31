@@ -1,11 +1,12 @@
+import { defineComponent, onBeforeUnmount, ref } from 'vue';
+import type { MenuItemType } from 'antdv-next';
+import { useAppStore } from '@jeesite/core/store/modules/app';
 import { buildYearItems } from '@jeesite/core/libs';
 import { CornerItem, CornerPanelRow } from '@jeesite/display/components/corner-panel';
 import { CollapseGroups } from '@jeesite/display/components/collapse-groups';
-import { type GlowTabItem } from '@jeesite/display/components/glow-tabs';
+import type { GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { RegionTabs } from '@jeesite/display/components/region-tabs';
-import type { MenuItemType } from 'antdv-next';
-import { defineComponent, ref } from 'vue';
 import { RatingResult, type RatingDatum } from './rating-result';
 import { SearchFilter } from './search-filter';
 import { TopFilter } from './top-filter';
@@ -57,8 +58,16 @@ const regionTabs: GlowTabItem[] = [
 ];
 
 export default defineComponent({
-  name: 'DisplayInspection',
+  name: 'ViewsUrbanHealthCheckOverview',
   setup() {
+    const appStore = useAppStore();
+    // 沉浸式全屏：进入时隐藏顶部标签栏、去掉内容区 padding，让页面占据整个屏幕（保留侧边菜单）
+    appStore.setImmersive(true);
+    // 离开时恢复，避免影响其它页面
+    onBeforeUnmount(() => {
+      appStore.setImmersive(false);
+    });
+
     // 指标分类下拉菜单项
     const items: MenuItemType[] = [
       { key: '1', label: '一好基础指标' },

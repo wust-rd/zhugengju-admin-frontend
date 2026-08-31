@@ -17,7 +17,7 @@ export interface CollapseGroupItem<T = unknown> {
  *
  * 多个 GlowCollapse（标题 + 徽章）列表，每个面板内为 CornerPanel 容器
  * + 行数据列表。行如何渲染由调用方通过 row 作用域插槽决定
- * （plan 传 XodRow、inspection 传 CornerPanelRow 等）。
+ * （plan 传 XodRow、urban-health-check 传 CornerPanelRow 等）。
  *
  * props：
  * - groups: 分组数据（{ title, badgeValue, items }[]）

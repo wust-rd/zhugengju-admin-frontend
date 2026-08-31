@@ -22,19 +22,19 @@
     <BasicForm @register="registerForm" />
   </BasicDrawer>
 </template>
-<script lang="ts" setup name="ViewsInspectionMunicipalIndicatorSystemForm">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemForm">
   import { computed, ref, unref } from 'vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { router } from '@jeesite/core/router';
   import { Icon } from '@jeesite/core/components/Icon';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
-  import type { IndicatorSystem } from '@jeesite/inspection/api/inspection/municipal/indicator-system';
+  import type { IndicatorSystem } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import {
     ENABLED_STATUS,
     SUBMIT_STATUS,
     indicatorSystemSave,
-  } from '@jeesite/inspection/api/inspection/municipal/indicator-system';
+  } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
 
   const emit = defineEmits(['success', 'register']);
 

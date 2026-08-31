@@ -72,55 +72,55 @@ export interface IndicatorSystemQuery {
 /** 列表接口：POST，返回 `{ result, message, list, count }` */
 export const indicatorSystemListData = (params?: IndicatorSystemQuery) =>
   defHttp.post<IndicatorSystemPage>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/listData', params },
+    { url: adminPath + '/inspection/urban/indicatorSystem/listData', params },
     { errorMessageMode: 'none' },
   );
 
 /** 表单详情接口：GET */
 export const indicatorSystemForm = (params?: { code?: string }) =>
   defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/form', params },
+    { url: adminPath + '/inspection/urban/indicatorSystem/form', params },
     { errorMessageMode: 'none' },
   );
 
 /** 保存接口：POST JSON */
 export const indicatorSystemSave = (data?: IndicatorSystem) =>
   defHttp.postJson<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/save', data },
+    { url: adminPath + '/inspection/urban/indicatorSystem/save', data },
     { errorMessageMode: 'message' },
   );
 
 /** 删除接口：GET（单个） */
 export const indicatorSystemDelete = (params?: { code?: string }) =>
   defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/delete', params },
+    { url: adminPath + '/inspection/urban/indicatorSystem/delete', params },
     { errorMessageMode: 'message' },
   );
 
 /** 批量删除接口：GET，codes 为逗号分隔的编码串 */
 export const indicatorSystemDeleteAll = (params?: { codes?: string }) =>
   defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/deleteAll', params },
+    { url: adminPath + '/inspection/urban/indicatorSystem/deleteAll', params },
     { errorMessageMode: 'message' },
   );
 
 /** 启用 */
 export const indicatorSystemEnable = (params?: { code?: string }) =>
   defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/enable', params },
+    { url: adminPath + '/inspection/urban/indicatorSystem/enable', params },
     { errorMessageMode: 'message' },
   );
 
 /** 停用 */
 export const indicatorSystemDisable = (params?: { code?: string }) =>
   defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/disable', params },
+    { url: adminPath + '/inspection/urban/indicatorSystem/disable', params },
     { errorMessageMode: 'message' },
   );
 
 /** 提交 */
 export const indicatorSystemSubmit = (params?: { code?: string }) =>
   defHttp.get<IndicatorSystem & Result>(
-    { url: adminPath + '/inspection/municipal/indicatorSystem/submit', params },
+    { url: adminPath + '/inspection/urban/indicatorSystem/submit', params },
     { errorMessageMode: 'message' },
   );

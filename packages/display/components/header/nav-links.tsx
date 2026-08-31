@@ -11,7 +11,7 @@ interface NavLink {
 export const NavLinks = defineComponent({
   setup() {
     const navLinks: NavLink[] = [
-      { label: '城市体检', icon: 'i-ri-focus-3-fill', to: '/inspection/overview/index' },
+      { label: '城市体检', icon: 'i-ri-focus-3-fill', to: '/urban-health-check/overview/index' },
       { label: '前期规划', icon: 'i-ri-route-fill rotate-90', to: '/display/plan' },
       { label: '投融建运', icon: 'i-famicons-folder-open', to: '/display/scheme' },
       { label: '征收管理', icon: 'i-ri-target-fill', to: '/display/project' },

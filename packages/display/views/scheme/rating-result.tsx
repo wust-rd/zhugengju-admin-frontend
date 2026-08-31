@@ -4,7 +4,7 @@ import { Light } from '@jeesite/display/components/light/index';
 import { StatCard } from '@jeesite/display/components/stat-card';
 import type { Ref } from 'vue';
 import { defineComponent, onMounted, ref, shallowRef } from 'vue';
-import { RatingDatum } from '../inspection/rating-result';
+import { RatingDatum } from '@jeesite/urban-health-check/views/urban-health-check/overview/rating-result';
 
 /** 项目分类统计：饼图与右侧统计网格共用同一份数据（数值为百分数，合计 100） */
 const ratingData: RatingDatum[] = [

@@ -17,7 +17,7 @@ export interface DisplayPageLayoutScope {
 /**
  * DisplayPageLayout —— 大屏页面公共布局：左侧数据面板 + 右侧内容区
  *
- * inspection / plan / scheme 三页共用的页面骨架：
+ * urban-health-check / plan / scheme 三页共用的页面骨架：
  * - 外层 flex 撑满视口；左侧 460px 数据面板（blue-bg 深蓝渐变），右侧 flex-1 内容区
  * - collapsible 时面板可收起：宽度动画 460 → 0，右侧内容自动扩展到全宽；
  *   收起后左边缘显示展开按钮（GlassRing），面板内的收起按钮由调用方通过

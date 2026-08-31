@@ -11,7 +11,7 @@ export const displayRoutes: RouteRecordRaw[] = [
   {
     path: '/display',
     // 父级重定向：/display 与 /display/（含尾斜杠）都跳转到默认首页
-    redirect: '/display/inspection',
+    redirect: '/display/urban-health-check',
     component: () => import('../layouts/index'),
     meta: {
       title: '演示应用',
@@ -19,9 +19,9 @@ export const displayRoutes: RouteRecordRaw[] = [
     },
     children: [
       {
-        path: 'inspection',
-        name: 'DisplayInspection',
-        component: () => import('../views/inspection/index'),
+        path: 'urban-health-check',
+        name: 'DisplayUrbanHealthCheck',
+        component: () => import('@jeesite/urban-health-check/views/urban-health-check/overview/index'),
         meta: {
           title: '城市体检',
         },

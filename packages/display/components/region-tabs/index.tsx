@@ -24,7 +24,7 @@ const TEXT_ANIMATION_MODE = {
  * RegionTabs —— 区域 tabs（业务组件）
  *
  * 封装 GlowTabs 的「tab 渲染 + 激活态」业务：
- * - animated=true（默认）：激活时 icon 左移、文字随后渐显（inspection 风格），tab 定宽 w-102px
+ * - animated=true（默认）：激活时 icon 左移、文字随后渐显（urban-health-check 风格），tab 定宽 w-102px
  * - animated=false：icon + 文字颜色切换（plan 风格），tab 等宽 flex-1
  *
  * 激活态视觉统一由 GlowTabs 的 svg 发光胶囊指示器表达（组件本身不发光）。
@@ -71,7 +71,7 @@ export const RegionTabs = defineComponent({
             props.items.map((tab) => {
               const active = tab.key === props.activeKey;
 
-              // 动画模式（inspection 风格）：icon 左移 + 文字渐显
+              // 动画模式（urban-health-check 风格）：icon 左移 + 文字渐显
               if (props.animated) {
                 return (
                   <div

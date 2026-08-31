@@ -2,7 +2,7 @@
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@jeesite/inspection/*": ["./*"]
+      "@jeesite/urban-health-check/*": ["./*"]
     }
   },
   "include": [
