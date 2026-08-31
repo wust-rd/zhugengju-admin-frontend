@@ -27,18 +27,18 @@ export const displayRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'scheme',
-        name: 'DisplayScheme',
-        component: () => import('../views/scheme/index'),
+        path: 'ifco',
+        name: 'DisplayIfco',
+        component: () => import('../views/ifco/index'),
         meta: {
           title: '投融建运',
         },
       },
-      // 片区策划详情（独立完整页面，路径 /display/scheme/detail）
+      // 片区策划详情（独立完整页面，路径 /display/ifco/detail）
       {
-        path: 'scheme/detail',
-        name: 'DisplaySchemeDetail',
-        component: () => import('../views/scheme/detail'),
+        path: 'ifco/detail',
+        name: 'DisplayIfcoDetail',
+        component: () => import('../views/ifco/detail'),
         meta: {
           title: '片区策划详情',
         },

@@ -16,7 +16,7 @@ export const LinkItem = defineComponent({
   },
   setup(props) {
     const route = useRoute();
-    // 前缀匹配：/display/scheme 及 /display/scheme/detail 等子路径都点亮
+    // 前缀匹配：/display/ifco 及 /display/ifco/detail 等子路径都点亮
     const isActive = computed(() => route.path === props.to || route.path.startsWith(`${props.to}/`));
     const isHover = ref(false);
 

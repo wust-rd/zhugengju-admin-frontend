@@ -50,7 +50,7 @@ export default defineComponent({
     return () => (
       <>
         <div class="flex-1 w-1430px h-full relative">
-          {/* <RouterLink to="/display/scheme">
+          {/* <RouterLink to="/display/ifco">
             <img src={`${OSS_BASE}/知音东苑片-返回.webp`} class="absolute top-12px left-12px w-250px h-56px" />
           </RouterLink> */}
 

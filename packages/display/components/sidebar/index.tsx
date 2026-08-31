@@ -14,7 +14,7 @@ export const Sidebar = defineComponent({
     const navLinks: NavLink[] = [
       { icon: 'i-ri-todo-fill', to: '/display/urban-health-check' },
       { icon: 'i-ri-map-2-fill', to: '/display/early-stage-planning' },
-      { icon: 'i-ri-pie-chart-2-fill', to: '/display/scheme' },
+      { icon: 'i-ri-pie-chart-2-fill', to: '/display/ifco' },
       { icon: 'i-ri-user-fill', to: '/display/project' },
     ];
 

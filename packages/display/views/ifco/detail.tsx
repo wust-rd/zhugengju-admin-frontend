@@ -32,7 +32,7 @@ const PRELOAD_IMAGES = [
 ];
 
 export default defineComponent({
-  name: 'DisplaySchemeDetail',
+  name: 'DisplayIfcoDetail',
   setup() {
     // 组件加载即预加载所有图片（触发浏览器缓存，切换 Tab / 打开预览不再闪烁）
     PRELOAD_IMAGES.forEach((src) => {
@@ -66,7 +66,7 @@ export default defineComponent({
     return () => (
       <>
         <div class="flex-1 w-1430px h-full relative">
-          <RouterLink to="/display/scheme">
+          <RouterLink to="/display/ifco">
             <img src={`${OSS_BASE}/知音东苑片-返回.webp`} class="absolute top-12px left-12px w-250px h-56px" />
           </RouterLink>
 

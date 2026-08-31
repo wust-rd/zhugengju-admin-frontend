@@ -19,12 +19,12 @@ import { defineComponent, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { DistrictChart } from './district-chart';
 import { InvestStats } from './invest-stats';
-import { Monitoring } from '@jeesite/display/components/scheme/monitoring';
-import { ProjectInfoTabs } from '@jeesite/display/components/scheme/project-info-tabs';
+import { Monitoring } from '@jeesite/display/components/ifco/monitoring';
+import { ProjectInfoTabs } from '@jeesite/display/components/ifco/project-info-tabs';
 import { ProgressChart } from './progress-chart';
-import { SchemeMapLayers } from './map-layers';
+import { IfcoMapLayers } from './map-layers';
 import { RatingResult } from './rating-result';
-import { ProjectProgress } from '@jeesite/display/components/scheme/project-progress';
+import { ProjectProgress } from '@jeesite/display/components/ifco/project-progress';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -72,7 +72,7 @@ const tiandituStyle: maplibregl.StyleSpecification = {
 };
 
 export default defineComponent({
-  name: 'DisplayScheme',
+  name: 'DisplayIfco',
   setup() {
     /** 天地图原生构造选项（_c 系列瓦片为 CGCS2000 经纬度坐标系，CRS 切 EPSG:4490） */
     const mapOptions: Partial<maplibregl.MapOptions> = {
@@ -128,7 +128,7 @@ export default defineComponent({
               <VMap style={tiandituStyle} options={mapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
                 {/* 图层 / 交互逻辑子组件：必须在 VMap 插槽内才能 useMap */}
-                <SchemeMapLayers
+                <IfcoMapLayers
                   onUpdate:drawer={(v: boolean) => {
                     drawerVisible.value = v;
                   }}
@@ -180,7 +180,7 @@ export default defineComponent({
                   'pointer-events-none opacity-0': !drawerVisible.value,
                 })}
               >
-                <RouterLink to="/display/scheme/detail">
+                <RouterLink to="/display/ifco/detail">
                   <img src={PIANQU_IMG} class="w-320px h-800px object-fill" />
                 </RouterLink>
               </div>

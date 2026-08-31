@@ -14,10 +14,10 @@ const ZHIYIN_IMG = `${OSS_BASE}/金字塔.webp`;
 /**
  * 地图内容组件（纯逻辑，不渲染 DOM）：
  * 必须在 <VMap> 插槽内使用 —— useMap() 依赖 VMap setup 中 provide 的地图上下文，
- * 祖先组件（如 DisplayScheme 页面根组件）inject 不到会直接抛错。
+ * 祖先组件（如 DisplayIfco 页面根组件）inject 不到会直接抛错。
  */
-export const SchemeMapLayers = defineComponent({
-  name: 'SchemeMapLayers',
+export const IfcoMapLayers = defineComponent({
+  name: 'IfcoMapLayers',
 
   // ---- 输出约束 ----
   emits: {

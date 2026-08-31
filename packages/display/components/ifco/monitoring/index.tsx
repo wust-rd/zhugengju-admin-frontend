@@ -6,7 +6,7 @@ import TriangleIcon from '@jeesite/assets/images/scheme/三角形.svg';
 import BottomLight from '@jeesite/assets/images/scheme/底部光晕.svg';
 
 /**
- * Monitoring —— 监测面板（scheme 页右上角）
+ * Monitoring —— 监测面板（ifco 页右上角）
  *
  * 深蓝玻璃卡片：标题栏 + 内容区（默认插槽，当前留空由使用方填充）
  *
