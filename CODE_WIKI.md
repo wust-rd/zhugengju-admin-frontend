@@ -2,8 +2,8 @@
 
 > 面向开发者的代码级知识库。本文件是项目代码的"地图"与"说明书"，配合各源码目录下的 `README.md` 与根目录 `RULES.md`、`AGENT.md` 使用。
 >
-> 版本：5.18.0（pnpm workspace + Turbo monorepo）
-> 更新时间：2026-08-05
+> 版本：5.18.1（pnpm workspace + Turbo monorepo）
+> 更新时间：2026-09-01
 
 ---
 
@@ -13,23 +13,28 @@
 
 - **包管理器**：`pnpm`（workspace 模式），工作区定义见 `pnpm-workspace.yaml`。
 - **构建编排**：`turbo.json`（TurboRepo），按依赖拓扑并行构建。
-- **统一版本**：所有 `@jeesite/*` 包版本号统一为 `5.18.0`。
+- **统一版本**：所有 `@jeesite/*` workspace 包版本号统一为 `5.18.1`（core/cms/dbm/dfm 引用的 `@jeesite/*-lib` 外部库为 `5.18.1-next-rc.1`）。
 - **代码检查**：oxlint + ESLint（`eslint.config.mjs`）+ Prettier + Stylelint（`stylelint.config.mjs`）+ UnoCSS（`uno.config.ts`）。
 
 ### 1.2 Workspace 包清单（包图见 §3）
 
-| 包 | 路径 | 职责 | 依赖 |
+| 包 | 路径 | 职责 | 外部库依赖 |
 |----|------|------|------|
-| `web` | `web/` | 应用入口（极薄层：main.ts + App.vue + vite.config） | core/cms/dbm/dfm/app |
-| `@jeesite/core` | `packages/core/` | 核心框架：hooks、组件、页面、路由、状态、API、布局、工具 | vite/types/assets |
-| `@jeesite/cms` | `packages/cms/` | 内容管理系统（站点/栏目/文章/AI 对话） | core |
-| `@jeesite/dbm` | `packages/dbm/` | 数据库管理（数据源/表结构/数据/实体/Excel/树）+ biz 业务示例 | core |
-| `@jeesite/dfm` | `packages/dfm/` | 动态表单设计器（薄包装，导出独立库 `@jeesite/dfm-lib`） | dfm-lib |
-| `@jeesite/app` | `packages/app/` | 应用级扩展页面（appComment 应用评论 / appUpgrade 应用升级） | core |
-| `@jeesite/vite` | `packages/vite/` | Vite 工具链（插件/主题/构建配置） | types |
-| `@jeesite/types` | `packages/types/` | 全局 TypeScript 类型声明 | - |
-| `@jeesite/assets` | `packages/assets/` | 静态资源 | - |
-| `@jeesite/test` | `packages/test/` | 测试工具 | - |
+| `web` | `web/` | 应用入口（极薄层：src/main.ts + src/App.vue + vite.config） | — |
+| `@jeesite/core` | `packages/core/` | 核心框架：hooks、组件、页面、路由、状态、API、布局、工具 | `core-lib` |
+| `@jeesite/cms` | `packages/cms/` | 内容管理系统（站点/栏目/文章/AI 对话） | `cms-lib` |
+| `@jeesite/dbm` | `packages/dbm/` | 数据库管理（数据源/表结构/数据/实体/Excel/树）+ biz 业务示例 | `dbm-lib` |
+| `@jeesite/dfm` | `packages/dfm/` | 动态表单设计器（薄包装，导出独立库 `@jeesite/dfm-lib`） | `dfm-lib` |
+| `@jeesite/app` | `packages/app/` | 应用级扩展页面（appComment 应用评论 / appUpgrade 应用升级） | — |
+| `@jeesite/display` | `packages/display/` | 演示应用（/display 独立 layout，main.ts 中 setupDisplay 注册） | — |
+| `@jeesite/vmap` | `packages/vmap/` | MapLibre 地图组件封装（useMap / useMapLayer，见 §10） | — |
+| `@jeesite/urban-health-check` | `modules/packages/urban-health-check/` | 城市体检业务模块（overview / urban，本项目业务） | — |
+| `@jeesite/vite` | `packages/vite/` | Vite 工具链（插件/主题/构建配置） | — |
+| `@jeesite/types` | `packages/types/` | 全局 TypeScript 类型声明 | — |
+| `@jeesite/assets` | `packages/assets/` | 静态资源 | — |
+| `@jeesite/test` | `packages/test/` | 测试工具 | — |
+
+> **依赖机制**：workspace 依赖统一由**根 package.json** 声明（`@jeesite/*` 均为 `workspace:*`，工作区含 `packages/**`、`modules/**`、`web`），各包相互 import 经根 node_modules 解析；`web/` 自身零直接依赖，`web/vite.config.ts` 仅对 `@jeesite/web`、`@jeesite/display`、`@jeesite/vmap` 与 `maplibre-gl` 设置 alias。core/cms/dbm/dfm 的入口 `index.ts` 均为「本地代码 + re-export 对应 `@jeesite/*-lib` 外部库」的混合模式。
 
 ### 1.3 第三方依赖（技术栈）
 
@@ -37,7 +42,7 @@
 |------|------|
 | 框架 | Vue 3.5（Composition API + `<script setup>`）、TypeScript 6、Vue Router 5 |
 | 构建 | Vite 8、Turbo、pnpm workspace |
-| UI | Ant Design Vue Next（`antdv-next`）1.3、UnoCSS（Wind3 preset） |
+| UI | Ant Design Vue Next（`antdv-next`）1.4.4、UnoCSS（Wind3 preset） |
 | 状态 | Pinia 2.3 |
 | 请求 | Axios（自封装 `defHttp`） |
 | 图表 | ECharts 6（`useECharts` hook） |
@@ -49,11 +54,11 @@
 
 | 命令 | 说明 |
 |------|------|
-| `cd web && pnpm dev` | 启动开发服务器（代理后端 `http://127.0.0.1:8980/js`） |
+| `pnpm dev`（根目录，等价 `cd web && pnpm dev`） | 启动开发服务器（`web/.env.development` 的 `VITE_PROXY` 将 `/js` 代理到 `http://10.13.31.235:8000/js`） |
 | `cd web && pnpm build` | 生产构建（`web/dist/`） |
 | `cd web && pnpm type:check` | TypeScript 类型检查 |
 | `pnpm install` | 安装全部依赖 |
-| `pnpm lint` / `pnpm stylelint` / `pnpm format` | 代码检查与格式化 |
+| `pnpm lint:eslint` / `pnpm lint:stylelint` / `pnpm lint:prettier`（或 `pnpm lint:all`） | 代码检查与格式化 |
 
 ---
 
@@ -72,6 +77,8 @@ graph TD
     dbm["dbm 数据库管理"]
     dfm["dfm 动态表单设计"]
     app["app 应用扩展"]
+    display["display 演示应用"]
+    uhc["urban-health-check 城市体检"]
   end
 
   subgraph 核心层
@@ -88,10 +95,14 @@ graph TD
   web --> dbm
   web --> dfm
   web --> app
+  web --> display
+  web --> uhc
   cms --> core
   dbm --> core
   dfm --> core
   app --> core
+  display --> core
+  uhc --> core
   core --> vite
   core --> types
   core --> assets
@@ -106,7 +117,8 @@ flowchart TD
   C --> D[registerGlobComp 注册 Input/Button]
   D --> E[setupI18n await 国际化]
   E --> F[setupRouter 挂载路由]
-  F --> G[setupRouterGuard 6个路由守卫]
+  F --> FD[setupDisplay 注册演示应用路由]
+  FD --> G[setupRouterGuard 6个路由守卫]
   G --> H[setupGlobDirectives 全局指令]
   H --> I[setupErrorHandle 错误处理]
   I --> J[app.mount]
@@ -151,6 +163,8 @@ graph LR
     DBM["dbm 数据库管理<br/>dbmDatasource/dbmTable/data/entity/excel/tree + biz"]
     DFM["dfm 动态表单设计<br/>designer (DDesigner)"]
     APP["app 应用扩展"]
+    DISPLAY["display 演示应用"]
+    UHC["urban-health-check 城市体检<br/>overview / urban"]
   end
 
   subgraph 核心模块
@@ -161,17 +175,22 @@ graph LR
     V["vite 工具链"]
     T["types 类型"]
     A["assets 资源"]
+    VM["vmap 地图组件"]
   end
 
   W --> CMS
   W --> DBM
   W --> DFM
   W --> APP
+  W --> DISPLAY
+  W --> UHC
   W --> CORE
   CMS --> CORE
   DBM --> CORE
   DFM --> CORE
   APP --> CORE
+  DISPLAY --> CORE
+  UHC --> CORE
   CORE --> V
   CORE --> T
   CORE --> A
@@ -198,7 +217,7 @@ graph LR
 graph TD
   CORE["core"]
   CORE --> api["api/ (sys/msg/state 接口)"]
-  CORE --> components["components/ (35+ 业务组件)"]
+  CORE --> components["components/ (40+ 业务组件)"]
   CORE --> hooks["hooks/ (30+ 组合式函数)"]
   CORE --> layouts["layouts/ (default/iframe/page/views)"]
   CORE --> router["router/ (guard/helper/menus/routes)"]
@@ -209,6 +228,9 @@ graph TD
   CORE --> settings["settings/ (projectSetting)"]
   CORE --> directives["directives/ (v-auth/v-loading)"]
   CORE --> enums["enums/ (权限/HTTP/页面枚举)"]
+  CORE --> design["design/ (less 样式/主题变量/过渡动画)"]
+  CORE --> libs["libs/ (通用库函数: colors/size/year)"]
+  CORE --> logics["logics/ (应用初始化: initAppConfig/error-handle/mitt/theme)"]
 ```
 
 ### 4.2 用户用例（用例图）
@@ -379,7 +401,7 @@ graph TD
   CMS --> VIEWS["views/cms/"]
   VIEWS --> SITE["site/ 站点管理"]
   VIEWS --> CAT["category/ 栏目分类"]
-  VIEWS --> ART["article/ 文章管理 (6表单文件)"]
+  VIEWS --> ART["article/ 文章管理 (5个表单文件)"]
   VIEWS --> CHAT["chat/ AI 对话"]
 ```
 
@@ -728,7 +750,7 @@ sequenceDiagram
 
 ### 9.1 web 应用入口
 
-> 路径：`web/`。仅含 `main.ts` + `App.vue` + `vite.config.ts` + `.env*`，承载启动引导流程（见 §2.2）。
+> 路径：`web/`。极薄层：`src/main.ts` + `src/App.vue` + `index.html` + `vite.config.ts` + `.env*`，承载启动引导流程（见 §2.2）。
 
 ```mermaid
 flowchart LR
