@@ -22,7 +22,7 @@
     <BasicForm @register="registerForm" />
   </BasicDrawer>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIndicatorForm">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIndicatorIdForm">
   import { computed, ref, unref } from 'vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { router } from '@jeesite/core/router';

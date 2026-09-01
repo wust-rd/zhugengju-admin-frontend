@@ -33,7 +33,7 @@
     </Tabs>
   </PageWrapper>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIndicatorList">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIndicatorIdList">
   import { computed, onMounted, unref } from 'vue';
   import { Card, Progress, Tabs } from 'antdv-next';
   import { router } from '@jeesite/core/router';

@@ -48,7 +48,7 @@
     <InputForm @register="registerDrawer" @success="handleSuccess" />
   </PageWrapper>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemIndicatorList">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemIndicatorIdList">
   import { computed, onMounted, ref, unref } from 'vue';
   import { Card, Progress } from 'antdv-next';
   import { router } from '@jeesite/core/router';

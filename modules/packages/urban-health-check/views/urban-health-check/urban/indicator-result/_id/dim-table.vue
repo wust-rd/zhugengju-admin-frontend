@@ -19,7 +19,7 @@
     </BasicTable>
   </div>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultDimTable">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIdDimTable">
   import { unref } from 'vue';
   import { router } from '@jeesite/core/router';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';

@@ -41,7 +41,7 @@
     <InputForm @register="registerDrawer" @success="handleSuccess" />
   </div>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIndicatorTable">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIdIndicatorTable">
   import { ref, unref } from 'vue';
   import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
