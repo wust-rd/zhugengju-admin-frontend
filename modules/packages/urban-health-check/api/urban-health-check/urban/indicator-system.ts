@@ -15,6 +15,7 @@
  *        `packages/core/settings/componentSetting.ts` 的 fetchSetting（list / count / pageNo / pageSize）对齐。
  */
 import type { Result } from '@jeesite/types/axios';
+import { dateUtil } from '@jeesite/core/utils/dateUtil';
 
 /** 提交状态：0 待提交，1 已提交 */
 export const SUBMIT_STATUS = {
@@ -27,6 +28,12 @@ export const ENABLED_STATUS = {
   DISABLED: '0',
   ENABLED: '1',
 } as const;
+
+/** 体检年份下拉选项（近 5 年，按当前年份动态生成，倒序） */
+export const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
+  const year = String(dateUtil().year() - i);
+  return { label: `${year} 年`, value: year };
+});
 
 /** 体检指标体系 实体 */
 export interface IndicatorSystem {

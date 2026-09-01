@@ -3,6 +3,14 @@
 > Monorepo（pnpm workspace + Turbo）：`web/` 应用入口 + `packages/*`（core / display / assets / vite 等）。
 > 完整项目知识见 `docs/` 目录（入口 [docs/README.md](./docs/README.md)：架构、Hooks、组件、路由、API、布局）。
 
+## 时间处理约定（硬性规则）
+
+- 项目统一使用 **dayjs**（antdv-next 内部亦为 dayjs）：所有时间相关的取值、计算、格式化、比较，一律经 dayjs 得出；
+- **禁止**使用原生 `new Date()` / `Date.now()` / `getFullYear()` 等，或手写字符串拼接/截取来处理时间；
+- 统一从 `@jeesite/core/utils/dateUtil` 引入：`dateUtil` 即 dayjs 本体，另有 `formatToDateTime` / `formatToDate`；
+  - 示例：当前年 `dateUtil().year()`；格式化 `dateUtil('2026-01-01').format('YYYY-MM-DD')`；
+- 生成「最近 N 年」选项时可参考 `packages/core/libs/year.ts` 的 `buildYearItems(count)`（注意其返回 `{key,label}` 菜单项结构，用于 Select 时需映射为 `{label,value}`）。
+
 ## 验证方式（硬性规则）
 
 - 改动后的验证只做：**`pnpm type:check`** 与 **Vite 转译可达性检查**（dev server 请求模块返回 200）；

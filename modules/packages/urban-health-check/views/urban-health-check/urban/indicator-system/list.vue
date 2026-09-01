@@ -59,6 +59,7 @@
   import {
     ENABLED_STATUS,
     SUBMIT_STATUS,
+    YEAR_OPTIONS,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import InputForm from './form.vue';
 
@@ -67,12 +68,6 @@
     icon: meta.icon || 'ant-design:book-outlined',
     value: meta.title || '指标体系管理',
   };
-
-  /** 体检年份下拉选项（近 5 年） */
-  const YEAR_OPTIONS = ['2026', '2025', '2024', '2023', '2022'].map((year) => ({
-    label: `${year} 年`,
-    value: year,
-  }));
 
   /** 搜索表单 */
   const searchForm: FormProps = {

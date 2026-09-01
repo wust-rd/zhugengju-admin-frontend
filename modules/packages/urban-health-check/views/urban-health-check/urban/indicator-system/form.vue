@@ -34,6 +34,7 @@
   import {
     ENABLED_STATUS,
     SUBMIT_STATUS,
+    YEAR_OPTIONS,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
 
   const emit = defineEmits(['success', 'register']);
@@ -48,12 +49,6 @@
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:book-outlined',
     value: isView.value ? '查看指标体系' : record.value.isNewRecord ? '新增指标体系' : '编辑指标体系',
-  }));
-
-  /** 年份下拉选项（体检年份：近 5 年） */
-  const YEAR_OPTIONS = ['2026', '2025', '2024', '2023', '2022'].map((year) => ({
-    label: `${year} 年`,
-    value: year,
   }));
 
   const SUBMIT_OPTIONS = [
@@ -149,7 +144,7 @@
     record.value = (data || {}) as IndicatorSystem;
     record.value.isNewRecord = data?.isNewRecord ?? data?.code == null;
     await setFieldsValue({
-      year: record.value.year ?? '2026',
+      year: record.value.year ?? YEAR_OPTIONS[0].value,
       indicatorName: record.value.indicatorName ?? '',
       indicatorCount: record.value.indicatorCount ?? 0,
       reportUnit: record.value.reportUnit ?? '市住更局',
