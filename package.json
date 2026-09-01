@@ -42,6 +42,7 @@
     "@jeesite/vmap": "workspace:*",
     "@jeesite/web": "workspace:*",
     "@jeesite/urban-health-check": "workspace:*",
+    "@jeesite/urban-protection": "workspace:*",
     "antdv-next": "1.4.4",
     "axios": "1.17.0",
     "class-variance-authority": "^0.7.1",
