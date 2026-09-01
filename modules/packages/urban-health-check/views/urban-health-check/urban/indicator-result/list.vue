@@ -1,15 +1,20 @@
 <!--
-  市住更局 —— 体检指标体系管理（列表页）
+  市住更局 —— 指标项结果管理（列表页）
 
-  组件格式 / 页面布局对齐 packages/core/views/sys/area：
-   - BasicTable + useTable + 搜索 FormProps（schemas） + actionColumn
-   - 新增/编辑/查看 表单使用 BasicDrawer（useDrawer），而非 Modal
+  菜单注册（菜单名称「指标项结果管理」）:
+   - 链接地址:/urban-health-check/urban/indicator-result/list
+   - 组件位置:/urban-health-check/urban/indicator-result/list(与链接地址一致)
+   - 是否可见:显示
+  show 页路由(RESTful,后端隐藏菜单,待注册):
+   - 链接地址:/urban-health-check/urban/indicator-result/{id}(与 /list 静态段不冲突)
+   - 上级菜单挂「指标项结果管理」以点亮侧边栏(配方同 indicator-system)
+  组件格式 / 页面布局对齐 indicator-system/list.vue；
   当前后端尚未介入，页面为纯 UI：不发起任何接口请求；
-  字段与常量定义见 @jeesite/urban-health-check/api/urban-health-check/urban/indicator-system。
+  字段与假数据定义见 @jeesite/urban-health-check/api/urban-health-check/urban/indicator-result。
 -->
 <template>
   <PageWrapper>
-    <BasicTable @register="registerTable" :showIndexColumn="false">
+    <BasicTable @register="registerTable">
       <template #tableTitle>
         <Icon :icon="getTitle.icon" class="m-1 pr-1" />
         <span> {{ getTitle.value }} </span>
@@ -24,31 +29,13 @@
           {{ record.indicatorName }}
         </a>
       </template>
-      <template #enabled="{ record }">
-        <Switch
-          :checked="record.enabled === ENABLED_STATUS.ENABLED"
-          checked-children="启用"
-          un-checked-children="停用"
-          @change="(checked) => handleToggleEnabled(record, checked)"
-        />
-      </template>
-      <template #submitStatus="{ record }">
-        <Tag
-          :color="record.submitStatus === SUBMIT_STATUS.SUBMITTED ? 'blue' : 'blue'"
-          :variant="record.submitStatus === SUBMIT_STATUS.SUBMITTED ? 'solid' : 'outlined'"
-          style="border-radius: 10px"
-        >
-          {{ record.submitStatus === SUBMIT_STATUS.SUBMITTED ? '已提交' : '待提交' }}
-        </Tag>
-      </template>
     </BasicTable>
 
     <InputForm @register="registerDrawer" @success="handleSuccess" />
   </PageWrapper>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemList">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultList">
   import { unref } from 'vue';
-  import { Switch, Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
   import { Icon } from '@jeesite/core/components/Icon';
@@ -56,20 +43,16 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { FormProps } from '@jeesite/core/components/Form';
-  import type { IndicatorSystem } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
-  import {
-    ENABLED_STATUS,
-    MOCK_LIST,
-    SUBMIT_STATUS,
-    YEAR_OPTIONS,
-  } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
+  import type { IndicatorResult } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
+  import { MOCK_LIST } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
+  import { YEAR_OPTIONS } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import InputForm from './form.vue';
 
   const { meta } = unref(router.currentRoute);
   const go = useGo();
   const getTitle = {
     icon: meta.icon || 'ant-design:book-outlined',
-    value: meta.title || '指标体系管理',
+    value: meta.title || '指标项结果管理',
   };
 
   /** 搜索表单 */
@@ -97,15 +80,14 @@
     { title: '体检年份', dataIndex: 'year', width: 100 },
     { title: '指标体系名称', dataIndex: 'indicatorName', slot: 'firstColumn', width: 150 },
     { title: '指标数量（项）', dataIndex: 'indicatorCount', width: 120, align: 'center' },
-    { title: '填报单位', dataIndex: 'reportUnit', width: 120 },
-    { title: '填报时间', dataIndex: 'reportDate', width: 130 },
-    { title: '启用状态', dataIndex: 'enabled', width: 110, align: 'center', slot: 'enabled' },
-    { title: '提交状态', dataIndex: 'submitStatus', width: 110, align: 'center', slot: 'submitStatus' },
+    { title: '已填报结果的指标数量（项）', dataIndex: 'filledCount', width: 180, align: 'center' },
+    { title: '未填报结果的指标数量（项）', dataIndex: 'unfilledCount', width: 180, align: 'center' },
+    { title: '预警指标数量（项）', dataIndex: 'warningCount', width: 140, align: 'center' },
   ];
 
-  /** 操作列（查看始终可；编辑/删除仅待提交时显示） */
+  /** 操作列 */
   const actionColumn: BasicColumn = {
-    width: 200,
+    width: 150,
     actions: (record: Recordable) => [
       {
         label: '查看',
@@ -114,13 +96,11 @@
       {
         label: '编辑',
         onClick: () => handleForm({ ...record, isNewRecord: false }),
-        ifShow: () => record.submitStatus === SUBMIT_STATUS.PENDING,
       },
       {
         label: '删除',
         color: 'error',
-        popConfirm: { title: '是否确认删除该体系？', confirm: () => handleDelete(record) },
-        ifShow: () => record.submitStatus === SUBMIT_STATUS.PENDING,
+        popConfirm: { title: '是否确认删除该结果？', confirm: () => handleDelete(record) },
       },
     ],
   };
@@ -141,19 +121,13 @@
     openDrawer(true, record);
   }
 
-  /** 打开该体系的 show 页(RESTful:/…/indicator-system/{id}) */
+  /** 打开该结果的 show 页(RESTful:/…/indicator-result/{id}) */
   function handleDetail(record: Recordable) {
-    go(`/urban-health-check/urban/indicator-system/${record.code}`);
-  }
-
-  /** 启用状态切换（纯 UI，仅更新本地行数据） */
-  function handleToggleEnabled(record: IndicatorSystem, checked: boolean) {
-    // TODO: 后端接入后调用启用/停用接口
-    record.enabled = checked ? ENABLED_STATUS.ENABLED : ENABLED_STATUS.DISABLED;
+    go(`/urban-health-check/urban/indicator-result/${record.code}`);
   }
 
   /** 删除 */
-  function handleDelete(_record: IndicatorSystem) {
+  function handleDelete(_record: IndicatorResult) {
     // TODO: 后端接入后调用删除接口并刷新列表
   }
 

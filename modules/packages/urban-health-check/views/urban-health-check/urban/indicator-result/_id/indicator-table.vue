@@ -1,31 +1,14 @@
 <!--
-  市住更局 —— 指标项管理(指标体系 show 页,列表)
+  市住更局 —— 指标项结果 show 页 / 指标项表(Tabs 第二个页签)
 
-  规划路由(RESTful,后端隐藏菜单,已注册):
-   - 链接地址:/urban-health-check/urban/indicator-system/{id}(show 页;与 /list 静态段不冲突)
-   - 组件位置:/urban-health-check/urban/indicator-system/indicator/list(与链接地址不一致,菜单里需显式填写)
-   - 是否可见:隐藏;上级菜单挂「指标体系管理」以点亮侧边栏
-  体系名称不经 query 传递,页签标题按 {id} 反查(后端接入后改为调接口)。
-  列结构:一级维度/二级维度/三级维度/序号/指标名称/单位/指标来源/数据来源/责任部门/操作;
+  从 list.vue 拆出:搜索表单(体系信息只读回显)、维度合并列、分页、操作列、抽屉表单均在此。
+  列结构:一级维度/二级维度/三级维度/序号/指标项名称/指标单位/指标值/标准值目标值/评估结果(Tag)/预警状态(Tag)/指标来源/数据来源/责任部门/操作;
   一、二级维度合并同值单元格(按页分块计算,组跨页时维度名在下一页重显),
   三级维度可空(指标直接挂二级维度),空值显示空白。
 -->
 <template>
-  <PageWrapper>
-    <Card class="mb-3" :title="system?.indicatorName || systemId">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center">
-          <span class="text-gray-500">{{ system?.year ?? '-' }} 年</span>
-          <Progress
-            class="ml-6 w-72"
-            :percent="filledPercent"
-            :format="() => `已填报指标项 ${tableData.length} / 系统指标项 ${system?.indicatorCount ?? 0} 项`"
-          />
-        </div>
-        <a-button type="primary" @click="handleSubmitPublish">提交发布</a-button>
-      </div>
-    </Card>
-    <BasicTable @register="registerTable" @change="handleTableChange" :showIndexColumn="false">
+  <div>
+    <BasicTable @register="registerTable" @change="handleTableChange">
       <template #tableTitle>
         <Icon :icon="getTitle.icon" class="m-1 pr-1" />
         <span> {{ getTitle.value }} </span>
@@ -43,47 +26,61 @@
           {{ record.indicatorName }}
         </a>
       </template>
+      <template #evalResult="{ record }">
+        <Tag :color="EVAL_RESULT_COLOR[record.evalResult] || 'default'" style="border-radius: 10px">
+          {{ record.evalResult || '-' }}
+        </Tag>
+      </template>
+      <template #warningStatus="{ record }">
+        <Tag :color="WARNING_STATUS_COLOR[record.warningStatus] || 'default'" style="border-radius: 10px">
+          {{ record.warningStatus || '-' }}
+        </Tag>
+      </template>
     </BasicTable>
 
     <InputForm @register="registerDrawer" @success="handleSuccess" />
-  </PageWrapper>
+  </div>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemIndicatorList">
-  import { computed, onMounted, ref, unref } from 'vue';
-  import { Card, Progress } from 'antdv-next';
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIndicatorTable">
+  import { ref, unref } from 'vue';
+  import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
-  import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { Icon } from '@jeesite/core/components/Icon';
-  import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { FormProps } from '@jeesite/core/components/Form';
-  import { useTabs } from '@jeesite/core/hooks/web/useTabs';
-  import type { IndicatorSystem } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
-  import { MOCK_LIST } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
+  import type { IndicatorResult } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
   import type { Indicator } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
   import InputForm from './form.vue';
+
+  const props = defineProps({
+    system: Object as PropType<IndicatorResult>,
+  });
 
   const { meta, params } = unref(router.currentRoute);
   const getTitle = {
     icon: meta.icon || 'ant-design:book-outlined',
-    value: meta.title || '指标项管理',
+    value: meta.title || '指标项',
   };
 
   const systemId = (params.id as string) || '';
 
-  const { showMessage } = useMessage();
+  /** 评估结果 Tag 颜色 */
+  const EVAL_RESULT_COLOR: Record<string, string> = {
+    较差: 'error',
+    一般: 'warning',
+    较好: 'processing',
+    很好: 'success',
+    无标准: 'default',
+  };
 
-  // TODO: 后端接入后改为按 id 调接口获取体系信息
-  const system: IndicatorSystem | undefined = MOCK_LIST.find((item) => item.code === systemId);
-
-  /** 页签标题默认取菜单名,这里改为体系名称 */
-  const { setTitle } = useTabs(router);
-  onMounted(() => {
-    if (system?.indicatorName) {
-      setTitle(system.indicatorName);
-    }
-  });
+  /** 预警状态 Tag 颜色 */
+  const WARNING_STATUS_COLOR: Record<string, string> = {
+    红色预警: 'error',
+    黄色预警: 'warning',
+    正常: 'success',
+    无: 'default',
+  };
 
   /** 搜索表单(体检年份/体系名称为体系信息回显,只读) */
   const searchForm: FormProps = {
@@ -95,14 +92,14 @@
         field: 'year',
         component: 'Input',
         componentProps: { disabled: true },
-        defaultValue: system?.year,
+        defaultValue: props.system?.year,
       },
       {
         label: '指标体系名称',
         field: 'indicatorName',
         component: 'Input',
         componentProps: { disabled: true },
-        defaultValue: system?.indicatorName,
+        defaultValue: props.system?.indicatorName,
       },
     ],
   };
@@ -116,11 +113,15 @@
       id: '1',
       code: '1',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '住房安全',
       dim3: '房屋结构安全',
       indicatorName: '基础设施隐患排查整治率',
       unit: '%',
+      indicatorValue: 96,
+      standardValue: 95,
+      evalResult: '较好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -129,11 +130,15 @@
       id: '2',
       code: '2',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '住房安全',
       dim3: '房屋结构安全',
       indicatorName: '城市房屋结构安全评估率',
       unit: '%',
+      indicatorValue: 88,
+      standardValue: 95,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -142,11 +147,15 @@
       id: '3',
       code: '3',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '住房安全',
       dim3: '房屋结构安全',
       indicatorName: '房屋鉴定整治项目数',
       unit: '项',
+      indicatorValue: 33,
+      standardValue: 30,
+      evalResult: '较好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -155,11 +164,15 @@
       id: '4',
       code: '4',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '住房安全',
       dim3: '屋面安全',
       indicatorName: '屋面整治项目数',
       unit: '项',
+      indicatorValue: 36,
+      standardValue: 30,
+      evalResult: '很好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -168,11 +181,15 @@
       id: '5',
       code: '5',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '住房安全',
       dim3: '外立面安全',
       indicatorName: '外立面整治项目数',
       unit: '项',
+      indicatorValue: 28,
+      standardValue: 30,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -181,11 +198,15 @@
       id: '6',
       code: '6',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '住房安全',
       dim3: '消防设施安全',
       indicatorName: '消防设施整治项目数',
       unit: '项',
+      indicatorValue: 29,
+      standardValue: 30,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -194,11 +215,15 @@
       id: '7',
       code: '7',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '住房安全',
       dim3: '燃气安全',
       indicatorName: '老旧管网改造长度',
       unit: '公里',
+      indicatorValue: 145,
+      standardValue: 120,
+      evalResult: '很好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -207,10 +232,14 @@
       id: '8',
       code: '8',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '生态环境',
       indicatorName: '公园绿地服务半径覆盖率',
       unit: '%',
+      indicatorValue: 85,
+      standardValue: 90,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -219,10 +248,14 @@
       id: '9',
       code: '9',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '生态环境',
       indicatorName: '建成区黑臭水体消除率',
       unit: '%',
+      indicatorValue: 100,
+      standardValue: 100,
+      evalResult: '很好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -231,10 +264,14 @@
       id: '10',
       code: '10',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '园林绿化',
       indicatorName: '城市绿道建设长度',
       unit: '公里',
+      indicatorValue: 40,
+      standardValue: 50,
+      evalResult: '较差',
+      warningStatus: '红色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -243,10 +280,13 @@
       id: '11',
       code: '11',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '园林绿化',
       indicatorName: '人均公园绿地面积',
       unit: '平方米',
+      indicatorValue: 15.2,
+      evalResult: '无标准',
+      warningStatus: '无',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -255,10 +295,14 @@
       id: '12',
       code: '12',
       systemCode: '202601',
-      dim1: '生态宜居',
+      dim1: '好房子',
       dim2: '绿色低碳',
       indicatorName: '新建建筑中绿色建筑占比',
       unit: '%',
+      indicatorValue: 95,
+      standardValue: 100,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -267,11 +311,15 @@
       id: '13',
       code: '13',
       systemCode: '202601',
-      dim1: '健康舒适',
+      dim1: '好小区',
       dim2: '完整社区',
       dim3: '社区服务设施',
       indicatorName: '社区综合服务设施覆盖率',
       unit: '%',
+      indicatorValue: 92,
+      standardValue: 100,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -280,11 +328,15 @@
       id: '14',
       code: '14',
       systemCode: '202601',
-      dim1: '健康舒适',
+      dim1: '好小区',
       dim2: '完整社区',
       dim3: '社区服务设施',
       indicatorName: '物业管理覆盖率',
       unit: '%',
+      indicatorValue: 85,
+      standardValue: 90,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -293,10 +345,14 @@
       id: '15',
       code: '15',
       systemCode: '202601',
-      dim1: '健康舒适',
+      dim1: '好小区',
       dim2: '住房品质',
       indicatorName: '现状住宅成套率',
       unit: '%',
+      indicatorValue: 97,
+      standardValue: 100,
+      evalResult: '较好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -305,10 +361,14 @@
       id: '16',
       code: '16',
       systemCode: '202601',
-      dim1: '健康舒适',
+      dim1: '好小区',
       dim2: '住房品质',
       indicatorName: '既有住宅加装电梯数',
       unit: '部',
+      indicatorValue: 260,
+      standardValue: 200,
+      evalResult: '很好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -317,10 +377,14 @@
       id: '17',
       code: '17',
       systemCode: '202601',
-      dim1: '健康舒适',
+      dim1: '好小区',
       dim2: '老旧小区',
       indicatorName: '老旧小区改造小区数',
       unit: '个',
+      indicatorValue: 66,
+      standardValue: 60,
+      evalResult: '较好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -329,10 +393,14 @@
       id: '18',
       code: '18',
       systemCode: '202601',
-      dim1: '健康舒适',
+      dim1: '好小区',
       dim2: '老旧小区',
       indicatorName: '老旧小区改造楼栋数',
       unit: '栋',
+      indicatorValue: 355,
+      standardValue: 300,
+      evalResult: '很好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -341,11 +409,15 @@
       id: '19',
       code: '19',
       systemCode: '202601',
-      dim1: '安全韧性',
+      dim1: '好城区',
       dim2: '防洪排涝',
       dim3: '防涝工程',
       indicatorName: '达标堤防比例',
       unit: '%',
+      indicatorValue: 92,
+      standardValue: 90,
+      evalResult: '较好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -354,11 +426,15 @@
       id: '20',
       code: '20',
       systemCode: '202601',
-      dim1: '安全韧性',
+      dim1: '好城区',
       dim2: '防洪排涝',
       dim3: '防涝工程',
       indicatorName: '易涝点整治数量',
       unit: '处',
+      indicatorValue: 38,
+      standardValue: 45,
+      evalResult: '较差',
+      warningStatus: '红色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -367,10 +443,13 @@
       id: '21',
       code: '21',
       systemCode: '202601',
-      dim1: '安全韧性',
+      dim1: '好城区',
       dim2: '应急救援',
       indicatorName: '应急避难场所人均面积',
       unit: '平方米',
+      indicatorValue: 2.1,
+      evalResult: '无标准',
+      warningStatus: '无',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -379,11 +458,15 @@
       id: '22',
       code: '22',
       systemCode: '202601',
-      dim1: '安全韧性',
+      dim1: '好城区',
       dim2: '基础设施',
       dim3: '生命线工程',
       indicatorName: '城市生命线安全监测覆盖率',
       unit: '%',
+      indicatorValue: 65,
+      standardValue: 80,
+      evalResult: '较差',
+      warningStatus: '红色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -392,10 +475,14 @@
       id: '23',
       code: '23',
       systemCode: '202601',
-      dim1: '管理有序',
+      dim1: '专项1：既有建筑改造利用',
       dim2: '智慧城市',
       indicatorName: '城市运行管理服务平台覆盖率',
       unit: '%',
+      indicatorValue: 105,
+      standardValue: 100,
+      evalResult: '较好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -404,10 +491,14 @@
       id: '24',
       code: '24',
       systemCode: '202601',
-      dim1: '管理有序',
+      dim1: '专项1：既有建筑改造利用',
       dim2: '基层治理',
       indicatorName: '社区网格化管理覆盖率',
       unit: '%',
+      indicatorValue: 118,
+      standardValue: 100,
+      evalResult: '很好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -416,10 +507,14 @@
       id: '25',
       code: '25',
       systemCode: '202601',
-      dim1: '管理有序',
+      dim1: '专项1：既有建筑改造利用',
       dim2: '城市体检',
       indicatorName: '城市体检问题整改完成率',
       unit: '%',
+      indicatorValue: 90,
+      standardValue: 95,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -428,10 +523,14 @@
       id: '26',
       code: '26',
       systemCode: '202601',
-      dim1: '管理有序',
+      dim1: '专项1：既有建筑改造利用',
       dim2: '历史文化',
       indicatorName: '历史文化街区保护修缮面积',
       unit: '平方米',
+      indicatorValue: 6800,
+      standardValue: 5000,
+      evalResult: '很好',
+      warningStatus: '正常',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -440,10 +539,14 @@
       id: '27',
       code: '27',
       systemCode: '202601',
-      dim1: '管理有序',
+      dim1: '专项1：既有建筑改造利用',
       dim2: '城市更新',
       indicatorName: '城市更新项目投资完成率',
       unit: '%',
+      indicatorValue: 82,
+      standardValue: 100,
+      evalResult: '较差',
+      warningStatus: '红色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '区级统计',
       responsibleDept: '市住更局',
@@ -452,10 +555,14 @@
       id: '28',
       code: '28',
       systemCode: '202601',
-      dim1: '管理有序',
+      dim1: '专项1：既有建筑改造利用',
       dim2: '城市更新',
       indicatorName: '老城区更新改造面积',
       unit: '万平方米',
+      indicatorValue: 66,
+      standardValue: 80,
+      evalResult: '一般',
+      warningStatus: '黄色预警',
       indicatorSource: '武汉市特色指标',
       dataSource: '市级调查-大数据',
       responsibleDept: '各区政府',
@@ -475,13 +582,6 @@
       ...item,
       dim1Label: first ? `${item.dim1}(共 ${dim1CountMap[item.dim1!]} 项)` : item.dim1,
     };
-  });
-
-  /** 填报进度:已填报(表格行数)/ 系统指标项 */
-  const filledPercent = computed(() => {
-    const total = system?.indicatorCount ?? 0;
-    if (!total) return 0;
-    return Math.round((tableData.length / total) * 10000) / 100;
   });
 
   /**
@@ -564,8 +664,12 @@
     },
     { title: '三级维度', dataIndex: 'dim3', width: 130 },
     { title: '序号', dataIndex: 'code', width: 70, align: 'center' },
-    { title: '指标名称', dataIndex: 'indicatorName', slot: 'firstColumn' },
-    { title: '单位', dataIndex: 'unit', width: 80, align: 'center' },
+    { title: '指标项名称', dataIndex: 'indicatorName', slot: 'firstColumn', width: 150 },
+    { title: '指标单位', dataIndex: 'unit', width: 80, align: 'center' },
+    { title: '指标值', dataIndex: 'indicatorValue', width: 90, align: 'center' },
+    { title: '标准值/目标值', dataIndex: 'standardValue', width: 120, align: 'center' },
+    { title: '评估结果', dataIndex: 'evalResult', width: 100, align: 'center', slot: 'evalResult' },
+    { title: '预警状态', dataIndex: 'warningStatus', width: 100, align: 'center', slot: 'warningStatus' },
     { title: '指标来源', dataIndex: 'indicatorSource', width: 130, align: 'center' },
     { title: '数据来源', dataIndex: 'dataSource', width: 140 },
     { title: '责任部门', dataIndex: 'responsibleDept', width: 110 },
@@ -609,12 +713,6 @@
 
   function handleForm(record: Recordable) {
     openDrawer(true, record);
-  }
-
-  /** 提交发布:提交当前体系形成版本快照(后端接入后实现,并刷新体系的提交状态) */
-  function handleSubmitPublish() {
-    // TODO: 后端接入后调用提交接口
-    showMessage('提交发布:后端接入后实现');
   }
 
   /** 删除 */

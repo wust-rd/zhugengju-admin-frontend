@@ -22,7 +22,7 @@
     <BasicForm @register="registerForm" />
   </BasicDrawer>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorSystemIndicatorForm">
+<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIndicatorForm">
   import { computed, ref, unref } from 'vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { router } from '@jeesite/core/router';
@@ -30,6 +30,10 @@
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import type { Indicator } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
+  import { EVAL_RESULT, WARNING_STATUS } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
+
+  const EVAL_RESULT_OPTIONS = Object.values(EVAL_RESULT).map((item) => ({ label: item, value: item }));
+  const WARNING_STATUS_OPTIONS = Object.values(WARNING_STATUS).map((item) => ({ label: item, value: item }));
 
   const emit = defineEmits(['success', 'register']);
 
@@ -80,17 +84,42 @@
       colProps: { md: 24, lg: 24 },
     },
     {
-      label: '指标名称',
+      label: '指标项名称',
       field: 'indicatorName',
       component: 'Input',
       componentProps: { maxlength: 100 },
-      rules: [{ required: true, message: '请输入指标名称' }],
+      rules: [{ required: true, message: '请输入指标项名称' }],
     },
     {
       label: '单位',
       field: 'unit',
       component: 'Input',
       componentProps: { maxlength: 20 },
+    },
+    {
+      label: '指标值',
+      field: 'indicatorValue',
+      component: 'InputNumber',
+      componentProps: { style: 'width: 100%' },
+    },
+    {
+      label: '标准值/目标值',
+      field: 'standardValue',
+      component: 'InputNumber',
+      componentProps: { style: 'width: 100%' },
+      helpMessage: '无标准的指标可留空',
+    },
+    {
+      label: '评估结果',
+      field: 'evalResult',
+      component: 'Select',
+      componentProps: { options: EVAL_RESULT_OPTIONS, allowClear: true },
+    },
+    {
+      label: '预警状态',
+      field: 'warningStatus',
+      component: 'Select',
+      componentProps: { options: WARNING_STATUS_OPTIONS, allowClear: true },
     },
     {
       label: '指标来源',
@@ -137,6 +166,10 @@
       dim3: record.value.dim3 ?? '',
       indicatorName: record.value.indicatorName ?? '',
       unit: record.value.unit ?? '',
+      indicatorValue: record.value.indicatorValue,
+      standardValue: record.value.standardValue,
+      evalResult: record.value.evalResult ?? '',
+      warningStatus: record.value.warningStatus ?? '',
       indicatorSource: record.value.indicatorSource ?? '',
       dataSource: record.value.dataSource ?? '',
       responsibleDept: record.value.responsibleDept ?? '',

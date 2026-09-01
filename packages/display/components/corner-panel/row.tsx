@@ -7,11 +7,11 @@ import { computed, defineComponent, inject, ref, type InjectionKey, type PropTyp
  */
 export const CORNER_ACTIVE_KEY: InjectionKey<Ref<string>> = Symbol('corner-panel-active-key');
 
-/** 指标行数据：序号 + 指标名称 + 数值 + 评级 */
+/** 指标行数据：序号 + 指标项名称 + 数值 + 评级 */
 export interface CornerItem {
   /** 序号（如 01、02） */
   seq: string;
-  /** 指标名称 */
+  /** 指标项名称 */
   label: string;
   /** 数值（如 77.8%、5个、7.03Km） */
   value: string;
@@ -82,7 +82,7 @@ export const CornerPanelRow = defineComponent({
           {/* 序号 */}
           <div class="relative z-10 text-14px text-white shrink-0">{item.seq}</div>
 
-          {/* 指标名称：固定 164px，超长自动换行 */}
+          {/* 指标项名称：固定 164px，超长自动换行 */}
           <div class="relative z-10 w-164px text-14px text-white">{item.label}</div>
 
           {/* 数值 */}
