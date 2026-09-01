@@ -9,7 +9,7 @@
 -->
 <template>
   <PageWrapper>
-    <BasicTable @register="registerTable">
+    <BasicTable @register="registerTable" :showIndexColumn="false">
       <template #tableTitle>
         <Icon :icon="getTitle.icon" class="m-1 pr-1" />
         <span> {{ getTitle.value }} </span>
@@ -20,7 +20,7 @@
         </a-button>
       </template>
       <template #firstColumn="{ record }">
-        <a @click="handleForm({ ...record, isNewRecord: false, isView: true })">
+        <a @click="handleDetail(record)" :title="record.indicatorName">
           {{ record.indicatorName }}
         </a>
       </template>
@@ -50,6 +50,7 @@
   import { unref } from 'vue';
   import { Switch, Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
+  import { useGo } from '@jeesite/core/hooks/web/usePage';
   import { Icon } from '@jeesite/core/components/Icon';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
@@ -58,12 +59,14 @@
   import type { IndicatorSystem } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import {
     ENABLED_STATUS,
+    MOCK_LIST,
     SUBMIT_STATUS,
     YEAR_OPTIONS,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import InputForm from './form.vue';
 
   const { meta } = unref(router.currentRoute);
+  const go = useGo();
   const getTitle = {
     icon: meta.icon || 'ant-design:book-outlined',
     value: meta.title || '指标体系管理',
@@ -90,7 +93,7 @@
 
   /** 表格列 */
   const tableColumns: BasicColumn[] = [
-    { title: '序号', dataIndex: 'code', width: 100 },
+    { title: '编码', dataIndex: 'code', width: 100 },
     { title: '体检年份', dataIndex: 'year', width: 100 },
     { title: '指标体系名称', dataIndex: 'indicatorName', slot: 'firstColumn' },
     { title: '指标数量（项）', dataIndex: 'indicatorCount', width: 120, align: 'center' },
@@ -105,20 +108,17 @@
     width: 200,
     actions: (record: Recordable) => [
       {
-        icon: 'i-clarity:view-line',
-        title: '查看',
+        label: '查看',
         onClick: () => handleForm({ ...record, isNewRecord: false, isView: true }),
       },
       {
-        icon: 'i-clarity:note-edit-line',
-        title: '编辑',
+        label: '编辑',
         onClick: () => handleForm({ ...record, isNewRecord: false }),
         ifShow: () => record.submitStatus === SUBMIT_STATUS.PENDING,
       },
       {
-        icon: 'i-ant-design:delete-outlined',
+        label: '删除',
         color: 'error',
-        title: '删除',
         popConfirm: { title: '是否确认删除该体系？', confirm: () => handleDelete(record) },
         ifShow: () => record.submitStatus === SUBMIT_STATUS.PENDING,
       },
@@ -127,6 +127,7 @@
 
   const [registerDrawer, { openDrawer }] = useDrawer();
   const [registerTable] = useTable({
+    dataSource: MOCK_LIST,
     columns: tableColumns,
     actionColumn: actionColumn,
     formConfig: searchForm,
@@ -138,6 +139,11 @@
 
   function handleForm(record: Recordable) {
     openDrawer(true, record);
+  }
+
+  /** 打开该体系的 show 页(RESTful:/…/indicator-system/{id}) */
+  function handleDetail(record: Recordable) {
+    go(`/urban-health-check/urban/indicator-system/${record.code}`);
   }
 
   /** 启用状态切换（纯 UI，仅更新本地行数据） */
