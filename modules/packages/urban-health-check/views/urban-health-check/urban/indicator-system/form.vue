@@ -5,17 +5,15 @@
    - BasicDrawer + useDrawerInner + BasicForm（FormSchema），而非 Modal；
    - 通过 defineEmits(['register', 'success']) 与父级 useDrawer 联动；
    - 查看模式：表单 disabled + 抽屉隐藏底部按钮。
+  注意(与 urban-protection/relic 统一的模式):
+   - BasicDrawer 加 force-render,页面加载时即挂载抽屉内容,消除首次打开的懒挂载;
+   - 抽屉级 showFooter 由 list.vue 在打开前经 setDrawerProps 设置——打开动画期间
+     增删 footer DOM 会打断面板渲染,导致首次点击不弹;
+   - 表单级 disabled 在回调里设置即可(抽屉体内,安全)。
   当前后端尚未介入：保存仅做表单校验后关闭抽屉，不发起任何接口请求。
 -->
 <template>
-  <BasicDrawer
-    ref="drawerRef"
-    v-bind="$attrs"
-    :show-footer="showFooter"
-    width="70%"
-    @register="registerDrawer"
-    @ok="handleSubmit"
-  >
+  <BasicDrawer v-bind="$attrs" force-render width="50%" @register="registerDrawer" @ok="handleSubmit">
     <template #title>
       <Icon :icon="getTitle.icon" class="m-1 pr-1" />
       <span> {{ getTitle.value }} </span>
@@ -44,7 +42,6 @@
 
   const isView = ref(false);
   const record = ref<IndicatorSystem & { isNewRecord?: boolean }>({} as IndicatorSystem & { isNewRecord?: boolean });
-  const showFooter = ref(true);
 
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:book-outlined',
@@ -153,13 +150,8 @@
       submitStatus: record.value.submitStatus ?? SUBMIT_STATUS.PENDING,
       remarks: record.value.remarks ?? '',
     });
-    if (isView.value) {
-      await setProps({ disabled: true });
-      showFooter.value = false;
-    } else {
-      await setProps({ disabled: false });
-      showFooter.value = true;
-    }
+    // 底部按钮经 #footer 插槽按 isView 渲染,不翻转 show-footer prop(见文件头注释)
+    await setProps({ disabled: isView.value });
     setDrawerProps({ loading: false });
   });
 

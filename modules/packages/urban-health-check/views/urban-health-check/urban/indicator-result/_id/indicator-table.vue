@@ -695,7 +695,7 @@
     ],
   };
 
-  const [registerDrawer, { openDrawer }] = useDrawer();
+  const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
   const [registerTable] = useTable({
     dataSource: tableData,
     columns: tableColumns,
@@ -712,6 +712,8 @@
   });
 
   function handleForm(record: Recordable) {
+    // 打开前先按查看/编辑设好 showFooter(抽屉级);打开动画期间翻转会导致首次不弹(见对应 form.vue 头注释)
+    setDrawerProps({ showFooter: !record.isView });
     openDrawer(true, record);
   }
 

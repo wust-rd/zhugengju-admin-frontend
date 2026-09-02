@@ -13,7 +13,7 @@
   表单 disabled（表单级，在抽屉体内）在回调里设置即可。
 -->
 <template>
-  <BasicDrawer ref="drawerRef" v-bind="$attrs" width="60%" force-render @register="registerDrawer" @ok="handleSubmit">
+  <BasicDrawer v-bind="$attrs" width="50%" force-render @register="registerDrawer" @ok="handleSubmit">
     <template #title>
       <Icon :icon="getTitle.icon" class="m-1 pr-1" />
       <span> {{ getTitle.value }} </span>

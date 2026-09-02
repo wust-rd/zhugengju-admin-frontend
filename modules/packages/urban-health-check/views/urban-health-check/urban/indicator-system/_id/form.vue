@@ -8,9 +8,8 @@
 -->
 <template>
   <BasicDrawer
-    ref="drawerRef"
     v-bind="$attrs"
-    :show-footer="showFooter"
+    force-render
     width="50%"
     @register="registerDrawer"
     @ok="handleSubmit"
@@ -38,7 +37,6 @@
 
   const isView = ref(false);
   const record = ref<Indicator & { isNewRecord?: boolean }>({} as Indicator & { isNewRecord?: boolean });
-  const showFooter = ref(true);
 
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:book-outlined',
@@ -142,13 +140,7 @@
       responsibleDept: record.value.responsibleDept ?? '',
       remarks: record.value.remarks ?? '',
     });
-    if (isView.value) {
-      await setProps({ disabled: true });
-      showFooter.value = false;
-    } else {
-      await setProps({ disabled: false });
-      showFooter.value = true;
-    }
+    await setProps({ disabled: isView.value });
     setDrawerProps({ loading: false });
   });
 
