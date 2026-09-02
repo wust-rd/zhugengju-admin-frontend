@@ -29,20 +29,20 @@ export const displayRoutes: RouteRecordRaw[] = [
       {
         path: 'ifco',
         name: 'DisplayIfco',
-        component: () => import('../views/ifco/index'),
+        component: () => import('@jeesite/ifco/views/overview/index'),
         meta: {
           title: '投融建运',
         },
       },
       // 片区策划详情（独立完整页面，路径 /display/ifco/detail）
-      {
-        path: 'ifco/detail',
-        name: 'DisplayIfcoDetail',
-        component: () => import('../views/ifco/detail'),
-        meta: {
-          title: '片区策划详情',
-        },
-      },
+      // {
+      //   path: 'ifco/detail',
+      //   name: 'DisplayIfcoDetail',
+      //   component: () => import('@jeesite/ifco/views/ifco/detail/index'),
+      //   meta: {
+      //     title: '片区策划详情',
+      //   },
+      // },
       // 地图滑动对比页（@geoql/maplibre-gl-compare）
       {
         path: 'compare',

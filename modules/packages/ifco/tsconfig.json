@@ -1,0 +1,20 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@jeesite/ifco/*": ["./*"],
+      "maplibre-gl": ["../../../packages/types/maplibre-gl-enhance.d.ts"]
+    }
+  },
+  "include": [
+    "./**/*.ts",
+    "./**/*.tsx",
+    "./**/*.vue"
+  ],
+  "exclude": [
+    "node_modules",
+    "vite.config.ts",
+    "_lib",
+    "dist"
+  ]
+}

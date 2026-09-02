@@ -37,7 +37,7 @@ export const LayerControls = defineComponent({
   },
   setup(props) {
     /** 面板是否打开 */
-    const open = ref(true);
+    const open = ref(false);
     /** 头部页签：opened=已打开图层 / fav=我的收藏 */
     const activeTab = ref('opened');
     /** 数据菜单是否展开 */
