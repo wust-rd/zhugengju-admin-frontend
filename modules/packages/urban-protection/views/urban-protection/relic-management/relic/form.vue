@@ -21,7 +21,7 @@
     <BasicForm @register="registerForm" />
   </BasicDrawer>
 </template>
-<script lang="ts" setup name="ViewsUrbanProtectionUrbanRelicForm">
+<script lang="ts" setup name="ViewsUrbanProtectionRelicManagementRelicForm">
   import { computed, ref, unref } from 'vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { router } from '@jeesite/core/router';

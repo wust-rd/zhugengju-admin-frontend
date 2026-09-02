@@ -1,11 +1,7 @@
 import { GlassRing } from '@jeesite/display/components/glass-ring';
 import { cn } from '@jeesite/core/libs';
 import { defineComponent, ref, watch, type PropType } from 'vue';
-import {
-  relicCategoryLabel,
-  relicLevelOf,
-  type Relic,
-} from '@jeesite/urban-protection/api/urban-protection/relic';
+import { relicCategoryLabel, relicLevelOf, type Relic } from '@jeesite/urban-protection/api/urban-protection/relic';
 
 /**
  * RelicCard —— 文物信息卡片（文物地图页右侧）
@@ -105,14 +101,12 @@ export const RelicCard = defineComponent({
                     <div class="scrollbar-none mt-8px flex gap-6px overflow-x-auto pb-2px">
                       {relic.avatars.map((src, i) => (
                         <img
-                          key={src}
+                          key={`${i}-${src}`}
                           src={src}
                           loading="lazy"
                           class={cn(
                             'h-56px w-84px shrink-0 cursor-pointer rd-6px object-cover transition-opacity',
-                            i === photoIndex.value
-                              ? 'ring-2 ring-cyan-400/90'
-                              : 'opacity-60 hover:opacity-100',
+                            i === photoIndex.value ? 'ring-2 ring-cyan-400/90' : 'opacity-60 hover:opacity-100',
                           )}
                           onClick={() => {
                             photoIndex.value = i;
@@ -132,7 +126,7 @@ export const RelicCard = defineComponent({
               {/* 属性网格 */}
               <div class="grid grid-cols-2 gap-x-16px gap-y-10px px-20px py-14px">
                 {metaItems.map(([label, value]) => (
-                  <div class="min-w-0">
+                  <div key={label} class="min-w-0">
                     <div class="text-12px text-white/45">{label}</div>
                     <div class="mt-2px truncate text-13px text-white/90" title={value}>
                       {value}

@@ -44,7 +44,7 @@
     <InputForm @register="registerDrawer" @success="handleSuccess" />
   </PageWrapper>
 </template>
-<script lang="ts" setup name="ViewsUrbanProtectionUrbanRelicList">
+<script lang="ts" setup name="ViewsUrbanProtectionRelicManagementRelicList">
   import { onMounted, ref, unref, watch } from 'vue';
   import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
