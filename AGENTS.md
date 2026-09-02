@@ -11,6 +11,18 @@
   - 示例：当前年 `dateUtil().year()`；格式化 `dateUtil('2026-01-01').format('YYYY-MM-DD')`；
 - 生成「最近 N 年」选项时可参考 `packages/core/libs/year.ts` 的 `buildYearItems(count)`（注意其返回 `{key,label}` 菜单项结构，用于 Select 时需映射为 `{label,value}`）。
 
+## 抽屉查看模式约定（硬性规则）
+
+生成带「查看模式」的表单抽屉（form.vue，BasicDrawer + useDrawerInner + isView）时，必须遵守：
+
+- **form.vue**：`BasicDrawer` 必须加 **`force-render`**（页面加载即挂载抽屉内容，消除首次打开的懒挂载）；**不要**绑定响应式的 `:show-footer`；
+- **打开方（list.vue）**：在 `openDrawer` **之前**预设底部按钮显隐：`setDrawerProps({ showFooter: !record.isView })`；
+- **form.vue 回调内**：只设表单级禁用 `await setProps({ disabled: isView })`（抽屉体内，安全）。
+
+**原因**：打开动画/首次懒挂载进行中翻转抽屉级 prop（show-footer true→false）会打断 antdv-next Drawer 的首次渲染——表现为**首次点击不弹抽屉、无任何报错、第二次点击才弹**（内容挂载完成后翻转即无害，故仅首击失败）。
+
+参照实现：`modules/packages/urban-protection/views/urban-protection/urban/relic/` 与 `urban-health-check` 各 form.vue 及其头注释。
+
 ## 验证方式（硬性规则）
 
 - 改动后的验证只做：**`pnpm type:check`** 与 **Vite 转译可达性检查**（dev server 请求模块返回 200）；
