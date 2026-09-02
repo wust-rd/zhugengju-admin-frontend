@@ -7,13 +7,7 @@
   当前后端尚未介入:保存仅做表单校验后关闭抽屉,不发起任何接口请求。
 -->
 <template>
-  <BasicDrawer
-    v-bind="$attrs"
-    force-render
-    width="50%"
-    @register="registerDrawer"
-    @ok="handleSubmit"
-  >
+  <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer" @ok="handleSubmit">
     <template #title>
       <Icon :icon="getTitle.icon" class="m-1 pr-1" />
       <span> {{ getTitle.value }} </span>

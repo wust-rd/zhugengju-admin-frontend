@@ -11,6 +11,11 @@
   - 示例：当前年 `dateUtil().year()`；格式化 `dateUtil('2026-01-01').format('YYYY-MM-DD')`；
 - 生成「最近 N 年」选项时可参考 `packages/core/libs/year.ts` 的 `buildYearItems(count)`（注意其返回 `{key,label}` 菜单项结构，用于 Select 时需映射为 `{label,value}`）。
 
+## 下钻路由约定（硬性规则）
+
+- 列表页 `handleDetail` 一律用 **`record.code`** 跳 RESTful show 路由：`go(\`/模块/资源/${record.code}\`)`；`{id}` 路由的 id 永远是记录的 **code 字段**，不用名称/年份/目录等业务字段充当 id；
+- show 页（`_id/list.vue`）按 `MOCK_LIST.find((item) => item.code === params.id)` 反查（兼容 `params.id ?? params.code` 占位符写法）；名称等仅用于卡片标题/页签 `setTitle`。
+
 ## 抽屉查看模式约定（硬性规则）
 
 生成带「查看模式」的表单抽屉（form.vue，BasicDrawer + useDrawerInner + isView）时，必须遵守：
