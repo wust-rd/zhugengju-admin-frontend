@@ -93,6 +93,15 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '名城保护',
         },
       },
+      // 文物地图（modules/@jeesite/urban-protection 大屏页，本地 JSON 数据打点）
+      {
+        path: 'urban-protection/relic-map',
+        name: 'DisplayUrbanProtectionRelicMap',
+        component: () => import('@jeesite/urban-protection/views/urban-protection/overview/relic-map/index'),
+        meta: {
+          title: '文物地图',
+        },
+      },
     ],
   },
 ];

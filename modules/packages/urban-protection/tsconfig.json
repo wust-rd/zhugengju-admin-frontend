@@ -2,7 +2,8 @@
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@jeesite/urban-protection/*": ["./*"]
+      "@jeesite/urban-protection/*": ["./*"],
+      "maplibre-gl": ["../../../packages/types/maplibre-gl-enhance.d.ts"]
     }
   },
   "include": [
