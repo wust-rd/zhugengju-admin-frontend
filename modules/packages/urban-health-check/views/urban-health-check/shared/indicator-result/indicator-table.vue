@@ -41,7 +41,7 @@
     <InputForm @register="registerDrawer" @success="handleSuccess" />
   </div>
 </template>
-<script lang="ts" setup name="ViewsUrbanHealthCheckUrbanIndicatorResultIdIndicatorTable">
+<script lang="ts" setup name="UhcSharedIndicatorResultIndicatorTable">
   import { ref, unref } from 'vue';
   import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
@@ -51,7 +51,7 @@
   import { FormProps } from '@jeesite/core/components/Form';
   import type { IndicatorResult } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
   import type { Indicator } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
-  import InputForm from './form.vue';
+  import InputForm from './id-form.vue';
 
   const props = defineProps({
     system: Object as PropType<IndicatorResult>,
