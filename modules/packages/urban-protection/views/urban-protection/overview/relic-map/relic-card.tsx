@@ -50,7 +50,7 @@ export const RelicCard = defineComponent({
       return (
         <div
           class={cn(
-            'absolute right-24px top-24px z-20 w-400px max-h-[calc(100%-48px)] flex flex-col rd-12px overflow-hidden',
+            'absolute right-24px top-24px z-40 w-400px max-h-[calc(100%-48px)] flex flex-col rd-12px overflow-hidden',
             'border border-cyan-900 bg-[#0f2b47]/95 shadow-2xl backdrop-blur',
             'transition-[transform,opacity] duration-200',
             relic ? 'opacity-100' : 'pointer-events-none translate-x-16px opacity-0',
