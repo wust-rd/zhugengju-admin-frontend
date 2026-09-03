@@ -247,14 +247,14 @@ export const NewSider = defineComponent({
           <div
             class={cn(
               // group：让整行 hover 时级联控制 icon/文字/箭头变白
-              'relative flex items-center cursor-pointer transition-all rd-6px',
+              'relative flex items-center cursor-pointer transition-all rd-6px min-h-44px py-6px',
               activeLeaf
                 ? 'bg-gradient-to-tl from-[rgba(2,137,255,0.21)] via-[rgba(0,191,255,0.7)] to-[rgba(0,215,255,0.7)]'
                 : '',
               // 分支（有子级）加背景做区分标记
               kids ? 'bg-[#0f1e33]' : '',
             )}
-            style={{ height: '44px', paddingLeft: `${level * 10}px` }}
+            style={{ paddingLeft: `${level * 10}px` }}
             onClick={() => (kids ? toggleOpen(leaf) : handleNavigate(leaf))}
           >
             {activeLeaf && (
@@ -269,7 +269,7 @@ export const NewSider = defineComponent({
 
             <span
               class={cn(
-                'ml-12px text-14px flex-1 truncate transition-all',
+                'ml-12px text-14px flex-1 transition-all',
                 active ? 'text-white' : 'text-gray-400 group-hover:text-white',
               )}
             >
@@ -278,7 +278,7 @@ export const NewSider = defineComponent({
             {kids && (
               <span
                 class={cn(
-                  'size-16px mr-16px transition-all i-ri-arrow-left-s-line',
+                  'ml-8px size-16px mr-16px transition-all i-ri-arrow-left-s-line',
                   active ? 'text-white' : 'text-gray-500 group-hover:text-white',
                   open ? '-rotate-90' : '',
                 )}
