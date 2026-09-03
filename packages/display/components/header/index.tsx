@@ -36,12 +36,11 @@ export const Header = defineComponent({
         <Logo />
 
         {/* NavLinks 居中：flex-1 吃掉剩余宽度，使后面的 action 簇 + 功能坞靠右 */}
-        <div class="flex min-w-0 flex-1 justify-center">
-          <NavLinks />
-        </div>
+
+        <NavLinks />
 
         {/* 后台 action 簇：Search / Notify / System → UserProfile 左边（纯图标） */}
-        <div class="flex items-center gap-1 pl-3">
+        <div class="ml-auto flex items-center gap-1 pl-3">
           <Search />
           <Notify />
           <SystemAction />

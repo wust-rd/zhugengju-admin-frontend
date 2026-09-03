@@ -19,7 +19,7 @@ export const NavLinks = defineComponent({
     ];
 
     return () => (
-      <div class="flex items-center space-x-12px mx-auto">
+      <div class="ml-32px flex items-center space-x-12px flex-1">
         {navLinks.map((link) => (
           <LinkItem key={link.label} to={link.to} icon={link.icon} label={link.label} disabled={link.disabled} />
         ))}
