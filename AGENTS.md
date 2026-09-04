@@ -105,6 +105,14 @@
 - 列表页 `handleDetail` 一律用 **`record.code`** 跳 RESTful show 路由：`go(\`/模块/资源/${record.code}\`)`；`{id}` 路由的 id 永远是记录的 **code 字段**，不用名称/年份/目录等业务字段充当 id；
 - show 页（`_id/list.vue`）按 `MOCK_LIST.find((item) => item.code === params.id)` 反查（兼容 `params.id ?? params.code` 占位符写法）；名称等仅用于卡片标题/页签 `setTitle`。
 
+## 文件下载约定（硬性规则）
+
+- **所有文件下载统一使用 `file-saver`**：`import { saveAs } from 'file-saver';` → `saveAs(blob, 文件名)`；
+- 远程文件先 `fetch(url)` 取 `blob` 再 `saveAs`；后端返回文件流（blob/ArrayBuffer）时同样经 `saveAs` 保存，文件名带扩展名（如 `${record.reportName}.pdf`）；
+- `window.open(url, '_blank')` 仅用于**预览**（新标签页），下载动作不得用它或裸 `<a download>` 替代；
+- 依赖装在使用它的业务模块内（如 `@jeesite/urban-health-check`），类型用 `@types/file-saver`；
+- 参照实现：`modules/packages/urban-health-check/views/urban-health-check/report-generation/list.vue` 的 `handleDownload`。
+
 ## 抽屉查看模式约定（硬性规则）
 
 生成带「查看模式」的表单抽屉（form.vue，BasicDrawer + useDrawerInner + isView）时，必须遵守：
