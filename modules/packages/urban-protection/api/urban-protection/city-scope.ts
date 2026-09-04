@@ -18,7 +18,7 @@ import historicBlockUrl from './data/historic-block.geojson?url';
 export type CityScopeKind = 'historicUrbanArea' | 'historicVillage' | 'historicBlock';
 
 /** 图层定义（配色与 id 地图图层 / 图例 / 卡片共用） */
-export interface CityScopeLayerDef {
+export type CityScopeLayerDef = {
   kind: CityScopeKind;
   /** 图例 / 卡片展示名 */
   label: string;
@@ -30,7 +30,7 @@ export interface CityScopeLayerDef {
   sourceId: string;
   /** geojson 资源地址（`?url` 导入） */
   url: string;
-}
+};
 
 export const CITY_SCOPE_LAYERS: CityScopeLayerDef[] = [
   {
@@ -71,7 +71,7 @@ export const cityScopeFillLayerId = (sourceId: string) => `${sourceId}-fill`;
 export const cityScopeLineLayerId = (sourceId: string) => `${sourceId}-line`;
 
 /** 归一化后的要素属性（写入 GeoJSON properties，点击查询后直接读它渲染卡片） */
-export interface CityScopeFeatureProps {
+export type CityScopeFeatureProps = {
   kind: CityScopeKind;
   /** 要素编号（1 起，与 feature.id 一致；feature-state 选中高亮定位用） */
   fid: number;
@@ -91,7 +91,7 @@ export interface CityScopeFeatureProps {
   code: string;
   /** 备注（名村为「国家级,历史文化名村」，街区为类别，城区为空） */
   note: string;
-}
+};
 
 /** 面积展示：≥1km² 用 km²，≥1 万 m² 用 万 m²，其余用 m² */
 export function formatArea(m2: number): string {
@@ -110,37 +110,37 @@ export function formatPerimeter(m: number): string {
 
 // ---- 轻量 GeoJSON 类型（GeoJSON 命名空间在本项目 tsconfig 环境不可用，自定义最小集） ----
 
-export interface CityScopeGeometry {
+export type CityScopeGeometry = {
   type: 'Polygon' | 'MultiPolygon';
   coordinates: unknown;
-}
+};
 
-export interface CityScopeFeature {
+export type CityScopeFeature = {
   type: 'Feature';
   /** 顺序编号（自 1 起，便于调试） */
   id?: number;
   properties: CityScopeFeatureProps;
   geometry: CityScopeGeometry;
-}
+};
 
-export interface CityScopeFeatureCollection {
+export type CityScopeFeatureCollection = {
   type: 'FeatureCollection';
   features: CityScopeFeature[];
-}
+};
 
 /** 一类范围线：图层定义 + 归一化数据 + 面域经纬度范围 [minLng, minLat, maxLng, maxLat] */
-export interface CityScopeLayerData {
+export type CityScopeLayerData = {
   def: CityScopeLayerDef;
   fc: CityScopeFeatureCollection;
   bounds: [number, number, number, number] | null;
-}
+};
 
 /** 原始要素（字段三类各异，统一按 Record 读） */
-interface ScopeRawFeature {
+type ScopeRawFeature = {
   type?: string;
   properties?: Record<string, unknown> | null;
   geometry?: { type?: string; coordinates?: unknown } | null;
-}
+};
 
 /** 名称后缀 → 保护范围类型（街区/名村的名称以二者之一结尾） */
 const SCOPE_SUFFIX = /(核心保护范围|建设控制地带)$/;

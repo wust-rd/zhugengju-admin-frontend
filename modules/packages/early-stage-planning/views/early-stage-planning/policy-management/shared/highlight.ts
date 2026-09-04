@@ -5,10 +5,10 @@
  * 语义模式取长度≥2 的前 8 个词,关键字模式取全部词(对齐原型 highlight 规则)。
  */
 
-export interface HighlightSegment {
+export type HighlightSegment = {
   text: string;
   hit: boolean;
-}
+};
 
 function escapeRegExp(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

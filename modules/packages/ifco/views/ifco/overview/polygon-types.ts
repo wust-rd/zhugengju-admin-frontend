@@ -4,7 +4,7 @@
  */
 
 /** 项目图斑与片区范围共有的属性字段（片区、项目均适用） */
-export interface PolygonPropsBase {
+export type PolygonPropsBase = {
   /** 批次：第一批 / 第二批 */
   BATCH?: string;
   /** 合并后片区唯一号（PQ001、PQ002……） */
@@ -43,10 +43,10 @@ export interface PolygonPropsBase {
   DATA_SRC?: string;
   /** 唯一号说明（本轮编号重建说明或异常提示） */
   UID_NOTE?: string;
-}
+};
 
 /** 项目图斑属性（project_merged_all，source 以 P_UID 为要素 id） */
-export interface ProjectPolygonProps extends PolygonPropsBase {
+export type ProjectPolygonProps = PolygonPropsBase & {
   /** 合并后项目图斑唯一号（PQ001_1 格式） */
   P_UID?: string;
   /** 原项目图斑唯一号（各批次合并前，用于回溯） */
@@ -83,10 +83,10 @@ export interface ProjectPolygonProps extends PolygonPropsBase {
   INV_2027?: number | string;
   /** 匹配方式（名称匹配、ID 匹配等说明） */
   MAT_METHOD?: string;
-}
+};
 
 /** 片区范围属性（area_merged_all，source 以 A_UID 为要素 id） */
-export interface AreaPolygonProps extends PolygonPropsBase {
+export type AreaPolygonProps = PolygonPropsBase & {
   /** 片区顺序号 */
   A_SEQ?: number;
   /** 责任主体（片区责任主体） */
@@ -97,7 +97,7 @@ export interface AreaPolygonProps extends PolygonPropsBase {
   PROJECT_CNT?: number | string;
   /** 片区项目调整说明 */
   PROJECT_CHANGE?: string;
-}
+};
 
 /** 当前选中的面（地图点击查询构造：kind 区分项目地块 / 片区范围，props 为 GeoJSON 原始属性；discriminated union） */
 export type SelectedPolygon =

@@ -9,10 +9,10 @@ import {
 } from '@jeesite/urban-protection/api/urban-protection/city-scope';
 
 /** 当前选中的范围面（图层定义 + 归一化属性，由地图点击查询构造） */
-export interface SelectedCityScope {
+export type SelectedCityScope = {
   def: CityScopeLayerDef;
   props: CityScopeFeatureProps;
-}
+};
 
 /**
  * ScopeCard —— 名城范围线信息卡片（文物地图页右侧）

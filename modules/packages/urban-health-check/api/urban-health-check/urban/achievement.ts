@@ -14,7 +14,7 @@ export const ACHIEVEMENT_DEGREE = {
 } as const;
 
 /** 体检成果(目录)实体 */
-export interface Achievement {
+export type Achievement = {
   id?: string;
   code?: string; // 序号(业务编码)
   year?: string; // 体检年份
@@ -22,10 +22,10 @@ export interface Achievement {
   reportDate?: string; // 填报时间(yyyy-MM-dd)
   submitStatus?: string; // 提交状态(0 待提交 / 1 已提交,复用 indicator-system 的 SUBMIT_STATUS)
   remarks?: string;
-}
+};
 
 /** 成果分析明细(某目录下的下钻记录)实体 */
-export interface AchievementAnalysis {
+export type AchievementAnalysis = {
   id?: string;
   code?: string; // 序号
   catalog?: string; // 所属体检成果目录
@@ -33,7 +33,7 @@ export interface AchievementAnalysis {
   analysis?: string; // 分析描述
   degree?: string; // 程度范围(一般 / 严重 / 特别严重)
   remarks?: string;
-}
+};
 
 /** 演示用假数据(后端接入后删除,改用 api 拉取) */
 export const MOCK_LIST: Achievement[] = [

@@ -4,7 +4,7 @@ import { Tooltip } from 'antdv-next';
 import { defineComponent, type PropType } from 'vue';
 
 /** 三色图数据项：名称 + 百分比 + 数量（片）+ 颜色 */
-export interface ProgressItem {
+export type ProgressItem = {
   key: string;
   /** 名称（绿 / 黄 / 红） */
   name: string;
@@ -14,7 +14,7 @@ export interface ProgressItem {
   count: number;
   /** 条/竖条颜色 */
   color: string;
-}
+};
 
 /** 推进情况三色图数据（静态占位，接接口后替换） */
 const DEFAULT_ITEMS: ProgressItem[] = [

@@ -11,7 +11,7 @@
 import wenwuUrl from './data/wenwu.json?url';
 
 /** 文物级别定义（地图点色 / 列表标签色 / 筛选与表单选项共用） */
-export interface RelicLevel {
+export type RelicLevel = {
   /** 数据中的完整级别名称（如「国家级文物保护单位」） */
   value: string;
   /** 短标签（如「国家级」） */
@@ -20,7 +20,7 @@ export interface RelicLevel {
   color: string;
   /** 列表 Tag 颜色（antdv-next 预设色名） */
   tagColor: string;
-}
+};
 
 export const RELIC_LEVELS: RelicLevel[] = [
   { value: '国家级文物保护单位', label: '国家级', color: '#FBBF24', tagColor: 'gold' },
@@ -72,7 +72,7 @@ export const RELIC_DISTRICTS = [
 ] as const;
 
 /** 文物实体（页面通用，已把 lonlat / info.avatars 归一化） */
-export interface Relic {
+export type Relic = {
   id: number; // 数据主键
   name: string; // 名称
   level: string; // 级别（国家级/省级/市级文物保护单位，可能为空）
@@ -88,10 +88,10 @@ export interface Relic {
   avatars: string[]; // 实景照片（info.avatars，可能为空数组）
   introduce: string; // 简介
   importance: number; // 重要性权重（0~57）
-}
+};
 
 /** JSON 原始结构 */
-interface RelicRaw {
+type RelicRaw = {
   id: number;
   name?: string;
   level?: string;
@@ -106,7 +106,7 @@ interface RelicRaw {
   introduce?: string;
   importance?: number;
   info?: { avatars?: string[] } | null;
-}
+};
 
 /**
  * 解析 WKT 点坐标字符串（如 `POINT(114.300870811839 30.5446220004052)`）。

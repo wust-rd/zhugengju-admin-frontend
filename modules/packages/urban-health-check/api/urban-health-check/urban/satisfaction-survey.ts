@@ -7,7 +7,7 @@
  */
 
 /** 满意度调查(年度记录)实体 */
-export interface SatisfactionSurvey {
+export type SatisfactionSurvey = {
   id?: string;
   code?: string; // 序号(业务编码)
   year?: string; // 调查年份
@@ -17,7 +17,7 @@ export interface SatisfactionSurvey {
   validQuestionnaireCount?: number; // 有效调查问卷数(份)
   overallSatisfaction?: number; // 综合满意度(百分比数字,如 85.6 表示 85.6%)
   remarks?: string;
-}
+};
 
 /** 演示用假数据(后端接入后删除,改用 api 拉取) */
 export const MOCK_LIST: SatisfactionSurvey[] = [
@@ -29,7 +29,7 @@ export const MOCK_LIST: SatisfactionSurvey[] = [
 ];
 
 /** 满意度调查问题(某年调查的下钻明细)实体 */
-export interface SurveyQuestion {
+export type SurveyQuestion = {
   id?: string;
   code?: string; // 序号
   year?: string; // 所属调查年份
@@ -41,7 +41,7 @@ export interface SurveyQuestion {
   dissatisfied?: number; // 不满意(%)
   veryDissatisfied?: number; // 非常不满意(%)
   remarks?: string;
-}
+};
 
 /** 问题演示假数据(五档占比合计 100;后端接入后删除,改用 api 按年份拉取) */
 export const MOCK_QUESTIONS: SurveyQuestion[] = [

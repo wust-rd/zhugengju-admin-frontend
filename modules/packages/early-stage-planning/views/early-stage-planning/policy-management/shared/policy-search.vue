@@ -358,14 +358,14 @@
   }
 
   /** 历史/收藏/订阅 */
-  interface HistoryItem {
+  type HistoryItem = {
     q: string;
     t: string;
-  }
-  interface FavItem {
+  };
+  type FavItem = {
     code: string;
     title: string;
-  }
+  };
   const history = ref<HistoryItem[]>(loadJson<HistoryItem[]>(HISTORY_KEY, []));
   const favs = ref<FavItem[]>(loadJson<FavItem[]>(FAV_KEY, []));
   const subs = ref<string[]>(loadJson<string[]>(SUB_KEY, []));

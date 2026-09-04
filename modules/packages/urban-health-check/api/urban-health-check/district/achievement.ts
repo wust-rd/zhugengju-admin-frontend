@@ -19,7 +19,7 @@ export const DISTRICT_CATALOGS = [
 ] as const;
 
 /** 区级体检成果 实体 */
-export interface DistrictAchievement {
+export type DistrictAchievement = {
   id?: string;
   code?: string; // 序号(业务编码)
   year?: string; // 体检年份
@@ -35,7 +35,7 @@ export interface DistrictAchievement {
   reportDate?: string; // 填报时间(yyyy-MM-dd)
   submitStatus?: string; // 提交状态(0 待提交 / 1 已提交)
   remarks?: string;
-}
+};
 
 /** 演示用假数据(后端接入后删除,改用 api 拉取) */
 export const MOCK_LIST: DistrictAchievement[] = [

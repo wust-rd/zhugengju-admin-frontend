@@ -17,15 +17,15 @@ export const POLICY_API = '/policy_api/api/v1';
 const RAW = { joinPrefix: false, isTransformResponse: false, errorMessageMode: 'message' } as const;
 
 /** 政策版本变更记录 实体 */
-export interface PolicyVersion {
+export type PolicyVersion = {
   fileVersion?: string; // 文件版本(V1.0、V2.0…)
   changeDate?: string; // 变更日期(yyyy-MM-dd)
   changeDept?: string; // 变更部门
   operator?: string; // 操作人
-}
+};
 
 /** 政策 实体(后端 snake_case 已映射) */
-export interface Policy {
+export type Policy = {
   id?: string;
   code?: string; // 业务编码(= 后端 policy_id,详情跳转用)
   title?: string; // 标题
@@ -53,27 +53,27 @@ export interface Policy {
   snippet?: string; // 检索片段(统一查询/语义匹配结果展示用)
   matchScore?: number; // 语义相似度(百分比数字,如 92.4 表示 92.4%)
   remarks?: string;
-}
+};
 
 /** 字典项({label,value} Select 结构) */
-export interface PolicyDictItem {
+export type PolicyDictItem = {
   label: string;
   value: string;
-}
+};
 
 /** 列表统计口径 */
-export interface PolicyStats {
+export type PolicyStats = {
   total: number;
   effective: number;
   expiring: number;
   abolished: number;
-}
+};
 
 /** 分类导航计数:{维度编码:{字典编码:数量}} */
 export type PolicyNavCounts = Record<string, Record<string, number>>;
 
 /** 列表查询参数(前端命名,接口层转 snake_case) */
-export interface PolicyListParams {
+export type PolicyListParams = {
   title?: string;
   docNo?: string;
   sourceOrg?: string;
@@ -84,15 +84,15 @@ export interface PolicyListParams {
   timeStatus?: string;
   page?: number;
   pageSize?: number;
-}
+};
 
 /** 检索命中(片段 + 所属政策) */
-export interface SnippetHit {
+export type SnippetHit = {
   chunkId?: string;
   snippet?: string;
   score?: number;
   policy: Policy;
-}
+};
 
 /** 时效状态 Tag 配色(对齐原型:现行绿/到期橙/废止红) */
 export const TIME_STATUS_COLOR: Record<string, string> = {

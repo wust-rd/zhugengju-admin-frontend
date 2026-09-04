@@ -31,7 +31,7 @@ export const REPORT_STATUS = {
 export const PREVIEW_PDF_URL = 'https://501351981.github.io/vue-office/examples/dist/static/test-files/test.pdf';
 
 /** 报告生成记录 实体 */
-export interface ReportRecord {
+export type ReportRecord = {
   id?: string;
   code?: string; // 序号(业务编码)
   reportType?: string; // 报告类型
@@ -43,7 +43,7 @@ export interface ReportRecord {
   createTime?: string; // 生成时间(yyyy-MM-dd HH:mm:ss)
   status?: string; // 状态(0 生成中 / 1 已生成)
   remarks?: string;
-}
+};
 
 /** 状态显示文字(Tag 配色与 indicator-system/list 一致:已生成=深蓝实心,生成中=蓝描边) */
 export const REPORT_STATUS_TEXT: Record<string, string> = {

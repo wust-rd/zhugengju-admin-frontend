@@ -4,12 +4,12 @@ import type { Ref } from 'vue';
 import { defineComponent, onMounted, ref, shallowRef, type PropType } from 'vue';
 
 /** 指标评价结果分布数据项：名称 + 百分比 + 颜色 */
-export interface RatingDatum {
+export type RatingDatum = {
   key: string;
   label: string;
   value: number;
   color: string;
-}
+};
 
 /**
  * RatingResult —— 指标评价结果：环形饼图 + 中心文字 + 统计网格

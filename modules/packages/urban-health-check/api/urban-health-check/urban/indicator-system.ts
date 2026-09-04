@@ -36,7 +36,7 @@ export const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
 });
 
 /** 体检指标体系 实体 */
-export interface IndicatorSystem {
+export type IndicatorSystem = {
   // 业务字段
   code?: string; // 序号（业务编码，如 202601）
   year?: string; // 体检年份
@@ -57,29 +57,29 @@ export interface IndicatorSystem {
   createDate?: string;
   updateBy?: string;
   updateDate?: string;
-}
+};
 
 /** 列表实体（用于接口返回） */
-export interface IndicatorSystemData extends IndicatorSystem {
+export type IndicatorSystemData = IndicatorSystem & {
   rowNum?: number; // 序号（前端计算行号用）
-}
+};
 
 /** JeeSite 分页返回结构（与 componentSetting 的 fetchSetting 对齐） */
-export interface IndicatorSystemPage extends Result {
+export type IndicatorSystemPage = Result & {
   list?: IndicatorSystemData[];
   count?: number;
   total?: number;
   pageNo?: number;
   pageSize?: number;
-}
+};
 
 /** 列表查询参数 */
-export interface IndicatorSystemQuery {
+export type IndicatorSystemQuery = {
   pageNo?: number;
   pageSize?: number;
   year?: string; // 体检年份
   indicatorName?: string; // 指标体系名称
-}
+};
 
 /** 演示用假数据（列表页 dataSource 与 show 页按 id 反查共用；后端接入后删除） */
 export const MOCK_LIST: IndicatorSystem[] = [

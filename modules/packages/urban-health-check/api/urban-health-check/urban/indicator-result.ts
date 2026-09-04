@@ -7,7 +7,7 @@
  */
 
 /** 指标项结果 实体 */
-export interface IndicatorResult {
+export type IndicatorResult = {
   id?: string;
   code?: string; // 编码(对应指标体系编码,如 202601)
   year?: string; // 体检年份
@@ -20,7 +20,7 @@ export interface IndicatorResult {
   unfilledCount?: number; // 未填报结果的指标数量(项)
   warningCount?: number; // 预警指标数量(项)
   remarks?: string;
-}
+};
 
 /** 演示用假数据(后端接入后删除,改用 api 拉取) */
 export const MOCK_LIST: IndicatorResult[] = [

@@ -24,7 +24,7 @@ export const WARNING_STATUS = {
 } as const;
 
 /** 指标 实体(指标体系的子孙元素,按一/二/三级维度归属) */
-export interface Indicator {
+export type Indicator = {
   id?: string;
   code?: string; // 序号
   systemCode?: string; // 所属指标体系编码(如 202601)
@@ -41,4 +41,4 @@ export interface Indicator {
   dataSource?: string; // 数据来源((市XX局)部门报送 / 统计年鉴 / 城市体检信息平台)
   responsibleDept?: string; // 责任部门(无责任部门时填 /)
   remarks?: string;
-}
+};
