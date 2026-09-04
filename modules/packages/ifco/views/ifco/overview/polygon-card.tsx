@@ -1,12 +1,7 @@
 import { GlassRing } from '@jeesite/display/components/glass-ring';
 import { cn } from '@jeesite/core/libs';
 import { defineComponent, type PropType } from 'vue';
-
-/** 当前选中的面（地图点击查询构造：kind 区分项目地块 / 片区范围，props 为 GeoJSON 原始属性） */
-export interface SelectedPolygon {
-  kind: 'project' | 'area';
-  props: Recordable;
-}
+import type { PolygonPropsBase, SelectedPolygon } from './polygon-types';
 
 /** 类别标签配色（与地图图层色系一致：项目地块紫、片区范围蓝） */
 const KIND_META: Record<SelectedPolygon['kind'], { label: string; color: string }> = {
@@ -17,16 +12,16 @@ const KIND_META: Record<SelectedPolygon['kind'], { label: string; color: string 
 /** 文本取值：null/空白返回 ''（空字段不展示） */
 const s = (v: unknown): string => (v == null ? '' : String(v).trim());
 
-/** 金额（亿元）：数字或数字字符串统一格式化，非正数视为无值 */
+/** 金额：数字或数字字符串统一格式化，非正数视为无值（单位已在标签中） */
 const bil = (v: unknown): string => {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? `${n} 亿元` : '';
+  return Number.isFinite(n) && n > 0 ? String(n) : '';
 };
 
-/** 面积（公顷）：数字格式化两位小数 */
+/** 面积：数字格式化两位小数（单位已在标签中） */
 const ha = (v: unknown): string => {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? `${n.toFixed(2)} 公顷` : '';
+  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : '';
 };
 
 /** 个数：数字字符串（如 '4.0'）取整展示 */
@@ -56,7 +51,8 @@ export const PolygonCard = defineComponent({
   setup(props, { emit }) {
     return () => {
       const polygon = props.polygon;
-      const p = polygon?.props ?? {};
+      /** 共有字段（行政区/批次/起止时间）走基类型兜底，类别字段按 kind 收窄后取 */
+      const p: PolygonPropsBase = polygon?.props ?? {};
       const kind = polygon ? KIND_META[polygon.kind] : null;
 
       /** 属性网格项（空值字段跳过；行政区始终展示） */
@@ -64,26 +60,26 @@ export const PolygonCard = defineComponent({
         ? [
             ...(polygon.kind === 'project'
               ? ([
-                  ['项目编号', s(p.PJ_ID)],
-                  ['所属片区', s(p.AREA_NAME)],
-                  ['项目名称', s(p.PJ_NAME)],
-                  ['功能导向', s(p.FUNC_TYPE)],
-                  ['总投资', bil(p.INV_BIL)],
-                  ['2026年投资', bil(p.INV_2026)],
-                  ['2027年投资', bil(p.INV_2027)],
-                  ['占地面积', ha(p.AREA_HA)],
-                  ['实施进度', s(p.PROG)],
-                  ['实施单位', s(p.BODY)],
-                  ['责任单位', s(p.RESP)],
-                  ['资金来源', s(p.FUND_SRC)],
+                  ['项目编号', s(polygon.props.PJ_ID)],
+                  ['片区名称', s(polygon.props.AREA_NAME)],
+                  ['项目名称', s(polygon.props.PJ_NAME)],
+                  ['功能定位', s(polygon.props.FUNC_TYPE)],
+                  ['投资估算（亿元）', bil(polygon.props.INV_BIL)],
+                  ['2026年计划投资（亿元）', bil(polygon.props.INV_2026)],
+                  ['2027年计划投资（亿元）', bil(polygon.props.INV_2027)],
+                  ['图斑面积（公顷）', ha(polygon.props.AREA_HA)],
+                  ['项目进展', s(polygon.props.PROG)],
+                  ['实施主体', s(polygon.props.BODY)],
+                  ['责任主体', s(polygon.props.RESP)],
+                  ['资金来源', s(polygon.props.FUND_SRC)],
                 ] as [string, string][])
               : ([
-                  ['功能导向', s(p.FUNC_TYPE)],
-                  ['项目数量', cnt(p.PROJECT_CNT)],
-                  ['投资规模', bil(p.INV_BIL)],
-                  ['占地面积', ha(p.AREA_HA)],
-                  ['责任主体', s(p.RESP_BODY)],
-                  ['资金来源', s(p.FUND_SRC)],
+                  ['功能定位', s(polygon.props.FUNC_TYPE)],
+                  ['项目数量', cnt(polygon.props.PROJECT_CNT)],
+                  ['投资估算（亿元）', bil(polygon.props.INV_BIL)],
+                  ['图斑面积（公顷）', ha(polygon.props.AREA_HA)],
+                  ['责任主体', s(polygon.props.RESP_BODY)],
+                  ['资金来源', s(polygon.props.FUND_SRC)],
                 ] as [string, string][])),
             ['行政区', s(p.DIST) || '—'] as [string, string],
             ['批次', s(p.BATCH) || '—'] as [string, string],
@@ -111,11 +107,15 @@ export const PolygonCard = defineComponent({
                 <div class="min-w-0 flex-1">
                   <div
                     class="truncate text-18px font-600 text-white"
-                    title={polygon.kind === 'project' ? s(p.GIS_NAME) || s(p.PJ_NAME) : s(p.AREA_NAME)}
+                    title={
+                      polygon.kind === 'project'
+                        ? s(polygon.props.GIS_NAME) || s(polygon.props.PJ_NAME)
+                        : s(polygon.props.AREA_NAME)
+                    }
                   >
                     {polygon.kind === 'project'
-                      ? s(p.GIS_NAME) || s(p.PJ_NAME) || '未命名项目'
-                      : s(p.AREA_NAME) || '未命名片区'}
+                      ? s(polygon.props.GIS_NAME) || s(polygon.props.PJ_NAME) || '未命名项目'
+                      : s(polygon.props.AREA_NAME) || '未命名片区'}
                   </div>
                   <div
                     class="mt-6px inline-flex items-center gap-6px rd-full border px-10px py-2px text-12px"

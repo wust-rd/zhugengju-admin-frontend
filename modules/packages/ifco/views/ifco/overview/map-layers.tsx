@@ -4,7 +4,7 @@ import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
 import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
 import { defineComponent, onBeforeUnmount, watch, type PropType } from 'vue';
-import type { SelectedPolygon } from './polygon-card';
+import type { SelectedPolygon } from './polygon-types';
 
 /** OSS 图片基础地址 */
 const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划';

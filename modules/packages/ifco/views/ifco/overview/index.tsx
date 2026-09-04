@@ -16,7 +16,8 @@ import { ProjectInfoTabs } from '@jeesite/display/components/ifco/project-info-t
 import { ProgressChart } from './progress-chart';
 import { IfcoMapLayers, IFCO_LAYER_COLORS } from './map-layers';
 import { RatingResult } from './rating-result';
-import { PolygonCard, type SelectedPolygon } from './polygon-card';
+import { PolygonCard } from './polygon-card';
+import type { SelectedPolygon } from './polygon-types';
 import { ProjectProgress } from '@jeesite/display/components/ifco/project-progress';
 import { useAppStore } from '@jeesite/core/store/modules/app';
 
