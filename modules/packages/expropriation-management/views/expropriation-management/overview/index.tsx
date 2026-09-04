@@ -1,4 +1,5 @@
-import { defineComponent, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, ref } from 'vue';
+import { useAppStore } from '@jeesite/core/store/modules/app';
 import { ScrollArea } from '@jeesite/display/components/scroll-area';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
 
@@ -12,6 +13,14 @@ const RENOVATION_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.
 export default defineComponent({
   name: 'DisplayExpropriationManagement',
   setup() {
+    const appStore = useAppStore();
+    // 沉浸式全屏：进入时隐藏顶部标签栏、去掉内容区 padding，让页面占据整个屏幕（保留侧边菜单）
+    appStore.setImmersive(true);
+    // 离开时恢复，避免影响其它页面
+    onBeforeUnmount(() => {
+      appStore.setImmersive(false);
+    });
+
     const activeTab = ref<'base' | 'renovation'>('base');
     const previewVisible = ref(false);
 
