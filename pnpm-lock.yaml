@@ -270,10 +270,16 @@ importers:
 
   modules/packages/early-stage-planning:
     dependencies:
+      file-saver:
+        specifier: ^2.0.5
+        version: 2.0.5
       qs:
         specifier: 6.15.0
         version: 6.15.0
     devDependencies:
+      '@types/file-saver':
+        specifier: ^2.0.7
+        version: 2.0.7
       '@types/qs':
         specifier: 6.15.0
         version: 6.15.0

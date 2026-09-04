@@ -125,6 +125,13 @@
 
 参照实现：`modules/packages/urban-protection/views/urban-protection/urban/relic/` 与 `urban-health-check` 各 form.vue 及其头注释。
 
+## 原型页移植风格（硬性规则）
+
+- 移植外部原型（kd_server static 等 HTML 原型）时，**优先复用本项目框架组件与既定布局范式**，不照搬原型手写的 HTML/CSS 布局；原型只决定**信息结构与业务内容**（字段、统计、操作、交互语义）；
+- 「左侧分类 + 右侧列表」一律用 **`PageWrapper` #sidebar + `BasicTree`**（`:search/:toolbar`，嵌套树记得 `:treeDataSimpleMode="false"`，参照 `packages/core/views/sys/menu/index.vue`、`sys/area/index.vue`），不用手写左侧导航卡片；
+- 列表筛选一律用 **BasicTable `formConfig` 标准搜索表单**（`useSearchForm: true`），不用页面内手写筛选行；纯假数据阶段可用**本地 api 函数**（过滤 + 内存分页，返回 `{ list, count }` 对齐 fetchSetting）走标准搜索/分页流程，后端接入后替换为 defHttp 接口；
+- 展示类小卡片（统计等）用 antdv `Card` + UnoCSS 原子类，颜色语义与既有页面保持一致。
+
 ## 验证方式（硬性规则）
 
 - 改动后的验证只做：**模块级 `pnpm run type:check`**（根目录全量 type:check 存在既有环境错误，勿以它判败）与 **Vite 转译可达性检查**（dev server 请求模块返回 200）；
