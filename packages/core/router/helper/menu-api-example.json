@@ -1,0 +1,2144 @@
+[
+	{
+		"redirect": "/urban-health-check/overview/index",
+		"path": "/urban_expro",
+		"component": "LAYOUT",
+		"children": [
+			{
+				"path": "/urban-health-check/overview/index",
+				"component": "/urban-health-check/overview/index",
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": "",
+					"icon": "",
+					"title": "市级体检总览"
+				},
+				"name": "ViewsUrbanHealthCheckOverviewIndex",
+				"id": "urban_expro_view",
+				"leaf": true,
+				"url": "/urban-health-check/overview/index",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/urban-health-check/urban/indicator-system/list",
+				"path": "/urban_expro_edit",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/urban-health-check/urban/indicator-system/list",
+						"component": "/urban-health-check/urban/indicator-system/list",
+						"children": [
+							{
+								"path": "/urban-health-check/urban/indicator-system/:id",
+								"component": "/urban-health-check/urban/indicator-system/_id/list",
+								"meta": {
+									"extend": {
+										"extendMap": { }
+									},
+									"hideMenu": true,
+									"color": null,
+									"icon": null,
+									"title": "指标体系管理细节"
+								},
+								"name": "ViewsUrbanHealthCheckUrbanIndicatorSystemId",
+								"id": "2094611967656730624",
+								"leaf": true,
+								"url": "/urban-health-check/urban/indicator-system/{id}",
+								"props": null,
+								"target": null
+							}
+						],
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "指标体系管理"
+						},
+						"name": "ViewsUrbanHealthCheckUrbanIndicatorSystemList",
+						"id": "2094268495099731968",
+						"leaf": false,
+						"url": "/urban-health-check/urban/indicator-system/list",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/urban-health-check/urban/indicator-result/list",
+						"component": "/urban-health-check/urban/indicator-result/list",
+						"children": [
+							{
+								"path": "/urban-health-check/urban/indicator-result/:id",
+								"component": "/urban-health-check/urban/indicator-result/_id/list",
+								"meta": {
+									"extend": {
+										"extendMap": { }
+									},
+									"hideMenu": true,
+									"color": null,
+									"icon": null,
+									"title": "指标项结果管理细节"
+								},
+								"name": "ViewsUrbanHealthCheckUrbanIndicatorResultId",
+								"id": "2094687854922178560",
+								"leaf": true,
+								"url": "/urban-health-check/urban/indicator-result/{id}",
+								"props": null,
+								"target": null
+							}
+						],
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "指标项结果管理"
+						},
+						"name": "ViewsUrbanHealthCheckUrbanIndicatorResultList",
+						"id": "2094268686120919040",
+						"leaf": false,
+						"url": "/urban-health-check/urban/indicator-result/list",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/urban-health-check/urban/satisfaction-survey/list",
+						"component": "/urban-health-check/urban/satisfaction-survey/list",
+						"children": [
+							{
+								"path": "/urban-health-check/urban/satisfaction-survey/:id",
+								"component": "/urban-health-check/urban/satisfaction-survey/_id/list",
+								"meta": {
+									"extend": {
+										"extendMap": { }
+									},
+									"hideMenu": true,
+									"color": null,
+									"icon": null,
+									"title": "满意度调查细节"
+								},
+								"name": "ViewsUrbanHealthCheckUrbanSatisfactionSurveyId",
+								"id": "2094744995494240256",
+								"leaf": true,
+								"url": "/urban-health-check/urban/satisfaction-survey/{id}",
+								"props": null,
+								"target": null
+							}
+						],
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "满意度调查"
+						},
+						"name": "ViewsUrbanHealthCheckUrbanSatisfactionSurveyList",
+						"id": "2094374497979604992",
+						"leaf": false,
+						"url": "/urban-health-check/urban/satisfaction-survey/list",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/urban-health-check/urban/achievement/list",
+						"component": "/urban-health-check/urban/achievement/list",
+						"children": [
+							{
+								"path": "/urban-health-check/urban/achievement/:id",
+								"component": "/urban-health-check/urban/achievement/_id/list",
+								"meta": {
+									"extend": {
+										"extendMap": { }
+									},
+									"hideMenu": true,
+									"color": null,
+									"icon": null,
+									"title": "体检成果管理细节"
+								},
+								"name": "ViewsUrbanHealthCheckUrbanAchievementId",
+								"id": "2094745128596283392",
+								"leaf": true,
+								"url": "/urban-health-check/urban/achievement/{id}",
+								"props": null,
+								"target": null
+							}
+						],
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "体检成果管理"
+						},
+						"name": "ViewsUrbanHealthCheckUrbanAchievementList",
+						"id": "2094374625180262400",
+						"leaf": false,
+						"url": "/urban-health-check/urban/achievement/list",
+						"props": null,
+						"target": null
+					}
+				],
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": "",
+					"icon": "",
+					"title": "市级体检管理"
+				},
+				"name": "Viewsurban_expro_edit",
+				"id": "urban_expro_edit",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/urban-health-check/district/indicator-system/list",
+				"path": "/2094374862191992832",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/urban-health-check/district/indicator-system/list",
+						"component": "/urban-health-check/district/indicator-system/list",
+						"children": [
+							{
+								"path": "/urban-health-check/district/indicator-system/:id",
+								"component": "/urban-health-check/district/indicator-system/_id/list",
+								"meta": {
+									"extend": {
+										"extendMap": { }
+									},
+									"hideMenu": true,
+									"color": null,
+									"icon": null,
+									"title": "指标体系管理细节"
+								},
+								"name": "ViewsUrbanHealthCheckDistrictIndicatorSystemId",
+								"id": "2095059534001610752",
+								"leaf": true,
+								"url": "/urban-health-check/district/indicator-system/{id}",
+								"props": null,
+								"target": null
+							}
+						],
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "指标体系管理"
+						},
+						"name": "ViewsUrbanHealthCheckDistrictIndicatorSystemList",
+						"id": "2094375060976836608",
+						"leaf": false,
+						"url": "/urban-health-check/district/indicator-system/list",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/urban-health-check/district/indicator-result/list",
+						"component": "/urban-health-check/district/indicator-result/list",
+						"children": [
+							{
+								"path": "/urban-health-check/district/indicator-result/:id",
+								"component": "/urban-health-check/district/indicator-result/_id/list",
+								"meta": {
+									"extend": {
+										"extendMap": { }
+									},
+									"hideMenu": true,
+									"color": null,
+									"icon": null,
+									"title": "指标项结果管理细节"
+								},
+								"name": "ViewsUrbanHealthCheckDistrictIndicatorResultId",
+								"id": "2095059675899109376",
+								"leaf": true,
+								"url": "/urban-health-check/district/indicator-result/{id}",
+								"props": null,
+								"target": null
+							}
+						],
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "指标项结果管理"
+						},
+						"name": "ViewsUrbanHealthCheckDistrictIndicatorResultList",
+						"id": "2094375771542265856",
+						"leaf": false,
+						"url": "/urban-health-check/district/indicator-result/list",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/urban-health-check/district/achievement/list",
+						"component": "/urban-health-check/district/achievement/list",
+						"children": [
+							{
+								"path": "/urban-health-check/district/achievement/:id",
+								"component": "/urban-health-check/district/achievement/_id/list",
+								"meta": {
+									"extend": {
+										"extendMap": { }
+									},
+									"hideMenu": true,
+									"color": null,
+									"icon": null,
+									"title": "体检成果管理细节"
+								},
+								"name": "ViewsUrbanHealthCheckDistrictAchievementId",
+								"id": "2095059801476571136",
+								"leaf": true,
+								"url": "/urban-health-check/district/achievement/{id}",
+								"props": null,
+								"target": null
+							}
+						],
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "体检成果管理"
+						},
+						"name": "ViewsUrbanHealthCheckDistrictAchievementList",
+						"id": "2094376152401846272",
+						"leaf": false,
+						"url": "/urban-health-check/district/achievement/list",
+						"props": null,
+						"target": null
+					}
+				],
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "区级体检管理"
+				},
+				"name": "Views2094374862191992832",
+				"id": "2094374862191992832",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": null
+			},
+			{
+				"path": "/urban-health-check/report-generation/list",
+				"component": "/urban-health-check/report-generation/list",
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "报告生成"
+				},
+				"name": "ViewsUrbanHealthCheckReportGenerationList",
+				"id": "2095700676049248256",
+				"leaf": true,
+				"url": "/urban-health-check/report-generation/list",
+				"props": null,
+				"target": null
+			}
+		],
+		"meta": {
+			"extend": {
+				"extendMap": { }
+			},
+			"hideMenu": false,
+			"color": "",
+			"icon": "",
+			"title": "城市体检"
+		},
+		"name": "Viewsurban_expro",
+		"id": "urban_expro",
+		"leaf": false,
+		"url": "",
+		"props": null,
+		"target": ""
+	},
+	{
+		"redirect": "/early-stage-planning/overview/index",
+		"path": "/2095345402872471552",
+		"component": "LAYOUT",
+		"children": [
+			{
+				"path": "/early-stage-planning/overview/index",
+				"component": "/early-stage-planning/overview/index",
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "前期规划总览"
+				},
+				"name": "ViewsEarlyStagePlanningOverviewIndex",
+				"id": "2095345604320698368",
+				"leaf": true,
+				"url": "/early-stage-planning/overview/index",
+				"props": null,
+				"target": null
+			},
+			{
+				"redirect": "/early-stage-planning/policy-management/classified-navigation/list",
+				"path": "/2095708373935071232",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/early-stage-planning/policy-management/classified-navigation/list",
+						"component": "/early-stage-planning/policy-management/classified-navigation/list",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "政策分类导航"
+						},
+						"name": "ViewsEarlyStagePlanningPolicyManagementClassifiedNavigationList",
+						"id": "2095708608941924352",
+						"leaf": true,
+						"url": "/early-stage-planning/policy-management/classified-navigation/list",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/early-stage-planning/policy-management/semantic-matching/index",
+						"component": "/early-stage-planning/policy-management/semantic-matching/index",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "语义关联度匹配"
+						},
+						"name": "ViewsEarlyStagePlanningPolicyManagementSemanticMatchingIndex",
+						"id": "2095708820875911168",
+						"leaf": true,
+						"url": "/early-stage-planning/policy-management/semantic-matching/index",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/early-stage-planning/policy-management/keyword-search",
+						"component": "/early-stage-planning/policy-management/keyword-search",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "关键字查询"
+						},
+						"name": "ViewsEarlyStagePlanningPolicyManagementKeywordSearch",
+						"id": "2095708932553449472",
+						"leaf": true,
+						"url": "/early-stage-planning/policy-management/keyword-search",
+						"props": null,
+						"target": null
+					}
+				],
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "政策管理"
+				},
+				"name": "Views2095708373935071232",
+				"id": "2095708373935071232",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": null
+			}
+		],
+		"meta": {
+			"extend": {
+				"extendMap": { }
+			},
+			"hideMenu": false,
+			"color": null,
+			"icon": null,
+			"title": "前期规划"
+		},
+		"name": "Views2095345402872471552",
+		"id": "2095345402872471552",
+		"leaf": false,
+		"url": "",
+		"props": null,
+		"target": null
+	},
+	{
+		"redirect": "/ifco/overview/index",
+		"path": "/2095070429675134976",
+		"component": "LAYOUT",
+		"children": [
+			{
+				"path": "/ifco/overview/index",
+				"component": "/ifco/overview/index",
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "投融建运总览"
+				},
+				"name": "ViewsIfcoOverviewIndex",
+				"id": "2095070696877465600",
+				"leaf": true,
+				"url": "/ifco/overview/index",
+				"props": null,
+				"target": null
+			}
+		],
+		"meta": {
+			"extend": {
+				"extendMap": { }
+			},
+			"hideMenu": false,
+			"color": null,
+			"icon": null,
+			"title": "投融建运"
+		},
+		"name": "Views2095070429675134976",
+		"id": "2095070429675134976",
+		"leaf": false,
+		"url": "",
+		"props": null,
+		"target": null
+	},
+	{
+		"redirect": "/expropriation-management/overview/index",
+		"path": "/2095353795955793920",
+		"component": "LAYOUT",
+		"children": [
+			{
+				"path": "/expropriation-management/overview/index",
+				"component": "/expropriation-management/overview/index",
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "征收管理总览"
+				},
+				"name": "ViewsExpropriationManagementOverviewIndex",
+				"id": "2095353938234974208",
+				"leaf": true,
+				"url": "/expropriation-management/overview/index",
+				"props": null,
+				"target": null
+			}
+		],
+		"meta": {
+			"extend": {
+				"extendMap": { }
+			},
+			"hideMenu": false,
+			"color": null,
+			"icon": null,
+			"title": "征收管理"
+		},
+		"name": "Views2095353795955793920",
+		"id": "2095353795955793920",
+		"leaf": false,
+		"url": "",
+		"props": null,
+		"target": null
+	},
+	{
+		"redirect": "/urban-protection/overview/relic-map/index",
+		"path": "/2094684008544083968",
+		"component": "LAYOUT",
+		"children": [
+			{
+				"path": "/urban-protection/overview/relic-map/index",
+				"component": "/urban-protection/overview/relic-map/index",
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "名城保护总览"
+				},
+				"name": "ViewsUrbanProtectionOverviewRelicMapIndex",
+				"id": "2094707765270683648",
+				"leaf": true,
+				"url": "/urban-protection/overview/relic-map/index",
+				"props": null,
+				"target": null
+			},
+			{
+				"redirect": "/urban-protection/relic-management/relic/list",
+				"path": "/2094707583770566656",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/urban-protection/relic-management/relic/list",
+						"component": "/urban-protection/relic-management/relic/list",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "优保建筑基础信息及数字化档案管理"
+						},
+						"name": "ViewsUrbanProtectionRelicManagementRelicList",
+						"id": "2094708500074995712",
+						"leaf": true,
+						"url": "/urban-protection/relic-management/relic/list",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095311794870820864",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "拟优保建筑信息管理及优秀历史建筑推荐"
+						},
+						"name": "Views2095311794870820864",
+						"id": "2095311794870820864",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095311948847915008",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "优保、拟优保建筑的落图"
+						},
+						"name": "Views2095311948847915008",
+						"id": "2095311948847915008",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095312038601826304",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "优保、拟优保建筑的巡查"
+						},
+						"name": "Views2095312038601826304",
+						"id": "2095312038601826304",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095312170051313664",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "巡查整改成果回告"
+						},
+						"name": "Views2095312170051313664",
+						"id": "2095312170051313664",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095312309964906496",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "优保、拟优保建筑维护状态监测"
+						},
+						"name": "Views2095312309964906496",
+						"id": "2095312309964906496",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095312368186040320",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "优秀历史保护建筑对外展示"
+						},
+						"name": "Views2095312368186040320",
+						"id": "2095312368186040320",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					}
+				],
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "优秀历史建筑保护管理"
+				},
+				"name": "Views2094707583770566656",
+				"id": "2094707583770566656",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": null
+			},
+			{
+				"redirect": "/2095312546754338816",
+				"path": "/2094747735167475712",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/2095312546754338816",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "历史文化风貌区展示"
+						},
+						"name": "Views2095312546754338816",
+						"id": "2095312546754338816",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095313424508919808",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "历史文化风貌区街区基础信息收集管理"
+						},
+						"name": "Views2095313424508919808",
+						"id": "2095313424508919808",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095313665970806784",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "历史文化风貌区内数据统计"
+						},
+						"name": "Views2095313665970806784",
+						"id": "2095313665970806784",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					},
+					{
+						"path": "/2095313732337278976",
+						"component": "",
+						"meta": {
+							"extend": {
+								"extendMap": { }
+							},
+							"hideMenu": false,
+							"color": null,
+							"icon": null,
+							"title": "历史文化风貌区巡查"
+						},
+						"name": "Views2095313732337278976",
+						"id": "2095313732337278976",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": null
+					}
+				],
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": null,
+					"icon": null,
+					"title": "历史文化风貌区管理"
+				},
+				"name": "Views2094747735167475712",
+				"id": "2094747735167475712",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": null
+			}
+		],
+		"meta": {
+			"extend": {
+				"extendMap": { }
+			},
+			"hideMenu": false,
+			"color": null,
+			"icon": null,
+			"title": "名城保护"
+		},
+		"name": "Views2094684008544083968",
+		"id": "2094684008544083968",
+		"leaf": false,
+		"url": "",
+		"props": null,
+		"target": null
+	},
+	{
+		"redirect": "/2087370406659186688",
+		"path": "/2087370406445277184",
+		"component": "LAYOUT",
+		"children": [
+			{
+				"redirect": "/sys/empUser/index",
+				"path": "/2087370406659186688",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/sys/empUser/index",
+						"component": "/sys/empUser/index",
+						"children": [
+							{
+								"path": "/2087370407204446208",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "查看"
+								},
+								"name": "Views2087370407204446208",
+								"id": "2087370407204446208",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370407380606976",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "编辑"
+								},
+								"name": "Views2087370407380606976",
+								"id": "2087370407380606976",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370407695179776",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "分配数据"
+								},
+								"name": "Views2087370407695179776",
+								"id": "2087370407695179776",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370407552573440",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "分配角色"
+								},
+								"name": "Views2087370407552573440",
+								"id": "2087370407552573440",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370407883923456",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "停用启用"
+								},
+								"name": "Views2087370407883923456",
+								"id": "2087370407883923456",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370408026529792",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "重置密码"
+								},
+								"name": "Views2087370408026529792",
+								"id": "2087370408026529792",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-user",
+							"title": "用户管理"
+						},
+						"name": "ViewsSysEmpUserIndex",
+						"id": "2087370407049256960",
+						"leaf": false,
+						"url": "/sys/empUser/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/sys/office/index",
+						"component": "/sys/office/index",
+						"children": [
+							{
+								"path": "/2087370408324325376",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "查看"
+								},
+								"name": "Views2087370408324325376",
+								"id": "2087370408324325376",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370408458543104",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "编辑"
+								},
+								"name": "Views2087370408458543104",
+								"id": "2087370408458543104",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-grid",
+							"title": "机构管理"
+						},
+						"name": "ViewsSysOfficeIndex",
+						"id": "2087370408202690560",
+						"leaf": false,
+						"url": "/sys/office/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/sys/company/index",
+						"component": "/sys/company/index",
+						"children": [
+							{
+								"path": "/2087370408726978560",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "查看"
+								},
+								"name": "Views2087370408726978560",
+								"id": "2087370408726978560",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370408869584896",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "编辑"
+								},
+								"name": "Views2087370408869584896",
+								"id": "2087370408869584896",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-fire",
+							"title": "公司管理"
+						},
+						"name": "ViewsSysCompanyIndex",
+						"id": "2087370408601149440",
+						"leaf": false,
+						"url": "/sys/company/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/sys/post/list",
+						"component": "/sys/post/list",
+						"children": [
+							{
+								"path": "/2087370409179963392",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "查看"
+								},
+								"name": "Views2087370409179963392",
+								"id": "2087370409179963392",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370409448398848",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "编辑"
+								},
+								"name": "Views2087370409448398848",
+								"id": "2087370409448398848",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-trophy",
+							"title": "岗位管理"
+						},
+						"name": "ViewsSysPostList",
+						"id": "2087370409024774144",
+						"leaf": false,
+						"url": "/sys/post/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-grid",
+					"title": "组织管理"
+				},
+				"name": "Views2087370406659186688",
+				"id": "2087370406659186688",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/sys/role/list",
+				"path": "/2087370409616171008",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/sys/role/list",
+						"component": "/sys/role/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-people",
+							"title": "角色管理"
+						},
+						"name": "ViewsSysRoleList",
+						"id": "2087370409762971648",
+						"leaf": true,
+						"url": "/sys/role/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/sys/secAdmin/list",
+						"component": "/sys/secAdmin/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-user-female",
+							"title": "二级管理员"
+						},
+						"name": "ViewsSysSecAdminList",
+						"id": "2087370409926549504",
+						"leaf": true,
+						"url": "/sys/secAdmin/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-social-dropbox",
+					"title": "权限管理"
+				},
+				"name": "Views2087370409616171008",
+				"id": "2087370409616171008",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/sys/config/list",
+				"path": "/2087370410635386880",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/sys/config/list",
+						"component": "/sys/config/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-wrench",
+							"title": "参数设置"
+						},
+						"name": "ViewsSysConfigList",
+						"id": "2087370411113537536",
+						"leaf": true,
+						"url": "/sys/config/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/sys/dictType/list",
+						"component": "/sys/dictType/list",
+						"children": [
+							{
+								"path": "/2087370411415527424",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "类型查看"
+								},
+								"name": "Views2087370411415527424",
+								"id": "2087370411415527424",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/sys/dictData/list",
+								"component": "/sys/dictData/list",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "字典数据"
+								},
+								"name": "ViewsSysDictDataList",
+								"id": "2087370411679768576",
+								"leaf": true,
+								"url": "/sys/dictData/list",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370411818180608",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "数据编辑"
+								},
+								"name": "Views2087370411818180608",
+								"id": "2087370411818180608",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-social-dropbox",
+							"title": "字典管理"
+						},
+						"name": "ViewsSysDictTypeList",
+						"id": "2087370411264532480",
+						"leaf": false,
+						"url": "/sys/dictType/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/sys/area/list",
+						"component": "/sys/area/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-map",
+							"title": "行政区划"
+						},
+						"name": "ViewsSysAreaList",
+						"id": "2087370411952398336",
+						"leaf": true,
+						"url": "/sys/area/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-settings",
+					"title": "系统设置"
+				},
+				"name": "Views2087370410635386880",
+				"id": "2087370410635386880",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/urban/flow/definition",
+				"path": "/urban_flow",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/urban/flow/definition",
+						"component": "/urban/flow/definition",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "流程定义"
+						},
+						"name": "ViewsUrbanFlowDefinition",
+						"id": "urban_flow_def",
+						"leaf": true,
+						"url": "/urban/flow/definition",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban/flow/instance",
+						"component": "/urban/flow/instance",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "在途实例"
+						},
+						"name": "ViewsUrbanFlowInstance",
+						"id": "urban_flow_instance",
+						"leaf": true,
+						"url": "/urban/flow/instance",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban/flow/todo",
+						"component": "/urban/flow/todo",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "我的待办"
+						},
+						"name": "ViewsUrbanFlowTodo",
+						"id": "urban_flow_todo",
+						"leaf": true,
+						"url": "/urban/flow/todo",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban/flow/finished",
+						"component": "/urban/flow/finished",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "我的已办"
+						},
+						"name": "ViewsUrbanFlowFinished",
+						"id": "urban_flow_finished",
+						"leaf": true,
+						"url": "/urban/flow/finished",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban/flow/myProcess",
+						"component": "/urban/flow/myProcess",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "我发起的"
+						},
+						"name": "ViewsUrbanFlowMyProcess",
+						"id": "urban_flow_my",
+						"leaf": true,
+						"url": "/urban/flow/myProcess",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban/flow/designer",
+						"component": "/urban/flow/designer",
+						"meta": {
+							"hideMenu": true,
+							"color": "",
+							"icon": "",
+							"title": "流程设计器"
+						},
+						"name": "ViewsUrbanFlowDesigner",
+						"id": "urban_flow_designer",
+						"leaf": true,
+						"url": "/urban/flow/designer",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban/flow/form",
+						"component": "/urban/flow/form",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "fa fa-link",
+							"title": "表单关联"
+						},
+						"name": "ViewsUrbanFlowForm",
+						"id": "urban_flow_form",
+						"leaf": true,
+						"url": "/urban/flow/form",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban/flow/category",
+						"component": "/urban/flow/category",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "fa fa-folder-open",
+							"title": "流程分类"
+						},
+						"name": "ViewsUrbanFlowCategory",
+						"id": "urban_flow_category",
+						"leaf": true,
+						"url": "/urban/flow/category",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban_flow_view",
+						"component": "",
+						"meta": {
+							"hideMenu": true,
+							"color": "",
+							"icon": "",
+							"title": "查看"
+						},
+						"name": "Viewsurban_flow_view",
+						"id": "urban_flow_view",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/urban_flow_edit",
+						"component": "",
+						"meta": {
+							"hideMenu": true,
+							"color": "",
+							"icon": "",
+							"title": "编辑"
+						},
+						"name": "Viewsurban_flow_edit",
+						"id": "urban_flow_edit",
+						"leaf": true,
+						"url": "",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"extend": {
+						"extendMap": { }
+					},
+					"hideMenu": false,
+					"color": "",
+					"icon": "simple-line-icons:shuffle",
+					"title": "流程管理"
+				},
+				"name": "Viewsurban_flow",
+				"id": "urban_flow",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/sys/log/list",
+				"path": "/2087370412376023040",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/sys/log/list",
+						"component": "/sys/log/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "fa fa-bug",
+							"title": "访问日志"
+						},
+						"name": "ViewsSysLogList",
+						"id": "2087370412514435072",
+						"leaf": true,
+						"url": "/sys/log/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/sys/online/list",
+						"component": "/sys/online/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-social-twitter",
+							"title": "在线用户"
+						},
+						"name": "ViewsSysOnlineList",
+						"id": "2087370413307158528",
+						"leaf": true,
+						"url": "/sys/online/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-ghost",
+					"title": "系统监控"
+				},
+				"name": "Views2087370412376023040",
+				"id": "2087370412376023040",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/msg/msgPush/list",
+				"path": "/2087370413563011072",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/msg/msgPush/list",
+						"component": "/msg/msgPush/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "未完成消息"
+						},
+						"name": "ViewsMsgMsgPushList",
+						"id": "2087370413693034496",
+						"leaf": true,
+						"url": "/msg/msgPush/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/msg/msgPush/list-pushed-true",
+						"component": "/msg/msgPush/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "已完成消息"
+						},
+						"name": "ViewsMsgMsgPushListPushedTrue",
+						"id": "2087370413810475008",
+						"leaf": true,
+						"url": "/msg/msgPush/list?pushed=true",
+						"props": {
+							"pushed": "true"
+						},
+						"target": ""
+					},
+					{
+						"path": "/msg/msgTemplate/list",
+						"component": "/msg/msgTemplate/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "消息模板管理"
+						},
+						"name": "ViewsMsgMsgTemplateList",
+						"id": "2087370413953081344",
+						"leaf": true,
+						"url": "/msg/msgTemplate/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-envelope-letter",
+					"title": "消息推送"
+				},
+				"name": "Views2087370413563011072",
+				"id": "2087370413563011072",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/dbm/dbmDatasource/list",
+				"path": "/2087370458316234752",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/dbm/dbmDatasource/list",
+						"component": "/dbm/dbmDatasource/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "fa fa-cube",
+							"title": "数据源管理"
+						},
+						"name": "ViewsDbmDbmDatasourceList",
+						"id": "2087370458458841088",
+						"leaf": true,
+						"url": "/dbm/dbmDatasource/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/dbm/dbmTable/index",
+						"component": "/dbm/dbmTable/index",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "fa fa-list",
+							"title": "数据表管理"
+						},
+						"name": "ViewsDbmDbmTableIndex",
+						"id": "2087370458521755648",
+						"leaf": true,
+						"url": "/dbm/dbmTable/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/dbm/entity/index",
+						"component": "/dbm/entity/index",
+						"children": [
+							{
+								"path": "/dbm/data/list",
+								"component": "/dbm/data/list",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "管理实体数据"
+								},
+								"name": "ViewsDbmDataList",
+								"id": "2087370458651779072",
+								"leaf": true,
+								"url": "/dbm/data/list",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/dbm/tree/list",
+								"component": "/dbm/tree/list",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "管理实体数据"
+								},
+								"name": "ViewsDbmTreeList",
+								"id": "2087370458731470848",
+								"leaf": true,
+								"url": "/dbm/tree/list",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "simple-line-icons:film",
+							"title": "数据实体管理"
+						},
+						"name": "ViewsDbmEntityIndex",
+						"id": "2087370458584670208",
+						"leaf": false,
+						"url": "/dbm/entity/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/dbm/excel/list",
+						"component": "/dbm/excel/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "ant-design:file-excel-outlined",
+							"title": "数据导入导出"
+						},
+						"name": "ViewsDbmExcelList",
+						"id": "2087370458811162624",
+						"leaf": true,
+						"url": "/dbm/excel/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/biz/bizCategory/index",
+						"component": "/biz/bizCategory/index",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-menu",
+							"title": "业务分类管理"
+						},
+						"name": "ViewsBizBizCategoryIndex",
+						"id": "2087370458886660096",
+						"leaf": true,
+						"url": "/biz/bizCategory/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/dbm/dbmModifyLog/list",
+						"component": "/dbm/dbmModifyLog/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "fa fa-wpforms",
+							"title": "修改记录留痕"
+						},
+						"name": "ViewsDbmDbmModifyLogList",
+						"id": "2087370458949574656",
+						"leaf": true,
+						"url": "/dbm/dbmModifyLog/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "fa fa-database",
+					"title": "数据管理"
+				},
+				"name": "Views2087370458316234752",
+				"id": "2087370458316234752",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			}
+		],
+		"meta": {
+			"hideMenu": false,
+			"color": "",
+			"icon": "icon-settings",
+			"title": "系统管理"
+		},
+		"name": "Views2087370406445277184",
+		"id": "2087370406445277184",
+		"leaf": false,
+		"url": "",
+		"props": null,
+		"target": ""
+	},
+	{
+		"redirect": "/urban/screen/dashboard",
+		"path": "/2087370419632168960",
+		"component": "LAYOUT",
+		"children": [
+			{
+				"path": "/urban/screen/dashboard",
+				"component": "/urban/screen/dashboard",
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "fa fa-dashboard",
+					"title": "运行健康看板"
+				},
+				"name": "ViewsUrbanScreenDashboard",
+				"id": "urban_screen_dashboard",
+				"leaf": true,
+				"url": "/urban/screen/dashboard",
+				"props": null,
+				"target": ""
+			},
+			{
+				"path": "/urban/gis/map",
+				"component": "/urban/gis/map",
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "fa fa-map-o",
+					"title": "GIS一张图"
+				},
+				"name": "ViewsUrbanGisMap",
+				"id": "urban_gis_map",
+				"leaf": true,
+				"url": "/urban/gis/map",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/msg/msgInner/list",
+				"path": "/2087370419716055040",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/msg/msgInner/list",
+						"component": "/msg/msgInner/list",
+						"children": [
+							{
+								"path": "/msg/msgInner/view",
+								"component": "/msg/msgInner/view",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "查看"
+								},
+								"name": "ViewsMsgMsgInnerView",
+								"id": "2087370419904798720",
+								"leaf": true,
+								"url": "/msg/msgInner/view",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370420005462016",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "编辑"
+								},
+								"name": "Views2087370420005462016",
+								"id": "2087370420005462016",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							},
+							{
+								"path": "/2087370420110319616",
+								"component": "",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "审核"
+								},
+								"name": "Views2087370420110319616",
+								"id": "2087370420110319616",
+								"leaf": true,
+								"url": "",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-speech",
+							"title": "站内消息"
+						},
+						"name": "ViewsMsgMsgInnerList",
+						"id": "2087370419820912640",
+						"leaf": false,
+						"url": "/msg/msgInner/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/desktop/workbench",
+						"component": "/desktop/workbench",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-screen-desktop",
+							"title": "我的工作"
+						},
+						"name": "ViewsDesktopWorkbench",
+						"id": "2087370420206788608",
+						"leaf": true,
+						"url": "/desktop/workbench",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/desktop/about",
+						"component": "/desktop/about",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-tag",
+							"title": "关于我们"
+						},
+						"name": "ViewsDesktopAbout",
+						"id": "2087370420303257600",
+						"leaf": true,
+						"url": "/desktop/about",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-screen-desktop",
+					"title": "我的工作"
+				},
+				"name": "Views2087370419716055040",
+				"id": "2087370419716055040",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/cms/index",
+				"path": "/2087370474380419072",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/cms/index",
+						"component": "/cms/index",
+						"children": [
+							{
+								"path": "/cms/article/form",
+								"component": "/cms/article/form",
+								"meta": {
+									"hideMenu": true,
+									"color": "",
+									"icon": "",
+									"title": "编辑文章"
+								},
+								"name": "ViewsCmsArticleForm",
+								"id": "2087370474564968448",
+								"leaf": true,
+								"url": "/cms/article/form",
+								"props": null,
+								"target": ""
+							}
+						],
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-book-open",
+							"title": "内容发布"
+						},
+						"name": "ViewsCmsIndex",
+						"id": "2087370474489470976",
+						"leaf": false,
+						"url": "/cms/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/cms/category/index",
+						"component": "/cms/category/index",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-plus",
+							"title": "栏目管理"
+						},
+						"name": "ViewsCmsCategoryIndex",
+						"id": "2087370474644660224",
+						"leaf": true,
+						"url": "/cms/category/index",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/cms/site/list",
+						"component": "/cms/site/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "icon-badge",
+							"title": "站点设置"
+						},
+						"name": "ViewsCmsSiteList",
+						"id": "2087370474720157696",
+						"leaf": true,
+						"url": "/cms/site/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/cms/template/list",
+						"component": "IFRAME",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"frameSrc": "/js/a/cms/template/list",
+							"icon": "icon-graduation",
+							"title": "模版管理"
+						},
+						"name": "ViewsCmsTemplateList",
+						"id": "2087370474799849472",
+						"leaf": true,
+						"url": "/cms/template/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-social-dropbox",
+					"title": "内容管理"
+				},
+				"name": "Views2087370474380419072",
+				"id": "2087370474380419072",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			},
+			{
+				"redirect": "/app/appUpgrade/list",
+				"path": "/2087370480441188352",
+				"component": "LAYOUT",
+				"children": [
+					{
+						"path": "/app/appUpgrade/list",
+						"component": "/app/appUpgrade/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "APP版本管理"
+						},
+						"name": "ViewsAppAppUpgradeList",
+						"id": "2087370480575406080",
+						"leaf": true,
+						"url": "/app/appUpgrade/list",
+						"props": null,
+						"target": ""
+					},
+					{
+						"path": "/app/appComment/list",
+						"component": "/app/appComment/list",
+						"meta": {
+							"hideMenu": false,
+							"color": "",
+							"icon": "",
+							"title": "APP意见反馈"
+						},
+						"name": "ViewsAppAppCommentList",
+						"id": "2087370480659292160",
+						"leaf": true,
+						"url": "/app/appComment/list",
+						"props": null,
+						"target": ""
+					}
+				],
+				"meta": {
+					"hideMenu": false,
+					"color": "",
+					"icon": "icon-globe",
+					"title": "APP管理"
+				},
+				"name": "Views2087370480441188352",
+				"id": "2087370480441188352",
+				"leaf": false,
+				"url": "",
+				"props": null,
+				"target": ""
+			}
+		],
+		"meta": {
+			"hideMenu": false,
+			"color": "",
+			"icon": "icon-layers",
+			"title": "扩展功能"
+		},
+		"name": "Views2087370419632168960",
+		"id": "2087370419632168960",
+		"leaf": false,
+		"url": "",
+		"props": null,
+		"target": ""
+	},
+	{
+		"path": "https://vue.jeesite.com/cms/chat/index?___blank",
+		"component": "IFRAME",
+		"meta": {
+			"extend": {
+				"extendMap": { }
+			},
+			"hideMenu": true,
+			"color": "",
+			"frameSrc": "https://vue.jeesite.com/cms/chat/index",
+			"icon": "icon-bubble",
+			"title": "AI助手"
+		},
+		"name": "ViewsHttpsVueJeesiteComCmsChatIndex",
+		"id": "2087370474883735552",
+		"leaf": true,
+		"url": "https://vue.jeesite.com/cms/chat/index",
+		"props": null,
+		"target": "_blank"
+	}
+]
