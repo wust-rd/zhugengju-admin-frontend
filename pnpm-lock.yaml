@@ -41,9 +41,15 @@ importers:
       '@jeesite/display':
         specifier: workspace:*
         version: link:packages/display
-      '@jeesite/ifco':
+      '@jeesite/early-stage-planning':
+        specifier: workspace:*
+        version: link:modules/packages/early-stage-planning
+      '@jeesite/expropriation-management':
         specifier: workspace:*
         version: link:modules/packages/ifco
+      '@jeesite/ifco':
+        specifier: workspace:*
+        version: link:modules/packages/expropriation-management
       '@jeesite/test':
         specifier: workspace:*
         version: link:packages/test
@@ -261,6 +267,18 @@ importers:
       vite-plugin-zip-pack:
         specifier: ^1.2.4
         version: 1.2.4(vite@8.0.10(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.6)(terser@5.50.0)(yaml@2.9.0))
+
+  modules/packages/early-stage-planning:
+    dependencies:
+      qs:
+        specifier: 6.15.0
+        version: 6.15.0
+    devDependencies:
+      '@types/qs':
+        specifier: 6.15.0
+        version: 6.15.0
+
+  modules/packages/expropriation-management: {}
 
   modules/packages/ifco: {}
 

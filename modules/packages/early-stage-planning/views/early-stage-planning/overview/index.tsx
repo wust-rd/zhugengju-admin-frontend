@@ -3,17 +3,17 @@ import { ArtFont } from '@jeesite/display/components/art-font';
 import { CollapseGroups } from '@jeesite/display/components/collapse-groups';
 import { XodItem, XodRow } from '@jeesite/display/components/corner-panel/xod-row';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
+import { RightDrawer } from '@jeesite/display/components/early-stage-planning/right-drawer';
 import { GlassRing } from '@jeesite/display/components/glass-ring';
 import { type GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import type { MenuItemType } from 'antdv-next';
-import { defineComponent, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, ref } from 'vue';
 import { DistrictChart } from './district-chart';
 import { InvestTotalCard } from './invest-total-card';
-import { RightDrawer } from '@jeesite/display/components/early-stage-planning/right-drawer';
-import { AreaOverviewModal } from '@jeesite/display/components/early-stage-planning/area-overview-modal';
+import { useAppStore } from '@jeesite/core/store/modules/app';
 
 // 区域 tabs：激活项由 RegionTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
 const regionTabs: GlowTabItem[] = [
@@ -24,6 +24,14 @@ const regionTabs: GlowTabItem[] = [
 export default defineComponent({
   name: 'DisplayEarlyStagePlanning',
   setup() {
+    const appStore = useAppStore();
+    // 沉浸式全屏：进入时隐藏顶部标签栏、去掉内容区 padding，让页面占据整个屏幕（保留侧边菜单）
+    appStore.setImmersive(true);
+    // 离开时恢复，避免影响其它页面
+    onBeforeUnmount(() => {
+      appStore.setImmersive(false);
+    });
+
     // 区域 tabs 当前激活项（点击切换，单选）
     const activeRegionKey = ref<string>('district');
 
@@ -106,11 +114,12 @@ export default defineComponent({
               </div>
             </>
           ),
-          right: () => <div class="size-full relative bg-white">
-          <RightDrawer />
-          {/* <AreaOverviewModal /> */}
-          
-          </div>,
+          right: () => (
+            <div class="size-full relative bg-white">
+              <RightDrawer />
+              {/* <AreaOverviewModal /> */}
+            </div>
+          ),
         }}
       </DisplayPageLayout>
     );

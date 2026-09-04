@@ -18,31 +18,6 @@ export const displayRoutes: RouteRecordRaw[] = [
       ignoreAuth: true,
     },
     children: [
-      {
-        path: 'urban-health-check',
-        name: 'DisplayUrbanHealthCheck',
-        component: () => import('@jeesite/urban-health-check/views/urban-health-check/overview/index'),
-        meta: {
-          title: '城市体检',
-        },
-      },
-      {
-        path: 'ifco',
-        name: 'DisplayIfco',
-        component: () => import('@jeesite/ifco/views/overview/index'),
-        meta: {
-          title: '投融建运',
-        },
-      },
-      // 片区策划详情（独立完整页面，路径 /display/ifco/detail）
-      // {
-      //   path: 'ifco/detail',
-      //   name: 'DisplayIfcoDetail',
-      //   component: () => import('@jeesite/ifco/views/ifco/detail/index'),
-      //   meta: {
-      //     title: '片区策划详情',
-      //   },
-      // },
       // 地图滑动对比页（@geoql/maplibre-gl-compare）
       {
         path: 'compare',
@@ -67,39 +42,6 @@ export const displayRoutes: RouteRecordRaw[] = [
         component: () => import('../views/reuse-maps/b'),
         meta: {
           title: 'ReuseMaps B',
-        },
-      },
-      {
-        path: 'early-stage-planning',
-        name: 'DisplayEarlyStagePlanning',
-        component: () => import('../views/early-stage-planning/index'),
-        meta: {
-          title: '前期规划',
-        },
-      },
-      {
-        path: 'expropriation-management',
-        name: 'DisplayExpropriationManagement',
-        component: () => import('../views/expropriation-management/index'),
-        meta: {
-          title: '征收管理',
-        },
-      },
-      {
-        path: 'urban-protection',
-        name: 'DisplayUrbanProtection',
-        component: () => import('../views/urban-protection/index'),
-        meta: {
-          title: '名城保护',
-        },
-      },
-      // 文物地图（modules/@jeesite/urban-protection 大屏页，本地 JSON 数据打点）
-      {
-        path: 'urban-protection/relic-map',
-        name: 'DisplayUrbanProtectionRelicMap',
-        component: () => import('@jeesite/urban-protection/views/urban-protection/overview/relic-map/index'),
-        meta: {
-          title: '文物地图',
         },
       },
     ],
