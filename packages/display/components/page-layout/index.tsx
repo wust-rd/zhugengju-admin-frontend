@@ -77,7 +77,7 @@ export const DisplayPageLayout = defineComponent({
     };
 
     return () => (
-      <div class={cn('relative flex size-full overflow-hidden', props.class)}>
+      <div class={cn('relative flex h-[calc(100vh-88px)] overflow-hidden', props.class)}>
         {/* 展开按钮：面板收起后固定在左边缘，点击展开面板 */}
         {props.collapsible && collapsed.value && (
           <div class="absolute left-8px top-32px z-30">
@@ -89,8 +89,8 @@ export const DisplayPageLayout = defineComponent({
 
         {/* 左侧面板：收起时宽度收缩到 0（内容固定宽、溢出裁剪），右侧自动扩展 */}
         <div ref={panelRef} class="shrink-0 w-460px h-full blue-bg overflow-hidden">
-          {/* 内容容器：纵向流式堆叠，高度不足时出现纵向滚动条 */}
-          <div class="w-460px h-full overflow-y-auto overflow-x-hidden pl-16px pr-24px pt-24px pb-24px blue-bg">
+          {/* 内容容器：纵向流式堆叠，高度不足时纵向滚动（scrollbar-none 隐藏滚动条但保留滚动） */}
+          <div class="w-460px h-full overflow-y-auto overflow-x-hidden scrollbar-none pl-16px pr-24px pt-24px pb-24px blue-bg">
             {slots.left?.({ collapsed: collapsed.value, toggle })}
           </div>
         </div>
