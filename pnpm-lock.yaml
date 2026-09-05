@@ -286,7 +286,18 @@ importers:
 
   modules/packages/expropriation-management: {}
 
-  modules/packages/ifco: {}
+  modules/packages/ifco:
+    dependencies:
+      file-saver:
+        specifier: ^2.0.5
+        version: 2.0.5
+      xlsx:
+        specifier: 0.18.5
+        version: 0.18.5
+    devDependencies:
+      '@types/file-saver':
+        specifier: ^2.0.7
+        version: 2.0.7
 
   modules/packages/urban-health-check:
     dependencies:

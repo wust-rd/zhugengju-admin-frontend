@@ -111,7 +111,8 @@
 - 远程文件先 `fetch(url)` 取 `blob` 再 `saveAs`；后端返回文件流（blob/ArrayBuffer）时同样经 `saveAs` 保存，文件名带扩展名（如 `${record.reportName}.pdf`）；
 - `window.open(url, '_blank')` 仅用于**预览**（新标签页），下载动作不得用它或裸 `<a download>` 替代；
 - 依赖装在使用它的业务模块内（如 `@jeesite/urban-health-check`），类型用 `@types/file-saver`；
-- 参照实现：`modules/packages/urban-health-check/views/urban-health-check/report-generation/list.vue` 的 `handleDownload`。
+- **Excel 导出复用仓库既有 `xlsx`（SheetJS 0.18.5，`packages/core/components/Excel` 同源）**：业务模块按同版本声明 `xlsx` 依赖即可（零新增外部包），**勿新装 exceljs 等表格库**；简单平铺导出可用 `@jeesite/core` 的 `aoaToSheetXlsx`/`jsonToSheetXlsx`，多级合并表头直接 `utils.aoa_to_sheet` + `!merges`/`!cols`，落盘仍经 `write(..., { type: 'array' })` → `saveAs`（社区版不支持字体/填充样式与冻结窗格，属预期取舍）；业务模块新增依赖后需重启 dev server 才能被 Vite 解析；
+- 参照实现：`modules/packages/urban-health-check/views/urban-health-check/report-generation/list.vue` 的 `handleDownload`；Excel 多级表头导出参照 `modules/packages/ifco/views/ifco/progress-fill/export-excel.ts`。
 
 ## 抽屉查看模式约定（硬性规则）
 
