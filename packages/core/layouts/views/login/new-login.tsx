@@ -94,7 +94,7 @@ export default defineComponent({
             </div>
           </ConfigProvider>
 
-          <div class="mt-auto mb-16px text-12px text-gray-500">
+          <div class="mt-auto mb-16px text-14px text-gray-500">
             Copyright © {dayjs().year()} 武汉城市仿真科技有限公司. All rights reserved.
           </div>
         </div>

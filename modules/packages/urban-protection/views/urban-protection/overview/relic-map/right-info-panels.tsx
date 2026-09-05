@@ -74,7 +74,7 @@ export const RightInfoPanels = defineComponent({
           </div>
 
           {/* 表头：单位 + 图例 */}
-          <div class="mt-8px flex items-center text-12px text-white/45">
+          <div class="mt-8px flex items-center text-14px text-white/45">
             <span>单位：个</span>
             <span class="ml-auto flex items-center gap-10px">
               <span class="flex items-center gap-4px">
@@ -121,7 +121,7 @@ export const RightInfoPanels = defineComponent({
           </div>
 
           {/* 表头 */}
-          <div class="mt-12px grid grid-cols-[1fr_1.4fr_60px] gap-x-8px text-12px text-white/45">
+          <div class="mt-12px grid grid-cols-[1fr_1.4fr_60px] gap-x-8px text-14px text-white/45">
             <span>片区名称</span>
             <span>预警详情</span>
             <span class="text-right">预警时间</span>
@@ -132,7 +132,7 @@ export const RightInfoPanels = defineComponent({
               <div
                 key={`${row.code}-${i}`}
                 class={cn(
-                  'grid grid-cols-[1fr_1.4fr_60px] gap-x-8px rd-4px px-4px py-5px text-12px',
+                  'grid grid-cols-[1fr_1.4fr_60px] gap-x-8px rd-4px px-4px py-5px text-14px',
                   i % 2 === 0 ? 'bg-white/4' : '',
                 )}
               >
@@ -160,7 +160,7 @@ export const RightInfoPanels = defineComponent({
           <div class="mt-12px space-y-8px">
             {POLICY_ROWS.map((row) => (
               <div key={row.name} class="flex items-start gap-10px">
-                <span class="mt-2px shrink-0 rd-4px bg-cyan-500/15 px-8px py-2px text-12px text-cyan-300">
+                <span class="mt-2px shrink-0 rd-4px bg-cyan-500/15 px-8px py-2px text-14px text-cyan-300">
                   {row.level}
                 </span>
                 <span class="text-13px leading-20px text-white/85">{row.name}</span>

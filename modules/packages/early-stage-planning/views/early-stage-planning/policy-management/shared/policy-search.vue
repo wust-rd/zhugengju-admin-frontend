@@ -80,12 +80,7 @@
           @keydown.ctrl.enter.prevent="run"
           @keydown.meta.enter.prevent="run"
         />
-        <Input
-          v-else
-          v-model:value="query"
-          placeholder="输入关键词，例如：城市更新 征收补偿"
-          @pressEnter="run"
-        />
+        <Input v-else v-model:value="query" placeholder="输入关键词，例如：城市更新 征收补偿" @pressEnter="run" />
         <div class="mt-2 flex items-center gap-3">
           <a-button type="primary" @click="run">
             {{ semantic ? '匹配' : '搜索' }}
@@ -108,7 +103,7 @@
             <template v-else>{{ seg.text }}</template>
           </template>
         </a>
-        <div v-if="record.snippet" class="text-12px leading-5 text-gray-400">
+        <div v-if="record.snippet" class="text-14px leading-5 text-gray-400">
           <template v-for="(seg, i) in segments(record.snippet.slice(0, 160), terms)" :key="i">
             <mark v-if="seg.hit" class="bg-yellow-200 px-0 text-gray-500">{{ seg.text }}</mark>
             <template v-else>{{ seg.text }}</template>
@@ -122,12 +117,7 @@
       </template>
       <template v-if="semantic" #matchScore="{ record }">
         <div v-if="record.matchScore != null" class="flex items-center gap-2">
-          <Progress
-            :percent="Math.round(record.matchScore)"
-            :show-format="false"
-            size="small"
-            class="mb-0 w-70px"
-          />
+          <Progress :percent="Math.round(record.matchScore)" :show-format="false" size="small" class="mb-0 w-70px" />
           <span class="text-xs text-gray-500">{{ record.matchScore.toFixed(1) }}%</span>
         </div>
         <span v-else>-</span>
@@ -190,10 +180,30 @@
     baseColProps: { md: 8, lg: 6 },
     labelWidth: 90,
     schemas: [
-      { label: '政策层级', field: 'level', component: 'Select', componentProps: () => ({ options: levelOptions.value, allowClear: true }) },
-      { label: '政策类型', field: 'type', component: 'Select', componentProps: () => ({ options: typeOptions.value, allowClear: true }) },
-      { label: '业务领域', field: 'area', component: 'Select', componentProps: () => ({ options: areaOptions.value, allowClear: true }) },
-      { label: '适用区域', field: 'areaTag', component: 'Select', componentProps: () => ({ options: areaTagOptions.value, allowClear: true }) },
+      {
+        label: '政策层级',
+        field: 'level',
+        component: 'Select',
+        componentProps: () => ({ options: levelOptions.value, allowClear: true }),
+      },
+      {
+        label: '政策类型',
+        field: 'type',
+        component: 'Select',
+        componentProps: () => ({ options: typeOptions.value, allowClear: true }),
+      },
+      {
+        label: '业务领域',
+        field: 'area',
+        component: 'Select',
+        componentProps: () => ({ options: areaOptions.value, allowClear: true }),
+      },
+      {
+        label: '适用区域',
+        field: 'areaTag',
+        component: 'Select',
+        componentProps: () => ({ options: areaTagOptions.value, allowClear: true }),
+      },
       {
         label: '发布日期',
         field: 'dateRange',
@@ -279,9 +289,7 @@
       dateTo,
       sort: params.sort || 'relevance',
     });
-    countText.value = semantic.value
-      ? `匹配到 ${data.total} 条相关政策`
-      : `找到 ${data.total} 条相关结果`;
+    countText.value = semantic.value ? `匹配到 ${data.total} 条相关政策` : `找到 ${data.total} 条相关结果`;
     return { list: data.items.map((item) => item.policy), count: data.total };
   }
 
@@ -377,7 +385,10 @@
 
   function pushHistory(text: string) {
     if (!text) return;
-    history.value = [{ q: text, t: dateUtil().format('YYYY-MM-DD HH:mm') }, ...history.value.filter((item) => item.q !== text)].slice(0, 10);
+    history.value = [
+      { q: text, t: dateUtil().format('YYYY-MM-DD HH:mm') },
+      ...history.value.filter((item) => item.q !== text),
+    ].slice(0, 10);
     saveJson(HISTORY_KEY, history.value);
   }
 

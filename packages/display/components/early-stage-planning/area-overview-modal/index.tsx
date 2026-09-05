@@ -51,7 +51,7 @@ export const AreaOverviewModal = defineComponent({
             <div key={item.label} class="flex-1 py-8px">
               <div class="text-14px lh-20px text-white/75">{item.label}</div>
               {item.tag ? (
-                <div class="mt-8px inline-block b-1 b-solid b-[rgba(23,254,185,0.45)] rd-12px px-8px py-2px text-12px text-#17FEB9">
+                <div class="mt-8px inline-block b-1 b-solid b-[rgba(23,254,185,0.45)] rd-12px px-8px py-2px text-14px text-#17FEB9">
                   {item.value}
                 </div>
               ) : (

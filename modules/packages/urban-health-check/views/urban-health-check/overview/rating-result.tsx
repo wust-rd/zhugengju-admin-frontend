@@ -96,7 +96,7 @@ export const RatingResult = defineComponent({
             {/* 中心文字 overlay：hover 某段时显示其名称与数值，pointer-events-none 不挡图表交互 */}
             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               {/* —— 文本大小 —— */}
-              {/* 名称：text-12px 小号，可改 text-14px 等调整 */}
+              {/* 名称：text-14px 小号，可改 text-14px 等调整 */}
               <span class="text-white text-16px leading-6">{centerLabel.value}</span>
               {/* 数值：text-26px 大号，可改 text-30px 等调整 */}
               <span class="text-white text-20px font-500 leading-8">{centerValue.value}</span>

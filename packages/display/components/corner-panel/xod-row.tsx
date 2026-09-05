@@ -104,7 +104,7 @@ export const XodRow = defineComponent({
           {XOD_CAPSULES.filter(({ key }) => props.item[key]).map(({ key, text }) => (
             <div
               key={key}
-              class="font-chakra rd-4px w-32px h-16px flex items-center justify-center text-black text-12px font-500"
+              class="font-chakra rd-4px w-32px h-16px flex items-center justify-center text-black text-14px font-500"
               style={{ background: XOD_COLOR[key] }}
             >
               {text}

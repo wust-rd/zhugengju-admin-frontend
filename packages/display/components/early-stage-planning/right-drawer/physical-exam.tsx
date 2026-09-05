@@ -98,7 +98,7 @@ export const PhysicalExam = defineComponent({
                                     {index + 1}
                                   </div>
 
-                                  <div class="text-12px lh-24px text-white ml-12px font-400">{item}</div>
+                                  <div class="text-14px lh-24px text-white ml-12px font-400">{item}</div>
                                 </div>
                               ))}
                             </div>

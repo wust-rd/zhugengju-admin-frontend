@@ -65,7 +65,7 @@ export const RelicCard = defineComponent({
                     {relic.name}
                   </div>
                   <div
-                    class="mt-6px inline-flex items-center gap-6px rd-full border px-10px py-2px text-12px"
+                    class="mt-6px inline-flex items-center gap-6px rd-full border px-10px py-2px text-14px"
                     style={{
                       borderColor: `${level.color}66`,
                       color: level.color,
@@ -91,7 +91,7 @@ export const RelicCard = defineComponent({
                   <div class="relative h-200px w-full overflow-hidden rd-8px bg-black/30">
                     <img src={relic.avatars[photoIndex.value]} class="size-full object-cover" />
                     {relic.avatars.length > 1 && (
-                      <div class="absolute right-8px bottom-8px rd-full bg-black/50 px-8px py-1px text-12px text-white/85">
+                      <div class="absolute right-8px bottom-8px rd-full bg-black/50 px-8px py-1px text-14px text-white/85">
                         {photoIndex.value + 1} / {relic.avatars.length}
                       </div>
                     )}
@@ -119,7 +119,7 @@ export const RelicCard = defineComponent({
               ) : (
                 <div class="mx-20px flex h-120px flex-col items-center justify-center gap-8px rd-8px bg-white/5 text-white/35">
                   <div class="i-ri-image-line size-28px" />
-                  <div class="text-12px">暂无实景照片</div>
+                  <div class="text-14px">暂无实景照片</div>
                 </div>
               )}
 
@@ -127,7 +127,7 @@ export const RelicCard = defineComponent({
               <div class="grid grid-cols-2 gap-x-16px gap-y-10px px-20px py-14px">
                 {metaItems.map(([label, value]) => (
                   <div key={label} class="min-w-0">
-                    <div class="text-12px text-white/45">{label}</div>
+                    <div class="text-14px text-white/45">{label}</div>
                     <div class="mt-2px truncate text-13px text-white/90" title={value}>
                       {value}
                     </div>
@@ -135,14 +135,14 @@ export const RelicCard = defineComponent({
                 ))}
 
                 <div class="col-span-2 min-w-0">
-                  <div class="text-12px text-white/45">详细地址</div>
+                  <div class="text-14px text-white/45">详细地址</div>
                   <div class="mt-2px text-13px text-white/90">{relic.address || '—'}</div>
                 </div>
               </div>
 
               {/* 简介：卡片高度受限时纵向滚动 */}
               <div class="min-h-0 flex-1 overflow-y-auto border-t border-white/10 px-20px py-12px">
-                <div class="mb-6px text-12px text-white/45">文物简介</div>
+                <div class="mb-6px text-14px text-white/45">文物简介</div>
                 <div class="whitespace-pre-wrap text-13px leading-relaxed text-white/80">
                   {relic.introduce || '暂无简介'}
                 </div>

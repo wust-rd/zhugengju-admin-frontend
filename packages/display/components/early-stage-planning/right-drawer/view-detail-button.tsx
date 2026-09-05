@@ -54,7 +54,7 @@ export const ViewDetailButton = defineComponent({
           }}
         />
         {/* 文字 */}
-        <div class="relative z-10 text-12px text-[#EDF5FF]">{props.label}</div>
+        <div class="relative z-10 text-14px text-[#EDF5FF]">{props.label}</div>
       </div>
     );
   },

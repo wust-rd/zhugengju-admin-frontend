@@ -244,7 +244,7 @@ export const Search = defineComponent({
                   )}
 
                   {/* 按键提示（对应原版 AppSearchFooter） */}
-                  <div class="flex items-center justify-center gap-16px pb-12px pt-6px text-12px text-gray-400">
+                  <div class="flex items-center justify-center gap-16px pb-12px pt-6px text-14px text-gray-400">
                     <span>↑↓ 切换</span>
                     <span>Enter 跳转</span>
                     <span>Esc 关闭</span>

@@ -127,11 +127,11 @@ export const ProjectProgress = defineComponent({
               class="flex items-center rounded-8px border border-white/8 bg-white/4 pl-20px py-10px transition-colors duration-150 hover:bg-white/8 h-44px"
             >
               <div class="text-14px font-500 text-white">{p.name}</div>
-              <div class="ml-12px shrink-0 text-12px text-white/75">{p.area}</div>
+              <div class="ml-12px shrink-0 text-14px text-white/75">{p.area}</div>
 
               {/* 状态胶囊 */}
               <div
-                class="ml-auto shrink-0 rounded-full border px-10px py-3px text-12px"
+                class="ml-auto shrink-0 rounded-full border px-10px py-3px text-14px"
                 style={{
                   color: p.color,
                   borderColor: p.color,

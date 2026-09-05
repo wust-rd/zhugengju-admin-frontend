@@ -298,7 +298,7 @@ export const NewSider = defineComponent({
     const renderItems = () => {
       const list = topModules.value;
       if (!list.length) {
-        return <div class="text-gray-600 text-12px pt-40px">暂无菜单</div>;
+        return <div class="text-gray-600 text-14px pt-40px">暂无菜单</div>;
       }
       if (unref(getCollapsed)) {
         return <div class="flex flex-col space-y-20px">{list.map((leaf) => renderChip(leaf))}</div>;

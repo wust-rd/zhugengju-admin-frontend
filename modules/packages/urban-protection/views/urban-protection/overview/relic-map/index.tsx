@@ -410,7 +410,7 @@ export default defineComponent({
                             style={{ background: level.color, boxShadow: `0 0 8px ${level.color}99` }}
                           />
 
-                          <div class="pointer-events-none absolute left-1/2 top-full mt-4px -translate-x-1/2 rd-4px bg-[#0f2b47]/90 px-8px py-2px text-12px whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          <div class="pointer-events-none absolute left-1/2 top-full mt-4px -translate-x-1/2 rd-4px bg-[#0f2b47]/90 px-8px py-2px text-14px whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
                             {relic.name}
                           </div>
                         </div>
@@ -422,7 +422,7 @@ export default defineComponent({
 
               {/* 图例：文物级别颜色 + 当前筛选计数；名城范围线三类色块 + 显隐开关 */}
               <div class="absolute bottom-24px left-24px z-10 min-w-150px rd-8px border border-cyan-900 bg-[#0f2b47]/85 px-14px py-10px backdrop-blur">
-                <div class="text-12px text-white/45">图例</div>
+                <div class="text-14px text-white/45">图例</div>
 
                 {/* 文物级别：行点击切换该级别点位显隐（隐藏时整行降透明度），计数不随之变化 */}
                 <div class="mt-8px space-y-6px">

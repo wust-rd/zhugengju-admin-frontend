@@ -72,7 +72,7 @@ export const ScopeCard = defineComponent({
 
                   <div class="mt-6px flex flex-wrap items-center gap-6px">
                     <div
-                      class="inline-flex items-center gap-6px rd-full border px-10px py-2px text-12px"
+                      class="inline-flex items-center gap-6px rd-full border px-10px py-2px text-14px"
                       style={{
                         borderColor: `${def.color}66`,
                         color: def.color,
@@ -85,7 +85,7 @@ export const ScopeCard = defineComponent({
 
                     {p.scope && (
                       <div
-                        class="inline-flex items-center rd-full border px-10px py-2px text-12px"
+                        class="inline-flex items-center rd-full border px-10px py-2px text-14px"
                         style={{ borderColor: `${scopeColor}55`, color: scopeColor, background: `${scopeColor}10` }}
                       >
                         {p.scope}
@@ -106,7 +106,7 @@ export const ScopeCard = defineComponent({
               <div class="grid grid-cols-2 gap-x-16px gap-y-10px px-20px py-14px">
                 {metaItems.map(([label, value]) => (
                   <div key={label} class="min-w-0">
-                    <div class="text-12px text-white/45">{label}</div>
+                    <div class="text-14px text-white/45">{label}</div>
                     <div class="mt-2px truncate text-13px text-white/90" title={value}>
                       {value}
                     </div>
@@ -115,7 +115,7 @@ export const ScopeCard = defineComponent({
 
                 {p.note && (
                   <div class="col-span-2 min-w-0">
-                    <div class="text-12px text-white/45">备注</div>
+                    <div class="text-14px text-white/45">备注</div>
                     <div class="mt-2px text-13px text-white/90">{p.note}</div>
                   </div>
                 )}
@@ -123,7 +123,7 @@ export const ScopeCard = defineComponent({
 
               {/* 范围类型说明（仅带范围类型的面展示） */}
               {p.scope && (
-                <div class="border-t border-white/10 px-20px py-12px text-12px leading-relaxed text-white/50">
+                <div class="border-t border-white/10 px-20px py-12px text-14px leading-relaxed text-white/50">
                   {p.scope === '核心保护范围'
                     ? '核心保护范围：历史文化价值最集中、需严格保护的区域。'
                     : '建设控制地带：核心范围外围风貌协调、建设活动需管控的区域。'}

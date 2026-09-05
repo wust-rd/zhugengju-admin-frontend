@@ -68,7 +68,7 @@ export const FeaturePlan = defineComponent({
                     <div class="text-white ml-12px text-14px font-400 lh-20px">文旅+公服导向</div>
                   </div>
 
-                  <div class="text-white text-12px font-400 lh-24px mt-8px">
+                  <div class="text-white text-14px font-400 lh-24px mt-8px">
                     结合汉阳区万载知音之路历史文化主轴打造提升行动方案，万载知音文化之路，实施4大规划策略，以文化支撑、以活动引领、以景观彰显、以慢行串联，谱写一曲汉阳承古启今的韵律之歌。
                     <br />
                     显正片位于汉阳历史风貌区核心区域，片区以历史为描点、通过街巷织补、多样拼贴、片区更新、空间弥合等多种方式串联各大文旅资源，以期让片区达到特色提振、新旧融合、全域活化。

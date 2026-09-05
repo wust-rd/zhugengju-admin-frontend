@@ -49,7 +49,7 @@ export const BasicInfo = defineComponent({
                     <div key={item.label} class="flex-1 py-8px">
                       <div class="text-14px lh-20px text-white/60">{item.label}</div>
                       {item.tag ? (
-                        <div class="mt-8px inline-block b-1 b-solid b-[rgba(23,254,185,0.45)] rd-12px px-8px py-2px text-12px text-#17FEB9">
+                        <div class="mt-8px inline-block b-1 b-solid b-[rgba(23,254,185,0.45)] rd-12px px-8px py-2px text-14px text-#17FEB9">
                           {item.value}
                         </div>
                       ) : (
@@ -68,7 +68,7 @@ export const BasicInfo = defineComponent({
                     <div class="text-14px lh-20px text-white/75 font-500 ml-8px">片区概况</div>
                   </div>
 
-                  <div class="mt-8px text-white font-400 text-12px lh-24px">
+                  <div class="mt-8px text-white font-400 text-14px lh-24px">
                     片区北临显正街、南抵拦江路、西至青石桥路、东接建桥片。片区内现状总建筑面积约 51
                     万平方米，功能以住宅为主，绝大部分区域划入显正街传统特色街区保护范围，历史底蕴突出。片区历史资源富集，范围内及周边留存显正街、青石桥路、汉阳树、共勉牌坊等多处珍贵历史遗存，属于兼具居住功能与历史风貌保护双重属性的城市更新片区。
                   </div>

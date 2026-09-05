@@ -148,7 +148,7 @@ export default defineComponent({
 
               {/* 图例：左下角，配色取自 IFCO_LAYER_COLORS（与图层 paint 同源） */}
               <div class="absolute bottom-24px left-32px z-10 rd-8px border border-cyan-900 bg-[#0f2b47]/85 px-14px py-10px backdrop-blur">
-                <div class="text-12px text-white/45">图例</div>
+                <div class="text-14px text-white/45">图例</div>
 
                 <div class="mt-8px space-y-6px">
                   <div class="flex items-center text-13px">

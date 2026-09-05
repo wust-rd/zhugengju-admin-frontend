@@ -157,7 +157,7 @@ export const ProjectDetailModal = defineComponent({
                       {/* 查看按钮 */}
                       <div class="relative z-10 flex w-104px justify-center">
                         <div
-                          class="flex h-26px w-64px cursor-pointer items-center justify-center gap-4px rd-6px text-12px text-[#7FC0FF] transition-all duration-200 hover:brightness-125"
+                          class="flex h-26px w-64px cursor-pointer items-center justify-center gap-4px rd-6px text-14px text-[#7FC0FF] transition-all duration-200 hover:brightness-125"
                           style={{
                             border: '0.5px solid rgba(95, 156, 240, 0.45)',
                             background: 'rgba(95, 156, 240, 0.15)',

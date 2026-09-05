@@ -118,7 +118,7 @@ export const PolygonCard = defineComponent({
                       : s(polygon.props.AREA_NAME) || '未命名片区'}
                   </div>
                   <div
-                    class="mt-6px inline-flex items-center gap-6px rd-full border px-10px py-2px text-12px"
+                    class="mt-6px inline-flex items-center gap-6px rd-full border px-10px py-2px text-14px"
                     style={{ borderColor: `${kind.color}66`, color: kind.color, background: `${kind.color}14` }}
                   >
                     <div class="size-6px rd-full" style={{ background: kind.color }} />
@@ -139,7 +139,7 @@ export const PolygonCard = defineComponent({
                 <div class="grid grid-cols-2 gap-x-16px gap-y-10px px-20px py-14px">
                   {metaItems.map(([label, value]) => (
                     <div key={label} class="min-w-0">
-                      <div class="text-12px text-white/45">{label}</div>
+                      <div class="text-14px text-white/45">{label}</div>
                       <div class="mt-2px truncate text-13px text-white/90" title={value}>
                         {value}
                       </div>
@@ -148,7 +148,7 @@ export const PolygonCard = defineComponent({
 
                   {showRange && (
                     <div class="col-span-2 min-w-0">
-                      <div class="text-12px text-white/45">起止时间</div>
+                      <div class="text-14px text-white/45">起止时间</div>
                       <div class="mt-2px text-13px text-white/90">
                         {start || '—'} ~ {end || '—'}
                       </div>

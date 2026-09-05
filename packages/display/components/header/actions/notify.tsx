@@ -46,7 +46,7 @@ export const Notify = defineComponent({
       <div class="w-380px bg-white px-4 py-3 shadow-lg rd-8px">
         <div class="flex items-center justify-between px-1 pb-2">
           <span class="text-14px font-600 text-gray-700">通知</span>
-          <button type="button" class="text-12px text-cyan-600 hover:text-cyan-500" onClick={markAllRead}>
+          <button type="button" class="text-14px text-cyan-600 hover:text-cyan-500" onClick={markAllRead}>
             全部已读
           </button>
         </div>
@@ -69,7 +69,7 @@ export const Notify = defineComponent({
                     {item.title}
                   </span>
                 </div>
-                <div class="mt-1 pl-2 text-12px text-gray-500">{item.desc}</div>
+                <div class="mt-1 pl-2 text-14px text-gray-500">{item.desc}</div>
                 <div class="mt-1 pl-2 text-11px text-gray-400">{item.time}</div>
               </li>
             ))}

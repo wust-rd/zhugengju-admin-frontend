@@ -93,7 +93,7 @@ export const CategoryGroupRow = defineComponent({
             />
           </span>
           <span class={cn('flex-1 text-14px', someChecked ? 'text-white' : 'text-gray-400')}>{props.cat.label}</span>
-          {someChecked && <span class="text-12px text-[#00b8d4]">(已选 {checkedCount})</span>}
+          {someChecked && <span class="text-14px text-[#00b8d4]">(已选 {checkedCount})</span>}
           {renderCheckbox(allChecked, someChecked && !allChecked, () => emit('check', props.cat))}
         </div>
       );

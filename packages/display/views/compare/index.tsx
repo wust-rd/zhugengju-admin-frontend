@@ -108,14 +108,14 @@ export default defineComponent({
         <div class="pointer-events-none absolute top-16px left-1/2 z-10 -translate-x-1/2 rounded-full bg-slate-900/80 px-16px py-6px text-14px text-white shadow-md">
           左右滑动对比：矢量 ↔ 影像（图层同步 · 视图同步）
         </div>
-        <div class="pointer-events-none absolute top-16px left-16px z-10 rounded-6px bg-emerald-600/85 px-10px py-4px text-12px text-white shadow-md">
+        <div class="pointer-events-none absolute top-16px left-16px z-10 rounded-6px bg-emerald-600/85 px-10px py-4px text-14px text-white shadow-md">
           矢量
         </div>
-        <div class="pointer-events-none absolute top-16px right-16px z-10 rounded-6px bg-amber-600/85 px-10px py-4px text-12px text-white shadow-md">
+        <div class="pointer-events-none absolute top-16px right-16px z-10 rounded-6px bg-amber-600/85 px-10px py-4px text-14px text-white shadow-md">
           影像
         </div>
         {/* 调试面板：观察 Compare 创建状态 */}
-        <div class="pointer-events-none absolute bottom-16px left-16px z-20 rounded-6px bg-black/70 px-10px py-4px text-12px text-white">
+        <div class="pointer-events-none absolute bottom-16px left-16px z-20 rounded-6px bg-black/70 px-10px py-4px text-14px text-white">
           {debug.value}
         </div>
       </div>

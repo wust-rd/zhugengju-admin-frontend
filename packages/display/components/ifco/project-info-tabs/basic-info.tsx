@@ -44,13 +44,13 @@ export const BasicInfo = defineComponent({
         <div class="grid grid-cols-2 gap-x-32px gap-y-24px p-8px">
           {INFO_ITEMS.map((item) => (
             <div key={item.label}>
-              <div class="text-12px text-white/40">{item.label}</div>
+              <div class="text-14px text-white/40">{item.label}</div>
 
               {item.pill ? (
                 /* 五改类别：黄色胶囊 */
                 <div
                   class={cn(
-                    'mt-6px inline-block rounded-full border px-10px py-3px text-12px',
+                    'mt-6px inline-block rounded-full border px-10px py-3px text-14px',
                     'border-[#F5C443] text-[#F5C443]',
                   )}
                   style={{ background: '#F5C4431A' }}
@@ -101,9 +101,9 @@ export const BasicInfo = defineComponent({
                 <>
                   {/* 建设内容及规模 */}
                   <div class="rounded-8px  p-12px border border-2px border-white/6 mt-6px bg-#0F172A/15">
-                    <div class="text-12px text-white/75 bg-white/6 h-30px px-12px py-6px">建设内容及规模</div>
+                    <div class="text-14px text-white/75 bg-white/6 h-30px px-12px py-6px">建设内容及规模</div>
 
-                    <div class="mt-8px text-12px text-white lh-20px p-4px">{BUILDING_DESC}</div>
+                    <div class="mt-8px text-14px text-white lh-20px p-4px">{BUILDING_DESC}</div>
                   </div>
 
                   {/* 关键信息列表 */}

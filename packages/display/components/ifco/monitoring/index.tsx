@@ -49,11 +49,13 @@ export const Monitoring = defineComponent({
       background: '#0F172A30',
       boxShadow: '4.364px 4.364px 8.727px 0 rgba(0, 0, 0, 0.16)',
     };
-    
-    
+
     return () => (
       <div
-        class={cn('relative overflow-hidden rd-8px border border-cyan-800/60 backdrop-blur-4px px-16px pb-20px', props.class)}
+        class={cn(
+          'relative overflow-hidden rd-8px border border-cyan-800/60 backdrop-blur-4px px-16px pb-20px',
+          props.class,
+        )}
         style={{
           background:
             'radial-gradient(144.69% 140.47% at 0% 100.11%, rgba(46, 175, 255, 0.45) 0%, rgba(5, 27, 48, 0.00) 99.6%), rgba(5, 22, 48, 0.90)',
@@ -83,21 +85,26 @@ export const Monitoring = defineComponent({
 
         <div class="flex items-center mt-12px ">
           {/* 当前时间 */}
-          <div class="flex w-176px h-34px items-center rounded-6px bg-white/5 px-16px py-8px shrink-0 rd-8px" style={FROST_SHELL}>
-            <span class="text-12px text-white/45 font-400">当前时间</span>
+          <div
+            class="flex w-176px h-34px items-center rounded-6px bg-white/5 px-16px py-8px shrink-0 rd-8px"
+            style={FROST_SHELL}
+          >
+            <span class="text-14px text-white/45 font-400">当前时间</span>
             <span class="h-16px w-1px bg-white/20 mx-12px" />
-            <span class="text-12px font-500 text-white/90">{timeText.value}</span>
+            <span class="text-14px font-500 text-white/90">{timeText.value}</span>
           </div>
 
           {/* 更多 */}
-          <div class="flex items-center justify-center text-12px font-400 h-30px w-74px rd-20px text-white/60 ml-auto" style={FROST_SHELL}>更多
+          <div
+            class="flex items-center justify-center text-14px font-400 h-30px w-74px rd-20px text-white/60 ml-auto"
+            style={FROST_SHELL}
+          >
+            更多
             <div class="i-ri-arrow-right-line text-white/60 size-16px ml-4px"></div>
           </div>
 
           {/* 图册 */}
-          <div class="mt-12px ">
-            小雨说先不做，可能没有这个功能
-          </div>
+          <div class="mt-12px ">小雨说先不做，可能没有这个功能</div>
         </div>
       </div>
     );

@@ -71,7 +71,7 @@ export const ProjectInfo = defineComponent({
                   <div class="mt-4px flex flex-col divide-y divide-white/6">
                     {PROJECT_LIST.map((p) => (
                       <div key={p.id} class="flex items-center py-14px">
-                        <div class="w-44px shrink-0 text-12px text-white/45">{p.id}</div>
+                        <div class="w-44px shrink-0 text-14px text-white/45">{p.id}</div>
 
                         <div class="flex shrink-0 items-center gap-6px w-108px">
                           <div class="size-8px rd-full" style={{ backgroundColor: p.color }} />
