@@ -8,6 +8,8 @@ export interface CollapseGroupItem<T = unknown> {
   title: string;
   /** 头部徽章数值，不传则不显示 */
   badgeValue?: string | number;
+  /** 初始展开状态，不传默认展开（透传 GlowCollapse.defaultExpanded） */
+  defaultExpanded?: boolean;
   /** 行数据列表 */
   items: T[];
 }
@@ -59,7 +61,12 @@ export const CollapseGroups = defineComponent({
     return () => (
       <div class="space-y-12px">
         {props.groups.map((group, groupIndex) => (
-          <GlowCollapse key={`${groupIndex}-${group.title}`} title={group.title} badgeValue={group.badgeValue ?? ''}>
+          <GlowCollapse
+            key={`${groupIndex}-${group.title}`}
+            title={group.title}
+            badgeValue={group.badgeValue ?? ''}
+            defaultExpanded={group.defaultExpanded ?? true}
+          >
             <CornerPanel isRound={props.isRound} class={props.panelClass}>
               {group.items.map((item, i) => (
                 <Fragment key={`${groupIndex}-${i}`}>{slots.row?.(item)}</Fragment>

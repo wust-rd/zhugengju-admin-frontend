@@ -15,11 +15,12 @@ const BATCH_ITEMS: MenuItemType[] = [
   { key: 'batch2', label: '第二批' },
 ];
 
-/** 各区征收片区分组（占位数据，接入接口后替换；items 按名称排序后的展示顺序） */
+/** 各区征收片区分组（占位数据，接入接口后替换；默认仅第一组展开） */
 const DISTRICT_GROUPS: CollapseGroupItem<DistrictRowItem>[] = [
   {
     title: '江岸区',
     badgeValue: '7片',
+    defaultExpanded: true,
     items: [
       { label: '西马片', shiwu: true, yuzheng: true },
       { label: '黑泥湖片', wuzhongxin: true, wugai: true },
@@ -33,6 +34,7 @@ const DISTRICT_GROUPS: CollapseGroupItem<DistrictRowItem>[] = [
   {
     title: '江汉区',
     badgeValue: '3片',
+    defaultExpanded: false,
     items: [
       { label: '循环片', shiwu: true },
       { label: '唐家墩片', wugai: true },
@@ -42,6 +44,7 @@ const DISTRICT_GROUPS: CollapseGroupItem<DistrictRowItem>[] = [
   {
     title: '硚口区',
     badgeValue: '3片',
+    defaultExpanded: false,
     items: [
       { label: '汉正街片', wuzhongxin: true },
       { label: '六角亭片', shiwu: true },
@@ -51,6 +54,7 @@ const DISTRICT_GROUPS: CollapseGroupItem<DistrictRowItem>[] = [
   {
     title: '汉阳区',
     badgeValue: '3片',
+    defaultExpanded: false,
     items: [
       { label: '钟家村片', wugai: true },
       { label: '归元寺片', shiwu: true, zhili: true },
@@ -60,6 +64,7 @@ const DISTRICT_GROUPS: CollapseGroupItem<DistrictRowItem>[] = [
   {
     title: '武昌区',
     badgeValue: '5片',
+    defaultExpanded: false,
     items: [
       { label: '昙华林片', wuzhongxin: true, wugai: true },
       { label: '农讲所片', shiwu: true },
@@ -71,6 +76,7 @@ const DISTRICT_GROUPS: CollapseGroupItem<DistrictRowItem>[] = [
   {
     title: '青山区',
     badgeValue: '5片',
+    defaultExpanded: false,
     items: [
       { label: '红钢城片', wugai: true },
       { label: '工人村片', shiwu: true },
@@ -135,12 +141,14 @@ export const DistrictList = defineComponent({
           class="mt-24px"
         />
 
-        {/* 各区折叠分组：区内征收片区行（圆点 + 名称 + 标签胶囊，点击行高亮） */}
-        <CollapseGroups groups={DISTRICT_GROUPS} isRound panelClass="rd-8px mt-12px">
-          {{
-            row: (item) => <DistrictRow item={item as DistrictRowItem} />,
-          }}
-        </CollapseGroups>
+        <div class="mt-24px">
+          {/* 各区折叠分组：区内征收片区行（圆点 + 名称 + 标签胶囊，点击行高亮） */}
+          <CollapseGroups groups={DISTRICT_GROUPS} isRound panelClass="rd-8px mt-12px">
+            {{
+              row: (item) => <DistrictRow item={item as DistrictRowItem} />,
+            }}
+          </CollapseGroups>
+        </div>
       </>
     );
   },
