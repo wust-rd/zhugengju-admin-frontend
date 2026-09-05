@@ -1,11 +1,8 @@
-/* 优设标题黑 —— 免费商用字体，通过 jsDelivr CDN 引入（fastly 主节点 + 官方节点兜底） */
+/* 优设标题黑 —— 免费商用字体，本地自托管（packages/assets/fonts，Vite 构建时随资源打包）。
+   不可用 CDN：部署环境为政务内网，访问不了 jsDelivr，dev 与正式环境表现不一致 */
 @font-face {
   font-family: 'YouSheBiaoTiHei';
-  src:
-    url('https://fastly.jsdelivr.net/npm/@zf-web-font/youshebiaotihei@0.2.0/YouSheBiaoTiHei-Regular.woff2')
-      format('woff2'),
-    url('https://cdn.jsdelivr.net/npm/@zf-web-font/youshebiaotihei@0.2.0/YouSheBiaoTiHei-Regular.woff2')
-      format('woff2');
+  src: url('../../../assets/fonts/youshe-biaotihei.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
