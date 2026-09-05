@@ -8,7 +8,7 @@ import type { GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import { RatingResult, type RatingDatum } from './rating-result';
-import { SearchFilter } from './search-filter';
+import { SearchFilter } from '@jeesite/display/components/search-filter';
 import { TopFilter } from './top-filter';
 
 // 指标评价结果分布：饼图与右侧统计网格共用同一份数据（数值为百分数）

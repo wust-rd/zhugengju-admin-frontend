@@ -34,6 +34,34 @@ const REGION_TABS = [
   { key: 'new-town', label: '新城区' },
 ];
 
+/** 各区完成情况 tabs（征收面积 / 资料汇集 / 资金落实，图标为 UnoCSS ri 系列类名） */
+const DISTRICT_TABS = [
+  { key: 'area', label: '征收面积', icon: 'i-ri-map-2-line' },
+  { key: 'doc', label: '资料汇集', icon: 'i-ri-file-list-3-line' },
+  { key: 'fund', label: '资金落实', icon: 'i-ri-funds-line' },
+] as const;
+type DistrictTabKey = (typeof DISTRICT_TABS)[number]['key'];
+
+/** 武汉 13 个行政区 + 3 个功能区（各区完成情况列表数据，占位；接入接口后替换） */
+const DISTRICT_ROWS: { name: string; value: number; plan: number }[] = [
+  { name: '武昌', value: 5, plan: 10 },
+  { name: '江岸', value: 3.12, plan: 4.6 },
+  { name: '江汉', value: 2.87, plan: 3.4 },
+  { name: '硚口', value: 2.54, plan: 3.2 },
+  { name: '汉阳', value: 2.36, plan: 3.0 },
+  { name: '青山', value: 2.05, plan: 2.8 },
+  { name: '洪山', value: 1.98, plan: 2.9 },
+  { name: '东西湖', value: 1.76, plan: 2.4 },
+  { name: '汉南', value: 1.42, plan: 1.9 },
+  { name: '蔡甸', value: 1.28, plan: 2.1 },
+  { name: '江夏', value: 1.15, plan: 1.8 },
+  { name: '黄陂', value: 0.96, plan: 1.6 },
+  { name: '新洲', value: 0.82, plan: 1.4 },
+  { name: '东湖高新', value: 0.74, plan: 1.2 },
+  { name: '武汉经开', value: 0.65, plan: 1.1 },
+  { name: '东湖风景区', value: 0.41, plan: 0.8 },
+];
+
 /** 分区详情卡数据（占位；接入接口后按激活区域返回） */
 const REGION_DETAIL: Record<
   string,
@@ -171,10 +199,13 @@ export const ExpropriationOverview = defineComponent({
     const activeRegion = ref<string>('center');
     const detail = () => REGION_DETAIL[activeRegion.value] ?? REGION_DETAIL.center;
 
+    /** 各区完成情况当前 tab（必须在 setup 建 ref：render 内创建会在每次重渲染时被重置） */
+    const activeDistrictTab = ref<DistrictTabKey>('area');
+
     return () => (
       <div class="mt-16px">
         {/* 小节标题栏（箭头图标 + 标题 + 右侧日期与装饰方块） */}
-        <div class="flex items-center">
+        <div class="flex items-center h-45px">
           <img src={arrowIcon} class="size-24px" />
 
           <div class="ml-10px text-white text-16px">征收数据总览</div>
@@ -278,15 +309,16 @@ export const ExpropriationOverview = defineComponent({
               <>
                 {/* 已完成征地面积行 */}
                 <div class="flex items-center h-38px">
-                  <span class="text-15px text-white/85">已完成征地面积</span>
-                  <span
+                  <div class="text-16px text-white/85 lh-24px">已完成征地面积</div>
+
+                  <div
                     class="text-24px font-400 text-[#02FF96] leading-none font-youshe ml-auto flex items-end gap-8px h-30px"
                     style={{ textShadow: '0 0 10px rgba(53,224,176,0.5)' }}
                   >
                     {d.area}
 
-                    <span class="text-14px text-white/55 h-20px">万平方米</span>
-                  </span>
+                    <div class="text-14px text-white/75 h-20px font-400">万平方米</div>
+                  </div>
 
                   <span
                     class="ml-auto rd-full border px-10px py-2px text-12px px-12px"
@@ -350,6 +382,112 @@ export const ExpropriationOverview = defineComponent({
             );
           })()}
         </StatCard>
+
+        {/* 小节标题栏（箭头图标 + 标题 + 右侧日期与装饰方块） */}
+        <div class="flex items-center mt-20px h-45px">
+          <img src={arrowIcon} class="size-24px" />
+
+          <div class="ml-10px text-white text-16px">各区完成情况总览</div>
+
+          <div class="ml-auto">
+            {/* 统计日期：三个递减亮度方块（装饰）+ 日期文字，方块配色取自设计稿 */}
+            <div class="flex items-center gap-4px justify-end">
+              {DECOR_SQUARES.map((color) => (
+                <div key={color} class="size-5px" style={{ background: color }} />
+              ))}
+            </div>
+
+            <div class="text-12px text-white/45 mt-4px">{OVERVIEW.statDate}</div>
+          </div>
+        </div>
+
+        {/* 各区完成情况：tabs + 分区条目列表（activeDistrictTab 建在 setup，闭包读取） */}
+        {(() => {
+          const activeTab = activeDistrictTab;
+          return (
+            <>
+              {/* tabs：选中态 GlowButton 描边样式，未选中纯文字 */}
+              <div class="mt-14px grid grid-cols-3 gap-10px">
+                {DISTRICT_TABS.map((tab) => (
+                  <GlowButton
+                    key={tab.key}
+                    isActive
+                    borderGlow={activeTab.value === tab.key}
+                    glowOpacity={activeTab.value === tab.key ? 0.75 : 0.25}
+                    width={133}
+                    height={40}
+                    radius={8}
+                    class={cn('text-15px font-400', {
+                      'text-white': activeTab.value === tab.key,
+                      'text-white/55': activeTab.value !== tab.key,
+                    })}
+                    onClick={() => (activeTab.value = tab.key)}
+                  >
+                    <span class="flex items-center gap-6px">
+                      <span class={cn('size-14px', tab.icon)} />
+                      {tab.label}
+                    </span>
+                  </GlowButton>
+                ))}
+              </div>
+
+              {/* 征收面积列表：图例行 + 各区双段进度条（完成量实条 + 计划量暗段）+ 数值 */}
+              {activeTab.value === 'area' && (
+                <StatCard class="mt-12px">
+                  {/* 图例 + 单位 */}
+                  <div class="flex items-center text-12px text-white/55">
+                    <span class="flex items-center gap-6px">
+                      <span
+                        class="h-6px w-14px rd-1px"
+                        style={{ background: 'linear-gradient(to right, #2BD9FF, #CBFE3A)' }}
+                      />
+                      完成量
+                    </span>
+                    <span class="ml-12px flex items-center gap-6px">
+                      <span class="h-6px w-14px rd-1px bg-[#354D6B]" />
+                      计划量
+                    </span>
+                    <span class="ml-auto">单位：亿</span>
+                  </div>
+
+                  <div class="mt-10px max-h-300px overflow-y-auto pr-4px">
+                    {DISTRICT_ROWS.map((row) => {
+                      // 完成条占计划条宽度的比例（计划量 = 100% 满条）
+                      const ratio = Math.min((row.value / row.plan) * 100, 100);
+                      return (
+                        <div key={row.name} class="flex items-center gap-10px py-5px">
+                          <span class="w-52px shrink-0 text-13px text-white/85">{row.name}</span>
+                          <div class="relative h-8px flex-1 rd-full bg-[#354D6B]/60">
+                            {/* 计划量暗段 */}
+                            <div class="absolute top-0 h-full rd-full bg-[#354D6B]" style={{ width: `${ratio}%` }} />
+                            {/* 完成量渐变亮条（叠在计划段内） */}
+                            <div
+                              class="absolute top-0 h-full rd-full"
+                              style={{
+                                width: `${ratio * 0.82}%`,
+                                background: 'linear-gradient(to right, #2BD9FF 0%, #34E8C0 55%, #CBFE3A 100%)',
+                                boxShadow: '0 0 6px rgba(43, 217, 255, 0.4)',
+                              }}
+                            />
+                          </div>
+                          <span class="w-44px shrink-0 text-right text-13px text-white/90 font-subway">
+                            {row.value.toFixed(2)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </StatCard>
+              )}
+
+              {/* 资料汇集列表（待填充） */}
+              {activeTab.value === 'doc' && null}
+
+              {/* 资金落实列表（待填充） */}
+              {activeTab.value === 'fund' && null}
+            </>
+          );
+        })()}
       </div>
     );
   },
