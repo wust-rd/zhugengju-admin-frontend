@@ -1,6 +1,6 @@
-# @jeesite/ifco 投融建运
+# @jeesite/ifco 项目投融建运
 
-市住更局 —— 投融建运业务包（结构对齐 `@jeesite/urban-protection` / `@jeesite/urban-health-check`）。
+市住更局 —— 项目投融建运业务包（结构对齐 `@jeesite/urban-protection` / `@jeesite/urban-health-check`）。
 含大屏展示页（overview，TSX）与后台管理页（progress-fill / progress-statistics，Vue SFC）。
 
 ## 目录结构
