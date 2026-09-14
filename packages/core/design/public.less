@@ -3,6 +3,12 @@
   height: 100%;
 }
 
+// 预留滚动条槽位：内容高度临界时滚动条闪现/消失会导致视口宽度抖动
+// （自定义滚动条宽 8px，表现为页面左移变窄一下再弹回），锁定槽位后宽度恒定
+html {
+  scrollbar-gutter: stable;
+}
+
 ul {
   list-style-type: none;
   padding-left: 0;

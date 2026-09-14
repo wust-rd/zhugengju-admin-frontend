@@ -1,146 +1,171 @@
 <!--
-  市住更局 —— 策划方案填报（查看 / 新增 / 编辑 表单抽屉）
+  市住更局 —— 策划方案填报（查看 / 新增 / 编辑 整页表单 · 编排骨架）
 
-  组件格式对齐项目 BasicDrawer + useDrawerInner + BasicForm 模式：
-   - force-render 预挂载（消除首次打开时表单未注册的竞态）；
-   - 查看模式：list.vue 在 openDrawer 前预设 showFooter，本组件内只做表单级 disabled；
-   - 回调 try/finally 兜底复位 loading。
-  当前后端尚未介入：保存仅校验后 emit success（携带表单值与记录标识），由父级落内存副本。
+  由列表页（index.vue）以组件方式切换显示（不新增路由，菜单无需变更）。
+  长表单拆为 6 个区块（各区块自持 BasicForm，见 components/section-*.vue）：
+    1 片区基本信息 / 2 片区体检情况 / 3 片区功能策划 / 4 片区项目情况 /
+    5 片区资金方案 / 6 附件材料 —— 顺序与内容见下方 SECTIONS 注册表。
+  右侧悬浮锚点导航（anchor-nav.vue）：点击定位 + 滚动高亮当前区块。
+  头部操作栏滚动时吸附在布局固定头（头部 + 页签）下方：sticky + 动态 top
+  （运行时测量 .jeesite-layout-multiple-header 的底沿，页签显隐自动适配）；
+  该 sticky 依赖 index.vue 的 contentClass 覆盖了 PageWrapper 容器的
+  overflow-y:auto（祖先 overflow 非 visible 会使 sticky 失效）。
+  头部操作：返回 / 导出（aoaToSheetXlsx 平铺导出全部区块）/ 保存
+  （逐区块校验，首个未通过区块自动滚动定位；通过后 emit 由父级落内存副本。
+  当前必填校验暂关闭——红星仅表示字段重要性，见 use-section-form 的 VALIDATE_ENABLED）。
+  各区块字段为占位结构，待设计稿/接口文档确定后调整；后端尚未介入：
+  接口对接说明见同目录 api.md（供后端直接阅读）。
 -->
 <template>
-  <BasicDrawer ref="drawerRef" v-bind="$attrs" width="600px" force-render @register="registerDrawer" @ok="handleSubmit">
-    <template #title>
-      <span class="text-16px font-500">{{ getTitle }}</span>
-    </template>
-    <BasicForm @register="registerForm" />
-  </BasicDrawer>
+  <div class="flex flex-col gap-16px" :style="{ '--section-scroll-mt': `${sectionScrollMt}px` }">
+    <!-- 头部：返回 + 标题 + 导出 / 保存（查看模式隐藏保存），滚动时吸顶 -->
+    <div
+      ref="barRef"
+      class="sticky z-20 flex items-center gap-12px bg-white rd-8px px-16px py-12px shadow-sm"
+      :style="{ top: `${stickyTop}px` }"
+    >
+      <a-button @click="emit('back')">
+        <span class="inline-flex items-center gap-4px"><span class="i-fluent:arrow-left-12-filled"></span> 返回</span>
+      </a-button>
+      <span class="text-16px font-500">{{ title }}</span>
+      <span class="flex-1"></span>
+      <a-button @click="handleExport">
+        <span class="inline-flex items-center gap-4px"
+          ><span class="i-fluent:arrow-export-ltr-16-regular"></span> 导出</span
+        >
+      </a-button>
+      <a-button v-if="!isView" type="primary" :loading="saving" @click="handleSave">保存</a-button>
+    </div>
+
+    <!-- 六个区块（SECTIONS 驱动渲染，xl 下右侧留出悬浮导航空间） -->
+    <div class="flex flex-col gap-16px xl:pr-160px">
+      <FormSection v-for="sec in SECTIONS" :key="sec.id" :id="sec.id" :title="sec.title">
+        <component :is="sec.component" :ref="(el) => setSectionRef(sec.id, el)" :data="record" :disabled="isView" />
+      </FormSection>
+    </div>
+
+    <!-- 右侧悬浮导航 -->
+    <AnchorNav :sections="navSections" />
+  </div>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeFillForm">
-  import { computed, ref } from 'vue';
+  import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
-  import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
+  import { aoaToSheetXlsx } from '@jeesite/core/components/Excel/src/Export2Excel';
+  import FormSection from './components/form-section.vue';
+  import AnchorNav from './components/anchor-nav.vue';
+  import type { SectionFormExposed } from './components/use-section-form';
+  import SectionBasicInfo from './components/section-basic-info.vue';
+  import SectionHealthCheck from './components/section-health-check.vue';
+  import SectionFunctionPlan from './components/section-function-plan.vue';
+  import SectionProjectInfo from './components/section-project-info.vue';
+  import SectionFundingPlan from './components/section-funding-plan.vue';
+  import SectionAttachment from './components/section-attachment.vue';
 
-  const emit = defineEmits(['success', 'register']);
+  const props = defineProps<{ record?: Recordable }>();
+  const emit = defineEmits(['success', 'back']);
 
   const { showMessage } = useMessage();
 
-  const isView = ref(false);
-  const record = ref<Recordable>({});
+  /** 进入时的记录快照（父级每次传入新对象，各区块按 schema 字段各取所需） */
+  const record = { ...(props.record || {}) } as Recordable;
+  const isView = !!record.isView;
+  const isNewRecord = record.isNewRecord ?? record.id == null;
 
-  const getTitle = computed(() => (isView.value ? '查看片区填报' : record.value.isNewRecord ? '新增片区填报' : '编辑片区填报'));
+  const title = computed(() => (isView ? '查看片区填报' : isNewRecord ? '新增片区填报' : '编辑片区填报'));
+  const saving = ref(false);
 
-  /** 下拉选项（与列表页筛选一致；接口就绪后改为字典接口） */
-  const DISTRICT_OPTIONS = ['汉阳区', '江岸区', '江汉区', '硚口区', '武昌区', '青山区', '洪山区'].map((d) => ({
-    label: d,
-    value: d,
-  }));
-  const FUNC_OPTIONS = ['COD', 'TOD', 'IOD', 'SOD', 'EOD', 'HOD', 'XOD'].map((f) => ({ label: f, value: f }));
-  const BATCH_OPTIONS = ['第一批', '第二批'].map((b) => ({ label: b, value: b }));
+  /**
+   * 吸顶偏移 = 布局固定头（头部 + 多页签）的实际底沿。该元素为 fixed，
+   * rect 与滚动位置无关；页签显隐（如仅剩一个页签）也会自动反映到 bottom。
+   */
+  const stickyTop = ref(0);
+  const barRef = ref<HTMLElement | null>(null);
 
-  const inputFormSchemas: FormSchema[] = [
-    {
-      label: '片区名称',
-      field: 'name',
-      component: 'Input',
-      componentProps: { maxlength: 100, placeholder: '请输入片区名称' },
-      rules: [{ required: true, message: '请输入片区名称' }],
-    },
-    {
-      label: '行政区',
-      field: 'district',
-      component: 'Select',
-      componentProps: { options: DISTRICT_OPTIONS, placeholder: '请选择', allowClear: true },
-      rules: [{ required: true, message: '请选择行政区' }],
-    },
-    {
-      label: '片区规模（公顷）',
-      field: 'areaHa',
-      component: 'InputNumber',
-      componentProps: { min: 0, precision: 1, style: 'width: 100%', placeholder: '请输入' },
-      rules: [{ required: true, message: '请输入片区规模' }],
-    },
-    {
-      label: '片区功能定位',
-      field: 'funcTypes',
-      component: 'Select',
-      componentProps: {
-        options: FUNC_OPTIONS,
-        placeholder: '请选择（可多选）',
-        mode: 'multiple',
-        allowClear: true,
-      },
-      rules: [{ required: true, message: '请选择片区功能定位' }],
-    },
-    {
-      label: '片区批次',
-      field: 'batch',
-      component: 'Select',
-      componentProps: { options: BATCH_OPTIONS, placeholder: '请选择', allowClear: true },
-      rules: [{ required: true, message: '请选择片区批次' }],
-    },
-    {
-      label: '总体投资估算（亿元）',
-      field: 'invest',
-      component: 'InputNumber',
-      componentProps: { min: 0, precision: 2, style: 'width: 100%', placeholder: '请输入' },
-      rules: [{ required: true, message: '请输入总体投资估算' }],
-    },
-    {
-      label: '填报单位',
-      field: 'reportOrg',
-      component: 'Input',
-      componentProps: { maxlength: 100, placeholder: '请输入填报单位' },
-      rules: [{ required: true, message: '请输入填报单位' }],
-    },
-  ];
+  /** 锚点滚动落点偏移：固定头 + 吸顶栏高 + 间距（经 CSS 变量供 form-section 的 scroll-mt 消费） */
+  const sectionScrollMt = computed(() => stickyTop.value + (barRef.value?.offsetHeight ?? 0) + 16);
 
-  const [registerForm, { resetFields, setFieldsValue, validate, setProps }] = useForm({
-    labelWidth: 140,
-    schemas: inputFormSchemas,
-    baseColProps: { md: 24, lg: 12 },
+  function measureStickyTop() {
+    stickyTop.value = document.querySelector('.jeesite-layout-multiple-header')?.getBoundingClientRect().bottom ?? 0;
+  }
+
+  onMounted(() => {
+    measureStickyTop();
+    window.addEventListener('resize', measureStickyTop);
   });
+  // keep-alive 页面切回时页签数量可能变化，重测一次
+  onActivated(measureStickyTop);
+  onBeforeUnmount(() => window.removeEventListener('resize', measureStickyTop));
 
-  const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data: any) => {
-    setDrawerProps({ loading: true });
-    // try/finally：任一 await 抛错也要复位 loading，否则遮罩盖住抽屉内容
-    try {
-      await resetFields();
-      isView.value = !!data?.isView;
-      record.value = (data || {}) as Recordable;
-      record.value.isNewRecord = data?.isNewRecord ?? data?.id == null;
-      await setFieldsValue({
-        name: record.value.name ?? '',
-        district: record.value.district ?? undefined,
-        areaHa: record.value.areaHa ?? undefined,
-        funcTypes: record.value.funcTypes ?? [],
-        batch: record.value.batch ?? undefined,
-        invest: record.value.invest ?? undefined,
-        reportOrg: record.value.reportOrg ?? undefined,
-      });
-      // 查看模式：表单级禁用（showFooter 已由 list.vue 在 openDrawer 前预设）
-      await setProps({ disabled: isView.value });
-    } finally {
-      setDrawerProps({ loading: false });
-    }
-  });
+  /**
+   * 区块注册表：模板渲染、锚点导航、保存校验与导出遍历共用（顺序即页面顺序）。
+   * id 同时是锚点（FormSection 渲染到 section 元素上）与校验定位目标。
+   */
+  const SECTIONS = [
+    { id: 'sec-basic', title: '片区基本信息', component: SectionBasicInfo },
+    { id: 'sec-health', title: '片区体检情况', component: SectionHealthCheck },
+    { id: 'sec-func', title: '片区功能策划', component: SectionFunctionPlan },
+    { id: 'sec-project', title: '片区项目情况', component: SectionProjectInfo },
+    { id: 'sec-fund', title: '片区资金方案', component: SectionFundingPlan },
+    { id: 'sec-attach', title: '附件材料', component: SectionAttachment },
+  ] as const;
 
-  async function handleSubmit() {
-    if (isView.value) {
-      closeDrawer();
-      return;
+  const navSections = SECTIONS.map(({ id, title: navTitle }) => ({ id, title: navTitle }));
+
+  /** 各区块组件实例（统一暴露 validate / getFieldsValue / exportRows） */
+  const sectionRefs = new Map<string, SectionFormExposed | null>();
+
+  function setSectionRef(id: string, el: unknown) {
+    const inst = (el as SectionFormExposed) ?? null;
+    // 防御：区块漏 defineExpose(exposed) 时 validate 为 undefined，保存会被误判为校验失败
+    if (inst && typeof inst.validate !== 'function') {
+      console.warn(`[scheme-fill] 区块 ${id} 未暴露统一接口（缺 defineExpose(exposed)），请检查对应 section 组件`);
     }
-    let data: any;
-    try {
-      data = await validate();
-    } catch (error: any) {
-      if (error && error.errorFields) {
-        showMessage(error.message || '请完善必填项');
+    sectionRefs.set(id, inst);
+  }
+
+  /** 保存：逐区块校验并收集值；首个未通过的区块滚动定位 */
+  async function handleSave() {
+    const values: Recordable = {};
+    let firstErrorId = '';
+    for (const sec of SECTIONS) {
+      const inst = sectionRefs.get(sec.id);
+      if (!inst) continue;
+      try {
+        await inst.validate();
+        Object.assign(values, inst.getFieldsValue());
+      } catch {
+        if (!firstErrorId) {
+          firstErrorId = sec.id;
+        }
       }
+    }
+    if (firstErrorId) {
+      showMessage('存在未完善的必填项，已定位到对应区块');
+      document.getElementById(firstErrorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    // TODO: 后端接入后在此调用保存接口（填报时间由后端记录）
-    emit('success', { ...data, id: record.value.id, isNewRecord: !!record.value.isNewRecord });
-    setTimeout(closeDrawer);
+    saving.value = true;
+    try {
+      // TODO: 后端接入后在此调用保存接口（填报时间由后端记录）
+      emit('success', { ...values, id: record.id, isNewRecord });
+    } finally {
+      saving.value = false;
+    }
+  }
+
+  /** 导出：全部区块平铺为「区块标题 + 字段/值」两列 Excel（复用 core 的 xlsx 工具） */
+  function handleExport() {
+    const rows: string[][] = [];
+    for (const sec of SECTIONS) {
+      const inst = sectionRefs.get(sec.id);
+      rows.push([sec.title]);
+      for (const [label, value] of inst?.exportRows() ?? []) {
+        rows.push([label, value]);
+      }
+      rows.push([]);
+    }
+    aoaToSheetXlsx({ data: rows, filename: `${record.name || '片区'}-策划方案填报.xlsx` });
+    showMessage('导出成功（本地演示）');
   }
 </script>
