@@ -76,7 +76,7 @@ export default defineComponent({
           right: () => (
             <>
               {/* 地图：VMap 组件内部创建/销毁 MapLibre 实例，crs/center/zoom 走 options prop */}
-              <VMap style={basemapStyle} options={basemapMapOptions}>
+              <VMap reuseMaps style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
                 {/* 图层 / 交互逻辑子组件：必须在 VMap 插槽内才能 useMap；selected 联动选中高亮 */}
                 <IfcoMapLayers

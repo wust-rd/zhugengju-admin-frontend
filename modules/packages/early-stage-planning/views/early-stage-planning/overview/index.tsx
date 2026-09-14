@@ -202,7 +202,7 @@ export default defineComponent({
           right: () => (
             <>
               {/* 右侧地图：VMap 内部创建/销毁 MapLibre 实例，底图为天地图（矢量 + 中文注记） */}
-              <VMap style={basemapStyle} options={basemapMapOptions}>
+              <VMap reuseMaps style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
 
                 {/* 更新片区面：第一批紫 / 第二批蓝（仅展示，无交互；联动待后续） */}

@@ -5,8 +5,8 @@ import './maplibre-gl-empty.css';
 import {
   computed,
   defineComponent,
-  onBeforeUnmount,
   onMounted,
+  onUnmounted,
   provide,
   ref,
   shallowRef,
@@ -316,7 +316,11 @@ export const VMap = defineComponent({
     });
 
     // ==================== 生命周期：卸载 ====================
-    onBeforeUnmount(() => {
+    // ★ 必须在 onUnmounted（而非 onBeforeUnmount）回收实例：Vue 卸载顺序是
+    //   父 beforeUnmount → 子 beforeUnmount → 父 unmounted，而子组件（图层/marker/
+    //   popup）的卸载清理读取的是注入的 map.value——若在父 beforeUnmount 里就置空，
+    //   子组件清理时拿到 null 直接跳过，reuseMaps 池里会残留上个页面的业务图层。
+    onUnmounted(() => {
       clearStyleTimeout();
       const map = mapInstance.value;
       if (map) {
