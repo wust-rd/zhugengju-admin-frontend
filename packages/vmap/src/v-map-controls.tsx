@@ -238,7 +238,10 @@ export const VMapControls = defineComponent({
               </button>
             </Tooltip>
 
+            {/* duration 显式 300ms 与动画时长一致：元素移除不依赖 animationend 事件，
+                避免离场动画被路由切换等打断时元素卡在“离场中”永不移除 */}
             <Transition
+              duration={300}
               enterActiveClass="animated animated-duration-300ms fade-in-up-sm"
               leaveActiveClass="animated animated-duration-300ms fade-out-down-sm"
             >

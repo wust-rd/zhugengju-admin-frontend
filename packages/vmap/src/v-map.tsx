@@ -98,17 +98,32 @@ export function clearSavedMaps() {
 
 /**
  * 从池中复用地图实例：
- * 1. 把旧容器（已从 document 摘除但 DOM 节点仍在内存）的全部子节点搬到新容器；
+ * 1. 把旧容器（已从 document 摘除但 DOM 节点仍在内存）中 MapLibre 自建的节点
+ *    （.maplibregl-canvas-container / .maplibregl-control-container 等，标记为
+ *    maplibregl-* 前缀类）搬到新容器；
  * 2. 替换 MapLibre 内部 container 引用（私有字段，需 cast）；
  * 3. resize() 适配新容器尺寸。
+ * ★ 只搬 maplibregl-* 节点、不做全量 childNodes 搬移：旧容器可能残留上个页面
+ *   插槽的 DOM（如 Transition 卸载中延迟移除的底图面板），全量搬移会把这类
+ *   不受新页面 Vue 实例控制的“孤儿节点”带进来——表现为面板显示但按钮关不掉。
  * 池空时返回 null，由调用方新建实例。
  */
 function reuseMap(container: HTMLDivElement): MapLibreGL.Map | null {
   const map = savedMaps.pop();
   if (!map) return null;
   const oldContainer = map.getContainer();
-  while (oldContainer.childNodes.length > 0) {
-    container.appendChild(oldContainer.childNodes[0]);
+  const ownNodes = Array.from(oldContainer.childNodes).filter(
+    (node): node is HTMLElement =>
+      node instanceof HTMLElement && Array.from(node.classList).some((cls) => cls.startsWith('maplibregl-')),
+  );
+  if (ownNodes.length === 0) {
+    // 结构与预期不符（fork 升级改了类名等）：退回全量搬移保底，至少保证地图可见
+    console.warn('[VMap] reuseMaps 未在旧容器中找到 maplibregl-* 节点，退回全量 DOM 搬移');
+    while (oldContainer.childNodes.length > 0) {
+      container.appendChild(oldContainer.childNodes[0]);
+    }
+  } else {
+    for (const node of ownNodes) container.appendChild(node);
   }
   (map as unknown as { _container: HTMLDivElement })._container = container;
   map.resize();
