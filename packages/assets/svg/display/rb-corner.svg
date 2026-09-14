@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="57" height="57" viewBox="0 0 57 57" fill="none">
+  <!--
+    右下角折线描边（L 形）：从底部左端水平延伸到右侧后向上。
+    - 渐变描边：两端透明蓝（#002BFF）→ 中间亮青（#00D5FF）→ 两端透明蓝
+    - hard-light 混合 + 75% 不透明度 + 1.5px 线宽，霓虹感
+  -->
+  <path
+    d="M0 56
+       H52.8
+       C53.9201 56 54.4802 56 54.908 55.782
+       C55.2843 55.5903 55.5903 55.2843 55.782 54.908
+       C56 54.4802 56 53.9201 56 52.8
+       V0"
+    stroke="url(#stroke-gradient)"
+    stroke-opacity="0.75"
+    style="mix-blend-mode: hard-light"
+    stroke-width="1.5"
+  />
+
+  <defs>
+    <!-- 描边渐变：两端透明蓝 → 中间亮青 → 两端透明蓝 -->
+    <linearGradient
+      id="stroke-gradient"
+      x1="2.33333"
+      y1="56"
+      x2="59.1291"
+      y2="4.25159"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#002BFF" stop-opacity="0" />
+      <stop offset="0.5" stop-color="#00D5FF" />
+      <stop offset="1" stop-color="#002BFF" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+</svg>

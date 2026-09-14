@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="79" height="5" viewBox="0 0 79 5" fill="none">
+  <!--
+    左下角装饰条：一排菱形从左到右亮度递减（100% → 60% → 30%），
+    末段以渐变尾收束（#67ECE4 → 透明）。
+    底色 #36DAFF，白色描边 45% 不透明度。
+  -->
+
+  <!-- 菱形 1：最亮（100%） -->
+  <path
+    d="M10.3753 4.5 H1.02481 L4.14165 0.5 H13.4922 L10.3753 4.5 Z"
+    fill="#36DAFF"
+    stroke="white"
+    stroke-opacity="0.45"
+  />
+
+  <!-- 菱形 2：60% -->
+  <path
+    opacity="0.6"
+    d="M24.4105 4.5 H15.06 L18.1768 0.5 H27.5273 L24.4105 4.5 Z"
+    fill="#36DAFF"
+    stroke="white"
+    stroke-opacity="0.45"
+  />
+
+  <!-- 菱形 3：30% -->
+  <path
+    opacity="0.3"
+    d="M38.4417 4.5 H29.0912 L32.2081 0.5 H41.5586 L38.4417 4.5 Z"
+    fill="#36DAFF"
+    stroke="white"
+    stroke-opacity="0.45"
+  />
+
+  <!-- 渐变尾：10% 亮度，向右渐隐收束 -->
+  <path
+    opacity="0.1"
+    d="M73.9066 4.5 L43.1278 4.5 L46.2446 0.5 H77.0234 L73.9066 4.5 Z"
+    fill="url(#tail-gradient)"
+    stroke="white"
+    stroke-opacity="0.45"
+  />
+
+  <defs>
+    <!-- 尾部渐隐：青绿 #67ECE4 → 透明，自左向右 -->
+    <linearGradient
+      id="tail-gradient"
+      x1="21.3098"
+      y1="2.5"
+      x2="76.6338"
+      y2="2.49999"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop stop-color="#67ECE4" />
+      <stop offset="1" stop-color="#67ECE4" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+</svg>

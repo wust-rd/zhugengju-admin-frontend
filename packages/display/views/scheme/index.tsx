@@ -10,6 +10,7 @@ import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
 import { RouterLink } from 'vue-router';
 import { cn } from '@jeesite/core/libs';
+import { SchemeLeftDrawer } from './left-drawer';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -246,14 +247,15 @@ export default defineComponent({
 
     return () => (
       <>
-        {/* 左侧抽屉：与地图平级，向左移动渐隐（motion-v 动画） */}
+        {/* 左侧抽屉：与地图平级，向左移动渐隐（motion-v 动画）；
+            面板内容为早期规划数据看板（SchemeLeftDrawer），头部收起按钮与下方热区都触发 hideDrawer */}
         <div
           ref={(el) => {
             drawerRef.value = el as HTMLDivElement | null;
           }}
-          class="relative h-full"
+          class="relative h-full shrink-0 overflow-hidden"
         >
-          <img src={`${OSS_BASE}/左侧抽屉.webp`} alt="左侧抽屉" class="h-full object-fill" />
+          <SchemeLeftDrawer onToggle={hideDrawer} />
 
           <div
             class="absolute bg-transparent top-36px right-24px size-40px z-100 cursor-pointer"
