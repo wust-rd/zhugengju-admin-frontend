@@ -6,8 +6,8 @@ import {
   VMapControls,
   VMarker,
   VMarkerContent,
-  tiandituStyle,
-  tiandituMapOptions,
+  basemapStyle,
+  basemapMapOptions,
 } from '@jeesite/vmap';
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, shallowRef, watch, type PropType } from 'vue';
 import {
@@ -266,7 +266,7 @@ export default defineComponent({
           right: () => (
             <div class="relative size-full overflow-hidden">
               {/* 地图：VMap 组件内部创建/销毁 MapLibre 实例，crs/center/zoom 走 options prop */}
-              <VMap style={tiandituStyle} options={tiandituMapOptions}>
+              <VMap style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
 
                 <RelicMapLogic

@@ -1,7 +1,7 @@
 import { defineComponent, ref, shallowRef } from 'vue';
 import type { PropType } from 'vue';
 import { Button, Modal } from 'antdv-next';
-import { VMap, VMapControls, useMap, useMapLayer, tiandituStyle, tiandituMapOptions } from '@jeesite/vmap';
+import { VMap, VMapControls, useMap, useMapLayer, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
 import { createGeomanInstance } from '@geoman-io/maplibre-geoman-free';
 import type { Geoman } from '@geoman-io/maplibre-geoman-free';
 import { match } from 'ts-pattern';
@@ -149,7 +149,7 @@ export const GeoEditModal = defineComponent({
           </Button>
         </div>
         <div style={{ height: '420px' }} class="w-full overflow-hidden rd-4px">
-          <VMap style={tiandituStyle} options={tiandituMapOptions}>
+          <VMap style={basemapStyle} options={basemapMapOptions}>
             <VMapControls />
             <GeoEditController
               initialGeoJson={props.initialGeoJson}

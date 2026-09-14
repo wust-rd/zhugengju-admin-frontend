@@ -17,7 +17,7 @@ import { FuncTypeChart } from './func-type-chart';
 import { InvestTotalCard, type BatchInvest } from './invest-total-card';
 import { ProgressChart } from './progress-chart';
 import { PROGRESS_ITEMS, progressGroups } from './progress-data';
-import { VMap, VMapControls, tiandituStyle, tiandituMapOptions } from '@jeesite/vmap';
+import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
 
 // 区域 tabs：激活项由 RegionTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
 const regionTabs: GlowTabItem[] = [
@@ -202,7 +202,7 @@ export default defineComponent({
           right: () => (
             <>
               {/* 右侧地图：VMap 内部创建/销毁 MapLibre 实例，底图为天地图（矢量 + 中文注记） */}
-              <VMap style={tiandituStyle} options={tiandituMapOptions}>
+              <VMap style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
 
                 {/* 更新片区面：第一批紫 / 第二批蓝（仅展示，无交互；联动待后续） */}

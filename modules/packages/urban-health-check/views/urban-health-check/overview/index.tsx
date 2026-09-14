@@ -9,7 +9,7 @@ import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import { RatingResult, type RatingDatum } from './rating-result';
 import { SearchFilter } from '@jeesite/display/components/search-filter';
 import { TopFilter } from './top-filter';
-import { VMap, VMapControls, tiandituStyle, tiandituMapOptions } from '@jeesite/vmap';
+import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
 
 // 指标评价结果分布：饼图与右侧统计网格共用同一份数据（数值为百分数）
 const ratingData: RatingDatum[] = [
@@ -121,7 +121,7 @@ export default defineComponent({
           right: () => (
             <>
               {/* 右侧地图：VMap 内部创建/销毁 MapLibre 实例，底图为天地图（矢量 + 中文注记） */}
-              <VMap style={tiandituStyle} options={tiandituMapOptions}>
+              <VMap style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
               </VMap>
             </>

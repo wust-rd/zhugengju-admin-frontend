@@ -8,7 +8,7 @@
  *
  * 三类数据字段名与面积单位（MJ 有 km²/m²/万m² 三种）不一致，这里统一归一化到
  * CityScopeFeatureProps：面积一律取 Shape_Area（m²），名称拆出「基础名 + 保护范围类型」。
- * 坐标为 CGCS2000 经纬度，与地图 crs: EPSG:4490 一致，可直接作为 geojson source 数据。
+ * 坐标为 CGCS2000 经纬度，底图已切数公基 EPSG:3857（MapLibre 默认），经纬度可直接作为 geojson source 数据。
  */
 import historicUrbanAreaUrl from './data/historic-urban-area.geojson?url';
 import historicVillageUrl from './data/historic-village.geojson?url';

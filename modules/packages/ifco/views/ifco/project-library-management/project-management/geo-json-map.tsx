@@ -1,6 +1,6 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
-import { VMap, VMapControls, tiandituStyle, tiandituMapOptions } from '@jeesite/vmap';
+import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
 import { GeoLayers } from './geo-layers';
 
 /**
@@ -18,7 +18,7 @@ export const GeoJsonMap = defineComponent({
   setup(props) {
     return () => (
       <div style={{ height: props.height }} class="w-full overflow-hidden rd-4px">
-        <VMap style={tiandituStyle} options={tiandituMapOptions}>
+        <VMap style={basemapStyle} options={basemapMapOptions}>
           <VMapControls />
           <GeoLayers geoJson={props.geoJson} />
         </VMap>

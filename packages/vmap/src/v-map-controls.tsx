@@ -12,22 +12,11 @@ import {
 import { Tooltip } from 'antdv-next';
 import { Locate, Loader2, Maximize, Minus, Plus } from 'lucide-vue-next';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import sgjElectricImg from '@jeesite/assets/images/vmap/数公基电子地图.webp';
-import sgjRemoteImg from '@jeesite/assets/images/vmap/数公基遥感影像.webp';
-import yztElectricImg from '@jeesite/assets/images/vmap/一张图电子地图.webp';
-import yztRemoteImg from '@jeesite/assets/images/vmap/一张图遥感影像.webp';
 import { cn, type ClassValue } from '@jeesite/core/libs';
+import { BASEMAP_OPTIONS, activeBasemap, selectBasemap } from './basemap';
 import { useMap } from './composables/use-map';
 
 type Orientation = 'vertical' | 'horizontal';
-
-/** 底图切换面板的可选项（name 为图片文件名去扩展名，同时作为 basemap 事件的 payload） */
-const BASEMAP_OPTIONS = [
-  { name: '数公基电子地图', image: sgjElectricImg },
-  { name: '数公基遥感影像', image: sgjRemoteImg },
-  { name: '一张图电子地图', image: yztElectricImg },
-  { name: '一张图遥感影像', image: yztRemoteImg },
-] as const;
 
 /**
  * 地图控制条（VMapControls）
@@ -43,8 +32,12 @@ const BASEMAP_OPTIONS = [
  *
  * 事件：
  * - `locate`：定位成功后触发，payload 为 `{ longitude, latitude }`。
- * - `basemap`：底图面板中选中某项后触发，payload 为底图名（图片文件名去扩展名，如「一张图遥感影像」）；
- *   仅通知选中项，实际切换底图样式由外部监听方实现。
+ * - `basemap`：底图面板中选中某项后触发，payload 为底图名（图片文件名去扩展名，如「数公基遥感影像」）。
+ *   组件内同时按选项的 layerIds 成组互斥切换 basemapStyle 中的对应图层
+ *   （一张图电子地图 = 底图 + 注记两图层叠加）。
+ *
+ * 底图选中态为模块级共享（basemap.ts 的 activeBasemap）：overview 页面来回切换时
+ * 记住已选底图，新地图实例样式就绪后自动同步（见 watch(map)）。
  */
 export const VMapControls = defineComponent({
   name: 'VMapControls',
@@ -88,7 +81,7 @@ export const VMapControls = defineComponent({
     const compassRef = ref<SVGSVGElement | null>(null); // 罗盘 SVG，随 bearing/pitch 旋转
     const is3D = ref(false); // 当前是否为 3D 俯视视角
     const basemapPanelVisible = ref(false); // 底图面板是否展开
-    const activeBasemap = ref<string>(BASEMAP_OPTIONS[0].name); // 当前选中的底图名（默认第一项）
+    // 底图选中态为模块级共享（来自 ./basemap）：overview 页面来回切换时实例重建但记忆不丢
 
     const isHorizontal = computed(() => props.orientation === 'horizontal');
 
@@ -101,12 +94,40 @@ export const VMapControls = defineComponent({
     );
 
     // ── 地图操作 handlers（全部走 map.value?. 可选链，纯 UI 模式静默失效）───
-    // 底图选择：仅更新选中态并 emit('basemap', name)，面板保持展开（只有再次点击按钮才收起），
-    // 实际换底图由外部监听方实现
+    // 底图切换：按选项的 layerIds 成组互斥显隐（一张图电子地图=底图+注记两图层）；
+    // 面板保持展开（只有再次点击按钮才收起）
+    const applyBasemap = (name: string) => {
+      const m = map.value;
+      if (!m) return;
+      for (const option of BASEMAP_OPTIONS) {
+        for (const layerId of option.layerIds ?? []) {
+          if (m.getLayer(layerId)) {
+            m.setLayoutProperty(layerId, 'visibility', option.name === name ? 'visible' : 'none');
+          }
+        }
+      }
+    };
+
     const handleSelectBasemap = (name: string) => {
-      activeBasemap.value = name;
+      selectBasemap(name); // 共享选中态 + 写回 basemapStyle（新地图第一帧即正确底图，防闪烁）
+      applyBasemap(name); // 当前地图实例上的互斥显隐
       emit('basemap', name);
     };
+
+    // ── 跨页面底图记忆同步 ─────────────────────────────────────────
+    // 兜底：basemapStyle 对象已随选中态预先写入可见性（selectBasemap），新地图第一帧
+    // 即正确；此处再在样式就绪时同步一次，覆盖对象未被采用等边缘情况（幂等，无视觉变化）。
+    // reuseMaps 复用的实例已加载则立即同步。
+    watch(
+      map,
+      (m) => {
+        if (!m) return;
+        const sync = () => applyBasemap(activeBasemap.value);
+        if (m.isStyleLoaded()) sync();
+        m.once('load', sync);
+      },
+      { immediate: true },
+    );
 
     const handleZoomIn = () => map.value?.zoomTo(map.value.getZoom() + 1, { duration: 300 });
     const handleZoomOut = () => map.value?.zoomTo(map.value.getZoom() - 1, { duration: 300 });

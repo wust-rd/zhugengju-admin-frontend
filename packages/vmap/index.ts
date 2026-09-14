@@ -33,9 +33,4 @@ export { useMap } from './src/composables/use-map';
 export { useMapLayer } from './src/composables/use-map-layer';
 export { usePopup } from './src/composables/use-popup';
 export { MapContextKey, MarkerContextKey, type MapContextValue, type MarkerContextValue } from './src/context';
-export {
-  tiandituTileUrls,
-  tiandituStyle,
-  tiandituMapOptions,
-  WUHAN_CENTER,
-} from './src/tianditu';
+export { basemapStyle, basemapMapOptions, BASEMAP_OPTIONS, DEFAULT_BASEMAP_NAME, WUHAN_CENTER } from './src/basemap';

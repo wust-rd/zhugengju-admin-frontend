@@ -2,7 +2,7 @@ import { defineComponent, ref } from 'vue';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { GlowTitle3 } from '@jeesite/display/components/glow-title/title3';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
-import { VMap, VMapControls, tiandituStyle, tiandituMapOptions } from '@jeesite/vmap';
+import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
 
 import { ExpropriationOverview } from './expropriation-overview';
 import { DistrictList } from './district-list';
@@ -39,7 +39,7 @@ export default defineComponent({
           right: () => (
             <>
               {/* 地图：VMap 组件内部创建/销毁 MapLibre 实例，crs/center/zoom 走 options prop */}
-              <VMap style={tiandituStyle} options={tiandituMapOptions}>
+              <VMap style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
               </VMap>
 
