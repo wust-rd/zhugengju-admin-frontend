@@ -1,6 +1,6 @@
 import { computed, defineComponent, ref } from 'vue';
 import { ProjectTabContent } from '../../components/project-tab-content';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { MapControls } from '@jeesite/display/components/map-controls';
 
 /** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
@@ -33,6 +33,8 @@ const PRELOAD_IMAGES = [
 export default defineComponent({
   name: 'DisplaySchemeDetail',
   setup() {
+    const router = useRouter();
+
     // 组件加载即预加载所有图片（触发浏览器缓存，切换 Tab / 打开预览不再闪烁）
     PRELOAD_IMAGES.forEach((src) => {
       const img = new Image();
@@ -60,6 +62,12 @@ export default defineComponent({
     const closePreview = () => {
       previewVisible.value = false;
       projectPreviewSrc.value = '';
+    };
+
+    /** 「片区项目清单」预览图上右侧中间的热点：点击进入项目实施模块 */
+    const goProjectModule = () => {
+      closePreview();
+      router.push('/display/project');
     };
 
     return () => (
@@ -141,6 +149,17 @@ export default defineComponent({
               />
               {/* 右上角关闭按钮 */}
               <div class="absolute right-0px top-0px size-64px cursor-pointer" onClick={closePreview}></div>
+
+              {/* 「片区项目清单」图上「右侧中间」的热点：点击跳转项目实施路由
+                  - 只有这张图的预览会出现该热点（其余预览图无此入口）
+                  - 位置/尺寸按预览尺寸 1100×619 取：right-0 = 图右边缘，垂直居中，热区 360×240
+                  - 需要校准时临时加上 bg-red/20 就能看到热区，调好删掉即可 */}
+              {previewImageSrc.value === `${OSS_BASE}/片区项目清单.webp` && (
+                <div
+                  class="absolute right-0px top-[calc(50%_-_120px)] h-240px w-360px cursor-pointer"
+                  onClick={goProjectModule}
+                />
+              )}
             </div>
           </div>
         )}
