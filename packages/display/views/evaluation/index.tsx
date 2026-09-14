@@ -1,7 +1,9 @@
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, inject, ref } from 'vue';
+import { match } from 'ts-pattern';
 import { ProjectTabContent } from '../../components/project-tab-content';
 import { RouterLink } from 'vue-router';
 import { MapControls } from '@jeesite/display/components/map-controls';
+import { EvaluationViewKey } from '@jeesite/display/hooks/use-evaluation-view';
 
 /** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
 
@@ -21,6 +23,15 @@ const DRAWER_TABS = [
   },
 ] as const;
 type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
+
+/** 搬过来的「总览」页面（原项目实施第三个页面）：左右两张底图拼接 + 红色热点切详情大图 */
+const MAP_IMAGE_URL_LEFT = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/征收管理/总览-left.webp';
+const MAP_IMAGE_URL_RIGHT = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/征收管理/总览-地图.webp';
+/** 点击红色热点后整页展示的图片 */
+const DETAIL_IMAGE_URL = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/征收管理/征收管理-总览页面2.webp';
+
+/** 搬过来的「名称保护」页面（原项目实施第四个页面）：整页只有一张图 */
+const NAME_PROTECT_IMAGE_URL = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/征收管理/名称保护.webp';
 
 export default defineComponent({
   name: 'DisplayResult',
@@ -48,7 +59,19 @@ export default defineComponent({
       projectPreviewSrc.value = '';
     };
 
-    return () => (
+    /**
+     * 成果评估模块页面状态（由 layouts/index.tsx provide，Sidebar 第 3/4 个图标写入）
+     * - evaluationView：当前页面（own = 本页原有内容、overview = 总览、nameProtect = 名称保护单图）
+     * - detailVisible：总览内是否展开详情大图（红色热点切换）
+     */
+    const { evaluationView, detailVisible, resetEvaluationView } = inject(EvaluationViewKey)!;
+
+    // 默认页：进入本模块一律落在「成果评估自己的内容」。
+    // 在 setup 中同步重置（而非 onMounted），避免先渲染一帧上次残留的页面。
+    resetEvaluationView();
+
+    /** 成果评估自己的内容（左侧地图 + 右侧 Tab 抽屉）—— 默认页 */
+    const renderOwnContent = () => (
       <>
         <div class="flex-1 w-1430px h-full relative">
           {/* <RouterLink to="/display/scheme">
@@ -132,5 +155,42 @@ export default defineComponent({
         )}
       </>
     );
+
+    /** 原项目实施第三个页面 —— 征收管理总览（左右两张底图拼接，红色热点切详情大图） */
+    const renderOverview = () => (
+      <>
+        <div class="flex size-full relative">
+          {detailVisible.value ? (
+            <img src={DETAIL_IMAGE_URL} alt="项目详情" class="size-full object-fill" />
+          ) : (
+            <>
+              <img src={MAP_IMAGE_URL_LEFT} alt="项目地图" class="w-460px h-full block" />
+
+              <img src={MAP_IMAGE_URL_RIGHT} alt="项目地图" class="flex-1 object-fill" />
+            </>
+          )}
+
+          {/* 红色热点：点击在「总览 ↔ 详情大图」之间切换 */}
+          <div
+            class="absolute top-124px right-700px z-10 size-100px cursor-pointer"
+            onClick={() => (detailVisible.value = !detailVisible.value)}
+          />
+        </div>
+      </>
+    );
+
+    // 侧边栏第 3/4 个图标切换页面（页内切换，不换路由）：
+    //   own         = 本页原有内容（默认）
+    //   overview    = 原项目实施第三个页面
+    //   nameProtect = 原项目实施第四个页面
+    //
+    // 注意：setup 必须返回「渲染函数」，不能直接返回 VNode，
+    // 否则 Vue 会报 setup() should not return VNodes directly 并把页面渲染成空白。
+    return () =>
+      match(evaluationView.value)
+        .with('own', renderOwnContent)
+        .with('overview', renderOverview)
+        .with('nameProtect', () => <img src={NAME_PROTECT_IMAGE_URL} alt="名称保护" class="size-full object-fill" />)
+        .exhaustive();
   },
 });

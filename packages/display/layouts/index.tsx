@@ -1,6 +1,6 @@
 import { Header } from '@jeesite/display/components/header';
 import { Sidebar } from '@jeesite/display/components/sidebar';
-import { ProjectViewKey, useProjectView } from '@jeesite/display/hooks/use-project-view';
+import { EvaluationViewKey, useEvaluationView } from '@jeesite/display/hooks/use-evaluation-view';
 import { defineComponent, onMounted, onUnmounted, provide } from 'vue';
 import { RouterView, useRouter } from 'vue-router';
 
@@ -18,8 +18,8 @@ export default defineComponent({
   setup() {
     const router = useRouter();
 
-    // 项目实施页视图切换：受控初始化后 provide，Sidebar（点击写入）与项目实施页（渲染读取）共享同一实例
-    provide(ProjectViewKey, useProjectView());
+    // 成果评估模块页面切换：受控初始化后 provide，Sidebar（点击写入）与成果评估页（渲染读取）共享同一实例
+    provide(EvaluationViewKey, useEvaluationView());
 
     /** 进入后台登录页（后台业务保持 /a 前缀原样） */
     function goAdmin() {
