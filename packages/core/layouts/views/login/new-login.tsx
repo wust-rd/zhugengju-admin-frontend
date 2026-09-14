@@ -3,14 +3,10 @@ import { darkPrimaryColor } from '@jeesite/vite/theme/themeConfig';
 import loginBgImg from '@jeesite/assets/images/login-bg.webp';
 import { ConfigProvider, Tabs, theme } from 'antdv-next';
 import dayjs from 'dayjs';
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
+import { createAsyncComponent } from '@jeesite/core/utils/factory/createAsyncComponent';
 import { LoginStateEnum, useLoginState } from './useLogin';
 
-import ForgetPasswordForm from './ForgetPasswordForm.vue';
-import LoginForm from './LoginForm.vue';
-import MobileForm from './MobileForm.vue';
-import QrCodeForm from './QrCodeForm.vue';
-import RegisterForm from './RegisterForm.vue';
 import './new-login.less';
 
 /** 强制 dark 的 antd 主题分支（镜像 AppProvider 的 isDark 配置，与全局主题无关） */
@@ -43,50 +39,68 @@ export default defineComponent({
     const { getLoginState, setLoginState } = useLoginState();
     const demoMode = ref(false);
 
+    // 注册/忘记密码态下隐藏 Tab 栏（对齐 Login.vue 的 getShow 口径）：
+    // 这两个状态匹配不到任何 Tab 的 activeKey，且 Tab 栏占用的纵向空间会加剧表单溢出
+    const getShowTabs = computed(() =>
+      [LoginStateEnum.LOGIN, LoginStateEnum.MOBILE, LoginStateEnum.QR_CODE].includes(getLoginState.value),
+    );
+
+    // 动态导入（与 Login.vue 同款）：避免静态导入使旧登录页的懒加载拆包失效（INEFFECTIVE_DYNAMIC_IMPORT）
+    // LoginForm 是默认 Tab，带 loading 占位防首屏闪烁
+    const LoginForm = createAsyncComponent(() => import('./LoginForm.vue'), { loading: true });
+    const MobileForm = createAsyncComponent(() => import('./MobileForm.vue'));
+    const ForgetPasswordForm = createAsyncComponent(() => import('./ForgetPasswordForm.vue'));
+    const QrCodeForm = createAsyncComponent(() => import('./QrCodeForm.vue'));
+    const RegisterForm = createAsyncComponent(() => import('./RegisterForm.vue'));
+
     function handleTabsChange(key: unknown) {
       setLoginState(key as LoginStateEnum);
     }
 
     return () => (
       <div
-        class="new-login-panel flex size-full items-center justify-center bg-cover bg-no-repeat"
+        class="new-login-panel flex size-full justify-center overflow-y-auto bg-cover bg-no-repeat"
         style={{
           backgroundImage: `url(${loginBgImg})`,
         }}
       >
-        <div class="rd-12px flex flex-col w-600px h-640px items-center border-1px border-white/15 bg-black/25 text-white backdrop-blur pt-32px">
+        {/* min-h 而非固定 h：注册/忘记密码表单字段多，面板需随内容增高；
+            my-auto 替代 items-center，视口过矮时内容可滚动到顶部而非被居中裁切 */}
+        <div class="rd-12px my-auto flex w-600px min-h-640px flex-col items-center border-1px border-white/15 bg-black/25 text-white backdrop-blur pt-32px">
           <div class="font-500 text-24px text-white">武汉市城市更新信息管理平台</div>
 
           <ConfigProvider theme={FORCE_DARK_THEME}>
             <div class="mt-24px flex w-400px flex-col items-center">
-              <Tabs
-                class="w-full"
-                activeKey={getLoginState.value}
-                onChange={handleTabsChange}
-                centered
-                items={[
-                  {
-                    key: LoginStateEnum.LOGIN,
-                    label: t('sys.login.signInFormTitle'),
-                    content: <LoginForm onDemoMode={(v: any) => (demoMode.value = !!v)} />,
-                  },
-                  {
-                    key: LoginStateEnum.MOBILE,
-                    label: t('sys.login.mobileSignInFormTitle'),
-                    content: <MobileForm demoMode={demoMode.value} />,
-                  },
-                  {
-                    key: LoginStateEnum.QR_CODE,
-                    label: t('sys.login.qrSignInFormTitle'),
-                    // 包 px-4 对齐 LoginForm/MobileForm 的水平内边距，使返 回按钮宽度与其他 Tab 一致
-                    content: (
-                      <div class="px-4">
-                        <QrCodeForm />
-                      </div>
-                    ),
-                  },
-                ]}
-              />
+              {getShowTabs.value && (
+                <Tabs
+                  class="w-full"
+                  activeKey={getLoginState.value}
+                  onChange={handleTabsChange}
+                  centered
+                  items={[
+                    {
+                      key: LoginStateEnum.LOGIN,
+                      label: t('sys.login.signInFormTitle'),
+                      content: <LoginForm onDemoMode={(v: any) => (demoMode.value = !!v)} />,
+                    },
+                    {
+                      key: LoginStateEnum.MOBILE,
+                      label: t('sys.login.mobileSignInFormTitle'),
+                      content: <MobileForm demoMode={demoMode.value} />,
+                    },
+                    {
+                      key: LoginStateEnum.QR_CODE,
+                      label: t('sys.login.qrSignInFormTitle'),
+                      // 包 px-4 对齐 LoginForm/MobileForm 的水平内边距，使返 回按钮宽度与其他 Tab 一致
+                      content: (
+                        <div class="px-4">
+                          <QrCodeForm />
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              )}
 
               {/* 辅助状态表单：由 useLoginState 内部切换显示 */}
               <ForgetPasswordForm demoMode={demoMode.value} />

@@ -12,8 +12,13 @@ export let i18n: ReturnType<typeof createI18n>;
 // 静态导入默认语言包，确保同步模块（如依赖中直接 import 的文件）可正常使用 i18n
 import fallbackLocale from './lang/zh_CN';
 
-// 懒加载其他语言包，每个语言文件会成为独立 chunk（zh_CN 已静态导入，getLocaleMessages 中跳过）
-const localeLoaders = import.meta.glob<{ default: { message: Record<string, any> } }>('./lang/*.ts');
+// 懒加载其他语言包，每个语言文件会成为独立 chunk（zh_CN 已静态导入，不在此表——
+// 跨包 glob 的 exclude 匹配不到该文件，曾产生永不调用的动态入口触发 INEFFECTIVE_DYNAMIC_IMPORT）
+const localeLoaders: Record<string, () => Promise<{ default: { message: Record<string, any> } }>> = {
+  en: () => import('./lang/en'),
+  ja_JP: () => import('./lang/ja_JP'),
+  zh_TW: () => import('./lang/zh_TW'),
+};
 
 // 已加载的语言包缓存
 const loadedLocaleMessages: Record<string, Record<string, any>> = {};
@@ -45,10 +50,9 @@ export async function getLocaleMessages(locale: string): Promise<Record<string, 
     return messages;
   }
 
-  const modulePath = `./lang/${locale}.ts`;
-  const loader = localeLoaders[modulePath];
+  const loader = localeLoaders[locale];
   if (!loader) {
-    console.warn(`[i18n] 语言包 "${locale}" 不存在: ${modulePath}`);
+    console.warn(`[i18n] 语言包 "${locale}" 不存在`);
     return {};
   }
   const module = await loader();
