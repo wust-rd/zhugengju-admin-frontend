@@ -113,7 +113,10 @@ export const CornerPanel = defineComponent({
 
     return () => {
       return (
-        <div class={cn('relative mt-8px w-full b b-cyan-900 rd-4px bg-[#162a43]', props.class)} onClick={handleClick}>
+        <div
+          class={cn('relative mt-8px w-full b-1px b-solid b-cyan-900 rd-4px bg-[#162a43]', props.class)}
+          onClick={handleClick}
+        >
           {!props.isRound && (
             <>
               {/* 四角装饰：不拦截指针事件 */}

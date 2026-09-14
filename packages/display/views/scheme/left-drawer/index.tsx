@@ -9,7 +9,7 @@ import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import type { MenuItemType } from 'antdv-next';
 import { computed, defineComponent, ref, shallowRef, type PropType } from 'vue';
-import { areaGroups, batchOptions, districtInvest, loadAreas } from './area-data';
+import { areaGroups, batchFilter, batchOptions, districtCount, loadAreas, type BatchKey } from './area-data';
 import { DistrictChart } from './district-chart';
 import { FuncTypeChart } from './func-type-chart';
 import { InvestTotalCard, type BatchInvest } from './invest-total-card';
@@ -44,8 +44,10 @@ const regionTabs: GlowTabItem[] = [
 ];
 
 /** 批次投资进度数据（业务口径数据；后端就绪后替换此处常量）
- *  口径：done = 已完成投资（累计完成）；plan2026 = 2026 年计划完成投资（2026年完成） */
-const BATCH_INVEST: Record<'第一批' | '第二批', BatchInvest> = {
+ *  口径：done = 已完成投资（累计完成）；plan2026 = 2026 年计划完成投资（2026年完成）
+ *  「全部」= 第一批 + 第二批 的合计 */
+const BATCH_INVEST: Record<BatchKey, BatchInvest> = {
+  全部: { label: '全部', total: 3244.8, done: 1799.71, plan2026: 755.63 },
   第一批: { label: '第一批', total: 1310.71, done: 853.45, plan2026: 312.76 },
   第二批: { label: '第二批', total: 1934.09, done: 946.26, plan2026: 442.87 },
 };
@@ -65,8 +67,8 @@ export const SchemeLeftDrawer = defineComponent({
     // ---- 更新片区数据（geojson 一次加载，柱状图/分组列表共用） ----
     const areas = shallowRef<Recordable | null>(null);
     const batches = ref<MenuItemType[]>([]);
-    /** 当前选中批次（key 即批次值：'第一批' | '第二批'） */
-    const activeBatch = ref<string>('第一批');
+    /** 当前选中批次（key 即批次值：'全部' | '第一批' | '第二批'） */
+    const activeBatch = ref<string>('全部');
 
     loadAreas().then((fc) => {
       areas.value = fc as unknown as Recordable;
@@ -76,17 +78,21 @@ export const SchemeLeftDrawer = defineComponent({
       activeBatch.value = opts[0]?.key ?? '';
     });
 
-    /** 柱状图数据：随批次下拉联动（该批次片区按区划聚合投资额，18 区全量、降序） */
-    const chartRows = computed(() =>
-      areas.value ? districtInvest(areas.value as never, activeBatch.value === '第二批' ? '第二批' : '第一批') : [],
-    );
+    /** 数据过滤参数：'全部' → undefined（districtCount / areaGroups 不过滤，两批合并统计） */
+    const batchFilterValue = computed(() => batchFilter(activeBatch.value));
 
-    /** 片区投资总额数据：随批次下拉联动 */
-    const activeInvest = computed(() => BATCH_INVEST[activeBatch.value === '第二批' ? '第二批' : '第一批'] ?? null);
+    /** 当前批次键（用于查表 / 演示数据；非第一批第二批一律按「全部」处理） */
+    const batchKey = computed<BatchKey>(() => batchFilter(activeBatch.value) ?? '全部');
 
-    /** 分组列表数据：随批次下拉联动（第一批/第二批 → 各区真实片区名单 + FUNC_TYPE 胶囊） */
+    /** 柱状图数据：随批次下拉联动（该批次片区按区划统计数量，18 区全量） */
+    const chartRows = computed(() => (areas.value ? districtCount(areas.value as never, batchFilterValue.value) : []));
+
+    /** 片区投资总额数据：随批次下拉联动（「全部」为两批合计） */
+    const activeInvest = computed(() => BATCH_INVEST[batchKey.value] ?? null);
+
+    /** 分组列表数据：随批次下拉联动（全部/第一批/第二批 → 各区真实片区名单 + FUNC_TYPE 胶囊） */
     const groups = computed<CollapseGroupItem<XodItem>[]>(() =>
-      areas.value ? areaGroups(areas.value as never, activeBatch.value === '第二批' ? '第二批' : '第一批') : [],
+      areas.value ? areaGroups(areas.value as never, batchFilterValue.value) : [],
     );
 
     /** 功能定位维度 key（other = 未命中任何导向 / FUNC_TYPE 为空） */
@@ -96,7 +102,7 @@ export const SchemeLeftDrawer = defineComponent({
     /** 功能定位分布：FUNC_TYPE 文本包含维度关键词即计数（一片可命中多维）；
         未命中任何维度（含空值）计入 other；随批次联动 */
     const funcRows = computed<{ key: FuncRowKey; count: number }[]>(() => {
-      const batch = activeBatch.value === '第二批' ? '第二批' : '第一批';
+      const batch = batchFilterValue.value;
       const counts = new Map<FuncRowKey, number>(FUNC_KEYS.map((k) => [k, 0] as [FuncRowKey, number]));
       counts.set('other', 0);
       const grouped = areas.value ? areaGroups(areas.value as never, batch) : [];
@@ -152,7 +158,7 @@ export const SchemeLeftDrawer = defineComponent({
       activeRegionKey.value === 'district'
         ? groups.value
         : activeRegionKey.value === 'progress'
-          ? progressGroups(activeBatch.value === '第二批' ? '第二批' : '第一批')
+          ? progressGroups(batchKey.value)
           : FUNC_LIST_GROUPS,
     );
 

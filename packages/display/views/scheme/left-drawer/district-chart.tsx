@@ -10,10 +10,10 @@ import { defineComponent, shallowRef, watch } from 'vue';
  *
  * 16 个区划（写法归并后）全量渲染、无滑动；区名去掉「区」字后竖排（rotate 90）；
  * 三色渐变柱（浅蓝 → 青 → 金黄，从下往上）+ 横向细分隔条叠加在柱上。
- * 数据来自 area-data.districtInvest（geojson 按 DIST 聚合 INV_BIL，随批次下拉联动传入）。
+ * 数据来自 area-data.districtCount（geojson 按 DIST 统计片区数量，随批次下拉联动传入）。
  *
  * props：
- * - rows: { name, value }[]（区划 → 投资额亿元）；为空时渲染空轴
+ * - rows: { name, value }[]（区划 → 片区数量个）；为空时渲染空轴
  */
 export const DistrictChart = defineComponent({
   name: 'DistrictChart',
@@ -29,8 +29,8 @@ export const DistrictChart = defineComponent({
     function render(rows: { name: string; value: number }[]) {
       const names = rows.map((r) => r.name);
       const values = rows.map((r) => r.value);
-      // 柱高上限取最大值向上取整到 50 的倍数，柱子留出头顶空间
-      const yMax = Math.max(Math.ceil(Math.max(...values, 1) / 50) * 50, 50);
+      // 柱高上限取最大值向上取整到 5 的倍数（片区数量为个位数/十位数，按 5 分级刻度更贴合），柱子留出头顶空间
+      const yMax = Math.max(Math.ceil(Math.max(...values, 1) / 5) * 5, 5);
 
       setOptions({
         grid: { top: 8, left: 0, right: 0, bottom: 78 },
@@ -67,7 +67,7 @@ export const DistrictChart = defineComponent({
         series: [
           // 【渐变柱】从下往上：浅蓝 → 青 → 金黄（y 从 1 到 0，offset 0 在底部）
           {
-            name: '投资额',
+            name: '片区数量',
             type: 'bar',
             barWidth: 14,
             z: 10,
@@ -105,7 +105,7 @@ export const DistrictChart = defineComponent({
             itemStyle: { color: '#354D6B' },
           },
         ],
-        tooltip: { trigger: 'axis', formatter: '{b}<br/>投资额：{c0}亿元' },
+        tooltip: { trigger: 'axis', formatter: '{b}<br/>片区数量：{c0} 个' },
       });
     }
 
@@ -123,7 +123,7 @@ export const DistrictChart = defineComponent({
             <div class="i-ri-map-2-fill size-16px text-white" />
           </DoubleRing>
           <div class="ml-12px text-16px text-white font-500 tracking-wide">片区行政区划分布</div>
-          <Tooltip title="这是片区行政区划分布">
+          <Tooltip title="按行政区/功能区统计已纳入更新的片区数量（个）；随上方批次下拉联动">
             <div class="ml-8px i-ri-information-fill size-16px text-gray-500 cursor-pointer" />
           </Tooltip>
         </div>

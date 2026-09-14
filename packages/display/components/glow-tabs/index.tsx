@@ -101,7 +101,7 @@ export const GlowTabs = defineComponent({
           animate={{ x: indicatorX.value, width: indicatorW.value }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
         >
-          <div class="relative size-full rd-8px b-2 b-cyan-800 of-hidden">
+          <div class="relative size-full rd-8px b-2px b-solid b-cyan-800 of-hidden">
             <div class="absolute left-1/2 -translate-x-1/2 bottom-0 w-1/2 h-8px rounded-full bg-cyan-500 blur-12px" />
           </div>
         </motion.div>

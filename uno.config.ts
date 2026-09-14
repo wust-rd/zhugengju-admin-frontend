@@ -5,6 +5,14 @@ import { presetAntd } from '@antdv-next/unocss';
 
 export default defineConfig({
   inspector: false,
+  // presetWind3 不自带 Tailwind 的 border 重置（presetWind4 才有），而 b / border / b-<color> 系列
+  // 只声明 border-width 或 border-color，浏览器 border-style 初始值为 none → 边框全部画不出来。
+  // 这里补上重置（等价于 presetWind4 / Tailwind v4 的 `border: 0 solid`），工具类的边框样式即可生效。
+  preflights: [
+    {
+      getCSS: () => '*,::before,::after,::backdrop{border:0 solid}',
+    },
+  ],
   rules: [
     // 优设标题黑：对应 custom/font.less 的 @font-face，用于大屏标题
     ['font-youshe', { 'font-family': '"YouSheBiaoTiHei", "PingFang SC", "Microsoft YaHei", sans-serif' }],

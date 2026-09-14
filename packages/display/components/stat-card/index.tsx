@@ -29,7 +29,10 @@ export const StatCard = defineComponent({
   setup(props, { slots }) {
     return () => (
       <div
-        class={cn('relative w-full rd-8px px-20px py-16px overflow-hidden border-2 border-cyan-900', props.class)}
+        class={cn(
+          'relative w-full rd-8px px-20px py-16px overflow-hidden border-2px border-cyan-900 b-solid',
+          props.class,
+        )}
         style={{
           background:
             'radial-gradient(47.72% 70.48% at 96.63% 102.07%, rgba(46, 213, 255, 0.14) 0%, rgba(46, 213, 255, 0.02) 100%), linear-gradient(109deg, #0B1B2A 17.52%, rgba(23, 85, 122, 0.75) 90.25%)',

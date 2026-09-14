@@ -8,6 +8,7 @@
 
 import type { CollapseGroupItem } from '@jeesite/display/components/collapse-groups';
 import type { XodItem } from '@jeesite/display/components/corner-panel/xod-row';
+import type { BatchKey } from './area-data';
 import type { ProgressItem } from './progress-chart';
 
 /** 三色图数据（假数据：绿=推进良好 / 黄=推进中 / 红=滞后） */
@@ -108,7 +109,16 @@ const PROGRESS_GROUPS: Record<'第一批' | '第二批', CollapseGroupItem<XodIt
   ],
 };
 
-/** 取推进情况 tab 的更新片区列表数据（按批次） */
-export function progressGroups(batch: '第一批' | '第二批'): CollapseGroupItem<XodItem>[] {
-  return PROGRESS_GROUPS[batch] ?? PROGRESS_GROUPS['第一批'];
+/** 取推进情况 tab 的更新片区列表数据（按批次；'全部' = 两批按区划合并） */
+export function progressGroups(batch: BatchKey): CollapseGroupItem<XodItem>[] {
+  if (batch !== '全部') return PROGRESS_GROUPS[batch] ?? PROGRESS_GROUPS['第一批'];
+
+  // 全部：两批按区划合并（同名区划的片区归入同一分组，badgeValue = 合并后片数）
+  const merged = new Map<string, XodItem[]>();
+  for (const group of [...PROGRESS_GROUPS['第一批'], ...PROGRESS_GROUPS['第二批']]) {
+    const list = merged.get(group.title) ?? [];
+    list.push(...group.items);
+    merged.set(group.title, list);
+  }
+  return [...merged.entries()].map(([title, items]) => ({ title, badgeValue: items.length, items }));
 }

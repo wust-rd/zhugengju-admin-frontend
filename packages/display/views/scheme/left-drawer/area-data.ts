@@ -4,7 +4,7 @@
  * 182 个更新片区面（MultiPolygon），按 BATCH 分两批：第一批 80 / 第二批 102。
  * 本文件提供页面所需的三个视图：
  *  - loadAreas()：原始 FeatureCollection（地图 addSource 用）
- *  - districtInvest()：按行政/功能区聚合投资额（柱状图用，18 个区划全量）
+ *  - districtCount()：按行政/功能区统计片区数量（柱状图用，18 个区划全量）
  *  - areaGroups(batch)：按区划分组 → 片区行（FUNC_TYPE 解析成 TOD/EOD 等胶囊），批次下拉联动用
  */
 
@@ -56,15 +56,15 @@ const FUNC_FLAGS: { key: keyof Pick<XodItem, 'tod' | 'eod' | 'iod' | 'sod' | 'co
   { key: 'hod', word: 'HOD' },
 ];
 
-/** 按区划聚合投资额（亿，保留 1 位小数），保持数据出现顺序（柱状图用；写法归并后 16 个区划） */
-export function districtInvest(areas: AreaCollection, batch?: '第一批' | '第二批'): { name: string; value: number }[] {
-  const sum = new Map<string, number>();
+/** 按区划统计片区数量（个），保持数据出现顺序（柱状图用；写法归并后 16 个区划） */
+export function districtCount(areas: AreaCollection, batch?: '第一批' | '第二批'): { name: string; value: number }[] {
+  const count = new Map<string, number>();
   for (const f of areas.features) {
     if (batch && f.properties.BATCH !== batch) continue;
     const dist = DIST_MERGE[f.properties.DIST] ?? f.properties.DIST;
-    sum.set(dist, (sum.get(dist) ?? 0) + Number(f.properties.INV_BIL || 0));
+    count.set(dist, (count.get(dist) ?? 0) + 1);
   }
-  return [...sum.entries()].map(([name, v]) => ({ name, value: Math.round(v * 10) / 10 }));
+  return [...count.entries()].map(([name, value]) => ({ name, value }));
 }
 
 /** 按区划分组 → 片区行（FUNC_TYPE 解析胶囊；批次下拉联动传 batch；写法归并后同区分组） */
@@ -89,11 +89,20 @@ export function areaGroups(
   return [...byDist.entries()].map(([title, items]) => ({ title, badgeValue: items.length, items }));
 }
 
-/** 批次选项（真实数量由数据统计） */
-export async function batchOptions(): Promise<{ key: string; label: string; value: '第一批' | '第二批' }[]> {
+/** 批次筛选键：'全部' = 不按批次过滤（两批合并统计） */
+export type BatchKey = '全部' | '第一批' | '第二批';
+
+/** 批次键 → 数据过滤参数：'全部' 返回 undefined（districtCount / areaGroups 的 batch 参数即可选） */
+export function batchFilter(batch: string): '第一批' | '第二批' | undefined {
+  return batch === '第一批' || batch === '第二批' ? batch : undefined;
+}
+
+/** 批次选项（真实数量由数据统计；「全部」放首位，为下拉默认项） */
+export async function batchOptions(): Promise<{ key: string; label: string; value: BatchKey }[]> {
   const areas = await loadAreas();
   const count = (b: '第一批' | '第二批') => areas.features.filter((f) => f.properties.BATCH === b).length;
   return [
+    { key: '全部', label: `全部 ${areas.features.length}`, value: '全部' },
     { key: '第一批', label: `第一批 ${count('第一批')}`, value: '第一批' },
     { key: '第二批', label: `第二批 ${count('第二批')}`, value: '第二批' },
   ];
