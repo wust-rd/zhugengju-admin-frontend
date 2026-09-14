@@ -19,7 +19,7 @@ export default defineComponent({
   setup() {
     const route = useRoute();
     // 沉浸式（去掉内容区 padding）改为按当前路由声明式判定：
-    // 路径落在顶栏导航（NAV_LINKS）任一 to 的 /模块/overview/ 目录下即沉浸，
+    // 路径落在顶栏导航（动态一级菜单，见 nav-links.tsx）任一 to 的 /模块/overview/ 目录下即沉浸，
     // 首帧即生效（currentRoute 先于组件渲染更新），无需页面拨开关
     const immersive = computed(() => isDisplayRoute(route.path));
     const { getOpenPageLoading } = useTransitionSetting();

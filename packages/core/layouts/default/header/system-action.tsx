@@ -1,9 +1,10 @@
 import { computed, defineComponent, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { getMenus } from '@jeesite/core/router/menus';
+import { firstUsablePathIn, getMenus } from '@jeesite/core/router/menus';
 import type { Menu } from '@jeesite/core/router/types';
 import { useGo } from '@jeesite/core/hooks/web/usePage';
 import { ActionButton } from './action-button';
+import { isSystemMenu } from './nav-links';
 
 /**
  * SystemAction —— 系统管理入口（本质是路由 NavLink，做成 action-button 形状）
@@ -35,9 +36,8 @@ export const SystemAction = defineComponent({
     });
 
     function resolveSysMenu() {
-      sysMenu.value =
-        menus.value.find((m) => String(m.meta?.title || '').includes('系统')) ||
-        menus.value.find((m) => m.path.startsWith('/sys'));
+      // 口径与 NavLinks 共用（nav-links 的 isSystemMenu）：标题含「系统」或 path 以 /sys 开头
+      sysMenu.value = menus.value.find(isSystemMenu);
     }
 
     /** 当前路由是否落在该菜单子树内（NavLinks 同款前缀匹配，逐层递归） */
@@ -51,31 +51,15 @@ export const SystemAction = defineComponent({
     /** 门卫：能解析出系统管理子树 ⇔ 后端下发了超管菜单，才生成入口按钮 */
     const canShow = computed(() => !!sysMenu.value);
 
-    /** 深度优先找菜单树中第一个可用路由（跳过带参数的占位路径） */
-    function firstLeafPath(m: Menu): string | undefined {
-      if (m.children?.length) {
-        for (const child of m.children) {
-          const p = firstLeafPath(child);
-          if (p) return p;
-        }
-      }
-      return m.path && !m.path.includes(':') ? m.path : undefined;
-    }
-
     function enterSystem() {
-      const target = sysMenu.value ? firstLeafPath(sysMenu.value) : undefined;
+      // 进系统管理子树第一个能用的真实页面（menus 的 firstUsablePathIn）
+      const target = sysMenu.value ? firstUsablePathIn(sysMenu.value) : undefined;
       if (target) go(target);
     }
 
     return () =>
       canShow.value ? (
-        <ActionButton
-          iconOnly
-          icon="i-ri-settings-3-line"
-          title="系统"
-          active={isActive.value}
-          onClick={enterSystem}
-        />
+        <ActionButton iconOnly icon="i-ri-settings-3-line" title="系统" active={isActive.value} onClick={enterSystem} />
       ) : null;
   },
 });
