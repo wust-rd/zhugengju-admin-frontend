@@ -17,6 +17,10 @@
  *   class="animated animated-duration-300ms fade-in-down-sm"
  *   leaveClass="animated animated-duration-300ms fade-out-up-sm"
  *
+ * 供 VMapControls 底图切换面板进/离场使用：
+ *   enterActiveClass="animated animated-duration-300ms fade-in-up-sm"
+ *   leaveActiveClass="animated animated-duration-300ms fade-out-down-sm"
+ *
  * .animated 基类负责 animation-duration 默认值 / fill-mode（unocss-preset-extra），
  * animated-duration-300ms 覆盖时长为 300ms，此处只提供 animation-name + keyframes。
  * ============================================================ */
@@ -47,5 +51,35 @@
   to {
     opacity: 0;
     transform: translate3d(0, -20px, 0);
+  }
+}
+
+.fade-in-up-sm {
+  animation-name: fade-in-up-sm;
+}
+
+@keyframes fade-in-up-sm {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.fade-out-down-sm {
+  animation-name: fade-out-down-sm;
+}
+
+@keyframes fade-out-down-sm {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
   }
 }

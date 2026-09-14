@@ -1,15 +1,38 @@
-import { computed, defineComponent, onBeforeUnmount, ref, toRef, watch, type PropType, type Ref } from 'vue';
+import {
+  Transition,
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  ref,
+  toRef,
+  watch,
+  type PropType,
+  type Ref,
+} from 'vue';
+import { Tooltip } from 'antdv-next';
 import { Locate, Loader2, Maximize, Minus, Plus } from 'lucide-vue-next';
 import type { Map as MapLibreMap } from 'maplibre-gl';
+import sgjElectricImg from '@jeesite/assets/images/vmap/数公基电子地图.webp';
+import sgjRemoteImg from '@jeesite/assets/images/vmap/数公基遥感影像.webp';
+import yztElectricImg from '@jeesite/assets/images/vmap/一张图电子地图.webp';
+import yztRemoteImg from '@jeesite/assets/images/vmap/一张图遥感影像.webp';
 import { cn, type ClassValue } from '@jeesite/core/libs';
 import { useMap } from './composables/use-map';
 
 type Orientation = 'vertical' | 'horizontal';
 
+/** 底图切换面板的可选项（name 为图片文件名去扩展名，同时作为 basemap 事件的 payload） */
+const BASEMAP_OPTIONS = [
+  { name: '数公基电子地图', image: sgjElectricImg },
+  { name: '数公基遥感影像', image: sgjRemoteImg },
+  { name: '一张图电子地图', image: yztElectricImg },
+  { name: '一张图遥感影像', image: yztRemoteImg },
+] as const;
+
 /**
  * 地图控制条（VMapControls）
  *
- * 供 <VMap> 悬浮使用的操作控件集合，渲染顺序：罗盘 → 3D → 定位 → 全屏 → 缩放。
+ * 供 <VMap> 悬浮使用的操作控件集合，渲染顺序：底图 → 罗盘 → 3D → 定位 → 全屏 → 缩放。
  * 统一深色胶囊风格（bg-[#3a4a5e] + hover 提亮 + 圆角容器 overflow-hidden）。
  *
  * 地图实例来源（两种模式）：
@@ -20,6 +43,8 @@ type Orientation = 'vertical' | 'horizontal';
  *
  * 事件：
  * - `locate`：定位成功后触发，payload 为 `{ longitude, latitude }`。
+ * - `basemap`：底图面板中选中某项后触发，payload 为底图名（图片文件名去扩展名，如「一张图遥感影像」）；
+ *   仅通知选中项，实际切换底图样式由外部监听方实现。
  */
 export const VMapControls = defineComponent({
   name: 'VMapControls',
@@ -29,6 +54,8 @@ export const VMapControls = defineComponent({
       type: String as PropType<Orientation>,
       default: 'horizontal',
     },
+    /** 是否显示底图切换按钮（点击向上弹出四个底图缩略图竖排面板），默认 true */
+    showBasemap: { type: Boolean, default: true },
     /** 是否显示缩放（+ / -）按钮组，默认 true */
     showZoom: { type: Boolean, default: true },
     /** 是否显示 3D 切换按钮，默认 true */
@@ -48,19 +75,20 @@ export const VMapControls = defineComponent({
     /** 追加到控件容器的 CSS 类（字符串 / 对象 / 数组） */
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: '' },
   },
-  emits: ['locate'],
+  emits: ['locate', 'basemap'],
   setup(props, { emit }) {
     // ── 地图实例来源 ──────────────────────────────────────────────
     // 优先使用显式传入的 map prop（含 null，此时为纯 UI 模式）；
     // 未传时才从 <Map> 上下文注入（不在 <VMap> 内会抛错，属预期严格契约）。
-    const map: Ref<MapLibreMap | null> = props.map !== undefined
-      ? (toRef(props, 'map') as Ref<MapLibreMap | null>)
-      : useMap().map;
+    const map: Ref<MapLibreMap | null> =
+      props.map !== undefined ? (toRef(props, 'map') as Ref<MapLibreMap | null>) : useMap().map;
 
     // ── 本地状态 ─────────────────────────────────────────────────
     const waitingForLocation = ref(false); // 定位请求进行中（按钮转圈并禁用）
     const compassRef = ref<SVGSVGElement | null>(null); // 罗盘 SVG，随 bearing/pitch 旋转
     const is3D = ref(false); // 当前是否为 3D 俯视视角
+    const basemapPanelVisible = ref(false); // 底图面板是否展开
+    const activeBasemap = ref<string>(BASEMAP_OPTIONS[0].name); // 当前选中的底图名（默认第一项）
 
     const isHorizontal = computed(() => props.orientation === 'horizontal');
 
@@ -73,6 +101,13 @@ export const VMapControls = defineComponent({
     );
 
     // ── 地图操作 handlers（全部走 map.value?. 可选链，纯 UI 模式静默失效）───
+    // 底图选择：仅更新选中态并 emit('basemap', name)，面板保持展开（只有再次点击按钮才收起），
+    // 实际换底图由外部监听方实现
+    const handleSelectBasemap = (name: string) => {
+      activeBasemap.value = name;
+      emit('basemap', name);
+    };
+
     const handleZoomIn = () => map.value?.zoomTo(map.value.getZoom() + 1, { duration: 300 });
     const handleZoomOut = () => map.value?.zoomTo(map.value.getZoom() - 1, { duration: 300 });
     const handleResetBearing = () => map.value?.resetNorthPitch({ duration: 300 });
@@ -164,83 +199,135 @@ export const VMapControls = defineComponent({
       cn('flex items-center overflow-hidden rounded-12px bg-[#3a4a5e]', isHorizontal.value ? 'flex-row' : 'flex-col'),
     );
 
-    // ── 渲染：罗盘 → 3D → 定位 → 全屏 → 缩放 ─────────────────────
+    // ── 渲染：底图 → 罗盘 → 3D → 定位 → 全屏 → 缩放 ─────────────
     return () => (
       <div class={containerClass.value}>
+        {/* 底图切换：点击按钮向上 fadeUp 弹出四个底图缩略图竖排面板，再次点击按钮向下淡出收起；
+            展开期间按钮图标变蓝，选中项蓝框高亮且点击底图不收起面板（仅按钮可收起） */}
+        {props.showBasemap && (
+          <div class="relative flex items-center">
+            <Tooltip title="切换底图" placement="left">
+              <button
+                type="button"
+                class={cn(buttonClass.value, 'rounded-12px')}
+                aria-label="切换底图"
+                onClick={() => (basemapPanelVisible.value = !basemapPanelVisible.value)}
+              >
+                <div class={cn('size-24px i-ri-road-map-fill', { 'text-blue-500': basemapPanelVisible.value })} />
+              </button>
+            </Tooltip>
+
+            <Transition
+              enterActiveClass="animated animated-duration-300ms fade-in-up-sm"
+              leaveActiveClass="animated animated-duration-300ms fade-out-down-sm"
+            >
+              {basemapPanelVisible.value && (
+                <div class="absolute bottom-full left-0 mb-8px flex flex-col gap-8px rounded-12px bg-[#3a4a5e] p-8px">
+                  {BASEMAP_OPTIONS.map((option) => (
+                    <div
+                      key={option.name}
+                      class={cn(
+                        'relative w-140px h-80px cursor-pointer overflow-hidden rounded-8px b-2px b-solid transition-all hover:bg-[#4a5b71]',
+                        activeBasemap.value === option.name ? 'b-blue-500' : 'b-transparent',
+                      )}
+                      onClick={() => handleSelectBasemap(option.name)}
+                    >
+                      <img src={option.image} alt={option.name} class="size-full object-cover" />
+                      <div
+                        class={cn(
+                          'absolute bottom-0 w-full z-50 py-3px text-center text-14px text-white text-center',
+                          activeBasemap.value === option.name ? 'bg-blue-500/70' : 'bg-black/70',
+                        )}
+                      >
+                        {option.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Transition>
+          </div>
+        )}
+
         {/* 罗盘：点击复位北向，SVG 随视角实时旋转 */}
         {props.showCompass && (
           <div class={groupClass.value}>
-            <button
-              type="button"
-              class={buttonClass.value}
-              aria-label="Reset bearing to north"
-              onClick={handleResetBearing}
-            >
-              <svg
-                ref={compassRef}
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                style={{
-                  transformOrigin: 'center',
-                  transformStyle: 'preserve-3d',
-                  transition: 'transform 0.2s ease',
-                }}
-              >
-                {/* 北指针（蓝色尖三角） */}
-                <polygon points="12,3 16,12 12,10 8,12" fill="#5fbfff" />
-                {/* 南指针（白色半透明三角） */}
-                <polygon points="12,21 16,12 12,14 8,12" fill="rgba(255,255,255,0.7)" />
-              </svg>
-            </button>
+            <Tooltip title="一键回北" placement="top">
+              <button type="button" class={buttonClass.value} aria-label="一键回北" onClick={handleResetBearing}>
+                <svg
+                  ref={compassRef}
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  style={{
+                    transformOrigin: 'center',
+                    transformStyle: 'preserve-3d',
+                    transition: 'transform 0.2s ease',
+                  }}
+                >
+                  {/* 北指针（蓝色尖三角） */}
+                  <polygon points="12,3 16,12 12,10 8,12" fill="#5fbfff" />
+                  {/* 南指针（白色半透明三角） */}
+                  <polygon points="12,21 16,12 12,14 8,12" fill="rgba(255,255,255,0.7)" />
+                </svg>
+              </button>
+            </Tooltip>
           </div>
         )}
 
         {/* 3D：60° 俯视 ↔ 0° 顶视，激活态文字高亮 */}
         {props.show3D && (
           <div class={groupClass.value}>
-            <button
-              type="button"
-              class={buttonClass.value}
-              aria-label={is3D.value ? '切换到 2D' : '切换到 3D'}
-              onClick={handleToggle3D}
-            >
-              <span class="text-20px font-500 tracking-wider">3D</span>
-            </button>
+            <Tooltip title={is3D.value ? '切换到 2D' : '切换到 3D'} placement="top">
+              <button
+                type="button"
+                class={buttonClass.value}
+                aria-label={is3D.value ? '切换到 2D' : '切换到 3D'}
+                onClick={handleToggle3D}
+              >
+                <span class="text-20px font-500 tracking-wider">3D</span>
+              </button>
+            </Tooltip>
           </div>
         )}
 
         {/* 定位：Geolocation 定位并飞入，等待时转圈禁用 */}
         {props.showLocate && (
           <div class={groupClass.value}>
-            <button
-              type="button"
-              class={buttonClass.value}
-              aria-label="Find my location"
-              disabled={waitingForLocation.value}
-              onClick={handleLocate}
-            >
-              {waitingForLocation.value ? <Loader2 class="size-24px animate-spin" /> : <Locate class="size-24px" />}
-            </button>
+            <Tooltip title="定位" placement="top">
+              <button
+                type="button"
+                class={buttonClass.value}
+                aria-label="Find my location"
+                disabled={waitingForLocation.value}
+                onClick={handleLocate}
+              >
+                {waitingForLocation.value ? <Loader2 class="size-24px animate-spin" /> : <Locate class="size-24px" />}
+              </button>
+            </Tooltip>
           </div>
         )}
 
         {/* 全屏：切换地图容器全屏 */}
         {props.showFullscreen && (
           <div class={groupClass.value}>
-            <button type="button" class={buttonClass.value} aria-label="Toggle fullscreen" onClick={handleFullscreen}>
-              <Maximize class="size-24px" />
-            </button>
+            <Tooltip title="全屏" placement="top">
+              <button type="button" class={buttonClass.value} aria-label="Toggle fullscreen" onClick={handleFullscreen}>
+                <Maximize class="size-24px" />
+              </button>
+            </Tooltip>
           </div>
         )}
 
         {/* 缩放：+ / - 按钮组，中间分隔线方向随布局切换 */}
         {props.showZoom && (
           <div class={groupClass.value}>
-            <button type="button" class={buttonClass.value} aria-label="Zoom in" onClick={handleZoomIn}>
-              <Plus class="size-24px" />
-            </button>
+            <Tooltip title="放大" placement="top">
+              <button type="button" class={buttonClass.value} aria-label="Zoom in" onClick={handleZoomIn}>
+                <Plus class="size-24px" />
+              </button>
+            </Tooltip>
 
             <div
               class={cn('bg-white/10', {
@@ -249,9 +336,11 @@ export const VMapControls = defineComponent({
               })}
             />
 
-            <button type="button" class={buttonClass.value} aria-label="Zoom out" onClick={handleZoomOut}>
-              <Minus class="size-24px" />
-            </button>
+            <Tooltip title="缩小" placement="top">
+              <button type="button" class={buttonClass.value} aria-label="Zoom out" onClick={handleZoomOut}>
+                <Minus class="size-24px" />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>
