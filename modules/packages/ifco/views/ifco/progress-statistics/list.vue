@@ -24,9 +24,9 @@
       <div class="flex flex-wrap items-center justify-between gap-y-2">
         <div class="flex items-center">
           <span class="text-gray-500">填报年份</span>
-          <Select v-model:value="year" :options="yearOptions" class="ml-2 w-28" @change="loadStat" />
+          <Select v-model:value="year" :options="yearOptions" class="ml-2 w-28" @change="handleYearChange" />
           <span class="ml-6 text-gray-500">填报季度</span>
-          <Select v-model:value="quarter" :options="QUARTER_OPTIONS" class="ml-2 w-28" @change="loadStat" />
+          <Select v-model:value="quarter" :options="quarterOptions" class="ml-2 w-28" @change="loadStat" />
         </div>
         <a-button :loading="exporting" @click="handleExport"> 导出 </a-button>
       </div>
@@ -60,19 +60,17 @@
   import ResizableTitle from '@jeesite/core/components/Table/src/components/ResizableTitle.vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { PageWrapper } from '@jeesite/core/components/Page';
-  import { dateUtil } from '@jeesite/core/utils/dateUtil';
-  import { buildYearItems } from '@jeesite/core/libs/year';
   import type { CategoryDef } from '@jeesite/ifco/api/ifco/progress-fill';
   import type { ProgressStatRow } from '@jeesite/ifco/api/ifco/progress-fill';
   import {
     DATA_CATEGORIES,
     LEAF_CATEGORIES,
-    QUARTER_OPTIONS,
     ensureProgressDicts,
     loadProgressStatData,
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/progress-fill';
   import { exportProgressStatExcel } from './export-excel';
+  import { usePeriodSelectors } from '../shared/period-options';
 
   /** 表格行(指标,服务端返回,名称已含缩进) */
   type StatRow = ProgressStatRow;
@@ -92,14 +90,14 @@
   });
   const widthFor = (key: string, defaultWidth: number) => colWidths[key] ?? defaultWidth;
 
-  // ── 筛选条件:年份 + 季度(切换即时生效) ──────────────────────────────
-  const yearOptions = (buildYearItems(3) as { key: string; label: string }[]).map((item) => ({
-    label: item.label,
-    value: Number(item.key),
-  }));
-  const year = ref(dateUtil().year());
-  // dayjs 的 quarter() 需 quarterOfYear 插件，这里用 month() 推导当前季度
-  const quarter = ref(String(Math.floor(dateUtil().month() / 3) + 1));
+  // ── 筛选条件:年份 + 季度(切换即时生效;选项 = 上线周期 2026Q3 ～ 当前周期) ─
+  const { year, quarter, yearOptions, quarterOptions, syncQuarterToYear } = usePeriodSelectors();
+
+  // 年份切换:先修正季度(新年份下原季度可能不可选),再加载统计数据
+  function handleYearChange() {
+    syncQuarterToYear();
+    loadStat();
+  }
 
   // ── 统计范围:全武汉市(全市合计) + 可见报送单位(allowedUnits) ──────────
   const allowedUnits = reactive<{ code: string; name: string }[]>([]);
@@ -117,7 +115,9 @@
   const activeUnitName = computed(() => allowedUnits.find((unit) => unit.code === activeUnit.value)?.name ?? null);
   /** 当前展示行:全武汉市 = overview 合计;单位页签 = 该单位一份(无接口调用) */
   const displayRows = computed<StatRow[]>(() =>
-    activeUnit.value === 'overview' ? OVERVIEW_ROWS : UNIT_DATAS.find((unit) => unit.code === activeUnit.value)?.rows ?? [],
+    activeUnit.value === 'overview'
+      ? OVERVIEW_ROWS
+      : (UNIT_DATAS.find((unit) => unit.code === activeUnit.value)?.rows ?? []),
   );
 
   async function loadStat() {

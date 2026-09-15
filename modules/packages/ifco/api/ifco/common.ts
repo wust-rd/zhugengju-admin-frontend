@@ -55,3 +55,34 @@ export function quarterLabel(quarter: string): string {
   return QUARTER_LABELS[quarter] ?? quarter;
 }
 
+// ── 填报周期选项：上线周期（2026 年三季度）～ 当前周期 ─────────────────
+// 系统于 2026 年 9 月上线，全部数据自 2026 年三季度开始录入：
+// 上线前周期（2024、2025 及更早）不存在；未来周期（当前季度之后）不可选。
+
+/** 系统上线年份（首个可填报年份） */
+export const FILL_LAUNCH_YEAR = 2026;
+/** 系统上线季度（首个可填报季度，'1'~'4'） */
+export const FILL_LAUNCH_QUARTER = '3';
+
+/** 填报年份选项：上线年份 ～ 当前年（降序，与页面原展示顺序一致） */
+export function buildFillYearOptions(): { label: string; value: number }[] {
+  const currentYear = new Date().getFullYear();
+  const years: number[] = [];
+  for (let year = currentYear; year >= FILL_LAUNCH_YEAR; year -= 1) {
+    years.push(year);
+  }
+  return years.map((year) => ({ label: String(year), value: year }));
+}
+
+/** 指定年份的季度选项：上线季度起 ～ 该年最后一个已到来季度（未来季度不可选） */
+export function buildFillQuarterOptions(year: number): { label: string; value: string }[] {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+  const start = year <= FILL_LAUNCH_YEAR ? Number(FILL_LAUNCH_QUARTER) : 1;
+  const end = year >= currentYear ? currentQuarter : 4;
+  return QUARTER_OPTIONS.filter((option) => {
+    const quarter = Number(option.value);
+    return quarter >= start && quarter <= end;
+  });
+}
