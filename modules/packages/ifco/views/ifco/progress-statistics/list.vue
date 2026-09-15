@@ -23,10 +23,7 @@
     <Card class="mb-3">
       <div class="flex flex-wrap items-center justify-between gap-y-2">
         <div class="flex items-center">
-          <span class="text-gray-500">填报年份</span>
-          <Select v-model:value="year" :options="yearOptions" class="ml-2 w-28" @change="handleYearChange" />
-          <span class="ml-6 text-gray-500">填报季度</span>
-          <Select v-model:value="quarter" :options="quarterOptions" class="ml-2 w-28" @change="loadStat" />
+          <PeriodSelects v-model:year="year" v-model:quarter="quarter" @change="loadStat" />
         </div>
         <a-button :loading="exporting" @click="handleExport"> 导出 </a-button>
       </div>
@@ -55,7 +52,7 @@
 </template>
 <script lang="ts" setup name="ViewsIfcoProgressStatisticsList">
   import { computed, onMounted, reactive, ref } from 'vue';
-  import { Card, RadioGroup, Select, Table } from 'antdv-next';
+  import { Card, RadioGroup, Table } from 'antdv-next';
   import type { TableColumnsType } from 'antdv-next';
   import ResizableTitle from '@jeesite/core/components/Table/src/components/ResizableTitle.vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -70,7 +67,8 @@
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/progress-fill';
   import { exportProgressStatExcel } from './export-excel';
-  import { usePeriodSelectors } from '../shared/period-options';
+  import PeriodSelects from '../shared/PeriodSelects.vue';
+  import { useCurrentPeriod } from '../shared/period-options';
 
   /** 表格行(指标,服务端返回,名称已含缩进) */
   type StatRow = ProgressStatRow;
@@ -90,14 +88,8 @@
   });
   const widthFor = (key: string, defaultWidth: number) => colWidths[key] ?? defaultWidth;
 
-  // ── 筛选条件:年份 + 季度(切换即时生效;选项 = 上线周期 2026Q3 ～ 当前周期) ─
-  const { year, quarter, yearOptions, quarterOptions, syncQuarterToYear } = usePeriodSelectors();
-
-  // 年份切换:先修正季度(新年份下原季度可能不可选),再加载统计数据
-  function handleYearChange() {
-    syncQuarterToYear();
-    loadStat();
-  }
+  // ── 筛选条件:年份 + 季度(默认当前;选项与年份切换修正见 shared/PeriodSelects) ─
+  const { year, quarter } = useCurrentPeriod();
 
   // ── 统计范围:全武汉市(全市合计) + 可见报送单位(allowedUnits) ──────────
   const allowedUnits = reactive<{ code: string; name: string }[]>([]);

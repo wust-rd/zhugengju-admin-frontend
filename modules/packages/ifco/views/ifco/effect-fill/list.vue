@@ -29,10 +29,7 @@
     <Card class="mb-3">
       <div class="flex flex-wrap items-center justify-between gap-y-2">
         <div class="flex items-center">
-          <span class="text-gray-500">填报年份</span>
-          <Select v-model:value="year" :options="yearOptions" class="ml-2 w-28" @change="handleYearChange" />
-          <span class="ml-6 text-gray-500">填报季度</span>
-          <Select v-model:value="quarter" :options="quarterOptions" class="ml-2 w-28" @change="handleFilterChange" />
+          <PeriodSelects v-model:year="year" v-model:quarter="quarter" @change="handleFilterChange" />
           <template v-if="reportUnitOptions.length > 1">
             <span class="ml-6 text-gray-500">项目报送单位</span>
             <Select
@@ -128,7 +125,8 @@
   } from '@jeesite/ifco/api/ifco/effect-fill';
   import { exportEffectExcel } from './export-excel';
   import { createBringInController } from '../shared/bring-in';
-  import { usePeriodSelectors } from '../shared/period-options';
+  import PeriodSelects from '../shared/PeriodSelects.vue';
+  import { useCurrentPeriod } from '../shared/period-options';
   import type { FillRow } from './cell-renderers';
   import { createFillEditing } from './fill-editing';
   import { createCellRenderers } from './cell-renderers';
@@ -137,8 +135,8 @@
 
   const { showMessage } = useMessage();
 
-  // ── 填报周期:年份 + 季度(默认当前;选项 = 上线周期 2026Q3 ～ 当前周期) ─
-  const { year, quarter, yearOptions, quarterOptions, syncQuarterToYear } = usePeriodSelectors();
+  // ── 填报周期:年份 + 季度(默认当前;选项与年份切换修正见 shared/PeriodSelects) ─
+  const { year, quarter } = useCurrentPeriod();
   /** 项目报送单位(存单位编码;默认第一个有权限的单位) */
   const reportUnit = ref<string>();
   const reportUnitOptions = computed(() => UNITS.map((unit) => ({ label: unit.name, value: unit.code })));
@@ -194,12 +192,6 @@
   const TABLE_COMPONENTS = table.TABLE_COMPONENTS;
   const tableColumns = table.tableColumns;
   const scrollX = table.scrollX;
-
-  // 年份切换:先修正季度(新年份下原季度可能不可选),再走筛选切换流程
-  function handleYearChange() {
-    syncQuarterToYear();
-    handleFilterChange();
-  }
 
   // ── 新增项目:居中 Modal 命名,确认后追加最右列并滚动到位 ──────────────
   const addModalOpen = ref(false);
