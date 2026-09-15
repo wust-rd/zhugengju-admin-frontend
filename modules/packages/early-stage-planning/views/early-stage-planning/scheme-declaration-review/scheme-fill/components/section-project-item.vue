@@ -5,7 +5,9 @@
   - 字段对齐设计稿：项目名称* / 改造类别* / 实施主体 / 项目总投资估算（亿元）/
     项目资金来源（可多选）/ 本年度计划完成投资（亿元）/ 计划开工时间（月份）/
     计划竣工时间（月份）/ 主要建设内容* / 实施方案（附件，选填）；
-  - 项目矢量图斑：先留空待建设（上传 dwg/shp/json、2000 坐标 + 地图绘制）。
+  - 项目矢量图斑：GeoDataSection（上传 shp/dwg 解析渲染 + 地图绘制编辑），
+    GeoJSON 与源文件名由组件维护，保存/导出经下方 defineExpose 覆写并入
+    （导出不落原始 GeoJSON，以源文件名/已绘制标识）。
 -->
 <template>
   <BasicForm @register="registerForm">
@@ -49,15 +51,15 @@
         </div>
       </div>
     </template>
-    <!-- 项目矢量图斑：先留空待建设 -->
+    <!-- 项目矢量图斑：GeoDataSection（上传 shp/dwg 解析渲染 + 地图绘制编辑；查看态只读） -->
     <template #mapSpot>
-      <div
-        class="flex h-88px flex-col items-center justify-center rd-8px text-13px text-gray-400"
-        style="border: 1px dashed #d9d9d9; background: #fafafa"
-      >
-        <span>范围线上传（dwg / shp / json，2000 坐标）与地图绘制</span>
-        <span class="mt-4px text-12px">待建设</span>
-      </div>
+      <GeoDataSection
+        v-model:geo-json="mapSpotGeoJson"
+        v-model:file-name="mapSpotFileName"
+        :parse-file="parseGeoFile"
+        :geometry-types="['polygon']"
+        :disabled="disabled"
+      />
     </template>
   </BasicForm>
 </template>
@@ -66,6 +68,8 @@
   import { Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
+  import { GeoDataSection } from '@jeesite/shared/components/geo-data-section';
+  import { parseGeoFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
   import { fileColor, fileSizeText } from './file-display';
   import { useSectionForm } from './use-section-form';
 
@@ -185,5 +189,25 @@
     exposed.setFieldsValueSilently({ planFiles: fileList.value.map((item) => item.name) });
   }
 
-  defineExpose(exposed);
+  /** 项目矢量图斑：GeoJSON 字符串 + 源文件名（GeoDataSection 维护；保存时经下方取值并入） */
+  const mapSpotGeoJson = ref<string | undefined>(props.value?.mapSpot as string | undefined);
+  const mapSpotFileName = ref<string | undefined>(props.value?.mapSpotFileName as string | undefined);
+
+  /** 矢量图斑两值不在 schema 内（不渲染表单项），覆写取值并入；导出不落原始 GeoJSON（过长），以源文件名/已绘制标识 */
+  defineExpose({
+    ...exposed,
+    getFieldsValue: () => ({
+      ...exposed.getFieldsValue(),
+      mapSpot: mapSpotGeoJson.value,
+      mapSpotFileName: mapSpotFileName.value,
+    }),
+    exportRows: (): [string, string][] =>
+      exposed
+        .exportRows()
+        .map(([label, value]) =>
+          label === '项目矢量图斑'
+            ? [label, mapSpotFileName.value || (mapSpotGeoJson.value ? '已绘制' : '')]
+            : [label, value],
+        ),
+  });
 </script>

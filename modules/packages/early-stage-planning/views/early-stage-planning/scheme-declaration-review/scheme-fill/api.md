@@ -4,7 +4,7 @@
 > 本文档描述「片区策划申报审查 → 策划方案填报」页面的完整数据模型与接口需求，
 > 字段清单以前端当前实现为准（`index.vue` 的 `Scheme` 类型 + 各区块组件 schema）。
 > 前端当前为**纯前端 mock**（内存数据），接口就绪后按 §4 替换。
-> 更新日期：2026-09-14。
+> 更新日期：2026-09-15。
 
 ---
 
@@ -16,7 +16,7 @@
 
 | # | 区块 | 前端组件 | 数据字段组 |
 |---|------|----------|-----------|
-| 1 | 片区基本信息 | `components/section-basic-info.vue` | name / batch / district / areaHa / startTime / overallOrg / overview / overviewImages / scopeDesc / scopeLine |
+| 1 | 片区基本信息 | `components/section-basic-info.vue` | name / batch / district / areaHa / startTime / overallOrg / overview / overviewImages / scopeDesc / scopeLine / scopeLineFileName |
 | 2 | 片区体检情况 | `components/section-health-check.vue` | problemList / opportunityList / demandList |
 | 3 | 片区功能策划 | `components/section-function-plan.vue` | funcTypes / funcPlan / atlas |
 | 4 | 片区项目情况 | `components/section-project-info.vue`（tab 多项目） | projects: ProjectItem[] |
@@ -42,7 +42,8 @@
 | `overview` | 片区概况 | string | ★ | ≤150 字 |
 | `overviewImages` | 片区概况图片 | string[] | ★ | 文件标识数组，1-3 张，图片格式 |
 | `scopeDesc` | 片区范围 | string | ★ | 文字描述（东至…西至…），≤300 字 |
-| `scopeLine` | 片区范围线 | string | null | **待建设**：dwg/shp/json（2000 坐标）或地图绘制结果，先预留 |
+| `scopeLine` | 片区范围线 | string \| null | | GeoJSON 字符串（前端 GeoDataSection：上传 shp/dwg 解析或地图绘制，多边形），选填 |
+| `scopeLineFileName` | 范围线源文件名 | string \| null | | 经上传解析时记录源文件名；地图绘制则为空 |
 
 ### 2.2 片区体检情况（三个清单均「一行一条」，数组顺序即展示顺序）
 
@@ -76,7 +77,8 @@
 | `endDate` | 计划竣工时间 | string | | `YYYY-MM`（应 ≥ startDate） |
 | `content` | 主要建设内容 | string | ★ | ≤500 字 |
 | `planFiles` | 实施方案附件 | string[] | | 文件标识数组 |
-| `mapSpot` | 项目矢量图斑 | string \| null | | **待建设**：同 scopeLine，先预留 |
+| `mapSpot` | 项目矢量图斑 | string \| null | | GeoJSON 字符串（同 scopeLine：上传解析或地图绘制，多边形），选填 |
+| `mapSpotFileName` | 矢量图斑源文件名 | string \| null | | 经上传解析时记录源文件名；地图绘制则为空 |
 
 > ⚠️ 命名提示：项目内 `fundSources`（`string[]` 枚举多选）与片区级 `fundSources`（§2.5 的对象）**同名不同构**，后端建模时注意区分层级。
 
@@ -170,6 +172,14 @@
 - 上传返回文件标识（url 或 fileCode），保存时随表单提交标识数组；
 - 下载/预览按标识换取流或 URL。
 
+### 4.6 地理数据解析（片区范围线 / 项目矢量图斑）
+
+上传 shp/dwg 后前端调用解析接口换取 GeoJSON（2000 坐标系，前端按 GeoJSON 字符串存取渲染）：
+
+- 建议 `POST /early-stage-planning/schemeFill/parseGeoFile`，`multipart/form-data`（file）；
+- 响应 `data`：GeoJSON 字符串（FeatureCollection，多边形）；
+- 前端当前为本地 mock（`api/early-stage-planning/scheme-declaration-review/scheme-fill.ts` 的 `parseGeoFile`），接口就绪后仅替换该函数。
+
 ## 5. JSON 示例（保存请求体）
 
 ```json
@@ -184,6 +194,7 @@
   "overviewImages": ["FILE_0001", "FILE_0002"],
   "scopeDesc": "东至龙阳大道，西至芳草路，北至汉阳大道，南至墨水湖南路。",
   "scopeLine": null,
+  "scopeLineFileName": null,
   "problemList": ["老旧小区供水管网老化，雨污分流不彻底。"],
   "opportunityList": ["轨道 12 号线站点规划落地，带动周边连片开发。"],
   "demandList": ["恳请市级统筹加快片区供排水管网改造立项。"],
@@ -202,7 +213,8 @@
       "endDate": "2027-12",
       "content": "改造供水管网 8.6 公里，同步实施雨污分流与泵站更新。",
       "planFiles": ["FILE_0004"],
-      "mapSpot": null
+      "mapSpot": null,
+      "mapSpotFileName": null
     }
   ],
   "invest": 10,
@@ -229,8 +241,7 @@
 
 | 项 | 状态 |
 |----|------|
-| 片区范围线 `scopeLine`（dwg/shp/json 上传 + 地图绘制，2000 坐标） | 待建设，字段预留 |
-| 项目矢量图斑 `mapSpot` | 待建设，字段预留 |
+| 片区范围线 `scopeLine` / 项目矢量图斑 `mapSpot` | 前端已接 GeoDataSection（上传解析 mock + 地图绘制）；解析接口待后端（见 §4.6） |
 | 列表 Tab②「待审查片区填报」 | 待建设（本期只做已批准片区） |
 | 字典（行政区/批次/功能定位/改造类别/资金来源） | 前端硬编码，待字典接口 |
 | 填报单位是否取登录会话 | 待定 |

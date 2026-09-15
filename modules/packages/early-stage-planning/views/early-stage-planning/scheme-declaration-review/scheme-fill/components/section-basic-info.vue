@@ -4,9 +4,11 @@
   布局：垂直标签（label 在上）+ 两列栅格，概况/图片/范围/范围线通栏。
   字段：片区名称* / 片区批次* / 行政区* / 片区规模（公顷）* / 起始时间（月份）/
   统筹主体 / 片区概况*（150字）/ 片区概况图片*（1-3张）/ 片区范围*（东至西至…）/
-  片区范围线（先留空待建设）。
+  片区范围线（GeoDataSection：上传 shp/dwg 解析渲染 + 地图绘制编辑）。
   图片上传经 schema slot 挂进 BasicForm（参与必填校验与取值/导出）；
   beforeUpload 返回 false 阻止真实上传，文件仅留在页面内存，后端接入后改走文件服务。
+  片区范围线同样经 slot 挂入，GeoJSON 与源文件名由组件维护，
+  保存/导出经下方 defineExpose 覆写并入（导出不落原始 GeoJSON）。
 -->
 <template>
   <BasicForm @register="registerForm">
@@ -31,15 +33,15 @@
         <div class="mt-4px text-12px text-gray-400">上传图片（1-3张），支持常见图片格式（演示：仅保留在页面内存）</div>
       </div>
     </template>
-    <!-- 片区范围线：先留空待建设（上传 dwg/shp/json + 地图绘制，后续实现） -->
+    <!-- 片区范围线：GeoDataSection（上传 shp/dwg 解析渲染 + 地图绘制编辑；查看态只读） -->
     <template #scopeLine>
-      <div
-        class="flex h-88px flex-col items-center justify-center border-dashed rd-8px text-13px text-gray-400"
-        style="border: 1px dashed #d9d9d9; background: #fafafa"
-      >
-        <span>范围线上传（dwg / shp / json，2000 坐标）与地图绘制</span>
-        <span class="mt-4px text-12px">待建设</span>
-      </div>
+      <GeoDataSection
+        v-model:geo-json="scopeLineGeoJson"
+        v-model:file-name="scopeLineFileName"
+        :parse-file="parseGeoFile"
+        :geometry-types="['polygon']"
+        :disabled="disabled"
+      />
     </template>
   </BasicForm>
 </template>
@@ -48,6 +50,8 @@
   import { Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
+  import { GeoDataSection } from '@jeesite/shared/components/geo-data-section';
+  import { parseGeoFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
   import { useSectionForm } from './use-section-form';
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
@@ -165,5 +169,25 @@
     exposed.setFieldsValueSilently({ overviewImages: info.fileList.map((f) => f.name) });
   }
 
-  defineExpose(exposed);
+  /** 片区范围线：GeoJSON 字符串 + 源文件名（GeoDataSection 维护；保存时经下方取值并入） */
+  const scopeLineGeoJson = ref<string | undefined>(props.data?.scopeLine as string | undefined);
+  const scopeLineFileName = ref<string | undefined>(props.data?.scopeLineFileName as string | undefined);
+
+  /** 范围线两值不在 schema 内（不渲染表单项），覆写取值并入；导出不落原始 GeoJSON（过长），以源文件名/已绘制标识 */
+  defineExpose({
+    ...exposed,
+    getFieldsValue: () => ({
+      ...exposed.getFieldsValue(),
+      scopeLine: scopeLineGeoJson.value,
+      scopeLineFileName: scopeLineFileName.value,
+    }),
+    exportRows: (): [string, string][] =>
+      exposed
+        .exportRows()
+        .map(([label, value]) =>
+          label === '片区范围线'
+            ? [label, scopeLineFileName.value || (scopeLineGeoJson.value ? '已绘制' : '')]
+            : [label, value],
+        ),
+  });
 </script>

@@ -101,8 +101,10 @@
     content: string;
     /** 实施方案附件（文件名） */
     planFiles: string[];
-    /** 项目矢量图斑（待建设） */
+    /** 项目矢量图斑（GeoJSON 字符串，GeoDataSection 维护） */
     mapSpot?: string;
+    /** 项目矢量图斑源文件名（上传解析时记录，地图绘制则为空） */
+    mapSpotFileName?: string;
   };
 
   /** 片区实体（填报字段对齐「片区基本信息」设计稿；完整字段待后端接口文档确定后扩展） */
@@ -126,8 +128,10 @@
     overviewImages: string[];
     /** 片区范围（文字描述：东至…西至…） */
     scopeDesc: string;
-    /** 片区范围线（dwg/shp/json 或地图绘制结果，待建设） */
+    /** 片区范围线（GeoJSON 字符串，GeoDataSection 维护） */
     scopeLine?: string;
+    /** 片区范围线源文件名（上传解析时记录，地图绘制则为空） */
+    scopeLineFileName?: string;
     /** 问题整治清单（一行一条） */
     problemList: string[];
     /** 发展机遇清单（一行一条） */
