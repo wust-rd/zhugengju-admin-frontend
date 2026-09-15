@@ -47,10 +47,10 @@
         </div>
         <div class="mt-4px text-12px text-gray-400">{{ card.description }}</div>
         <div class="mt-10px flex flex-wrap items-baseline gap-x-24px">
-          <span class="text-13px text-gray-500">
+          <span class="text-14px text-gray-500">
             项目数 <span class="text-22px font-700 text-gray-900">{{ card.count }}</span> 项
           </span>
-          <span v-if="card.invest !== undefined" class="text-13px text-gray-500">
+          <span v-if="card.invest !== undefined" class="text-14px text-gray-500">
             总投资 <span class="text-22px font-700 text-gray-900">{{ card.invest.toFixed(2) }}</span> 亿元
           </span>
         </div>

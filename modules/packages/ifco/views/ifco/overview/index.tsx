@@ -3,22 +3,18 @@ import { ArtFont } from '@jeesite/display/components/art-font';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlassRing } from '@jeesite/display/components/glass-ring';
 import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
-import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
-import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
-import { defineComponent, onBeforeUnmount, ref, shallowRef } from 'vue';
+import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
+import { VMap, VMapControls, basemapMapOptions, basemapStyle } from '@jeesite/vmap';
+import { defineComponent, ref, shallowRef } from 'vue';
 import { RouterLink } from 'vue-router';
-import { colors } from '@jeesite/core/libs/colors';
 import { DistrictChart } from './district-chart';
 import { InvestStats } from './invest-stats';
-import { Monitoring } from '@jeesite/display/components/ifco/monitoring';
-import { ProjectInfoTabs } from '@jeesite/display/components/ifco/project-info-tabs';
-import { ProgressChart } from './progress-chart';
-import { IfcoMapLayers, IFCO_LAYER_COLORS } from './map-layers';
-import { RatingResult } from './rating-result';
+import { IFCO_LAYER_COLORS, IfcoMapLayers } from './map-layers';
 import { PolygonCard } from './polygon-card';
 import type { SelectedPolygon } from './polygon-types';
-import { ProjectProgress } from '@jeesite/display/components/ifco/project-progress';
+import { ProgressChart } from './progress-chart';
+import { RatingResult } from './rating-result';
 
 /** OSS 图片基础地址 */
 const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划';
@@ -90,25 +86,36 @@ export default defineComponent({
                 />
               </VMap>
 
-              {/* 多边形详情卡片：点击项目地块 / 片区范围面弹出，点击空白处/关闭按钮收起 */}
-              <PolygonCard polygon={selectedPolygon.value} onClose={() => (selectedPolygon.value = null)} />
+              {/* 多边形详情卡片：点击片区/项目面弹出；页签与片区内项目下拉切换会回写选中面（联动地图高亮），
+                  点击空白处/关闭按钮收起 */}
+              <PolygonCard
+                polygon={selectedPolygon.value}
+                onClose={() => (selectedPolygon.value = null)}
+                onUpdate:polygon={(polygon) => {
+                  selectedPolygon.value = polygon;
+                }}
+              />
 
               {/* 图例：左下角，配色取自 IFCO_LAYER_COLORS（与图层 paint 同源） */}
               <div class="absolute bottom-24px left-32px z-10 rd-8px border border-cyan-900 bg-[#0f2b47]/85 px-14px py-10px backdrop-blur">
                 <div class="text-14px text-white/45">图例</div>
 
                 <div class="mt-8px space-y-6px">
-                  <div class="flex items-center text-13px">
+                  <div class="flex items-center text-12px">
+                    <div class="h-10px w-14px rd-2px" style={{ background: IFCO_LAYER_COLORS.areaBatch1 }} />
+                    <div class="ml-8px text-white/70">片区范围 · 第一批</div>
+                  </div>
+                  <div class="flex items-center text-12px">
                     <div class="h-10px w-14px rd-2px" style={{ background: IFCO_LAYER_COLORS.batch1 }} />
                     <div class="ml-8px text-white/70">项目地块 · 第一批</div>
                   </div>
-                  <div class="flex items-center text-13px">
+                  <div class="flex items-center text-12px">
+                    <div class="h-10px w-14px rd-2px" style={{ background: IFCO_LAYER_COLORS.areaBatch2 }} />
+                    <div class="ml-8px text-white/70">片区范围 · 第二批</div>
+                  </div>
+                  <div class="flex items-center text-12px">
                     <div class="h-10px w-14px rd-2px" style={{ background: IFCO_LAYER_COLORS.batch2 }} />
                     <div class="ml-8px text-white/70">项目地块 · 第二批</div>
-                  </div>
-                  <div class="flex items-center text-13px">
-                    <div class="h-3px w-14px rd-1px" style={{ background: colors.stone[400] }} />
-                    <div class="ml-8px text-white/70">片区范围线</div>
                   </div>
                 </div>
               </div>

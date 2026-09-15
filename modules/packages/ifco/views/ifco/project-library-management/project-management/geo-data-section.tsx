@@ -41,7 +41,7 @@ export const GeoDataSection = defineComponent({
     return () => (
       <div>
         <div class="mb-8px flex items-center justify-between">
-          <span class="truncate text-13px text-gray-500">
+          <span class="truncate text-14px text-gray-500">
             {props.fileName ? `源文件：${props.fileName}` : '尚未上传地理数据源文件'}
           </span>
           <div class="flex shrink-0 gap-8px">
@@ -53,11 +53,7 @@ export const GeoDataSection = defineComponent({
               </Upload>
             )}
             {!props.disabled && (
-              <Button
-                preIcon="i-ant-design:edit-outlined"
-                class="rounded-none"
-                onClick={() => (editOpen.value = true)}
-              >
+              <Button preIcon="i-ant-design:edit-outlined" class="rounded-none" onClick={() => (editOpen.value = true)}>
                 编辑地图
               </Button>
             )}
