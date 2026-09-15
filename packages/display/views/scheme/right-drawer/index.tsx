@@ -1,5 +1,6 @@
-import { defineComponent, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue';
+import { defineComponent, inject, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue';
 
+import { AreaDetailViewKey, useAreaDetailView } from '../use-area-detail-view';
 import { BasicInfo } from './basic-info';
 import { FeaturePlan } from './feature-plan';
 import { FundPlan } from './fund-plan';
@@ -9,7 +10,7 @@ import { ProjectInfo } from './project-info';
 
 /** 抽屉 Tab 配置 */
 const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况', '资金方案', '实施后评估'] as const;
-type DrawerTabLabel = (typeof DRAWER_TABS)[number];
+export type DrawerTabLabel = (typeof DRAWER_TABS)[number];
 
 /** Tab 对应的内容组件 */
 const TAB_COMPONENTS = {
@@ -39,10 +40,14 @@ const SCROLL_LOCK_MS = 1200;
  *   激活项为独立的「滑动指示器」，高亮切换时平滑滑动过去
  * - 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 与手动滚动双向联动：
  *   scrollspy 同步高亮 + 程序化滚动锁 + 底部留白（最后一块也能滚到顶）
+ *
+ * 一级 Tab 状态优先用页面 provide 的共享实例（area-detail 页据此换左侧大图），
+ * 没有 provider 时退化为组件自己的局部状态，保证本组件仍可独立使用。
  */
 export const RightDrawer = defineComponent({
   setup() {
-    const activeTab = ref<DrawerTabLabel>('基本情况');
+    const view = inject(AreaDetailViewKey, null) ?? useAreaDetailView();
+    const activeTab = view.primaryTab;
     const contentRef = ref<HTMLElement | null>(null);
     const tabBarRef = ref<HTMLElement | null>(null);
 

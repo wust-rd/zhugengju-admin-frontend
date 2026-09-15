@@ -11,8 +11,8 @@ import { CollapsibleSection } from '@jeesite/display/components/collapsible-sect
 export const BasicInfo = defineComponent({
   setup() {
     const STAT_ITEMS: { label: string; value: string; tag?: boolean }[] = [
-      { label: '名称', value: '显正片' },
-      { label: '片区规模', value: '25.7公顷' },
+      { label: '名称', value: '皮子街片' },
+      { label: '片区规模', value: '25公顷' },
       { label: '更新情况', value: '已批准', tag: true },
     ];
 
@@ -69,8 +69,11 @@ export const BasicInfo = defineComponent({
                   </div>
 
                   <div class="mt-8px text-white font-400 text-14px lh-24px">
-                    片区北临显正街、南抵拦江路、西至青石桥路、东接建桥片。片区内现状总建筑面积约 51
-                    万平方米，功能以住宅为主，绝大部分区域划入显正街传统特色街区保护范围，历史底蕴突出。片区历史资源富集，范围内及周边留存显正街、青石桥路、汉阳树、共勉牌坊等多处珍贵历史遗存，属于兼具居住功能与历史风貌保护双重属性的城市更新片区。
+                    地理位置：皮子街片区位于武汉市核心区域。 人口规模：总人口约7759人，人口密度达30961.69人/平方千米。
+                    更新类型：老旧小区改造、老旧工业园区和厂区、完整社区建设、历史建筑保护。
+                    实施周期：项目分阶段实施，老旧小区改造力争2025年底完工，老旧厂区改造预计 2026年6月开街运营，F  地块开发持续推进。
+                    涉及规模：涵盖8个住宅小区(房开小区、隧华里、仁硚新村、航天星苑、东辉花 园、中环新天地、F
+                    地块、特一号小区)、2个闲置工业厂区(武汉康成酒厂、南洋烟厂) 2个商业办公区 ( D+M 工业设计小镇、葛洲坝集团)。
                   </div>
                 </div>
               </div>

@@ -1,8 +1,14 @@
 import { defineComponent, type PropType } from 'vue';
+import { XOD_COLOR } from '@jeesite/display/components/corner-panel/xod-row';
 import headerImg from '@jeesite/assets/images/display/plan/area-overview-modal-header.png';
 import pictureBoxImg from '@jeesite/assets/images/display/plan/picture-box.webp';
-import testImg from '@jeesite/assets/images/display/plan/test.webp';
 import arrowImg from '@jeesite/assets/images/display/plan/arrow.png';
+
+/** 皮子街片区图片 OSS 基础地址（原始链接为 percent-encoding，这里已解码） */
+const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片区策划-皮子街';
+
+/** 相框内的片区概况图 */
+const AREA_IMG = `${AREA_OSS}/片区概况.webp`;
 
 /** 列表分隔线渐变 */
 const DIVIDER_GRADIENT =
@@ -11,8 +17,8 @@ const DIVIDER_GRADIENT =
 /** 顶部统计卡片项（tag = 以标签样式展示） */
 export type AreaOverviewStat = { label: string; value: string; tag?: boolean };
 
-/** 详细信息列表项（badge = 值左侧的小标签） */
-export type AreaOverviewInfo = { label: string; value: string; badge?: string };
+/** 详细信息列表项（badges = 值左侧的导向胶囊，取值 COD/IOD/SOD… 与左侧看板更新片区列表同一套配色） */
+export type AreaOverviewInfo = { label: string; value: string; badges?: string[] };
 
 /** 内置演示数据：调用方不传 stats / infos 时使用（便于单独预览组件） */
 const DEFAULT_STATS: AreaOverviewStat[] = [
@@ -23,24 +29,31 @@ const DEFAULT_STATS: AreaOverviewStat[] = [
 
 const DEFAULT_INFOS: AreaOverviewInfo[] = [
   { label: '所在区位', value: '江汉区' },
-  { label: '四至范围', value: '西至前进一路、东至前进四路、北至自治街、南至中山大道' },
+  { label: '四至范围', value: '东临硚口路，西至双厂巷，南至仁寿路，北至解放大道' },
   { label: '起始时间', value: '2024年12月 - 至今' },
-  { label: '功能定位', value: '文化导向', badge: 'COD' },
+  { label: '功能定位', value: '文化导向', badges: ['COD'] },
 ];
+
+/** 按 label 取内置演示数据里的值：调用方没有对应字段时兜底用（如「四至范围」geojson 里暂无） */
+export function defaultInfoValue(label: string): string {
+  return DEFAULT_INFOS.find((i) => i.label === label)?.value ?? '—';
+}
 
 /**
  * 片区概况 Modal：右侧上方悬浮面板
  *
- * 结构：标题图 → 相框（图片垫底 + 相框覆盖层）→ 统计卡片 → 详细信息列表 → 查看详情按钮
+ * 结构：标题图 → 相框（片区图垫底 + 相框覆盖层）→ 统计卡片 → 详细信息列表 → 查看详情按钮
  * 统计卡片 / 详细信息列表完全由 stats / infos 两个 props 数据驱动，新增条目只需改数据。
+ * 功能定位的导向胶囊（COD / IOD / SOD…）复用左侧数据看板「更新片区列表」的 XOD_COLOR 配色。
  *
  * props：
  * - stats: 顶部统计卡片项（{ label, value, tag? }[]），不传用内置演示数据
- * - infos: 详细信息列表项（{ label, value, badge? }[]），不传用内置演示数据
+ * - infos: 详细信息列表项（{ label, value, badges? }[]），不传用内置演示数据
+ * - onDetail: 点击「查看详情」的回调，不传则按钮无动作
  *
  * 用法：
  * ```tsx
- * <AreaOverviewModal stats={[{ label: '片区名称', value: '一元片' }]} infos={[...]} />
+ * <AreaOverviewModal stats={[{ label: '片区名称', value: '一元片' }]} infos={[...]} onDetail={...} />
  * ```
  */
 export const AreaOverviewModal = defineComponent({
@@ -62,9 +75,13 @@ export const AreaOverviewModal = defineComponent({
         {/* 标题图 */}
         <div style={{ backgroundImage: `url(${headerImg})` }} class="h-42px w-296px bg-contain" />
 
-        {/* 相框：图片垫底，相框覆盖层叠在图片上面 */}
+        {/* 相框：片区图垫底，相框覆盖层叠在图片上面 */}
         <div class="relative mt-20px h-184px w-full overflow-hidden">
-          <div style={{ backgroundImage: `url(${testImg})` }} class="absolute inset-10px rd-24px bg-contain" />
+          <img
+            src={AREA_IMG}
+            alt="片区概况"
+            class="absolute inset-10px size-[calc(100%_-_20px)] rd-24px object-cover"
+          />
           <img src={pictureBoxImg} alt="相框" class="absolute inset-0 size-full object-contain" />
         </div>
 
@@ -94,9 +111,19 @@ export const AreaOverviewModal = defineComponent({
               </div>
 
               <div class="mt-12px flex items-center text-16px lh-24px text-white">
-                {item.badge && (
-                  <div class="mr-12px inline-block bg-#17FEB9 px-6px py-2px text-10px font-600 lh-14px rd-4px text-black">
-                    {item.badge}
+                {/* 导向胶囊：与左侧看板「更新片区列表」同款样式
+                    （XOD_COLOR 配色 + Chakra Petch 西文字体 + 32×16 圆角小胶囊） */}
+                {!!item.badges?.length && (
+                  <div class="mr-12px flex flex-wrap items-center gap-6px">
+                    {item.badges.map((code) => (
+                      <div
+                        key={code}
+                        class="font-chakra rd-4px w-32px h-16px flex items-center justify-center text-black text-14px font-500"
+                        style={{ background: XOD_COLOR[code.toLowerCase()] ?? '#17FEB9' }}
+                      >
+                        {code.toUpperCase()}
+                      </div>
+                    ))}
                   </div>
                 )}
                 {item.value}

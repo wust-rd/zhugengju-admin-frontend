@@ -11,7 +11,12 @@ import { RouterLink, useRouter } from 'vue-router';
 import { cn } from '@jeesite/core/libs';
 import { SchemeLeftDrawer } from './left-drawer';
 import { RightDrawer } from './right-drawer';
-import { AreaOverviewModal, type AreaOverviewInfo, type AreaOverviewStat } from './area-overview-modal';
+import {
+  AreaOverviewModal,
+  defaultInfoValue,
+  type AreaOverviewInfo,
+  type AreaOverviewStat,
+} from './area-overview-modal';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -52,10 +57,10 @@ const text = (v: unknown): string => String(v ?? '').trim() || '—';
 /** 导向维度缩写（与左侧看板功能定位统计同一套口径） */
 const FUNC_KEYS = ['TOD', 'EOD', 'IOD', 'SOD', 'COD', 'HOD'];
 
-/** FUNC_TYPE 原文 → 导向缩写徽章（可多命中，用 + 连接；未命中返回空串，卡片不渲染徽章） */
-function funcBadge(funcType: unknown): string {
+/** FUNC_TYPE 原文 → 命中的导向缩写数组（可多命中；未命中返回空数组，卡片不渲染胶囊） */
+function funcBadges(funcType: unknown): string[] {
   const t = String(funcType ?? '').toUpperCase();
-  return FUNC_KEYS.filter((k) => t.includes(k)).join('+');
+  return FUNC_KEYS.filter((k) => t.includes(k));
 }
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
@@ -314,10 +319,12 @@ export default defineComponent({
       const end = text(a.END_DATE);
       return [
         { label: '所在区位', value: text(a.DIST) },
-        { label: '责任主体', value: text(a.RESP_BODY) },
+        // { label: '责任主体', value: text(a.RESP_BODY) },
+        // 四至范围：geojson 里暂无该字段（RANGE），有值就用值，没有则回退到组件内置的默认值
+        { label: '四至范围', value: a.RANGE ? text(a.RANGE) : defaultInfoValue('四至范围') },
         { label: '实施时间', value: start === '—' && end === '—' ? '—' : `${start} 至 ${end}` },
         // FUNC_TYPE 原始文本较脏（含换行），展示前压掉空白；徽章取命中的导向缩写
-        { label: '功能定位', value: text(a.FUNC_TYPE).replace(/\s+/g, ''), badge: funcBadge(a.FUNC_TYPE) || undefined },
+        { label: '功能定位', value: text(a.FUNC_TYPE).replace(/\s+/g, ''), badges: funcBadges(a.FUNC_TYPE) },
       ];
     });
 
