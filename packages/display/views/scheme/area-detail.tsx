@@ -1,6 +1,7 @@
 import { computed, defineComponent, provide } from 'vue';
 import { RightDrawer, type DrawerTabLabel } from './right-drawer';
 import type { ExamTab } from './right-drawer/physical-exam';
+import type { RegulatoryTab } from './right-drawer/regulatory-change';
 import { AreaDetailViewKey, useAreaDetailView } from './use-area-detail-view';
 
 /** 历史素材 OSS 基础地址（其余一级 Tab 的大图仍在这里） */
@@ -10,15 +11,16 @@ const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区�
 const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片区策划-皮子街';
 
 /**
- * 一级 Tab → 左侧大图
+ * 一级 Tab → 左侧大图（只列「一张 Tab 对一张图」的那些）
  *
- * 「基本情况」用皮子街素材的大图；其余一级 Tab 在皮子街素材里没有 `{tab}-大图.webp`（探测全部 404），
- * 沿用 detail.tsx 那套「知音东苑片-{tab}」图；「资金方案」连那张也没有，用同项目的片区资金情况图。
+ * 另两个 Tab 的图由各自的二级选择决定，不在这张表里：
+ * 「体检情况」看 EXAM_IMG、「控规变更」看 REG_IMG。用 Exclude 把它们排除后，
+ * 以后再加一个普通 Tab 却忘了配图，这里会直接编译报错。
  */
-const TAB_IMG: Record<DrawerTabLabel, string> = {
+type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '控规变更'>;
+
+const TAB_IMG: Record<PlainTab, string> = {
   基本情况: `${AREA_OSS}/基本情况-大图.webp`,
-  // 「体检情况」这一项实际不会被用到：按 currentImg 的逻辑，它改为按二级 Tab 取 EXAM_IMG 的图
-  体检情况: `${OSS_BASE}/知音东苑片-体检情况.webp`,
   功能策划: `${OSS_BASE}/知音东苑片-功能策划.webp`,
   项目情况: `${OSS_BASE}/知音东苑片-项目情况.webp`,
   资金方案: `${OSS_BASE}/片区资金情况.webp`,
@@ -33,15 +35,28 @@ const EXAM_IMG: Record<ExamTab, string> = {
 };
 
 /**
+ * 「控规变更」三个图纸 → 左侧大图
+ *
+ * TODO: 这三张图目前还没有（皮子街素材里各种命名都探测过，老/新两个桶全部 404），
+ * 先统一用「片区概况」图占位 —— 所以现在切三个按钮时左侧不变，属预期行为；
+ * 拿到真实图后把下面三行分别换成各自地址，就会自动各切各的。
+ */
+const REG_IMG: Record<RegulatoryTab, string> = {
+  调整前图纸: `${AREA_OSS}/控规变更-调整前.webp`,
+  调整后图纸: `${AREA_OSS}/控规变更-调整后.webp`,
+  调整前后对比: `${AREA_OSS}/控规变更-前后对比.webp`,
+};
+
+/**
  * 片区详情页：左右布局 —— 左侧大图 + 右侧真实抽屉组件
  *
  * 入口：地图上点片区面 → 右上角「片区概况」卡片 → 「查看详情」按钮（/display/scheme/area-detail）。
- * 右侧复用真实抽屉组件 RightDrawer（6 个 Tab + 点击/滚动联动的数据面板），
+ * 右侧复用真实抽屉组件 RightDrawer（7 个 Tab + 点击/滚动联动的数据面板），
  * 与另一条链路的图片版详情页（/display/scheme/detail，detail.tsx）互不影响。
  *
  * 左右联动：本页 provide 一份共享 Tab 状态（use-area-detail-view），
- * RightDrawer 写一级 Tab、PhysicalExam 写二级 Tab，本页读同一份状态决定左侧显示哪张图。
- * 图片映射表只放在本页（交互归抽屉、展示归页面）。
+ * RightDrawer 写一级 Tab、PhysicalExam 写体检情况的二级 Tab、RegulatoryChange 写控规变更的图纸，
+ * 本页读同一份状态决定左侧显示哪张图。图片映射表只放在本页（交互归抽屉、展示归页面）。
  *
  * 说明：页面本身是 RouterView 的内容，外层 display 布局已是 flex 行，所以这里直接返回
  * 「左 flex-1 + 右固定宽」两个兄弟节点即可，不需要再包一层 flex 容器。
@@ -49,14 +64,17 @@ const EXAM_IMG: Record<ExamTab, string> = {
 export default defineComponent({
   name: 'DisplaySchemeAreaDetail',
   setup() {
-    // 共享 Tab 状态：provide 给 RightDrawer / PhysicalExam，本页读它换图
+    // 共享 Tab 状态：provide 给抽屉内的组件，本页读它换图
     const view = useAreaDetailView();
     provide(AreaDetailViewKey, view);
 
-    /** 当前该显示的左侧大图：一级 Tab 为「体检情况」时，再按二级 Tab 取图 */
-    const currentImg = computed(() =>
-      view.primaryTab.value === '体检情况' ? EXAM_IMG[view.examTab.value] : TAB_IMG[view.primaryTab.value],
-    );
+    /** 当前该显示的左侧大图：两个「多图」Tab 各按自己的二级选择取图，其余走 TAB_IMG 静态映射 */
+    const currentImg = computed(() => {
+      const tab = view.primaryTab.value;
+      if (tab === '体检情况') return EXAM_IMG[view.examTab.value];
+      if (tab === '控规变更') return REG_IMG[view.regulatoryTab.value];
+      return TAB_IMG[tab]; // 此处 tab 已被收窄为 PlainTab
+    });
 
     return () => (
       <>

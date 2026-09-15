@@ -7,9 +7,10 @@ import { FundPlan } from './fund-plan';
 import { PhysicalExam } from './physical-exam';
 import { PostEvaluation } from './post-evaluation';
 import { ProjectInfo } from './project-info';
+import { RegulatoryChange } from './regulatory-change';
 
 /** 抽屉 Tab 配置 */
-const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况', '资金方案', '实施后评估'] as const;
+const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '控规变更', '项目情况', '资金方案', '实施后评估'] as const;
 export type DrawerTabLabel = (typeof DRAWER_TABS)[number];
 
 /** Tab 对应的内容组件 */
@@ -17,6 +18,7 @@ const TAB_COMPONENTS = {
   基本情况: BasicInfo,
   体检情况: PhysicalExam,
   功能策划: FeaturePlan,
+  控规变更: RegulatoryChange,
   项目情况: ProjectInfo,
   资金方案: FundPlan,
   实施后评估: PostEvaluation,
