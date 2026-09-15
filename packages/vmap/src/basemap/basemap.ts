@@ -4,42 +4,42 @@ import sgjElectricImg from '@jeesite/assets/images/vmap/数公基电子地图.we
 import sgjRemoteImg from '@jeesite/assets/images/vmap/数公基遥感影像.webp';
 import yztElectricImg from '@jeesite/assets/images/vmap/一张图电子地图.webp';
 import yztRemoteImg from '@jeesite/assets/images/vmap/一张图遥感影像.webp';
+import { YZT_WMTS_TILES, ensureYztWmtsProtocol } from './yzt-wmts-protocol';
+import { YZT_GATEWAY_BASE, YZT_TOKEN } from './yzt-gateway';
 
 /**
- * 数公基底图 preset —— 各大屏 overview 页共用（替代原天地图 EPSG:4490 方案）
+ * 底图 preset —— 各大屏 overview 页共用
  *
- * 说明：
+ * 双平台四底图（数公基电子/数公基遥感/一张图电子/一张图遥感）：
  *  - 数公基：局方服务平台的 ArcGIS REST 缓存服务（ServiceAdapter 代理），
  *    Web Mercator / EPSG:3857、256px PNG、0~19 级，token 内置在路径中
- *  - 一张图：湖北省自然资源一张图 tip-gateway 内网代理。其 WMTS 只有 CGCS2000
- *    经纬度网格矩阵（topLeft -180/90，如 public.wuhanyx_Matrix_0/1/2），与地图的
- *    EPSG:3857 网格不兼容；但 WMS 实测支持 SRS=EPSG:3857 服务端重投影（caps 虽只
- *    声明 4326，已用武汉 bbox 返回真影像 + 域外 bbox 返回空图对照验证），故走
- *    WMS GetMap + {bbox-epsg-3857} 模板。
- *    ⚠ 各图层可用性：遥感影像（public.wuhanyx）✅ 实测可用；vec_c 资源对当前
- *    token 未授权（401，需局方开授权）；cva_c 代理无 WMS 端点（404，WMTS 又只有
- *    4326 网格）——「一张图电子地图」= vec + cva 两图层，拿到授权/端点前选中为空白。
- *  - 地图坐标系为 MapLibre 默认的 EPSG:3857（不再设置 crs: 'EPSG:4490'），
- *    CGCS2000 经纬度的 GeoJSON 覆盖层可直接叠加
+ *  - 一张图：湖北省自然资源一张图 tip-gateway 外网代理（网关地址与 token 见
+ *    yzt-gateway.ts）。接入遥感影像与矢量注记两项，均非标准 3857 XYZ 服务：
+ *    - 遥感影像 wuhanyx：WMS 支持 SRS=EPSG:3857 服务端重投影，走 WMS GetMap
+ *      + {bbox-epsg-3857} 模板（超图 enhance 版 MapLibre 支持该占位符，按每张
+ *      瓦片的墨卡托范围展开）。其 WMTS 为自定义 EPSG:4326 剖分（非天地图标
+ *      准网格）且 GetTile 行列校验异常，不可直接使用
+ *    - 注记 cva_c：代理无 WMS 端点，WMTS 为标准天地图 EPSG:4490 剖分，与
+ *      3857 网格不通用；经 yzt-wmts-protocol.ts 注册的 yztwmts:// 自定义协议
+ *      在前端取 4490 源瓦片重采样合成 3857 对齐瓦片
+ *    - 矢量底图 vec_c：与 cva_c 同构的 tdt WMTS（上游对当前 token 未授权
+ *      401），与 cva 共用 yztwmts:// 合成协议接入——未授权期间取图失败该
+ *      瓦片透明，选中「一张图电子地图」时底图空白、注记层正常，授权放开
+ *      后无需改码自动恢复完整。「一张图遥感影像」= 影像 + 注记两图层成组
+ *      叠加（遥感本身无注记，叠 cva 补字）
+ *  - 地图坐标系为 MapLibre 默认的 EPSG:3857，CGCS2000 经纬度的 GeoJSON
+ *    覆盖层可直接叠加
  */
+
+// tdt 系列合成协议须在地图实例创建前注册；本模块被引用即完成注册（幂等）
+ensureYztWmtsProtocol();
 
 /** 数公基服务根地址（ServiceAdapter 代理）与路径 token */
 const SGJ_SERVICE_BASE = 'http://10.34.4.103:8010/ServiceAdapter/MAP';
 const SGJ_SERVICE_TOKEN = 'a06a981392ba400a8144171aa9fb8168';
 
-/** 一张图网关根地址（湖北省自然资源一张图 tip-gateway 内网代理）与 token */
-const YZT_GATEWAY_BASE = 'http://10.13.31.129:8086/hubei-onemap/tip-gateway/proxy';
-const YZT_TOKEN = 'tip-token-c07d0ecb6b78e8f7d776d0d88ed61b21';
-
-/** 一张图 WMS 服务定义（代理路径段 + WMS 图层名） */
-const YZT_SERVICES = {
-  /** 矢量电子底图（⚠ 代理对当前 token 未授权，401） */
-  vec: { proxy: '1044e59cc34ebea1a88e97f08bc39197/vec_c', wmsLayer: 'public.vec_c' },
-  /** 矢量电子底图的中文注记，叠加在 vec 之上（⚠ 代理无 WMS 端点，404） */
-  cva: { proxy: '181923f734561b5948b071044bc68f30/cva_c', wmsLayer: 'public.cva' },
-  /** 武汉遥感影像（✅ 实测可用） */
-  yx: { proxy: '6e45ab3070445ae4ed88881370ae35cb/wuhanyx', wmsLayer: 'public.wuhanyx' },
-} as const;
+/** 一张图武汉遥感影像 WMS 定义（代理路径段 + WMS 图层名，caps 中两层名等价） */
+const YZT_YX = { proxy: '6e45ab3070445ae4ed88881370ae35cb/wuhanyx', wmsLayer: 'public.wuhanyx' } as const;
 
 /** 武汉市中心（大屏各 overview 页共用初始视口中心） */
 export const WUHAN_CENTER: [number, number] = [114.2761773, 30.5344542];
@@ -50,10 +50,10 @@ function sgjTileUrls(service: string): string[] {
 }
 
 /**
- * 构建一张图 WMS 瓦片模板（{bbox-epsg-3857} 由 MapLibre 按瓦片墨卡托范围展开，
- * 服务端重投影，几何与 3857 地图精确对齐）。
+ * 构建一张图 WMS 瓦片模板（{bbox-epsg-3857} 由超图 enhance 版 MapLibre
+ * 按瓦片墨卡托范围展开，服务端重投影，几何与 3857 地图精确对齐）。
  */
-function yztWmsTileUrls(service: (typeof YZT_SERVICES)[keyof typeof YZT_SERVICES]): string[] {
+function yztWmsTileUrls(service: { proxy: string; wmsLayer: string }): string[] {
   return [
     `${YZT_GATEWAY_BASE}/${service.proxy}/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap` +
       `&LAYERS=${service.wmsLayer}&STYLES=&FORMAT=image/png&WIDTH=256&HEIGHT=256` +
@@ -61,7 +61,7 @@ function yztWmsTileUrls(service: (typeof YZT_SERVICES)[keyof typeof YZT_SERVICES
   ];
 }
 
-/** 数公基底图样式：电子地图（默认显示）+ 遥感影像（初始隐藏，由底图切换器控制互斥显隐） */
+/** 底图样式：数公基电子地图（默认显示）+ 数公基遥感 / 一张图遥感（初始隐藏，由底图切换器控制互斥显隐） */
 export const basemapStyle: StyleSpecification = {
   version: 8,
   sources: {
@@ -79,25 +79,27 @@ export const basemapStyle: StyleSpecification = {
       minzoom: 0,
       maxzoom: 19,
     },
+    'basemap-yzt-yx': {
+      type: 'raster',
+      tiles: yztWmsTileUrls(YZT_YX),
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+    },
     'basemap-yzt-vec': {
       type: 'raster',
-      tiles: yztWmsTileUrls(YZT_SERVICES.vec),
+      // vec_c 与 cva_c 同构（tdt WMTS 4490 网格），共用 yztwmts:// 合成协议
+      tiles: [YZT_WMTS_TILES.vec],
       tileSize: 256,
       minzoom: 0,
       maxzoom: 19,
     },
     'basemap-yzt-cva': {
       type: 'raster',
-      tiles: yztWmsTileUrls(YZT_SERVICES.cva),
+      tiles: [YZT_WMTS_TILES.cva],
       tileSize: 256,
       minzoom: 0,
-      maxzoom: 19,
-    },
-    'basemap-yzt-yx': {
-      type: 'raster',
-      tiles: yztWmsTileUrls(YZT_SERVICES.yx),
-      tileSize: 256,
-      minzoom: 0,
+      // cva WMTS 最高 19 级，之上由 MapLibre 过采样放大（注记文字可接受）
       maxzoom: 19,
     },
   },
@@ -105,13 +107,15 @@ export const basemapStyle: StyleSpecification = {
     { id: 'basemap-sgj-emap', type: 'raster', source: 'basemap-sgj-emap' },
     { id: 'basemap-sgj-yx', type: 'raster', source: 'basemap-sgj-yx', layout: { visibility: 'none' } },
     { id: 'basemap-yzt-yx', type: 'raster', source: 'basemap-yzt-yx', layout: { visibility: 'none' } },
+    // vec_c 与 cva_c 同构，经 yztwmts:// 协议取图；上游对当前 token 屏蔽
+    // （401）期间该层透明——选中「一张图电子地图」时底图空白、注记正常
     { id: 'basemap-yzt-vec', type: 'raster', source: 'basemap-yzt-vec', layout: { visibility: 'none' } },
-    // 注记必须叠在对应底图之上
+    // 注记必须叠在遥感之上
     { id: 'basemap-yzt-cva', type: 'raster', source: 'basemap-yzt-cva', layout: { visibility: 'none' } },
   ],
 };
 
-/** 数公基底图常用构造选项（Web Mercator，MapLibre 默认 EPSG:3857，无需设置 crs） */
+/** 底图常用构造选项（Web Mercator，MapLibre 默认 EPSG:3857，无需设置 crs） */
 export const basemapMapOptions: Partial<MapOptions> = {
   center: WUHAN_CENTER,
   zoom: 10,
@@ -123,7 +127,7 @@ export interface BasemapOption {
   name: string;
   /** 面板缩略图 */
   image: string;
-  /** basemapStyle 中对应图层 id 列表（多图层成组互斥显隐，如一张图电子地图=底图+注记） */
+  /** basemapStyle 中对应图层 id 列表（多图层成组互斥显隐，可跨选项共享如 cva；显隐以选中项的 layerIds 为准） */
   layerIds?: readonly string[];
 }
 
@@ -131,8 +135,9 @@ export interface BasemapOption {
 export const BASEMAP_OPTIONS: readonly BasemapOption[] = [
   { name: '数公基电子地图', image: sgjElectricImg, layerIds: ['basemap-sgj-emap'] },
   { name: '数公基遥感影像', image: sgjRemoteImg, layerIds: ['basemap-sgj-yx'] },
+  // vec_c 上游屏蔽期间取图失败该瓦片透明：选中=注记叠在空白底图上，授权放开后自动恢复完整
   { name: '一张图电子地图', image: yztElectricImg, layerIds: ['basemap-yzt-vec', 'basemap-yzt-cva'] },
-  { name: '一张图遥感影像', image: yztRemoteImg, layerIds: ['basemap-yzt-yx'] },
+  { name: '一张图遥感影像', image: yztRemoteImg, layerIds: ['basemap-yzt-yx', 'basemap-yzt-cva'] },
 ];
 
 /** 初始选中的底图名（对应 basemapStyle 中默认可见的 'basemap-sgj-emap' 图层） */
@@ -152,10 +157,12 @@ export const activeBasemap = ref(DEFAULT_BASEMAP_NAME);
  */
 export function selectBasemap(name: string) {
   activeBasemap.value = name;
+  // 与 applyBasemap 同口径：以选中项的 layerIds 为准统一写入——cva 为电子/遥感
+  // 两选项共享图层，按选项逐个写会被未选中项覆盖
+  const visibleIds = BASEMAP_OPTIONS.find((option) => option.name === name)?.layerIds;
   for (const layer of basemapStyle.layers) {
-    const owner = BASEMAP_OPTIONS.find((option) => option.layerIds?.includes(layer.id));
-    if (owner) {
-      layer.layout = { ...(layer.layout ?? {}), visibility: owner.name === name ? 'visible' : 'none' };
-    }
+    const managed = BASEMAP_OPTIONS.some((option) => option.layerIds?.includes(layer.id));
+    if (!managed) continue;
+    layer.layout = { ...(layer.layout ?? {}), visibility: visibleIds?.includes(layer.id) ? 'visible' : 'none' };
   }
 }

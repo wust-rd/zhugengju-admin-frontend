@@ -13,7 +13,7 @@ import { Tooltip } from 'antdv-next';
 import { Locate, Loader2, Maximize, Minus, Plus } from 'lucide-vue-next';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { cn, type ClassValue } from '@jeesite/core/libs';
-import { BASEMAP_OPTIONS, activeBasemap, selectBasemap } from './basemap';
+import { BASEMAP_OPTIONS, activeBasemap, selectBasemap } from './basemap/basemap';
 import { useMap } from './composables/use-map';
 
 type Orientation = 'vertical' | 'horizontal';
@@ -34,7 +34,7 @@ type Orientation = 'vertical' | 'horizontal';
  * - `locate`：定位成功后触发，payload 为 `{ longitude, latitude }`。
  * - `basemap`：底图面板中选中某项后触发，payload 为底图名（图片文件名去扩展名，如「数公基遥感影像」）。
  *   组件内同时按选项的 layerIds 成组互斥切换 basemapStyle 中的对应图层
- *   （一张图电子地图 = 底图 + 注记两图层叠加）。
+ *   （一张图遥感影像 = 影像 + 注记两图层叠加）。
  *
  * 底图选中态为模块级共享（basemap.ts 的 activeBasemap）：overview 页面来回切换时
  * 记住已选底图，新地图实例样式就绪后自动同步（见 watch(map)）。
@@ -94,15 +94,17 @@ export const VMapControls = defineComponent({
     );
 
     // ── 地图操作 handlers（全部走 map.value?. 可选链，纯 UI 模式静默失效）───
-    // 底图切换：按选项的 layerIds 成组互斥显隐（一张图电子地图=底图+注记两图层）；
-    // 面板保持展开（只有再次点击按钮才收起）
+    // 底图切换：以选中选项的 layerIds 为准对面板管辖图层统一写入显隐——cva 注记
+    // 为电子/遥感两选项共享，若按选项逐个写会被未选中选项覆盖成 none
+    // （一张图遥感影像=影像+注记两图层）；面板保持展开（只有再次点击按钮才收起）
     const applyBasemap = (name: string) => {
       const m = map.value;
       if (!m) return;
+      const visibleIds = BASEMAP_OPTIONS.find((option) => option.name === name)?.layerIds ?? [];
       for (const option of BASEMAP_OPTIONS) {
         for (const layerId of option.layerIds ?? []) {
           if (m.getLayer(layerId)) {
-            m.setLayoutProperty(layerId, 'visibility', option.name === name ? 'visible' : 'none');
+            m.setLayoutProperty(layerId, 'visibility', visibleIds.includes(layerId) ? 'visible' : 'none');
           }
         }
       }

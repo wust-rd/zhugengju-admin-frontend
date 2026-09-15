@@ -243,7 +243,10 @@ pnpm build
 ```bash
 # 代理设置，可配置多个，不能换行，格式：[访问接口的根路径, 代理地址, 是否保持Host头]
 # VITE_PROXY = [["/js","https://vue.jeesite.com/js",true]]
-VITE_PROXY = [["/js","http://127.0.0.1:8980/js",false]]
+VITE_PROXY = [
+  ["/js","http://127.0.0.1:8980/js",false],
+  ["/yzt","http://hubei.onemap.mnr.cegn.cn", false]
+]
 
 # 访问接口的根路径（例如：https://vue.jeesite.com）建议为空
 VITE_GLOB_API_URL = 
