@@ -90,6 +90,7 @@
     policyFileUrl,
     policyList,
     policySubmit,
+    splitTags,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/policy-management/policy';
   import InputForm from './form.vue';
 
@@ -228,7 +229,27 @@
     stats.value = data.stats;
     navCounts.value = data.nav;
     orgOptions.value = toOrgOptions(data.list);
-    return { list: data.list, count: data.count };
+    // 政策类型/业务领域已支持多选（后端单字段存逗号分隔多值）：后端按单值查字典会回退原文，
+    // 这里按字典逐项补全标签（顿号连接），保证列表显示可读
+    const list = data.list.map((row) => ({
+      ...row,
+      policyTypeLabel: multiLabel(dicts.value.policy_type, row.policyType, row.policyTypeLabel),
+      businessAreaLabel: multiLabel(dicts.value.business_area, row.businessArea, row.businessAreaLabel),
+    }));
+    return { list, count: data.count };
+  }
+
+  /** 多值字段标签：后端已给出有效标签则沿用，否则按字典把逗号分隔的编码逐个映射为名称 */
+  function multiLabel(
+    dict: { label: string; value: string }[] | undefined,
+    raw?: string,
+    backendLabel?: string,
+  ): string {
+    const codes = splitTags(raw);
+    if (!codes.length) return backendLabel || '-';
+    if (backendLabel && backendLabel !== raw) return backendLabel;
+    const options = dict || [];
+    return codes.map((code) => options.find((o) => o.value === code)?.label || code).join('、');
   }
 
   const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();

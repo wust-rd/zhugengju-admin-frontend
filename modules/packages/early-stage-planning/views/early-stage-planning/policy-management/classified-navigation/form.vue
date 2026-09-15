@@ -63,6 +63,7 @@
     fetchDicts,
     policyInfo,
     policySave,
+    splitTags,
     uploadPolicyFile,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/policy-management/policy';
 
@@ -82,6 +83,12 @@
   onMounted(async () => {
     dicts.value = await fetchDicts();
   });
+
+  /** 多选值（数组）→ 后端单字段字符串（逗号分隔；后端 policy_type/business_area 为单字段） */
+  function joinMulti(value: unknown): string {
+    if (Array.isArray(value)) return value.filter(Boolean).join(',');
+    return (value as string) || '';
+  }
 
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:book-outlined',
@@ -127,13 +134,25 @@
       label: '政策类型',
       field: 'policyType',
       component: 'Select',
-      componentProps: () => ({ options: dicts.value.policy_type || [], allowClear: true }),
+      componentProps: () => ({
+        options: dicts.value.policy_type || [],
+        mode: 'multiple',
+        allowClear: true,
+        placeholder: '可多选',
+        maxTagCount: 'responsive',
+      }),
     },
     {
       label: '业务领域',
       field: 'businessArea',
       component: 'Select',
-      componentProps: () => ({ options: dicts.value.business_area || [], allowClear: true }),
+      componentProps: () => ({
+        options: dicts.value.business_area || [],
+        mode: 'multiple',
+        allowClear: true,
+        placeholder: '可多选',
+        maxTagCount: 'responsive',
+      }),
     },
     {
       label: '发布日期',
@@ -208,8 +227,9 @@
       title: record.value.title ?? '',
       docNo: record.value.docNo ?? '',
       policyLevel: record.value.policyLevel,
-      policyType: record.value.policyType,
-      businessArea: record.value.businessArea,
+      // 多选字段：后端单字段存多个值（逗号/分号分隔）→ 拆成数组回填
+      policyType: splitTags(record.value.policyType),
+      businessArea: splitTags(record.value.businessArea),
       publishDate: record.value.publishDate ?? '',
       sourceOrg: record.value.sourceOrg ?? '',
       abolishDate: record.value.abolishDate || undefined,
@@ -258,7 +278,11 @@
         fileId = uploaded.fileId;
         fileUrl = uploaded.fileUrl;
       }
-      await policySave({ ...data, fileId, fileUrl }, record.value.code);
+      // 多选字段合并回后端单字段（逗号分隔）
+      await policySave(
+        { ...data, policyType: joinMulti(data.policyType), businessArea: joinMulti(data.businessArea), fileId, fileUrl },
+        record.value.code,
+      );
       showMessage('已保存（待提交的政策需点列表「提交」后才会进入知识库）');
       setTimeout(closeDrawer);
       emit('success');
