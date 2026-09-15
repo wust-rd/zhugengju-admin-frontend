@@ -1,16 +1,17 @@
 import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
 import { animate } from 'motion-v';
-import { defineComponent, ref, shallowRef, watch } from 'vue';
+import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 /** 片区面（area）与知音地块（zhiyin）数据，?url 导入 + 运行时 fetch，不打进 bundle */
 import { colors } from '@jeesite/core/libs/colors';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
 import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { cn } from '@jeesite/core/libs';
 import { SchemeLeftDrawer } from './left-drawer';
 import { RightDrawer } from './right-drawer';
+import { AreaOverviewModal, type AreaOverviewInfo, type AreaOverviewStat } from './area-overview-modal';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -45,6 +46,18 @@ const AREA_COLORS: Record<'第一批' | '第二批', { fill: string; line: strin
 /** BATCH 字段取值异常时的兜底色（正常数据只有第一批/第二批，用不到） */
 const AREA_FALLBACK_COLOR = colors.stone[400];
 
+/** 属性值 → 展示文本（空值统一显示「—」） */
+const text = (v: unknown): string => String(v ?? '').trim() || '—';
+
+/** 导向维度缩写（与左侧看板功能定位统计同一套口径） */
+const FUNC_KEYS = ['TOD', 'EOD', 'IOD', 'SOD', 'COD', 'HOD'];
+
+/** FUNC_TYPE 原文 → 导向缩写徽章（可多命中，用 + 连接；未命中返回空串，卡片不渲染徽章） */
+function funcBadge(funcType: unknown): string {
+  const t = String(funcType ?? '').toUpperCase();
+  return FUNC_KEYS.filter((k) => t.includes(k)).join('+');
+}
+
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: maplibregl.StyleSpecification = {
   version: 8,
@@ -73,12 +86,16 @@ const tiandituStyle: maplibregl.StyleSpecification = {
 export default defineComponent({
   name: 'DisplayScheme',
   setup() {
+    const router = useRouter();
+
     /** Map 实例（供右下角自绘控件条 MapControls 使用） */
     const mapInstance = shallowRef<maplibregl.Map | null>(null);
     const mapContainer = ref<HTMLDivElement | null>(null);
     const drawerRef = ref<HTMLDivElement | null>(null);
     /** 右侧抽屉（地图点击打开） */
     const drawerVisible = ref(false);
+    /** 地图上点中的片区要素属性（null = 未选中，右上角概况卡片不显示） */
+    const activeArea = ref<Recordable | null>(null);
     const previewVisible = ref(false);
     /** 项目 tab 三个按钮点击后弹出的图片地址 */
     const projectPreviewSrc = ref('');
@@ -176,16 +193,23 @@ export default defineComponent({
             .addTo(map);
         };
 
-        // 点击地图：命中知音地块 → 显示金字塔 Marker；否则移除 Marker 并打开右侧抽屉
+        // 点击地图：
+        //  1) 命中知音地块 → 显示金字塔 Marker + 打开右侧图片抽屉
+        //  2) 命中片区面 → 把该片区的属性交给右上角「片区概况」卡片展示；点空白处清空卡片
         map.on('click', (e) => {
-          const hit = map.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
-          if (hit) {
+          // queryRenderedFeatures 传不存在的图层 id 会抛错：图层是异步加载的，先判存在
+          const hitZhiyin =
+            map.getLayer('zhiyin-fill') && map.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
+          if (hitZhiyin) {
             showZhiyinMarker(e.lngLat);
             drawerVisible.value = true;
-            return;
+          } else {
+            hideZhiyinMarker();
+            drawerVisible.value = false;
           }
-          hideZhiyinMarker();
-          drawerVisible.value = false;
+
+          const hitArea = map.getLayer('area-fills') && map.queryRenderedFeatures(e.point, { layers: ['area-fills'] });
+          activeArea.value = (hitArea && hitArea[0] ? (hitArea[0].properties as Recordable) : null) ?? null;
         });
 
         // 片区面（area_merged_all）与知音地块（zhiyin）图层：样式加载完成后动态添加
@@ -270,6 +294,33 @@ export default defineComponent({
       { immediate: true },
     );
 
+    /** 概况卡片 · 顶部统计：片区名称 / 规模 / 所属批次（随点中的片区要素变化） */
+    const areaStats = computed<AreaOverviewStat[]>(() => {
+      const a = activeArea.value;
+      if (!a) return [];
+      const ha = Number(a.AREA_HA);
+      return [
+        { label: '片区名称', value: text(a.AREA_NAME) },
+        { label: '片区规模', value: Number.isFinite(ha) && ha > 0 ? `${ha.toFixed(2)} 公顷` : '—' },
+        { label: '所属批次', value: text(a.BATCH), tag: true },
+      ];
+    });
+
+    /** 概况卡片 · 详细信息：区位 / 责任主体 / 实施时间 / 功能定位（随点中的片区要素变化） */
+    const areaInfos = computed<AreaOverviewInfo[]>(() => {
+      const a = activeArea.value;
+      if (!a) return [];
+      const start = text(a.START_DATE);
+      const end = text(a.END_DATE);
+      return [
+        { label: '所在区位', value: text(a.DIST) },
+        { label: '责任主体', value: text(a.RESP_BODY) },
+        { label: '实施时间', value: start === '—' && end === '—' ? '—' : `${start} 至 ${end}` },
+        // FUNC_TYPE 原始文本较脏（含换行），展示前压掉空白；徽章取命中的导向缩写
+        { label: '功能定位', value: text(a.FUNC_TYPE).replace(/\s+/g, ''), badge: funcBadge(a.FUNC_TYPE) || undefined },
+      ];
+    });
+
     return () => (
       <>
         {/* 左侧抽屉：与地图平级，向左移动渐隐（motion-v 动画）；
@@ -295,6 +346,17 @@ export default defineComponent({
             }}
             class="map-custom-controls h-full w-full relative"
           />
+
+          {/* 片区概况卡片：点击地图上的片区面显示该片区信息（点地图空白处收起）
+              卡片内展示的是 area_merged_all.geojson 的要素属性，改字段映射见 areaStats / areaInfos；
+              「查看详情」跳到片区详情页（左大图 + 右真实抽屉） */}
+          {activeArea.value && (
+            <AreaOverviewModal
+              stats={areaStats.value}
+              infos={areaInfos.value}
+              onDetail={() => router.push('/display/scheme/area-detail')}
+            />
+          )}
 
           {/* 地图控件条：右下角（罗盘重置方位 / 2D-3D 切换 / 缩放） */}
           <div class="absolute right-24px bottom-24px z-10">
@@ -327,11 +389,14 @@ export default defineComponent({
         </div> */}
 
         {/* 知音片区保持原来那一套：点击地图上的知音红面弹出片区概况图抽屉
-            （片区概况.webp，点击进入片区策划详情页）；显示时渐显，隐藏时淡出 */}
+            （片区概况.webp，点击进入片区策划详情页）；显示时渐显，隐藏时淡出。
+            注意：隐藏态只把 opacity 归零，元素本身仍在（fixed 320×800、z-50），
+            必须同时加 pointer-events-none，否则这块透明区域会吃掉它下面所有点击
+            （既会挡住右上角片区概况卡片，也会挡住地图那一片区域的交互） */}
         <div
           class={cn('fixed top-100px right-12px z-50 transition-[transform,opacity] duration-200', {
             'opacity-100': drawerVisible.value,
-            'opacity-0': !drawerVisible.value,
+            'pointer-events-none opacity-0': !drawerVisible.value,
           })}
         >
           <RouterLink to="/display/scheme/detail">

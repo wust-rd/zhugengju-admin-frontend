@@ -43,6 +43,15 @@ export const displayRoutes: RouteRecordRaw[] = [
           title: '片区策划详情',
         },
       },
+      // 片区详情（左大图 + 右真实抽屉组件；入口：地图片区面的「片区概况」卡片 → 查看详情）
+      {
+        path: 'scheme/area-detail',
+        name: 'DisplaySchemeAreaDetail',
+        component: () => import('../views/scheme/area-detail'),
+        meta: {
+          title: '片区详情',
+        },
+      },
       {
         path: 'plan',
         name: 'DisplayPlan',
