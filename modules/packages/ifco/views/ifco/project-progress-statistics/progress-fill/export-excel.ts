@@ -18,7 +18,7 @@
 import { utils, write } from 'xlsx-js-style';
 import type { Range, WorkBook, WorkSheet } from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
-import { finishBorderedSheet, fixedPlusUniformCols } from '../shared/excel';
+import { finishBorderedSheet, fixedPlusUniformCols } from '../../shared/excel';
 import type { CategoryDef, IndicatorDef, PeriodFillData, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
 import {
   DATA_CATEGORIES,
@@ -74,7 +74,6 @@ function indicatorRow(item: IndicatorDef, cells: (number | string | undefined)[]
   return [item.name, item.unit || undefined, item.code || undefined, ...cells];
 }
 
-
 /** 固定列（指标名称/计量单位/代码）的两行纵向合并 */
 const fixedColMerges: Range[] = [0, 1, 2].map((col) => ({ s: { r: 0, c: col }, e: { r: 1, c: col } }));
 
@@ -120,7 +119,10 @@ export async function exportProgressFillExcel({ year, quarter, unitName, periodD
       }
       rows.push(indicatorRow(item, cells));
     }
-    sheets.push({ name: '总览', worksheet: finishBorderedSheet(rows, merges, fixedPlusUniformCols(lastCol, [42, 10, 8], 12)) });
+    sheets.push({
+      name: '总览',
+      worksheet: finishBorderedSheet(rows, merges, fixedPlusUniformCols(lastCol, [42, 10, 8], 12)),
+    });
   }
 
   // ── 每个一级类目一个 sheet ──────────────────────────────────────────
@@ -163,7 +165,10 @@ export async function exportProgressFillExcel({ year, quarter, unitName, periodD
       }
       rows.push(indicatorRow(item, cells));
     }
-    sheets.push({ name: category.label, worksheet: finishBorderedSheet(rows, merges, fixedPlusUniformCols(lastCol, [42, 10, 8], 12)) });
+    sheets.push({
+      name: category.label,
+      worksheet: finishBorderedSheet(rows, merges, fixedPlusUniformCols(lastCol, [42, 10, 8], 12)),
+    });
   }
 
   const workbook: WorkBook = {

@@ -12,7 +12,7 @@
 import { write } from 'xlsx-js-style';
 import type { Range, WorkBook, WorkSheet } from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
-import { finishBorderedSheet, fixedPlusUniformCols } from '../shared/excel';
+import { finishBorderedSheet, fixedPlusUniformCols } from '../../shared/excel';
 import type { ProgressStatRow } from '@jeesite/ifco/api/ifco/progress-fill';
 import { DATA_CATEGORIES, LEAF_CATEGORIES, quarterLabel } from '@jeesite/ifco/api/ifco/progress-fill';
 

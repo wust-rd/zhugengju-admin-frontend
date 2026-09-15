@@ -16,7 +16,7 @@ import {
   saveProgressProject,
   saveProgressTotal,
 } from '@jeesite/ifco/api/ifco/progress-fill';
-import { createAutoPersist } from '../shared/dirty-persist';
+import { createAutoPersist } from '../../shared/dirty-persist';
 import { validateProgressColumn } from './fill-validation';
 
 export type FillEditingDeps = {

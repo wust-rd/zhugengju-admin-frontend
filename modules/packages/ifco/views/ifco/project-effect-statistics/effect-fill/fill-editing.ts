@@ -9,7 +9,7 @@ import { Modal } from 'antdv-next';
 import type { ProjectColumn } from '@jeesite/ifco/api/ifco/common';
 import type { EffectUnitData } from '@jeesite/ifco/api/ifco/effect-fill';
 import { deleteEffectProject, quarterLabel, saveEffectProject } from '@jeesite/ifco/api/ifco/effect-fill';
-import { createAutoPersist } from '../shared/dirty-persist';
+import { createAutoPersist } from '../../shared/dirty-persist';
 import { syncEffectAutoSums, validateEffectColumn } from './fill-validation';
 
 export type FillEditingDeps = {

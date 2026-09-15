@@ -10,7 +10,7 @@
 import { utils, write } from 'xlsx-js-style';
 import type { WorkBook, WorkSheet } from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
-import { finishBorderedSheet } from '../shared/excel';
+import { finishBorderedSheet } from '../../shared/excel';
 import type { ProjectColumn } from '@jeesite/ifco/api/ifco/common';
 import { quarterLabel } from '@jeesite/ifco/api/ifco/common';
 import type { EffectUnitData } from '@jeesite/ifco/api/ifco/effect-fill';

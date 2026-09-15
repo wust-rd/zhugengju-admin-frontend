@@ -67,8 +67,8 @@
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/progress-fill';
   import { exportProgressStatExcel } from './export-excel';
-  import PeriodSelects from '../shared/PeriodSelects.vue';
-  import { useCurrentPeriod } from '../shared/period-options';
+  import PeriodSelects from '../../shared/PeriodSelects.vue';
+  import { useCurrentPeriod } from '../../shared/period-options';
 
   /** 表格行(指标,服务端返回,名称已含缩进) */
   type StatRow = ProgressStatRow;

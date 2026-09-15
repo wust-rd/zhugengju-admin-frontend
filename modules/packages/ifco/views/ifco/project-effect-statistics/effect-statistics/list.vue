@@ -52,8 +52,8 @@
   import { PageWrapper } from '@jeesite/core/components/Page';
   import type { EffectStatRow } from '@jeesite/ifco/api/ifco/effect-fill';
   import { loadEffectStatData, quarterLabel } from '@jeesite/ifco/api/ifco/effect-fill';
-  import PeriodSelects from '../shared/PeriodSelects.vue';
-  import { useCurrentPeriod } from '../shared/period-options';
+  import PeriodSelects from '../../shared/PeriodSelects.vue';
+  import { useCurrentPeriod } from '../../shared/period-options.js';
 
   const { showMessage } = useMessage();
 

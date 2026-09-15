@@ -9,7 +9,7 @@ import { Input, InputNumber, Popconfirm, Switch, Tooltip } from 'antdv-next';
 import { Icon } from '@jeesite/core/components/Icon';
 import type { IndicatorDef, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
 import { cellValue } from '@jeesite/ifco/api/ifco/progress-fill';
-import { handleCellNav } from '../shared/cell-nav';
+import { handleCellNav } from '../../shared/cell-nav';
 import type { FillEditing } from './fill-editing';
 
 /** 表格行(指标) */

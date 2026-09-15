@@ -11,7 +11,7 @@ import { Icon } from '@jeesite/core/components/Icon';
 import type { ProjectColumn } from '@jeesite/ifco/api/ifco/common';
 import type { EffectIndicatorDef } from '@jeesite/ifco/api/ifco/effect-fill';
 import { cellValue } from '@jeesite/ifco/api/ifco/effect-fill';
-import { handleCellNav } from '../shared/cell-nav';
+import { handleCellNav } from '../../shared/cell-nav';
 import { EFFECT_AUTO_SUM, syncEffectAutoSums } from './fill-validation';
 import type { FillEditing } from './fill-editing';
 
