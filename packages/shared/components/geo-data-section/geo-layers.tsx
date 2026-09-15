@@ -3,13 +3,13 @@ import type { PropType } from 'vue';
 import { useMap, useMapLayer } from '@jeesite/vmap';
 
 /**
- * ifco —— 在库项目管理 · 地理数据只读渲染（VMap 插槽内的纯逻辑子组件）
+ * 地理数据只读渲染（VMap 插槽内的纯逻辑子组件）
  *
  * geoJson 字符串 → geojson source + fill/line/circle 三图层渲染，
  * 数据变化时重铺并自适应视野（fitBounds）。供 GeoJsonMap 使用。
  */
 
-const SOURCE_ID = 'ifco-project-location';
+const SOURCE_ID = 'geo-data-section';
 
 type Position = [number, number];
 
@@ -39,11 +39,16 @@ function bboxOf(geoJson: Recordable): [[number, number], [number, number]] | und
     }
   }
   walk(geoJson);
-  return Number.isFinite(minX) ? [[minX, minY], [maxX, maxY]] : undefined;
+  return Number.isFinite(minX)
+    ? [
+        [minX, minY],
+        [maxX, maxY],
+      ]
+    : undefined;
 }
 
 export const GeoLayers = defineComponent({
-  name: 'IfcoProjectLibraryGeoLayers',
+  name: 'GeoLayers',
   props: {
     geoJson: { type: String as PropType<string | undefined>, default: undefined },
   },

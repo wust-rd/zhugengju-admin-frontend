@@ -190,6 +190,8 @@
             <GeoDataSection
               v-model:geo-json="locationGeoJson"
               v-model:file-name="locationFileName"
+              :parse-file="parseGeoLocationFile"
+              :geometry-types="['polygon']"
               :disabled="isView"
             />
           </template>
@@ -315,6 +317,7 @@
     SIX_BRING_TYPE_OPTIONS,
     emptyImplReviewResults,
     emptyReviewResults,
+    parseGeoLocationFile,
     statusTagProps,
     YES_NO_OPTIONS,
     type ImplResponsibilityReviewEntry,
@@ -325,7 +328,7 @@
     type ProjectReviewEntryMap,
     type ResponsibilityReviewEntry,
   } from '@jeesite/ifco/api/ifco/project-library';
-  import GeoDataSection from './geo-data-section';
+  import { GeoDataSection } from '@jeesite/shared/components/geo-data-section';
   import ReviewBlock from './review-block';
 
   const emit = defineEmits(['success', 'register']);
