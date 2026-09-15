@@ -2,15 +2,15 @@ import expandBtnImg from '@jeesite/assets/images/display/expand-btn.webp';
 import { MapControls } from '@jeesite/display/components/map-controls';
 import { animate } from 'motion-v';
 import { defineComponent, ref, shallowRef, watch } from 'vue';
-/** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
+/** 片区面（area）与知音地块（zhiyin）数据，?url 导入 + 运行时 fetch，不打进 bundle */
 import { colors } from '@jeesite/core/libs/colors';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
 import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
-import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
 import { RouterLink } from 'vue-router';
 import { cn } from '@jeesite/core/libs';
 import { SchemeLeftDrawer } from './left-drawer';
+import { RightDrawer } from './right-drawer';
 
 /** 天地图子域名列表（t0~t7，多域名并行请求，突破浏览器并发限制） */
 const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
@@ -32,8 +32,18 @@ const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区�
 /** 知音片区金字塔图片（OSS 外链） */
 const ZHIYIN_IMG = `${OSS_BASE}/金字塔.webp`;
 
-// 片区概况
+// 知音片区点击弹出的片区概况图（OSS 外链）
 const PIANQU_IMG = `${OSS_BASE}/片区概况.webp`;
+
+/** 片区面配色：第一批紫（violet-600）/ 第二批蓝（blue-500）；
+ *  边框取同色系加深两档（violet-800 / blue-700），相邻片区面之间才分得清 */
+const AREA_COLORS: Record<'第一批' | '第二批', { fill: string; line: string }> = {
+  第一批: { fill: colors.violet[600], line: colors.violet[800] },
+  第二批: { fill: colors.blue[500], line: colors.blue[700] },
+};
+
+/** BATCH 字段取值异常时的兜底色（正常数据只有第一批/第二批，用不到） */
+const AREA_FALLBACK_COLOR = colors.stone[400];
 
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: maplibregl.StyleSpecification = {
@@ -178,45 +188,57 @@ export default defineComponent({
           drawerVisible.value = false;
         });
 
-        // 片区多边形 fill 图层（品红）：样式加载完成后动态添加
+        // 片区面（area_merged_all）与知音地块（zhiyin）图层：样式加载完成后动态添加
         map.once('load', () => {
-          // 范围线 line 图层（浅灰 3px）：从 area_merged_all.geojson 异步加载
+          // 片区面图层：从 area_merged_all.geojson 异步加载，按 BATCH 上色（第一批紫 / 第二批蓝）
           fetch(areaUrl)
             .then((res) => res.json())
             .then((data) => {
-              if (disposed || map.getSource('area-lines')) return;
-              map.addSource('area-lines', { type: 'geojson', data });
-              map.addLayer({
-                id: 'area-lines',
-                type: 'line',
-                source: 'area-lines',
-                paint: {
-                  'line-color': colors.stone[400],
-                  'line-width': 4,
-                },
-              });
-            })
-            .catch(() => {});
+              if (disposed || map.getSource('area-faces')) return;
+              map.addSource('area-faces', { type: 'geojson', data });
 
-          // 项目地块 fill 图层（BATCH：第一批紫 / 第二批深蓝）：从 project_merged_all.geojson 异步加载
-          fetch(projectUrl)
-            .then((res) => res.json())
-            .then((data) => {
-              if (disposed || map.getSource('project-fills')) return;
-              map.addSource('project-fills', { type: 'geojson', data });
+              // 面：fill 铺色（半透明，底图路网仍可见）
               map.addLayer({
-                id: 'project-fills',
+                id: 'area-fills',
                 type: 'fill',
-                source: 'project-fills',
+                source: 'area-faces',
                 paint: {
-                  'fill-color': ['match', ['get', 'BATCH'], '第一批', '#773ceb', '第二批', '#3a86ec', '#A855F7'],
-                  'fill-opacity': 0.8,
+                  'fill-color': [
+                    'match',
+                    ['get', 'BATCH'],
+                    '第一批',
+                    AREA_COLORS.第一批.fill,
+                    '第二批',
+                    AREA_COLORS.第二批.fill,
+                    AREA_FALLBACK_COLOR,
+                  ],
+                  'fill-opacity': 0.75,
+                },
+              });
+
+              // 边框：同源 line 图层，同色系加深色描边（后添加 → 压在上一个 fill 之上）
+              map.addLayer({
+                id: 'area-outlines',
+                type: 'line',
+                source: 'area-faces',
+                paint: {
+                  'line-color': [
+                    'match',
+                    ['get', 'BATCH'],
+                    '第一批',
+                    AREA_COLORS.第一批.line,
+                    '第二批',
+                    AREA_COLORS.第二批.line,
+                    AREA_FALLBACK_COLOR,
+                  ],
+                  'line-width': 1.5,
                 },
               });
             })
             .catch(() => {});
 
-          // 知音项目地块 fill 图层（红色）：从 zhiyin.geojson 异步加载
+          // 知音项目地块 fill 图层（红色）：从 zhiyin.geojson 异步加载；
+          // 点击该面显示金字塔 Marker 并打开右侧抽屉（见上方 map.on('click') 的 zhiyin-fill 命中判断）
           fetch(zhiyinUrl)
             .then((res) => res.json())
             .then((data) => {
@@ -231,6 +253,9 @@ export default defineComponent({
                   'fill-opacity': 0.6,
                 },
               });
+              // 两个 geojson 各自异步 fetch，完成顺序不确定；显式置顶，
+              // 保证知音红面始终压在片区面之上（否则会被 0.75 透明度的片区面色盖住）
+              map.moveLayer('zhiyin-fill');
             })
             .catch(() => {});
         });
@@ -294,7 +319,15 @@ export default defineComponent({
           />
         </div>
 
-        {/* 右侧 Drawer：地图点击打开，Tab 切换内容；显示时从右往左平移渐显，隐藏时向右移出并淡出 */}
+        {/* 右侧抽屉（真实组件）：常驻显示，占布局宽度、与左侧看板对称，
+            不遮盖地图内容与右下角地图控件（RightDrawer 自身是 absolute right-0 top-0 + w-420px，
+            所以用等尺寸的 relative 容器兜住它的尺寸） */}
+        {/* <div class="relative h-full w-420px shrink-0">
+          <RightDrawer />
+        </div> */}
+
+        {/* 知音片区保持原来那一套：点击地图上的知音红面弹出片区概况图抽屉
+            （片区概况.webp，点击进入片区策划详情页）；显示时渐显，隐藏时淡出 */}
         <div
           class={cn('fixed top-100px right-12px z-50 transition-[transform,opacity] duration-200', {
             'opacity-100': drawerVisible.value,
