@@ -1,9 +1,8 @@
 import { colors } from '@jeesite/core/libs/colors';
 import { useMap, useMapLayer } from '@jeesite/vmap';
-import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
-import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
 import { defineComponent, onBeforeUnmount, watch, type PropType } from 'vue';
+import { fetchAreaGeojson, fetchProjectGeojson } from '@jeesite/ifco/api/ifco/map';
 import type { AreaPolygonProps, ProjectPolygonProps, SelectedPolygon } from './polygon-types';
 import { setIfcoPolygonData, type IfcoAreaItem, type IfcoProjectItem } from './polygon-store';
 
@@ -18,13 +17,13 @@ export const IFCO_LAYER_COLORS = {
   /** 片区范围面 · 第一批（浅紫，选中变琥珀金加深） */
   areaBatch1: colors.purple[300],
   /** 片区范围面 · 第二批（浅蓝，选中变琥珀金加深） */
-  areaBatch2: colors.blue[300],
+  areaBatch2: colors.cyan[300],
   /** 片区范围面 · 未知批次兜底色（浅黄） */
   areaFill: colors.yellow[200],
   /** 项目地块 · 第一批（紫） */
   batch1: colors.purple[600],
   /** 项目地块 · 第二批（蓝） */
-  batch2: colors.blue[600],
+  batch2: colors.cyan[600],
   /** 项目地块 · 未知批次兜底色（紫罗兰） */
   batchFallback: '#A855F7',
   /** 知音项目地块（红） */
@@ -136,19 +135,20 @@ export const IfcoMapLayers = defineComponent({
       };
       m.on('click', onClick);
 
-      // 片区 + 项目 + 知音三份数据一次拉齐后按固定层级挂图层：
-      // area-fills（按批次浅紫/浅蓝面，最底）→ area-lines（片区边界线）→ project-fills / outline（项目面）→ zhiyin-fill（最上）。
+      // 片区 + 项目从 esp geojson 接口拉取（api/ifco/map：FeatureCollection 直出，addSource 直喂）
+      // + 知音静态 geojson，三份数据拉齐后按固定层级挂图层：
+      // area-fills（按批次浅紫/浅蓝面，最底）→ area-lines（片区边界线）→ area-fills-outline（片区选中描边）
+      // → project-fills / outline（项目面）→ zhiyin-fill（最上）。
       // 同时写入轻量索引（polygon-store），供详情卡片做片区内项目下拉与页签联动。
-      Promise.all([
-        fetch(areaUrl).then((res) => res.json()),
-        fetch(projectUrl).then((res) => res.json()),
-        fetch(zhiyinUrl).then((res) => res.json()),
-      ])
+      Promise.all([fetchAreaGeojson(), fetchProjectGeojson(), fetch(zhiyinUrl).then((res) => res.json())])
         .then(([areaData, projectData, zhiyinData]) => {
           if (disposed || m.getSource('areas')) return;
 
+          const areaFeatures = areaData.features;
+          const projectFeatures = projectData.features;
+
           // 片区范围：按批次浅紫/浅蓝半透明面（第一批 purple[100] / 第二批 blue[100] / 未知批次浅黄兜底，
-          // 选中变琥珀金加深）+ 边界线（浅灰，选中琥珀金加粗）。
+          // 选中变琥珀金加深）+ 边界线（浅灰常显）+ 选中外描边（琥珀金 6px）。
           // promoteId 把 A_UID 提升为要素 id，fill / line 两图层共享同一份 feature-state。
           m.addSource('areas', { type: 'geojson', data: areaData, promoteId: 'A_UID' });
           m.addLayer({
@@ -178,13 +178,19 @@ export const IfcoMapLayers = defineComponent({
             type: 'line',
             source: 'areas',
             paint: {
-              'line-color': [
-                'case',
-                ['boolean', ['feature-state', 'selected'], false],
-                IFCO_LAYER_COLORS.highlight,
-                colors.stone[400],
-              ],
-              'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 6, 4],
+              'line-color': colors.stone[400],
+              'line-width': 1,
+            },
+          });
+          // 片区选中外描边（琥珀金 6px，仅选中显示）
+          m.addLayer({
+            id: 'area-fills-outline',
+            type: 'line',
+            source: 'areas',
+            paint: {
+              'line-color': IFCO_LAYER_COLORS.highlight,
+              'line-width': 6,
+              'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
             },
           });
 
@@ -232,11 +238,11 @@ export const IfcoMapLayers = defineComponent({
           });
 
           // 轻量索引：片区按 A_UID；项目下拉名取 GIS_NAME / PJ_NAME 兜底顺序号，按片区内顺序号 P_SEQ 排序
-          const areaItems: IfcoAreaItem[] = ((areaData.features ?? []) as Recordable[]).map((f) => ({
+          const areaItems: IfcoAreaItem[] = areaFeatures.map((f) => ({
             uid: String(f.properties?.A_UID ?? ''),
             props: (f.properties ?? {}) as AreaPolygonProps,
           }));
-          const projectItems: IfcoProjectItem[] = ((projectData.features ?? []) as Recordable[])
+          const projectItems: IfcoProjectItem[] = projectFeatures
             .map((f) => {
               const props = (f.properties ?? {}) as ProjectPolygonProps;
               const name = String(props.GIS_NAME || props.PJ_NAME || '').trim();
@@ -256,7 +262,14 @@ export const IfcoMapLayers = defineComponent({
       return () => {
         m.off('click', onClick);
         hideZhiyinMarker();
-        ['area-fills', 'area-lines', 'project-fills', 'project-fills-outline', 'zhiyin-fill'].forEach((id) => {
+        [
+          'area-fills',
+          'area-lines',
+          'area-fills-outline',
+          'project-fills',
+          'project-fills-outline',
+          'zhiyin-fill',
+        ].forEach((id) => {
           try {
             if (m.getLayer(id)) m.removeLayer(id);
           } catch {

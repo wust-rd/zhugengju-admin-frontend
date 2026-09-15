@@ -1,6 +1,7 @@
 /**
  * 选中面共用类型（polygon-card / map-layers / index 共用）。
- * 字段定义见 packages/display/data/column.csv；源数据 project_merged_all / area_merged_all geojson。
+ * 数据源：esp 模块图斑接口（GET /a/esp/map/areas、/a/esp/map/projects，表 ESP_MAP_AREA /
+ * ESP_MAP_PROJECT），字段键即接口响应行的大写属性键；geometry（TopoJSON 原文）在挂图层前已还原剥离。
  */
 
 /** 项目图斑与片区范围共有的属性字段（片区、项目均适用） */
@@ -17,8 +18,10 @@ export type PolygonPropsBase = {
   DIST?: string;
   /** 片区名称 */
   AREA_NAME?: string;
-  /** 功能定位 */
-  FUNC_TYPE?: string;
+  /** 功能定位-中文名（标准字典：交通导向/文旅导向/公服导向/生态导向/产业导向/康养导向/公园导向，多个逗号分隔；无法识别时存原文） */
+  FUNC_TYPE_NAME?: string;
+  /** 功能定位-编码（TOD/COD/SOD/EOD/IOD/HOD/POD，多个逗号分隔；无法识别时为 null） */
+  FUNC_TYPE_VALUE?: string;
   /** 五改大类（第一批五改大类、第二批五改类别统一后字段） */
   WG_BIG?: string;
   /** 五改分类 / 四好目标（第一批五改分类、第二批四好目标统一后字段） */
@@ -45,7 +48,7 @@ export type PolygonPropsBase = {
   UID_NOTE?: string;
 };
 
-/** 项目图斑属性（project_merged_all，source 以 P_UID 为要素 id） */
+/** 项目图斑属性（projects 接口行，source 以 P_UID 为要素 id） */
 export type ProjectPolygonProps = PolygonPropsBase & {
   /** 合并后项目图斑唯一号（PQ001_1 格式） */
   P_UID?: string;
@@ -85,7 +88,7 @@ export type ProjectPolygonProps = PolygonPropsBase & {
   MAT_METHOD?: string;
 };
 
-/** 片区范围属性（area_merged_all，source 以 A_UID 为要素 id） */
+/** 片区范围属性（areas 接口行，source 以 A_UID 为要素 id） */
 export type AreaPolygonProps = PolygonPropsBase & {
   /** 片区顺序号 */
   A_SEQ?: number;
@@ -97,6 +100,8 @@ export type AreaPolygonProps = PolygonPropsBase & {
   PROJECT_CNT?: number | string;
   /** 片区项目调整说明 */
   PROJECT_CHANGE?: string;
+  /** 三色图颜色（2026 年第二季度推进情况：green/yellow/red；仅第一批片区有值，第二批为 null） */
+  AREA_COLOR?: 'green' | 'yellow' | 'red' | null;
 };
 
 /** 当前选中的面（地图点击查询构造：kind 区分项目地块 / 片区范围，props 为 GeoJSON 原始属性；discriminated union） */

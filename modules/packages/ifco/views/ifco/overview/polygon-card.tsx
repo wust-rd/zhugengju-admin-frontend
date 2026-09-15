@@ -49,7 +49,7 @@ const clip = (text: string, max = 16): string => (text.length > max ? `${text.sl
 const areaMetaItems = (p: AreaPolygonProps): [string, string][] =>
   (
     [
-      ['功能定位', s(p.FUNC_TYPE)],
+      ['功能定位', s(p.FUNC_TYPE_NAME)],
       ['项目数量', cnt(p.PROJECT_CNT)],
       ['投资估算（亿元）', bil(p.INV_BIL)],
       ['图斑面积（公顷）', ha(p.AREA_HA)],
@@ -67,7 +67,7 @@ const projectMetaItems = (p: ProjectPolygonProps): [string, string][] =>
       ['项目编号', s(p.PJ_ID)],
       ['片区名称', s(p.AREA_NAME)],
       ['项目名称', s(p.PJ_NAME)],
-      ['功能定位', s(p.FUNC_TYPE)],
+      ['功能定位', s(p.FUNC_TYPE_NAME)],
       ['投资估算（亿元）', bil(p.INV_BIL)],
       ['2026年计划投资（亿元）', bil(p.INV_2026)],
       ['2027年计划投资（亿元）', bil(p.INV_2027)],
@@ -124,7 +124,7 @@ type TabKey = (typeof TABS)[number]['key'];
  *   切换时 emit update:polygon 回写父级选中面，地图高亮随之迁移；
  * - 手动切到「片区」页签 → 高亮同步切到该片区面（切回「项目」恢复上次项目）。
  * polygon 为 null 时整体隐藏（透明 + 禁用鼠标穿透）。
- * 数据来自 project_merged_all / area_merged_all geojson 的原始属性字段。
+ * 数据来自 esp 图斑接口（/a/esp/map/areas、/a/esp/map/projects）的原始属性字段。
  */
 export const PolygonCard = defineComponent({
   name: 'IfcoPolygonCard',
@@ -190,7 +190,7 @@ export const PolygonCard = defineComponent({
           props: found?.props ?? {
             A_UID: base.A_UID,
             AREA_NAME: base.AREA_NAME,
-            FUNC_TYPE: base.FUNC_TYPE,
+            FUNC_TYPE_NAME: base.FUNC_TYPE_NAME,
             DIST: base.DIST,
             BATCH: base.BATCH,
           },
@@ -198,10 +198,15 @@ export const PolygonCard = defineComponent({
         return;
       }
 
-      if (tab === 'project' && selectedProjectUid.value) {
-        // 切回「项目」：恢复上次选中项目的高亮
-        const found = ifcoProjects.value.find((it) => it.uid === selectedProjectUid.value);
-        if (found) emit('update:polygon', { kind: 'project', props: found.props });
+      if (tab === 'project') {
+        // 切「项目」：选中项目须属于当前片区；跨片区残留或未选过时取该片区第一个项目（下拉按 P_SEQ 排序）
+        const inArea = ifcoProjects.value.filter((it) => it.aUid === areaUid.value);
+        const target = inArea.find((it) => it.uid === selectedProjectUid.value) ?? inArea[0];
+        if (target) {
+          selectedProjectUid.value = target.uid;
+          emit('update:polygon', { kind: 'project', props: target.props });
+        }
+        // 当前片区无项目：保持空态提示
       }
     };
 
