@@ -986,4 +986,9 @@ export default [
   'i-fa:wpforms',
   'i-svg:sun',
   'i-svg:moon',
+  'i-ri-focus-3-fill',
+  'i-ri-route-fill',
+  'i-famicons-folder-open',
+  'i-ri-target-fill',
+  'i-ri-ancient-gate-fill',
 ];

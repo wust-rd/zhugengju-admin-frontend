@@ -9,6 +9,17 @@ interface NavLink {
   to: string;
 }
 
+/** 一级模块图标（iconify）：后端菜单 meta.icon 未配，按模块 slug（to 首段）前端兜底；
+ *  后台新增一级模块未配图标时走 DEFAULT_MODULE_ICON，不影响导航生成 */
+const MODULE_ICONS: Record<string, string> = {
+  '/urban-health-check': 'i-ri-focus-3-fill',
+  '/early-stage-planning': 'i-ri-route-fill rotate-90',
+  '/ifco': 'i-famicons-folder-open',
+  '/expropriation-management': 'i-ri-target-fill',
+  '/urban-protection': 'i-ri-ancient-gate-fill',
+};
+const DEFAULT_MODULE_ICON = 'i-ri-apps-2-fill';
+
 /**
  * 系统管理子树判定：标题含「系统」或 path 以 /sys 开头。
  * 该入口由 system-action.tsx 单独渲染（超管门卫），NavLinks 排除同一棵子树——
@@ -24,9 +35,11 @@ export function isSystemMenu(m: Menu): boolean {
  *  模块前缀（to 首段）点亮正确；icon 用后端菜单 meta.icon，缺省兜底 */
 function toNavLink(m: Menu): NavLink {
   const to = firstUsablePathIn(m) || m.path;
+  const moduleSlug = `/${to.split('/')[1] ?? ''}`;
+
   return {
     label: String(m.meta?.title || m.name || ''),
-    icon: m.icon ?? 'i-ri-apps-2-fill',
+    icon: MODULE_ICONS[moduleSlug] ?? DEFAULT_MODULE_ICON,
     to,
   };
 }
