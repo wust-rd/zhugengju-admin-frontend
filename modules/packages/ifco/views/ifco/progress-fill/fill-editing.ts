@@ -17,6 +17,7 @@ import {
   saveProgressTotal,
 } from '@jeesite/ifco/api/ifco/progress-fill';
 import { createAutoPersist } from '../shared/dirty-persist';
+import { validateProgressColumn } from './fill-validation';
 
 export type FillEditingDeps = {
   year: Ref<number>;
@@ -67,8 +68,13 @@ export function createFillEditing(deps: FillEditingDeps) {
     reload();
   }
 
-  /** 单列落库:值全量同步语义;新列(无 id)保存后用返回的 projectId 回填 */
+  /** 单列落库:值全量同步语义;新列(无 id)保存后用返回的 projectId 回填。
+   *  保存前校验(仅前端拦截):项目总投资 ≥ 103 本年完成投资额 ≥ 104 本年实际到位资金 */
   async function persistColumn(leafKey: string, col: ProjectColumn) {
+    const error = validateProgressColumn(col);
+    if (error) {
+      throw new Error(error);
+    }
     const values: Record<string, number | string> = {};
     for (const item of INDICATORS) {
       if (item.kind !== 'fill' && item.kind !== 'text') continue;
@@ -98,11 +104,7 @@ export function createFillEditing(deps: FillEditingDeps) {
   }
 
   /** 切换前自动落库(共用工厂):把当前全部脏列(可跨类目)依次保存;失败列保留在登记中并提示 */
-  const autoPersistDirty = createAutoPersist(
-    dirtyCols,
-    ({ leafKey, col }) => persistColumn(leafKey, col),
-    showMessage,
-  );
+  const autoPersistDirty = createAutoPersist(dirtyCols, ({ leafKey, col }) => persistColumn(leafKey, col), showMessage);
 
   /** 顶部保存:把全部脏列(可跨类目)依次落库 */
   async function handleSave() {
@@ -132,9 +134,17 @@ export function createFillEditing(deps: FillEditingDeps) {
     }
   }
 
-  /** 进入/退出编辑:退出时该列若有改动立即落库(只读单位不允许进入编辑) */
+  /** 进入/退出编辑:退出时该列若有改动立即落库(只读单位不允许进入编辑);
+   *  校验未通过时保持编辑态,提示用户调整后再保存 */
   async function toggleEdit(col: ProjectColumn, leafKey: string) {
     if (editingColKey.value === col.key) {
+      if (dirtyCols.has(col.key)) {
+        const error = validateProgressColumn(col);
+        if (error) {
+          showMessage(error);
+          return;
+        }
+      }
       // 完成编辑:先退出编辑态,脏列落库
       editingColKey.value = undefined;
       if (dirtyCols.has(col.key)) {

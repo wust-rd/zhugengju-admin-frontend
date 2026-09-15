@@ -10,6 +10,7 @@ import type { ProjectColumn } from '@jeesite/ifco/api/ifco/common';
 import type { EffectUnitData } from '@jeesite/ifco/api/ifco/effect-fill';
 import { deleteEffectProject, quarterLabel, saveEffectProject } from '@jeesite/ifco/api/ifco/effect-fill';
 import { createAutoPersist } from '../shared/dirty-persist';
+import { syncEffectAutoSums, validateEffectColumn } from './fill-validation';
 
 export type FillEditingDeps = {
   year: Ref<number>;
@@ -56,8 +57,14 @@ export function createFillEditing(deps: FillEditingDeps) {
     reload();
   }
 
-  /** 单列落库:双值行二元组拆回 a/b 两键(仅 fill 行键提交,值全量同步) */
+  /** 单列落库:双值行二元组拆回 a/b 两键(仅 fill 行键提交,值全量同步)。
+   *  提交前先同步自动计算行(233=234+235+236),再做保存前校验(仅前端拦截) */
   async function persistColumn(col: ProjectColumn) {
+    syncEffectAutoSums(col);
+    const error = validateEffectColumn(col);
+    if (error) {
+      throw new Error(error);
+    }
     const res = await saveEffectProject({
       year: year.value,
       quarter: quarter.value,
@@ -109,9 +116,18 @@ export function createFillEditing(deps: FillEditingDeps) {
     }
   }
 
-  /** 进入/退出编辑:退出时该列若有改动立即落库(只读单位不允许进入编辑) */
+  /** 进入/退出编辑:退出时该列若有改动立即落库(只读单位不允许进入编辑);
+   *  校验未通过时保持编辑态,提示用户调整后再保存 */
   async function toggleEdit(col: ProjectColumn) {
     if (editingColKey.value === col.key) {
+      if (dirtyCols.has(col.key)) {
+        syncEffectAutoSums(col);
+        const error = validateEffectColumn(col);
+        if (error) {
+          showMessage(error);
+          return;
+        }
+      }
       editingColKey.value = undefined;
       if (dirtyCols.has(col.key)) {
         saving.value = true;

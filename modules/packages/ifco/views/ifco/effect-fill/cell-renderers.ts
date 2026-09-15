@@ -12,6 +12,7 @@ import type { ProjectColumn } from '@jeesite/ifco/api/ifco/common';
 import type { EffectIndicatorDef } from '@jeesite/ifco/api/ifco/effect-fill';
 import { cellValue } from '@jeesite/ifco/api/ifco/effect-fill';
 import { handleCellNav } from '../shared/cell-nav';
+import { EFFECT_AUTO_SUM, syncEffectAutoSums } from './fill-validation';
 import type { FillEditing } from './fill-editing';
 
 /** 表格行(指标) */
@@ -51,6 +52,7 @@ export function createCellRenderers(deps: CellRendererDeps) {
     } else {
       col.values[indicatorKey] = value;
     }
+    syncEffectAutoSums(col);
     dirtyCols.set(col.key, col);
   }
 
@@ -60,12 +62,14 @@ export function createCellRenderers(deps: CellRendererDeps) {
     const tuple: [number, number] = Array.isArray(current) ? [...current] : [0, 0];
     tuple[slot] = value ?? 0;
     col.values[indicatorKey] = tuple;
+    syncEffectAutoSums(col);
     dirtyCols.set(col.key, col);
   }
 
-  /** 单元格:编辑列内的填报行渲染输入控件(双值行两个框中间固定竖线),其余为只读文本 */
+  /** 单元格:编辑列内的填报行渲染输入控件(双值行两个框中间固定竖线),其余为只读文本。
+   *  自动计算行(233=234+235+236)编辑态也只读展示,不提供输入;输入一律整数(precision 0) */
   function renderFillCell(item: EffectIndicatorDef, col: ProjectColumn) {
-    if (editingColKey.value === col.key && item.kind === 'fill') {
+    if (editingColKey.value === col.key && item.kind === 'fill' && !EFFECT_AUTO_SUM[item.key]) {
       const value = col.values[item.key];
       if (item.dual) {
         const tuple: [number, number] = Array.isArray(value) ? value : [0, 0];
@@ -77,6 +81,7 @@ export function createCellRenderers(deps: CellRendererDeps) {
             class: '!flex-1 !min-w-0',
             value: tuple[slot] || undefined,
             min: 0,
+            precision: 0,
             controls: false,
             placeholder,
             'onUpdate:value': (value2: number | string | null) =>
@@ -94,6 +99,7 @@ export function createCellRenderers(deps: CellRendererDeps) {
           class: 'w-full',
           value: typeof value === 'number' ? value : undefined,
           min: 0,
+          precision: 0,
           controls: false,
           placeholder: '请输入',
           'onUpdate:value': (value2: number | string | null) => setCellValue(col, item.key, value2 ?? undefined),

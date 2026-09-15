@@ -173,7 +173,7 @@
   });
 
   /** 表格区域高度:视口自适应,表格内部纵向滚动(不依赖页面滚动,表头恒在视野) */
-  const TABLE_HEIGHT = 'calc(100vh - 400px)';
+  const TABLE_HEIGHT = 'calc(100vh - 420px)';
 
   // 横向滚动宽度 = 各列当前宽度(含拖拽调整)之和
   const scrollX = computed(
