@@ -27,6 +27,8 @@
 -->
 <template>
   <PageWrapper>
+    <PeriodDeadlineNote :year="year" :quarter="quarter" :deadline="fillDeadline" />
+
     <Card class="mb-3">
       <div class="flex flex-wrap items-center justify-between gap-y-2">
         <div class="flex items-center">
@@ -44,23 +46,20 @@
             />
             <span v-if="!unitEditable" class="ml-2 text-orange-500">只读查看</span>
           </template>
+          <span v-if="fillExpired" class="ml-6 text-orange-500"> 已过填报截止，仅可查看 </span>
         </div>
         <div class="flex items-center">
-          <a-button type="primary" v-if="!isOverview && unitEditable" @click="handleAddProject">
+          <a-button v-if="canFill" :disabled="loading" @click="handleBringIn"> 带入上一季度填写的项目列 </a-button>
+          <a-button type="primary" class="ml-2" v-if="!isOverview && canFill" @click="handleAddProject">
             <Icon icon="i-fluent:add-12-filled" /> 新增
           </a-button>
           <a-button class="ml-2" :loading="exporting" @click="handleExport"> 导出 </a-button>
-          <a-button v-if="unitEditable" type="primary" class="ml-2" :loading="saving" @click="handleSave">
-            保存
-          </a-button>
+          <a-button v-if="canFill" type="primary" class="ml-2" :loading="saving" @click="handleSave"> 保存 </a-button>
         </div>
       </div>
     </Card>
 
-    <Card :title="tableCardTitle">
-      <template #extra>
-        <a-button v-if="unitEditable" :disabled="loading" @click="handleBringIn"> 带入上一季度填写的项目列 </a-button>
-      </template>
+    <Card>
       <RadioGroup
         v-model:value="activeCategory"
         :options="categoryOptions"
@@ -135,14 +134,13 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoProgressFillList">
-  import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
-  import { Card, Input, InputNumber, Modal, RadioGroup, Select, Table } from 'antdv-next';
-  import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+  import { Icon } from '@jeesite/core/components/Icon';
   import { PageWrapper } from '@jeesite/core/components/Page';
+  import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import type { PeriodFillData, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
   import {
-    CATEGORY_MAP,
     CATEGORIES,
+    CATEGORY_MAP,
     INDICATORS,
     UNITS,
     bringInPrevPeriod,
@@ -150,15 +148,18 @@
     loadProgressFillData,
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/progress-fill';
-  import { exportProgressFillExcel } from './export-excel';
+  import { Card, Input, InputNumber, Modal, RadioGroup, Select, Table } from 'antdv-next';
+  import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
   import { createBringInController } from '../../shared/bring-in';
-  import PeriodSelects from '../../shared/PeriodSelects.vue';
+  import { useFillDeadline } from '../../shared/fill-deadline';
+  import { PeriodDeadlineNote } from '@jeesite/shared/components/period-deadline-note';
   import { useCurrentPeriod } from '../../shared/period-options';
+  import PeriodSelects from '../../shared/PeriodSelects.vue';
   import type { FillRow } from './cell-renderers';
-  import { createFillEditing } from './fill-editing';
   import { createCellRenderers } from './cell-renderers';
+  import { exportProgressFillExcel } from './export-excel';
+  import { createFillEditing } from './fill-editing';
   import { createTableColumns } from './table-columns';
-  import { Icon } from '@jeesite/core/components/Icon';
 
   const { showMessage } = useMessage();
 
@@ -169,6 +170,8 @@
   const reportUnitOptions = computed(() => UNITS.map((unit) => ({ label: unit.name, value: unit.code })));
   /** 当前所选单位是否可填报(false=主管单位只读查看其他单位,隐藏全部写入口) */
   const unitEditable = computed(() => UNITS.find((unit) => unit.code === reportUnit.value)?.editable !== false);
+  // ── 填报截止(共用 composable,纯前端拦截):超期该周期仅可查看 ──
+  const { fillDeadline, fillExpired, canFill } = useFillDeadline(year, quarter, unitEditable);
 
   // ── 类目选择:一级 + 嵌套二级 ────────────────────────────────────────
   const categoryOptions = computed(() => CATEGORIES.map((cat) => ({ label: cat.label, value: cat.key })));
@@ -231,14 +234,14 @@
     year,
     quarter,
     reportUnit,
-    unitEditable,
+    unitEditable: canFill,
     activeLeaf,
     periodData,
     reload: loadFill,
     colWidths,
     showMessage,
   });
-  const renderers = createCellRenderers({ quarter, isOverview, unitEditable, editing });
+  const renderers = createCellRenderers({ quarter, isOverview, unitEditable: canFill, editing });
   const table = createTableColumns({
     activeLeaf,
     isOverview,
@@ -354,14 +357,6 @@
       code: item.code,
     })),
   );
-
-  const tableCardTitle = computed(() => {
-    const period = `${year.value}年 ${quarterLabel(quarter.value)}`;
-    const unitName = UNITS.find((unit) => unit.code === reportUnit.value)?.name;
-    return isOverview.value
-      ? `${period} ${unitName ? `${unitName} · ` : ''}总览`
-      : `${period} · ${activeLeaf.value?.label}`;
-  });
 
   /** 表格区域高度:视口自适应,表格内部纵向滚动(不依赖页面滚动,表头恒在视野) */
   const TABLE_HEIGHT = 'calc(100vh - 500px)';

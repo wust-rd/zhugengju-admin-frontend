@@ -29,7 +29,7 @@
       </div>
     </Card>
 
-    <Card :title="tableCardTitle">
+    <Card>
       <RadioGroup
         v-model:value="activeUnit"
         :options="unitOptions"
@@ -142,8 +142,6 @@
     }
     await loadStat();
   });
-
-  const tableCardTitle = computed(() => `${year.value}年 ${quarterLabel(quarter.value)} 项目进展统计`);
 
   /** 自动行(汇总/项目数)加粗只读 */
   const sumRowOnCell = (record: StatRow) => ({
