@@ -38,15 +38,14 @@ export function renderNewStart(value: number | string | [number, number] | undef
 
 export type CellRendererDeps = {
   quarter: Ref<string>;
-  isOverview: ComputedRef<boolean>;
   unitEditable: ComputedRef<boolean>;
   showMessage: (msg: string) => void;
   editing: FillEditing;
 };
 
 export function createCellRenderers(deps: CellRendererDeps) {
-  const { quarter, isOverview, unitEditable, showMessage, editing } = deps;
-  const { editingColKey, dirtyCols, toggleEdit, handleDeleteColumn, openTotalModal } = editing;
+  const { quarter, unitEditable, showMessage, editing } = deps;
+  const { editingColKey, dirtyCols, toggleEdit, handleDeleteColumn } = editing;
 
   function setCellValue(col: ProjectColumn, indicatorKey: string, value: number | string | undefined, leafKey: string) {
     if (value === undefined || value === '') {
@@ -197,20 +196,6 @@ export function createCellRenderers(deps: CellRendererDeps) {
     ]);
   }
 
-  /** 指标名称单元格:合计级录入行(total)在非总览下带蓝色「编辑」按钮,弹 Modal 直接录合计值(只读单位不渲染) */
-  function renderNameCell(value: string, record: FillRow) {
-    if (isOverview.value || record.kind !== 'total' || !unitEditable.value) return value;
-    return h('div', { class: 'flex items-center justify-between gap-1' }, [
-      h('span', { class: 'flex-1 truncate' }, value),
-      h(Tooltip, { title: '填写合计值（各项目单元格不填值）' }, () =>
-        h(Icon, {
-          icon: 'ant-design:edit-outlined',
-          class: 'progress-fill-icon-edit',
-          onClick: () => openTotalModal(record.key),
-        }),
-      ),
-    ]);
-  }
 
   /** 自动行(汇总/项目数)整行浅灰加粗只读 */
   function sumRowOnCell(record: FillRow) {
@@ -219,7 +204,7 @@ export function createCellRenderers(deps: CellRendererDeps) {
     };
   }
 
-  return { setCellValue, renderFillCell, renderProjectHeader, renderNameCell, sumRowOnCell };
+  return { setCellValue, renderFillCell, renderProjectHeader, sumRowOnCell };
 }
 
 export type CellRenderers = ReturnType<typeof createCellRenderers>;

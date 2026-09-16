@@ -4,8 +4,8 @@
   表单项 = 项目名称 + 表格指标行全览（行序与表格一致）：可录入行（fill/text）出输入控件——
   数值行 InputNumber、来源说明行 Input、本年新开工（r3）Switch；自动汇总行（sum）只读实时
   预览（构成行求和，口径同表格 cellValue/renderDisplay，填了构成行即联动出数）；项目数行
-  （count）只读显示新增后该类目项目总数（现有 + 1）。合计级录入行（total）不入表单
-  （维持指标名旁「编辑」录入合计值的入口）。标签 = 指标名称（去缩进），计量单位｜代码以
+  （count）只读显示新增后该类目项目总数（现有 + 1）。新增就业岗位（r23）2026-09-11 起为
+  普通填报行（fill），随 fill 分支自动入表单。标签 = 指标名称（保留全角空格层级缩进），计量单位｜代码以
   subLabel 浅色后缀显示。指标字典随页面加载就绪，抽屉打开时 resetSchema 组装。
   保存：validate → validateProgressColumn（与表格内保存同一份前端校验）→ saveProgressProject
   立即落库；成功后以返回的 projectId 为列 key emit('success')，由 list.vue 追加到表格最右。
@@ -41,7 +41,7 @@
 
   // 横向表单（默认 horizontal）：标签左、控件右，一行一项（span 24）
   const [registerForm, { resetFields, resetSchema, validate }] = useForm({
-    labelWidth: 400,
+    labelWidth: 480,
     baseColProps: { span: 24 },
     schemas: [],
   });
@@ -72,7 +72,7 @@
   /** 单条指标行 → 表单项：fill/text 出控件，sum/count 只读预览，total 不入表单 */
   function buildIndicatorSchema(item: IndicatorDef): FormSchema | undefined {
     const base = {
-      label: item.name.replace(/^[\u3000]+/, ''),
+      label: item.name,
       subLabel: [item.unit, item.code].filter(Boolean).join('｜') || undefined,
       field: item.key,
     };
@@ -218,10 +218,12 @@
 </script>
 
 <style scoped>
-  /* 长指标名允许在标签列内换行（等价 antd Form 的 labelWrap，BasicForm 未透传该 prop，规则同 .ant-form-item-label-wrap） */
+  /* 长指标名允许在标签列内换行（等价 antd Form 的 labelWrap，BasicForm 未透传该 prop，规则同 .ant-form-item-label-wrap）；
+     标签左对齐（横向表单默认右对齐，长指标名右贴输入框不易读） */
   :deep(.ant-form-item-label) {
     overflow: unset;
     line-height: var(--ant-line-height);
     white-space: unset;
+    text-align: left;
   }
 </style>

@@ -9,12 +9,10 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { Modal } from 'antdv-next';
 import type { CategoryDef, PeriodFillData, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
 import {
-  INDICATOR_MAP,
   INDICATORS,
   deleteProgressProject,
   quarterLabel,
-  saveProgressProject,
-  saveProgressTotal,
+  saveProgressProject
 } from '@jeesite/ifco/api/ifco/progress-fill';
 import { createAutoPersist } from '../../shared/dirty-persist';
 import { validateProgressColumn } from './fill-validation';
@@ -186,54 +184,6 @@ export function createFillEditing(deps: FillEditingDeps) {
     if (editingColKey.value === col.key) editingColKey.value = undefined;
   }
 
-  // ── 合计级录入行(total,如新增就业岗位):指标名旁「编辑」弹 Modal 直接录合计值 ──
-  const totalModalOpen = ref(false);
-  const totalEditKey = ref<string>();
-  const totalInput = ref<number>();
-
-  function openTotalModal(indicatorKey: string) {
-    if (!unitEditable.value) {
-      showMessage('当前单位为只读查看，不可填报');
-      return;
-    }
-    const leaf = activeLeaf.value;
-    if (!leaf) return;
-    totalEditKey.value = indicatorKey;
-    totalInput.value = periodData.value?.[leaf.key]?.totals?.[indicatorKey];
-    totalModalOpen.value = true;
-  }
-
-  async function handleTotalConfirm() {
-    const leaf = activeLeaf.value;
-    const key = totalEditKey.value;
-    if (!leaf || !key || !reportUnit.value) return;
-    const tab = periodData.value?.[leaf.key];
-    if (!tab) return;
-    if (!tab.totals) tab.totals = {};
-    const value = totalInput.value ?? null;
-    try {
-      await saveProgressTotal({
-        year: year.value,
-        quarter: quarter.value,
-        unit: reportUnit.value,
-        leafKey: leaf.key,
-        indicatorKey: key,
-        value,
-      });
-      if (value === null) delete tab.totals[key];
-      else tab.totals[key] = value;
-      totalModalOpen.value = false;
-    } catch (e: unknown) {
-      showMessage(e instanceof Error ? e.message : '保存合计值失败');
-    }
-  }
-
-  /** 合计录入 Modal 的标题与字段名(去缩进) */
-  const totalModalTitle = computed(() => {
-    const item = totalEditKey.value ? INDICATOR_MAP[totalEditKey.value] : undefined;
-    const name = (item?.name ?? '').trim();
-    return name ? `${name}（合计）` : '填写合计值';
-  });
 
   return {
     editingColKey,
@@ -247,12 +197,6 @@ export function createFillEditing(deps: FillEditingDeps) {
     handleSave,
     toggleEdit,
     handleDeleteColumn,
-    totalModalOpen,
-    totalEditKey,
-    totalInput,
-    openTotalModal,
-    handleTotalConfirm,
-    totalModalTitle,
   };
 }
 

@@ -12,7 +12,7 @@
   - 默认整表为只读文本,点击项目列头「编辑」图标进入该列编辑态(同时仅一列;
     数值行 InputNumber,文字行 Input);自动行始终只读:
     4 个汇总行按构成行求和、「城市更新项目总数」= 项目列数(前端实时计算展示);
-  - 「新增就业岗位」= 合计级录入行:指标名旁「编辑」弹 Modal 录合计值并即存(saveTotal);
+  - 「新增就业岗位」(r23)= 普通填报行:每项目列各自填写,合计/总计自动求和;
   - 保存:编辑完一列点列头对钩图标即存该列(saveProject,值全量同步);
     顶部「保存」按钮把全部已修改列依次落库;
   - 新增:Drawer 表单一次填项目名称 + 全部可录入指标行(add-project-drawer),
@@ -113,21 +113,6 @@
       </div>
     </Modal>
 
-    <Modal v-model:open="totalModalOpen" :title="totalModalTitle" centered @ok="handleTotalConfirm">
-      <div class="pt-2">
-        <span class="text-gray-500">合计值（个）</span>
-        <InputNumber
-          v-model:value="totalInput"
-          :min="0"
-          :precision="0"
-          controls
-          placeholder="请输入合计值"
-          class="mt-2 w-full"
-          @press-enter="handleTotalConfirm"
-        />
-        <div class="mt-2 text-xs text-gray-400">各项目单元格不填值，此处数值即本类目合计。</div>
-      </div>
-    </Modal>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoProgressFillList">
@@ -241,7 +226,7 @@
     colWidths,
     showMessage,
   });
-  const renderers = createCellRenderers({ quarter, isOverview, unitEditable: canFill, showMessage, editing });
+  const renderers = createCellRenderers({ quarter, unitEditable: canFill, showMessage, editing });
   const table = createTableColumns({
     activeLeaf,
     isOverview,
@@ -258,10 +243,6 @@
     handleFilterChange,
     autoPersistDirty,
     handleSave,
-    totalModalOpen,
-    totalInput,
-    handleTotalConfirm,
-    totalModalTitle,
   } = editing;
   const TABLE_COMPONENTS = table.TABLE_COMPONENTS;
   const tableColumns = table.tableColumns;

@@ -30,7 +30,7 @@ export type TableColumnsDeps = {
 
 export function createTableColumns(deps: TableColumnsDeps) {
   const { activeLeaf, isOverview, periodData, editingColKey, colWidths, renderers } = deps;
-  const { renderFillCell, renderProjectHeader, renderNameCell, sumRowOnCell } = renderers;
+  const { renderFillCell, renderProjectHeader, sumRowOnCell } = renderers;
 
   const TABLE_COMPONENTS = { header: { cell: ResizableTitle } };
   const resizableHeaderCell = (col: any): any => ({
@@ -53,7 +53,6 @@ export function createTableColumns(deps: TableColumnsDeps) {
         fixed: 'left',
         className: 'progress-fill-col-name',
         onHeaderCell: resizableHeaderCell,
-        render: (value: string, record: FillRow) => renderNameCell(value, record),
       },
       {
         key: 'unit',
