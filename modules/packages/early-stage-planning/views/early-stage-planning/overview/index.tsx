@@ -8,10 +8,12 @@ import { type GlowTabItem } from '@jeesite/display/components/glow-tabs';
 import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { RegionTabs } from '@jeesite/display/components/region-tabs';
+import { useMessage } from '@jeesite/core/hooks/web/useMessage';
 import type { MenuItemType } from 'antdv-next';
-import { computed, defineComponent, ref, shallowRef } from 'vue';
+import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 import { AreaLayers } from './area-layers';
-import { areaGroups, batchOptions, districtInvest, loadAreas } from './area-data';
+import { areaGroups, BATCHES, districtAreaCount, loadAreas, type AreaCollection } from './area-data';
+import type { EspBatch } from '@jeesite/early-stage-planning/api/early-stage-planning/esp-map';
 import { DistrictChart } from './district-chart';
 import { FuncTypeChart } from './func-type-chart';
 import { InvestTotalCard, type BatchInvest } from './invest-total-card';
@@ -41,45 +43,54 @@ export default defineComponent({
     // 区域 tabs 当前激活项（点击切换，单选）
     const activeRegionKey = ref<string>('district');
 
-    // ---- 更新片区数据（geojson 一次加载，地图/柱状图/分组列表共用） ----
-    const areas = shallowRef<Recordable | null>(null);
-    const batches = ref<MenuItemType[]>([]);
-    /** 当前选中批次（key 即批次值：'第一批' | '第二批'） */
+    // ---- 更新片区数据（按批次请求 esp 图斑接口；地图/柱状图/分组列表共用，按批次缓存） ----
+    const areas = shallowRef<AreaCollection | null>(null);
+    /** 当前选中批次（key 即接口 batch 参数值：'第一批' | '第二批'） */
     const activeBatch = ref<string>('第一批');
-
-    loadAreas().then((fc) => {
-      areas.value = fc as unknown as Recordable;
-    });
-    batchOptions().then((opts) => {
-      batches.value = opts;
-      activeBatch.value = opts[0]?.key ?? '';
-    });
-
-    /** 柱状图数据：随批次下拉联动（该批次片区按区划聚合投资额，18 区全量、降序） */
-    const chartRows = computed(() =>
-      areas.value ? districtInvest(areas.value as never, activeBatch.value === '第二批' ? '第二批' : '第一批') : [],
+    /** 各批次片区数（下拉 label 回显；批次数据加载完成后补充） */
+    const batchCounts = shallowRef<Partial<Record<string, number>>>({});
+    const batches = computed<MenuItemType[]>(() =>
+      BATCHES.map((b) => ({ key: b, label: batchCounts.value[b] != null ? `${b} ${batchCounts.value[b]}` : b })),
     );
+
+    const { showMessage } = useMessage();
+
+    /** 请求当前批次全部片区（geometry TopoJSON 解码由 loadAreas 内完成；
+        竞态保护：批次快速切换时只认最后一次请求的结果） */
+    let loadSeq = 0;
+    async function applyBatch(batch: EspBatch) {
+      const seq = ++loadSeq;
+      try {
+        const fc = await loadAreas(batch);
+        if (seq !== loadSeq) return;
+        areas.value = fc;
+        batchCounts.value = { ...batchCounts.value, [batch]: fc.features.length };
+      } catch (e) {
+        if (seq === loadSeq) showMessage(`片区数据加载失败：${e instanceof Error ? e.message : e}`, 'error');
+      }
+    }
+
+    watch(activeBatch, (b) => applyBatch(b === '第二批' ? '第二批' : '第一批'), { immediate: true });
+
+    /** 柱状图数据：当前批次片区按区划统计数量（区划全量） */
+    const chartRows = computed(() => (areas.value ? districtAreaCount(areas.value) : []));
 
     /** 片区投资总额数据：随批次下拉联动 */
     const activeInvest = computed(() => BATCH_INVEST[activeBatch.value === '第二批' ? '第二批' : '第一批'] ?? null);
 
-    /** 分组列表数据：随批次下拉联动（第一批/第二批 → 各区真实片区名单 + FUNC_TYPE 胶囊） */
-    const groups = computed<CollapseGroupItem<XodItem>[]>(() =>
-      areas.value ? areaGroups(areas.value as never, activeBatch.value === '第二批' ? '第二批' : '第一批') : [],
-    );
+    /** 分组列表数据：当前批次各区真实片区名单 + FUNC_TYPE 胶囊 */
+    const groups = computed(() => (areas.value ? areaGroups(areas.value) : []));
 
-    /** 功能定位维度 key（other = 未命中任何导向 / FUNC_TYPE 为空） */
+    /** 功能定位维度 key（other = 未命中任何导向 / FUNC_TYPE_VALUE 为空） */
     type FuncRowKey = 'cod' | 'tod' | 'iod' | 'sod' | 'eod' | 'hod' | 'other';
     const FUNC_KEYS: FuncRowKey[] = ['cod', 'tod', 'iod', 'sod', 'eod', 'hod'];
 
-    /** 功能定位分布：FUNC_TYPE 文本包含维度关键词即计数（一片可命中多维）；
+    /** 功能定位分布：FUNC_TYPE_VALUE 命中维度即计数（一片可命中多维）；
         未命中任何维度（含空值）计入 other；随批次联动 */
     const funcRows = computed<{ key: FuncRowKey; count: number }[]>(() => {
-      const batch = activeBatch.value === '第二批' ? '第二批' : '第一批';
       const counts = new Map<FuncRowKey, number>(FUNC_KEYS.map((k) => [k, 0] as [FuncRowKey, number]));
       counts.set('other', 0);
-      const grouped = areas.value ? areaGroups(areas.value as never, batch) : [];
-      for (const group of grouped) {
+      for (const group of groups.value) {
         for (const item of group.items) {
           let hit = false;
           for (const k of FUNC_KEYS) {
@@ -170,9 +181,9 @@ export default defineComponent({
                 class="mt-20px"
               />
 
-              {/* 行政区划 tab：片区行政区划分布荧光柱状图（geojson 真数据，18 区划全量）
+              {/* 行政区划 tab：片区行政区划分布荧光柱状图（当前批次接口数据按区划计数，区划全量）
                   推进情况 tab：片区推进情况三色图（绿/黄/红 占比 + 片数，演示数据）
-                  功能定位 tab：片区功能定位分布（FUNC_TYPE 解析的各导向维度片区数） */}
+                  功能定位 tab：片区功能定位分布（FUNC_TYPE_VALUE 解析的各导向维度片区数） */}
               {activeRegionKey.value === 'district' ? (
                 <DistrictChart rows={chartRows.value} />
               ) : activeRegionKey.value === 'progress' ? (
@@ -205,7 +216,7 @@ export default defineComponent({
               <VMap reuseMaps style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
 
-                {/* 更新片区面：第一批紫 / 第二批蓝（仅展示，无交互；联动待后续） */}
+                {/* 更新片区面：当前批次接口数据（TopoJSON 解码还原），批次切换 setData 刷新 */}
                 <AreaLayers areas={areas.value} />
               </VMap>
             </>

@@ -1,6 +1,8 @@
 /**
  * 更新片区地图图层（前期谋划 overview 右侧地图）：
- * 182 个片区面按批次着色（第一批紫 #773ceb / 第二批蓝 #3a86ec），仅展示无交互。
+ * 当前批次片区面（数据来自 esp 图斑接口，批次切换由父级重新加载后传入）。
+ * 第一批紫 #773ceb / 第二批蓝 #3a86ec，两个 fill 图层按 BATCH 过滤，
+ * 传入的 FeatureCollection 只含当前批次，另一图层自然无命中。
  * 必须在 <VMap> 插槽内使用 —— useMap() 依赖 VMap 注入的地图上下文。
  */
 import { useMap } from '@jeesite/vmap';
@@ -19,19 +21,24 @@ export const AreaLayers = defineComponent({
   name: 'EarlyStagePlanningAreaLayers',
 
   props: {
-    /** 原始 FeatureCollection（父级加载后传入；为 null 时不添加图层） */
+    /** 当前批次 FeatureCollection（父级按批次加载后传入；为 null 时不添加图层） */
     areas: { type: Object as PropType<Recordable | null>, default: null },
   },
 
   setup(props) {
     const { map, isLoaded } = useMap();
 
-    /** 数据 / 地图任一就绪即尝试补齐 source + 按批次两个 fill 图层（setStyle 换底图后亦会重加） */
+    /** 数据 / 地图任一就绪即同步：source 已存在（批次切换）仅 setData，
+        否则补齐 source + 按批次两个 fill 图层（setStyle 换底图后亦会重加） */
     watch(
       [() => props.areas, map, isLoaded],
       ([areas, m, loaded]) => {
         if (!m || !loaded || !areas) return;
-        if (m.getSource(SOURCE_ID)) return;
+        const src = m.getSource(SOURCE_ID);
+        if (src) {
+          (src as maplibregl.GeoJSONSource).setData(areas as any);
+          return;
+        }
         m.addSource(SOURCE_ID, { type: 'geojson', data: areas as any });
         for (const [batch, color] of Object.entries(BATCH_COLOR)) {
           m.addLayer({
