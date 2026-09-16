@@ -286,7 +286,13 @@
     }
     const leaf = activeLeaf.value;
     if (!leaf || !reportUnit.value) return;
-    openAddDrawer(true, { year: year.value, quarter: quarter.value, unit: reportUnit.value, leafKey: leaf.key });
+    openAddDrawer(true, {
+      year: year.value,
+      quarter: quarter.value,
+      unit: reportUnit.value,
+      leafKey: leaf.key,
+      tabProjectCount: periodData.value?.[leaf.key]?.projects.length ?? 0,
+    });
   }
 
   /** 抽屉保存成功回调:落库后的列(key=服务端 projectId)追加到当前类目最右并滚动露出 */
