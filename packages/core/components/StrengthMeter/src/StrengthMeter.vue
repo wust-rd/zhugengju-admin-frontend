@@ -22,12 +22,9 @@
 <script lang="ts" setup name="StrengthMeter">
   import { computed, ref, watch, unref, watchEffect } from 'vue';
   import { Input } from 'antdv-next';
-  import { ZxcvbnFactory } from '@zxcvbn-ts/core';
   import { propTypes } from '@jeesite/core/utils/propTypes';
 
   const InputPassword = Input.Password;
-
-  const zxcvbn = new ZxcvbnFactory();
 
   const props = defineProps({
     value: propTypes.string,
@@ -39,11 +36,29 @@
 
   const innerValueRef = ref('');
 
+  /**
+   * 密码等级（与后端 PwdService 同款口径，sys.user.passwordModifySecurityLevel 的计分规则）：
+   * 五项检测——长度≥8、大写字母、小写字母、数字、特殊符号；
+   * 命中 1 项→很弱(1)、2 项→弱(2)、3~4 项→安全(3)、5 项→很安全(4)
+   */
+  function getPasswordLevel(password: string): number {
+    const hits = [
+      password.length >= 8,
+      /[A-Z]/.test(password),
+      /[a-z]/.test(password),
+      /[0-9]/.test(password),
+      /[^A-Za-z0-9]/.test(password),
+    ].filter(Boolean).length;
+    if (hits >= 5) return 4;
+    if (hits >= 3) return 3;
+    return hits;
+  }
+
   const getPasswordStrength = computed(() => {
     const { disabled } = props;
     if (disabled) return -1;
     const innerValue = unref(innerValueRef);
-    const score = innerValue ? zxcvbn.check(unref(innerValueRef)).score : -1;
+    const score = innerValue ? getPasswordLevel(innerValue) : -1;
     emit('score-change', score);
     return score;
   });

@@ -10,7 +10,8 @@
     <div class="flex flex-col items-center justify-center bg-white py-8 pr-20">
       <BasicForm @register="register" class="w-9/12" />
       <div class="mt-6 flex justify-center">
-        <a-button @click="resetFields">
+        <a-button @click="handleLogout"> <Icon icon="i-ant-design:logout-outlined" /> 退出登录 </a-button>
+        <a-button class="!ml-4" @click="resetFields">
           <Icon icon="i-ant-design:undo-outlined" /> {{ t('common.resetText') }}
         </a-button>
         <a-button class="!ml-4" type="primary" @click="handleSubmit">
@@ -63,6 +64,11 @@
         {
           required: true,
           message: t('sys.account.newPasswordInputTip'),
+        },
+        {
+          // 密码策略：至少8位，须同时包含数字、大写字母、小写字母和特殊符号
+          pattern: /^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$/,
+          message: '密码至少8位，须包含数字、大写字母、小写字母和特殊符号',
         },
       ],
     },
@@ -120,5 +126,9 @@
       }
       console.log('error', error);
     }
+  }
+
+  function handleLogout() {
+    userStore.logout(true);
   }
 </script>
