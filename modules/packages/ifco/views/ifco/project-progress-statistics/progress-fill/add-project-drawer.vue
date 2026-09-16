@@ -15,6 +15,7 @@
     v-bind="$attrs"
     title="新增项目"
     width="70%"
+    show-footer
     ok-text="保存"
     cancel-text="取消"
     force-render

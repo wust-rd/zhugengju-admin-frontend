@@ -90,24 +90,14 @@
       </div>
     </Modal>
 
-    <Modal v-model:open="addModalOpen" title="新增项目" centered @ok="handleAddConfirm">
-      <div class="pt-2">
-        <span class="text-gray-500">项目名称</span>
-        <Input
-          v-model:value="newProjectName"
-          placeholder="请输入项目名称"
-          allow-clear
-          class="mt-2"
-          @press-enter="handleAddConfirm"
-        />
-      </div>
-    </Modal>
+    <AddProjectDrawer @register="registerAddDrawer" @success="handleAddSaved" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoEffectFillList">
   import { Icon } from '@jeesite/core/components/Icon';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+  import { useDrawer } from '@jeesite/core/components/Drawer';
   import type { ProjectColumn } from '@jeesite/ifco/api/ifco/common';
   import type { EffectUnitData } from '@jeesite/ifco/api/ifco/effect-fill';
   import {
@@ -128,6 +118,7 @@
   import type { FillRow } from './cell-renderers';
   import { createCellRenderers } from './cell-renderers';
   import { exportEffectExcel } from './export-excel';
+  import AddProjectDrawer from './add-project-drawer.vue';
   import { createFillEditing } from './fill-editing';
   import { createTableColumns } from './table-columns';
   import { useTableBodyHeight } from '../../shared/table-viewport';
@@ -194,37 +185,29 @@
   const tableColumns = table.tableColumns;
   const scrollX = table.scrollX;
 
-  // ── 新增项目:居中 Modal 命名,确认后追加最右列并滚动到位 ──────────────
-  const addModalOpen = ref(false);
-  const newProjectName = ref('');
+  // ── 新增项目:分步 Drawer(第一步选八个大类之一,第二步填该类别指标行,立即落库) ──
   const tableWrapRef = ref<HTMLDivElement>();
   // 表格视口高度:容器 flex-1 实测,详见 shared/table-viewport
   const tableBodyY = useTableBodyHeight(tableWrapRef);
+  const [registerAddDrawer, { openDrawer: openAddDrawer }] = useDrawer();
 
   function handleAddProject() {
     if (!unitEditable.value) {
       showMessage('当前单位为只读查看，不可填报');
       return;
     }
-    newProjectName.value = '';
-    addModalOpen.value = true;
+    if (!reportUnit.value) return;
+    openAddDrawer(true, {
+      year: year.value,
+      quarter: quarter.value,
+      unit: reportUnit.value,
+    });
   }
 
-  async function handleAddConfirm() {
-    const name = newProjectName.value.trim();
-    if (!name) {
-      showMessage('请输入项目名称');
-      return;
-    }
+  /** 抽屉保存成功回调:落库后的列(key=服务端 projectId)追加到表格最右并滚动露出 */
+  function handleAddSaved(col: ProjectColumn) {
     if (!unitData.value) return;
-    // 新列进入编辑前,先把之前未保存的脏列自动落库
-    await autoPersistDirty();
-    const col = reactive<ProjectColumn>({ key: `add-${Date.now()}`, name, imported: false, values: {} });
     unitData.value.projects.push(col);
-    dirtyCols.set(col.key, col);
-    addModalOpen.value = false;
-    // 新增即填报:直接进入该列编辑,并把表格滚到最右露出新列
-    editing.editingColKey.value = col.key;
     nextTick(() => {
       const scroller = tableWrapRef.value?.querySelector('.ant-table-content, .ant-table-body');
       if (scroller) {
