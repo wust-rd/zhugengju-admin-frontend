@@ -32,6 +32,10 @@ const FORCE_DARK_THEME = {
  *   使所有表单始终以 dark 形态适配本页深蓝玻璃面板（与全局主题解耦）；
  * - 各表单内部自带完整逻辑（校验/验证码/login + afterLoginAction 跳转），外壳只负责视觉。
  */
+/** 登录方式开关：false 屏蔽对应 Tab（临时下线，恢复时改回 true 即可） */
+const ENABLE_MOBILE_LOGIN = false;
+const ENABLE_QR_LOGIN = false;
+
 export default defineComponent({
   name: 'NewLogin',
   setup() {
@@ -66,7 +70,7 @@ export default defineComponent({
       >
         {/* min-h 而非固定 h：注册/忘记密码表单字段多，面板需随内容增高；
             my-auto 替代 items-center，视口过矮时内容可滚动到顶部而非被居中裁切 */}
-        <div class="rd-12px my-auto flex w-600px min-h-640px flex-col items-center border-1px border-white/15 bg-black/25 text-white backdrop-blur pt-32px">
+        <div class="rd-12px my-auto flex w-600px min-h-640px flex-col items-center justify-center border-1px border-white/15 bg-black/25 text-white backdrop-blur pt-32px">
           <div class="font-500 text-24px text-white">武汉市城市更新信息管理平台</div>
 
           <ConfigProvider theme={FORCE_DARK_THEME}>
@@ -83,21 +87,29 @@ export default defineComponent({
                       label: t('sys.login.signInFormTitle'),
                       content: <LoginForm onDemoMode={(v: any) => (demoMode.value = !!v)} />,
                     },
-                    {
-                      key: LoginStateEnum.MOBILE,
-                      label: t('sys.login.mobileSignInFormTitle'),
-                      content: <MobileForm demoMode={demoMode.value} />,
-                    },
-                    {
-                      key: LoginStateEnum.QR_CODE,
-                      label: t('sys.login.qrSignInFormTitle'),
-                      // 包 px-4 对齐 LoginForm/MobileForm 的水平内边距，使返 回按钮宽度与其他 Tab 一致
-                      content: (
-                        <div class="px-4">
-                          <QrCodeForm />
-                        </div>
-                      ),
-                    },
+                    ...(ENABLE_MOBILE_LOGIN
+                      ? [
+                          {
+                            key: LoginStateEnum.MOBILE,
+                            label: t('sys.login.mobileSignInFormTitle'),
+                            content: <MobileForm demoMode={demoMode.value} />,
+                          },
+                        ]
+                      : []),
+                    ...(ENABLE_QR_LOGIN
+                      ? [
+                          {
+                            key: LoginStateEnum.QR_CODE,
+                            label: t('sys.login.qrSignInFormTitle'),
+                            // 包 px-4 对齐 LoginForm/MobileForm 的水平内边距，使返 回按钮宽度与其他 Tab 一致
+                            content: (
+                              <div class="px-4">
+                                <QrCodeForm />
+                              </div>
+                            ),
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               )}
@@ -107,10 +119,6 @@ export default defineComponent({
               <RegisterForm demoMode={demoMode.value} />
             </div>
           </ConfigProvider>
-
-          <div class="mt-auto mb-16px text-14px text-gray-500">
-            Copyright © {dayjs().year()} 武汉城市仿真科技有限公司. All rights reserved.
-          </div>
         </div>
       </div>
     );

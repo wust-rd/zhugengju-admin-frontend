@@ -48,12 +48,9 @@
         </ACol>
         <ACol :span="12">
           <FormItem :style="{ 'text-align': 'right' }">
-            <Button type="link" size="small" @click="setLoginState(LoginStateEnum.RESET_PASSWORD)">
+            <Button type="link" size="small" @click="handleForgetPassword">
               {{ t('sys.login.forgetPassword') }}
             </Button>
-            <!--<Button type="link" size="small" @click="setLoginState(LoginStateEnum.REGISTER)">
-              {{ t('sys.login.registerButton') }}
-            </Button>-->
           </FormItem>
         </ACol>
       </ARow>
@@ -62,31 +59,17 @@
         <Button type="primary" size="large" block @click="handleLogin" :loading="loading">
           {{ t('sys.login.loginButton') }}
         </Button>
-        <Button size="large" class="mt-4 enter-x" block @click="setLoginState(LoginStateEnum.REGISTER)">
+        <!-- <Button size="large" class="mt-4 enter-x" block @click="setLoginState(LoginStateEnum.REGISTER)">
           {{ t('sys.login.registerButton') }}
-        </Button>
+        </Button> -->
       </FormItem>
-
-      <Divider class="enter-x">{{ t('sys.login.otherSignIn') }}</Divider>
-
-      <div class="enter-x flex justify-evenly jeesite-login-sign-in-way">
-        <Icon icon="i-simple-icons:gitee" color="#d81e06" size="28" @click="handleOauth2" />
-        <Icon icon="i-ant-design:qq-circle-filled" color="#2178e3" size="32" @click="handleOauth2" />
-        <Icon icon="i-ant-design:wechat-filled" color="#2eb60d" size="32" @click="handleOauth2" />
-        <Icon icon="i-ant-design:github-filled" color="#2c2c2c" size="32" @click="handleOauth2" />
-        <a href="https://gitee.com/thinkgem/jeesite-client" target="_blank" style="padding-top: 5px">
-          <Icon icon="i-ant-design:windows-filled" size="32" style="vertical-align: middle" />
-          <span class="pl-1" style="vertical-align: middle"> {{ t('客户端下载') }}</span>
-        </a>
-      </div>
     </Form>
   </div>
 </template>
 <script lang="ts" setup>
   import { reactive, ref, toRaw, unref, computed, onMounted, shallowRef } from 'vue';
 
-  import { Checkbox, Form, FormItem, Input, Row, Col, Button, Divider, message } from 'antdv-next';
-  import { Icon } from '@jeesite/core/components/Icon';
+  import { Checkbox, Form, FormItem, Input, Row, Col, Button, message } from 'antdv-next';
 
   import { useI18n } from '@jeesite/core/hooks/web/useI18n';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -100,10 +83,10 @@
   const ARow = Row;
   const InputPassword = Input.Password;
   const { t } = useI18n();
-  const { showMessage, notification } = useMessage();
+  const { showMessage, showMessageModal, notification } = useMessage();
   const userStore = useUserStore();
 
-  const { setLoginState, getLoginState } = useLoginState();
+  const { getLoginState } = useLoginState();
 
   const formRef = shallowRef<InstanceType<typeof Form>>();
   const loading = ref(false);
@@ -125,6 +108,11 @@
   //onKeyStroke('Enter', handleLogin);
 
   const getShow = computed(() => unref(getLoginState) === LoginStateEnum.LOGIN);
+
+  // 忘记密码不进自助重置表单，弹窗引导联系管理员
+  function handleForgetPassword() {
+    showMessageModal({ content: '请联系系统管理员重置密码' });
+  }
 
   onMounted(async () => {
     setTimeout(() => message.destroy());
@@ -190,10 +178,5 @@
     } finally {
       loading.value = false;
     }
-  }
-
-  function handleOauth2(event: Event) {
-    window.location.href = 'https://vue.jeesite.com/js/oauth2/login/gitee?state=vue';
-    event.preventDefault();
   }
 </script>
