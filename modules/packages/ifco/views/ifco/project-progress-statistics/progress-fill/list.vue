@@ -241,7 +241,7 @@
     colWidths,
     showMessage,
   });
-  const renderers = createCellRenderers({ quarter, isOverview, unitEditable: canFill, editing });
+  const renderers = createCellRenderers({ quarter, isOverview, unitEditable: canFill, showMessage, editing });
   const table = createTableColumns({
     activeLeaf,
     isOverview,
@@ -359,7 +359,7 @@
   );
 
   /** 表格区域高度:视口自适应,表格内部纵向滚动(不依赖页面滚动,表头恒在视野) */
-  const TABLE_HEIGHT = 'calc(100vh - 500px)';
+  const TABLE_HEIGHT = 'calc(100vh - 460px)';
 </script>
 
 <style scoped>

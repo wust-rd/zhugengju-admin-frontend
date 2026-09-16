@@ -19,6 +19,9 @@ function numberValue(itemKey: string, col: ProjectColumn): number | undefined {
 
 /** 校验单个项目列：违反规则返回提示文案，否则 undefined */
 export function validateProgressColumn(col: ProjectColumn): string | undefined {
+  if (!col.name.trim()) {
+    return '请填写项目名称，不能留空';
+  }
   const totalInvest = numberValue('r1', col); // 项目总投资
   const yearDone = numberValue('r4', col); // 103 本年完成投资额
   const yearArrived = numberValue('r5', col); // 104 本年实际到位资金（自动汇总）

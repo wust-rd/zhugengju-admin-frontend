@@ -185,7 +185,7 @@
     colWidths,
     showMessage,
   });
-  const renderers = createCellRenderers({ quarter, unitEditable: canFill, editing });
+  const renderers = createCellRenderers({ quarter, unitEditable: canFill, showMessage, editing });
   const table = createTableColumns({ unitData, editingColKey: editing.editingColKey, colWidths, renderers });
 
   const { saving, dirtyCols, resetEditState, handleFilterChange, autoPersistDirty, handleSave } = editing;

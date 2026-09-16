@@ -53,6 +53,9 @@ export function syncEffectAutoSums(col: ProjectColumn) {
 
 /** 校验单个项目列：违反规则返回提示文案，否则 undefined */
 export function validateEffectColumn(col: ProjectColumn): string | undefined {
+  if (!col.name.trim()) {
+    return '请填写项目名称，不能留空';
+  }
   const values = col.values;
   const prefix = `「${col.name}」校验未通过：`;
 

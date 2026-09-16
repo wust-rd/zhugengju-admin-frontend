@@ -4,7 +4,7 @@
  * 编辑列内渲染输入控件（数字/来源说明/r3 新开工开关），其余为只读文本；
  * 项目列头带编辑/删除图标（只读单位不渲染）。键盘导航由 shared/cell-nav 提供。
  */
-import { h, type ComputedRef, type Ref } from 'vue';
+import { h, ref, type ComputedRef, type Ref } from 'vue';
 import { Input, InputNumber, Popconfirm, Switch, Tooltip } from 'antdv-next';
 import { Icon } from '@jeesite/core/components/Icon';
 import type { IndicatorDef, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
@@ -40,11 +40,12 @@ export type CellRendererDeps = {
   quarter: Ref<string>;
   isOverview: ComputedRef<boolean>;
   unitEditable: ComputedRef<boolean>;
+  showMessage: (msg: string) => void;
   editing: FillEditing;
 };
 
 export function createCellRenderers(deps: CellRendererDeps) {
-  const { quarter, isOverview, unitEditable, editing } = deps;
+  const { quarter, isOverview, unitEditable, showMessage, editing } = deps;
   const { editingColKey, dirtyCols, toggleEdit, handleDeleteColumn, openTotalModal } = editing;
 
   function setCellValue(col: ProjectColumn, indicatorKey: string, value: number | string | undefined, leafKey: string) {
@@ -102,12 +103,75 @@ export function createCellRenderers(deps: CellRendererDeps) {
     return renderDisplay(cellValue(item, col));
   }
 
+  // ── 列名重命名(双击内联编辑):本周期新增列可改;带入列名称是跨周期同名匹配键,锁定 ──
+  const renamingKey = ref<string>();
+  const renamingValue = ref('');
+
+  function startRename(col: ProjectColumn) {
+    if (col.imported) {
+      showMessage('跨周期项目列名不可修改');
+      return;
+    }
+    if (!unitEditable.value) {
+      showMessage('当前为只读状态，不可修改');
+      return;
+    }
+    renamingKey.value = col.key;
+    renamingValue.value = col.name;
+  }
+
+  function commitRename(col: ProjectColumn, leafKey: string) {
+    const name = renamingValue.value.trim();
+    renamingKey.value = undefined;
+    if (!name || name === col.name) return;
+    col.name = name;
+    dirtyCols.set(col.key, { leafKey, col });
+  }
+
   /** 项目列头:「名称 + 编辑/删除图标」;编辑态下的编辑按钮换成保存 icon(点击即存该列);只读单位不渲染图标 */
   function renderProjectHeader(col: ProjectColumn, leafKey: string) {
     const isEditing = editingColKey.value === col.key;
     const deletable = !(col.imported && quarter.value !== '1');
+    const nameNode =
+      renamingKey.value === col.key
+        ? h(Input, {
+            size: 'small',
+            class: 'min-w-0 flex-1',
+            value: renamingValue.value,
+            'onUpdate:value': (value: string) => (renamingValue.value = value),
+            onPressEnter: () => commitRename(col, leafKey),
+            onBlur: () => commitRename(col, leafKey),
+            onKeydown: (e: KeyboardEvent) => {
+              if (e.key === 'Escape') renamingKey.value = undefined;
+            },
+            onVnodeMounted: (vnode: any) => {
+              (vnode.el?.querySelector('input') ?? vnode.el)?.focus();
+            },
+          })
+        : isEditing
+          ? // 编辑态:非带入列的名称即单元格(live 绑定,边改边标脏;空名在落库前拦截);带入列锁定
+            col.imported
+            ? h('span', { class: 'flex-1 truncate text-left', title: `${col.name}（带入列，名称不可修改）` }, col.name)
+            : h(Input, {
+                size: 'small',
+                class: 'min-w-0 flex-1',
+                value: col.name,
+                'onUpdate:value': (value: string) => {
+                  col.name = value;
+                  dirtyCols.set(col.key, { leafKey, col });
+                },
+              })
+          : h(
+              'span',
+              {
+                class: 'flex-1 truncate text-left',
+                title: col.imported ? `${col.name}（带入列，名称不可修改）` : `${col.name}（双击改名）`,
+                onDblclick: () => startRename(col),
+              },
+              col.name,
+            );
     return h('div', { class: 'flex items-center justify-between gap-1' }, [
-      h('span', { class: 'flex-1 truncate text-left', title: col.name }, col.name),
+      nameNode,
       unitEditable.value
         ? h('span', { class: 'flex shrink-0 items-center gap-1' }, [
             h(Tooltip, { title: isEditing ? '完成并保存本列' : '编辑本列' }, () =>
