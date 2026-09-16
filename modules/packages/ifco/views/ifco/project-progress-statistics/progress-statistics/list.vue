@@ -4,14 +4,14 @@
   页面结构:Card 工具栏(填报年份/填报季度 | 导出[按钮保留,功能待做])
   → RadioGroup(全武汉市 + 可见报送单位,按钮样式可换行)
   → 只读转置表格:行 = 指标,列 = 类目(与填报页总览同构:
-    固定左四列 + 7 个简单类目单列 + 嵌套类目拆三个二级子列 + 最左总计)。
+    固定左四列 + 7 个简单类目单列 + 嵌套类目拆三个二级子列 + 最左合计)。
 
   口径(对接后端 modules/ifco):
   - 汇总全部在服务端算好(GET /ifco/progress/stat/data),本页直接渲染,无本地聚合;
-  - 单位页签来自返回的 allowedUnits(已按数据权限过滤):「全武汉市」= 可见单位合计
+  - 单位页签来自返回的 allowedUnits(已按数据权限过滤):「全武汉市」= 可见单位小计
     (不传 unit 参数),区县账号只有本区;
-  - 行值:rows[].categories[叶子类目key] = 该类目合计(fill=SUM/total=录入值/
-    count=项目列数/sum=构成求和/text=空),rows[].grand = 总计;
+  - 行值:rows[].categories[叶子类目key] = 该类目小计(fill=SUM/total=录入值/
+    count=项目列数/sum=构成求和/text=空),rows[].grand = 合计;
   - 只查询 + 导出,整页只读(无编辑/新增/带入/保存)。
 
   菜单注册(菜单名称「项目进展统计」):
@@ -98,9 +98,9 @@
   // ── 筛选条件:年份 + 季度(默认当前;选项与年份切换修正见 shared/PeriodSelects) ─
   const { year, quarter } = useCurrentPeriod();
 
-  // ── 统计范围:全武汉市(全市合计) + 可见报送单位(allowedUnits) ──────────
+  // ── 统计范围:全武汉市(全市小计) + 可见报送单位(allowedUnits) ──────────
   const allowedUnits = reactive<{ code: string; name: string }[]>([]);
-  // 单单位账号(区局):不显示"全武汉市"页签,只有本单位;多单位才带全市合计页签
+  // 单单位账号(区局):不显示"全武汉市"页签,只有本单位;多单位才带全市小计页签
   const unitOptions = computed(() => [
     ...(allowedUnits.length > 1 ? [{ label: '全武汉市', value: 'overview' }] : []),
     ...allowedUnits.map((unit) => ({ label: unit.name, value: unit.code })),
@@ -112,7 +112,7 @@
   const OVERVIEW_ROWS = reactive<StatRow[]>([]);
   const UNIT_DATAS = reactive<{ code: string; name: string; rows: StatRow[] }[]>([]);
   const activeUnitName = computed(() => allowedUnits.find((unit) => unit.code === activeUnit.value)?.name ?? null);
-  /** 当前展示行:全武汉市 = overview 合计;单位页签 = 该单位一份(无接口调用) */
+  /** 当前展示行:全武汉市 = overview 小计;单位页签 = 该单位一份(无接口调用) */
   const displayRows = computed<StatRow[]>(() =>
     activeUnit.value === 'overview'
       ? OVERVIEW_ROWS
@@ -216,7 +216,7 @@
       ...leadingColumns(),
       {
         key: 'grand',
-        title: '总计',
+        title: '合计',
         width: widthFor('grand', 130),
         align: 'right',
         onHeaderCell: resizableHeaderCell,

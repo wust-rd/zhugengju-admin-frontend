@@ -1,9 +1,9 @@
 /**
  * ifco —— 项目进展统计：Excel 导出（xlsx-js-style 多 sheet + file-saver 下载）
  *
- * sheet 结构对齐统计页表格：
- *   固定 4 列（指标名称/计量单位/代码/总计）纵向合并两行表头 + 每个叶子类目一列
- *   （嵌套类目一级表头跨列包裹二级、简单类目纵向合并）；
+ * sheet 结构（三排表头，对齐官方统计表）：
+ *   行 1 一级类目跨列（嵌套类目）、行 2 二级类目、行 3 列标签
+ *   （项目名称/计量单位/代码/合计 + 各叶子列「小计」；固定 4 列上两排留白合并）；
  *   行 = 指标全集（名称含缩进、含「一、～」节标题行，节标题行仅名称列有值）。
  * 多单位场景由调用方逐单位拉取 stat/data 后传入：每个单位一个 sheet，
  * 「全武汉市」汇总（不带 unit 的聚合口径）作为第一个 sheet。
@@ -36,7 +36,7 @@ function numberOut(key: string, value: number | undefined): number | undefined {
 }
 
 function buildStatSheet(rows: ProgressStatRow[]): WorkSheet {
-  // ── 列布局：0~3 固定（指标名称/计量单位/代码/总计），其后每个叶子一列 ──
+  // ── 列布局：0~3 固定（项目名称/计量单位/代码/合计），其后每个叶子一列 ──
   let nextCol = 4;
   const catBlocks = DATA_CATEGORIES.map((category) => {
     const startCol = nextCol;
@@ -45,20 +45,25 @@ function buildStatSheet(rows: ProgressStatRow[]): WorkSheet {
   });
   const lastCol = Math.max(nextCol - 1, 3);
 
-  const headerRow1: (string | number)[] = ['指标名称', '计量单位', '代码', '总计'];
+  // 三排表头：行 1 一级类目跨列、行 2 二级类目、行 3 列标签（项目名称/计量单位/代码/合计/各叶子的「小计」）
+  const headerRow1: (string | number)[] = ['', '', '', ''];
   const headerRow2: (string | number)[] = ['', '', '', ''];
+  const headerRow3: (string | number)[] = ['项目名称', '计量单位', '代码', '合计'];
+  // 固定 4 列上两排留白（纵向合并），标签沉到第三排
   const merges: Range[] = [0, 1, 2, 3].map((col) => ({ s: { r: 0, c: col }, e: { r: 1, c: col } }));
   for (const block of catBlocks) {
     if (block.category.children?.length) {
-      // 嵌套类目：行 1 一级类目跨列，行 2 二级类目名
+      // 嵌套类目：行 1 一级类目跨列，行 2 二级类目名，行 3 小计
       headerRow1[block.startCol] = block.category.label;
       block.leaves.forEach((leaf) => {
         headerRow2[leaf.startCol] = LEAF_CATEGORIES.find((candidate) => candidate.key === leaf.key)?.label ?? '';
+        headerRow3[leaf.startCol] = '小计';
       });
       merges.push({ s: { r: 0, c: block.startCol }, e: { r: 0, c: block.endCol } });
     } else {
-      // 简单类目：一级类目名纵向合并两行
+      // 简单类目：类目名纵向合并行 1~2，行 3 小计
       headerRow1[block.startCol] = block.category.label;
+      headerRow3[block.startCol] = '小计';
       merges.push({ s: { r: 0, c: block.startCol }, e: { r: 1, c: block.startCol } });
     }
   }
@@ -72,7 +77,7 @@ function buildStatSheet(rows: ProgressStatRow[]): WorkSheet {
   ]);
 
   return finishBorderedSheet(
-    [headerRow1, headerRow2, ...dataRows],
+    [headerRow1, headerRow2, headerRow3, ...dataRows],
     merges,
     fixedPlusUniformCols(lastCol, [42, 10, 8, 14], 12),
   );

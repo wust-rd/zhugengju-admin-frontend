@@ -2,7 +2,7 @@
  * ifco 进展填报 —— 表格列组装与列宽拖拽（从 list.vue 拆出）
  *
  * 列宽拖拽复用框架 ResizableTitle（同 sys/empUser）：onHeaderCell 注入 resizable
- * 与宽度回写。三套列：明细（合计+项目列）、总览（总计+各叶子类目列，嵌套类目
+ * 与宽度回写。三套列：明细（小计+项目列）、总览（合计+各叶子类目列，嵌套类目
  * 一级表头跨列），scrollX 按各列当前宽度求和。
  */
 import { computed, type ComputedRef, type Ref } from 'vue';
@@ -100,12 +100,13 @@ export function createTableColumns(deps: TableColumnsDeps) {
       ...leadingColumns(),
       {
         key: 'total',
-        title: '合计',
+        title: '小计',
         width: widthFor('total', 120),
         align: 'right',
         onHeaderCell: resizableHeaderCell,
         onCell: sumRowOnCell,
-        render: (_value: unknown, record: FillRow) => renderDisplayByKind(record, tabTotal(INDICATOR_MAP[record.key], tab)),
+        render: (_value: unknown, record: FillRow) =>
+          renderDisplayByKind(record, tabTotal(INDICATOR_MAP[record.key], tab)),
       },
       ...projectColumns,
     ];
@@ -113,7 +114,7 @@ export function createTableColumns(deps: TableColumnsDeps) {
 
   function buildOverviewColumns(): TableColumnsType<FillRow> {
     const data = periodData.value;
-    /** 二级(叶子)类目列:值 = 该叶子类目的合计(total 行即录入值,count 行即列数) */
+    /** 二级(叶子)类目列:值 = 该叶子类目的小计(total 行即录入值,count 行即列数) */
     const leafColumn = (leaf: CategoryDef): TableColumnsType<FillRow>[number] => ({
       key: leaf.key,
       title: leaf.label,
@@ -138,7 +139,7 @@ export function createTableColumns(deps: TableColumnsDeps) {
       ...leadingColumns(),
       {
         key: 'grand',
-        title: '总计',
+        title: '合计',
         width: widthFor('grand', 130),
         align: 'right',
         onHeaderCell: resizableHeaderCell,
@@ -150,7 +151,7 @@ export function createTableColumns(deps: TableColumnsDeps) {
     ];
   }
 
-  /** 合计/总计列的显示:r3 数值直出(含 0),其余未填与 0 置空 */
+  /** 小计/合计列的显示:r3 数值直出(含 0),其余未填与 0 置空 */
   function renderDisplayByKind(record: FillRow, value: number | string | undefined) {
     return record.key === NEW_START_KEY ? renderNewStart(value) : renderDisplay(value);
   }

@@ -6,7 +6,7 @@
  * 而直接使用 utils.aoa_to_sheet + !merges/!cols。
  *
  * sheet 结构对齐填报页左侧 RadioGroup（一级类目页签）：
- *   Sheet「总览」   固定 3 列 + 总计 + 每个叶子类目一列小计（嵌套类目一级表头跨列包裹二级）；
+ *   Sheet「总览」   固定 3 列 + 合计 + 每个叶子类目一列小计（嵌套类目一级表头跨列包裹二级）；
  *   简单类目 sheet  固定 3 列 + 项目列 + 末列小计（类目名行 1 跨列）；
  *   嵌套类目 sheet（如「老旧街区、老旧厂区、城中村等更新改造」）
  *                  行 1 = 二级类目名（老旧街区更新改造/老旧厂区更新改造/城中村改造）
@@ -82,7 +82,7 @@ const fixedHeader = ['指标名称', '计量单位', '代码'];
 export async function exportProgressFillExcel({ year, quarter, unitName, periodData }: ExportParams): Promise<void> {
   const sheets: { name: string; worksheet: WorkSheet }[] = [];
 
-  // ── Sheet「总览」：固定 3 列 + 总计 + 每叶子一列小计（叶子顺序 = LEAF_CATEGORIES）──
+  // ── Sheet「总览」：固定 3 列 + 合计 + 每叶子一列小计（叶子顺序 = LEAF_CATEGORIES）──
   {
     let nextCol = 4;
     const catBlocks = DATA_CATEGORIES.map((category) => {
@@ -92,9 +92,9 @@ export async function exportProgressFillExcel({ year, quarter, unitName, periodD
     });
     const lastCol = Math.max(nextCol - 1, 3);
 
-    const headerRow1: (string | number)[] = [...fixedHeader, '总计'];
+    const headerRow1: (string | number)[] = [...fixedHeader, '合计'];
     const headerRow2: (string | number)[] = ['', '', '', ''];
-    // 总计列与固定 3 列一致，表头纵向合并两行
+    // 合计列与固定 3 列一致，表头纵向合并两行
     const merges: Range[] = [...fixedColMerges, { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } }];
     for (const block of catBlocks) {
       if (block.category.children?.length) {

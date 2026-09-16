@@ -8,7 +8,7 @@
   口径(对接后端 modules/ifco):
   - 汇总全部在服务端算好(GET /ifco/effect/stat/data),本页直接渲染,无本地聚合;
   - 单位列来自返回的 allowedUnits(已按数据权限过滤):区县账号 1 列,市局 13 列;
-  - 全武汉市列 = rows[].total(可见单位合计);单位列 = rows[].units[code];
+  - 全武汉市列 = rows[].total(可见单位数量合计);单位列 = rows[].units[code];
   - 双值行(226/227/245/246)后端 a/b 两行,本页按 dualGroup 合并为一行
     「数 | 面积」二元组展示;
   - 空值与 0 置空(不补斜杠、不补 0)。
@@ -126,7 +126,7 @@
   }
 
   const tableColumns = computed<TableColumnsType<EffectStatRow>>(() => {
-    /** 全武汉市列:可见单位合计(服务端 rows[].total) */
+    /** 全武汉市列:可见单位数量合计(服务端 rows[].total) */
     const cityColumn: TableColumnsType<EffectStatRow>[number] = {
       key: 'city',
       title: '全武汉市',
@@ -136,7 +136,7 @@
       onCell: (record: EffectStatRow) => rowOnCell(record, 'city'),
       render: (_value: unknown, record: EffectStatRow) => renderDisplay(record.total),
     };
-    /** 各单位列:该单位行合计(服务端 rows[].units[code];双值行二元组) */
+    /** 各单位列:该单位行数量合计(服务端 rows[].units[code];双值行二元组) */
     const unitColumns: TableColumnsType<EffectStatRow> = unitColumnsData.map((unit) => ({
       key: unit.code,
       title: unit.name,

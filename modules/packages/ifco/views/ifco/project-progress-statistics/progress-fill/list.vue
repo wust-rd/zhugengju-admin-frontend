@@ -12,7 +12,7 @@
   - 默认整表为只读文本,点击项目列头「编辑」图标进入该列编辑态(同时仅一列;
     数值行 InputNumber,文字行 Input);自动行始终只读:
     4 个汇总行按构成行求和、「城市更新项目总数」= 项目列数(前端实时计算展示);
-  - 「新增就业岗位」(r23)= 普通填报行:每项目列各自填写,合计/总计自动求和;
+  - 「新增就业岗位」(r23)= 普通填报行:每项目列各自填写,小计/合计自动求和;
   - 保存:编辑完一列点列头对钩图标即存该列(saveProject,值全量同步);
     顶部「保存」按钮把全部已修改列依次落库;
   - 新增:Drawer 表单一次填项目名称 + 全部可录入指标行(add-project-drawer),
@@ -20,7 +20,7 @@
   - 删除:有 id 的列调 deleteProject 后移除,未落库的临时列直接移除;
     二三四季度「带入」生成的列不可删,一季度带入上一年四季度的列可删;
   - 带入:调 bringIn(每周期×单位限一次,服务端校验),成功后整包重载;
-  - 总览 tab 只读,按类目汇总:简单类目一列,嵌套类目拆三个二级子列,总计列固定第 4 列位。
+  - 总览 tab 只读,按类目汇总:简单类目一列,嵌套类目拆三个二级子列,合计列固定第 4 列位。
 
   菜单注册(菜单名称「项目进展填报」):
    - 链接地址:/ifco/progress-fill/list
@@ -112,7 +112,6 @@
         </div>
       </div>
     </Modal>
-
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoProgressFillList">
@@ -236,14 +235,7 @@
     renderers,
   });
 
-  const {
-    saving,
-    dirtyCols,
-    resetEditState,
-    handleFilterChange,
-    autoPersistDirty,
-    handleSave,
-  } = editing;
+  const { saving, dirtyCols, resetEditState, handleFilterChange, autoPersistDirty, handleSave } = editing;
   const TABLE_COMPONENTS = table.TABLE_COMPONENTS;
   const tableColumns = table.tableColumns;
   const scrollX = table.scrollX;

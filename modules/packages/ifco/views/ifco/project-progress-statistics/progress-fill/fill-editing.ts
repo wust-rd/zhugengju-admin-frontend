@@ -3,7 +3,7 @@
  *
  * 同时仅一列可编辑；脏列登记跨类目收集（colKey → {leafKey, col}），
  * 顶部「保存」统一落库；"填一列保存一列"由切换时机自动落库（共用工厂）。
- * 含合计级录入（total 行）Modal 逻辑。
+ * 含小计级录入（total 行）Modal 逻辑。
  */
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { Modal } from 'antdv-next';
@@ -12,7 +12,7 @@ import {
   INDICATORS,
   deleteProgressProject,
   quarterLabel,
-  saveProgressProject
+  saveProgressProject,
 } from '@jeesite/ifco/api/ifco/progress-fill';
 import { createAutoPersist } from '../../shared/dirty-persist';
 import { validateProgressColumn } from './fill-validation';
@@ -183,7 +183,6 @@ export function createFillEditing(deps: FillEditingDeps) {
     dirtyCols.delete(col.key);
     if (editingColKey.value === col.key) editingColKey.value = undefined;
   }
-
 
   return {
     editingColKey,

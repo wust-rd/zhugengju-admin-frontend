@@ -22,7 +22,7 @@ export type FillRow = {
 };
 
 /** 其中：本年新开工（r3，编码 102）：开关型指标，0=非新开工、1=是新开工；
- *  合计 = 各项目列该字段的总计（即为"是新开工"的项目个数） */
+ *  小计 = 各项目列该字段的合计（即为"是新开工"的项目个数） */
 export const NEW_START_KEY = 'r3';
 
 /** 未填内容与 0 一律置空(不补斜杠、不补 0) */
@@ -195,7 +195,6 @@ export function createCellRenderers(deps: CellRendererDeps) {
         : null,
     ]);
   }
-
 
   /** 自动行(汇总/项目数)整行浅灰加粗只读 */
   function sumRowOnCell(record: FillRow) {

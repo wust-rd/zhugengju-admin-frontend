@@ -2,7 +2,7 @@
  * ifco 成效填报 —— 表格列组装与列宽拖拽（从 list.vue 拆出）
  *
  * 列宽拖拽复用框架 ResizableTitle（同 sys/empUser）：onHeaderCell 注入 resizable
- * 与宽度回写。成效域无类目维度：固定 3 列 + 合计列 + 平铺项目列。
+ * 与宽度回写。成效域无类目维度：固定 3 列 + 数量合计列 + 平铺项目列。
  */
 import { computed, type Ref } from 'vue';
 import type { TableColumnsType } from 'antdv-next';
@@ -81,7 +81,7 @@ export function createTableColumns(deps: TableColumnsDeps) {
       },
       {
         key: 'total',
-        title: '合计',
+        title: '数量合计',
         width: widthFor('total', 140),
         align: 'right',
         onHeaderCell: resizableHeaderCell,

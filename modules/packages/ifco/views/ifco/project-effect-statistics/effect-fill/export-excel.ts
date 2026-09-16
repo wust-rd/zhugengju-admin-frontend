@@ -2,7 +2,7 @@
  * ifco —— 项目实施成效填报：Excel 导出（xlsx(SheetJS) 生成 + file-saver 下载）
  *
  * 成效填报无类目维度（用户定案），导出为单行表头的平铺表：
- *   指标名称 | 计量单位 | 代码 | 合计 | 各项目列…；
+ *   指标名称 | 计量单位 | 代码 | 数量合计 | 各项目列…；
  * 表体为成效指标全集（含「一、～八、」节标题行，仅名称列有值，其余空白）。
  * 双值行（数|面积）导出为一个文本单元格：纯数字以竖线拼接（无千分位），空侧留空。
  * 复用项目既有方案（同 progress-fill/export-excel.ts）；样式走 xlsx-js-style 分支：全表细边框。
@@ -39,7 +39,7 @@ export async function exportEffectExcel({ year, quarter, unitName, unitData }: E
 
   // ── 组装 AOA（1 行表头 + 指标全集含节标题行） ────────────────────────
   const rows: (string | number | undefined)[][] = [
-    ['指标名称', '计量单位', '代码', '合计', ...projects.map((project) => project.name)],
+    ['指标名称', '计量单位', '代码', '数量合计', ...projects.map((project) => project.name)],
   ];
   for (const item of EFFECT_INDICATORS) {
     const isSection = item.kind === 'section';
