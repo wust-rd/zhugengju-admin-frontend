@@ -4,11 +4,18 @@ import { cn } from '@jeesite/core/libs';
 /** cn 支持的所有 class 形式（字符串 / 条件对象 / 数组），供调用方控制按钮位置等 */
 type ClassValue = Parameters<typeof cn>[0];
 
+/**
+ * LayerControls —— 图层管理器胶囊按钮（左上角浮层）
+ *
+ * 位置默认 left-32px，调用方可用 class 覆盖（如片区策划页随左侧抽屉展开切到 left-80px）。
+ * 可选插槽 actions：「图层管理器」右侧追加按钮（项目实施页用它挂「皮子街片」），
+ * 不传插槽时渲染结果与原来完全一致。
+ */
 export const LayerControls = defineComponent({
   props: {
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: 'left-32px' },
   },
-  setup(props) {
+  setup(props, { slots }) {
     return () => (
       <div
         class={cn('absolute top-24px p-4px rd-6px bg-white/10 backdrop-blur-lg z-50 flex transition-all', props.class)}
@@ -23,6 +30,9 @@ export const LayerControls = defineComponent({
 
           <div class="text-white font-500 text-16px">图层管理器</div>
         </div>
+
+        {/* 右侧附加按钮（可选插槽）：同一个毛玻璃条内并排 */}
+        {slots.actions?.()}
       </div>
     );
   },

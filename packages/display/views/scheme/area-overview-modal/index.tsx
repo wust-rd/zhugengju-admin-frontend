@@ -126,7 +126,7 @@ export const AreaOverviewModal = defineComponent({
                     ))}
                   </div>
                 )}
-                {item.value}
+                {/* {item.value} */}
               </div>
 
               {/* 分隔线：最后一项不显示 */}

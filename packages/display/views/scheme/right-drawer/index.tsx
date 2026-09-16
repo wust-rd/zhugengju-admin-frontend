@@ -1,4 +1,4 @@
-import { defineComponent, inject, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue';
+import { defineComponent, inject, nextTick, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue';
 
 import { AreaDetailViewKey, useAreaDetailView } from '../use-area-detail-view';
 import { BasicInfo } from './basic-info';
@@ -10,8 +10,8 @@ import { ProjectInfo } from './project-info';
 import { RegulatoryChange } from './regulatory-change';
 import { UrbanDesign } from './urban-design';
 
-/** 抽屉 Tab 配置 */
-const DRAWER_TABS = [
+/** 抽屉 Tab 配置（导出：外部可用它校验 ?tab= 之类的入参） */
+export const DRAWER_TABS = [
   '基本情况',
   '体检情况',
   '功能策划',
@@ -22,6 +22,10 @@ const DRAWER_TABS = [
   '实施后评估',
 ] as const;
 export type DrawerTabLabel = (typeof DRAWER_TABS)[number];
+
+/** 判断任意值是否为合法的抽屉 Tab 名（用于 URL query 等外部入参校验） */
+export const isDrawerTab = (value: unknown): value is DrawerTabLabel =>
+  typeof value === 'string' && (DRAWER_TABS as readonly string[]).includes(value);
 
 /** Tab 对应的内容组件 */
 const TAB_COMPONENTS = {
@@ -50,7 +54,8 @@ const SCROLL_LOCK_MS = 1200;
  * 右侧抽屉：常显示面板，内容区为 Tab 切换页面
  *
  * - 顶部 Tab 切换器：横向排列，超出宽度可横向滑动（滚动条隐藏）；
- *   激活项为独立的「滑动指示器」，高亮切换时平滑滑动过去
+ *   激活项为独立的「滑动指示器」，高亮切换时平滑滑动过去；
+ *   切换后选中的 Tab 会被滚到 Tab 栏中间（首尾受边界限制），避免贴边导致相邻 Tab 点不到
  * - 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 与手动滚动双向联动：
  *   scrollspy 同步高亮 + 程序化滚动锁 + 底部留白（最后一块也能滚到顶）
  *
@@ -108,9 +113,23 @@ export const RightDrawer = defineComponent({
 
     onMounted(() => {
       recalcLayout();
+      // 初始也把选中的 Tab 居中，避免一进来就贴边
+      scrollActiveTabIntoView();
+      // 默认 Tab 被外部改成了非第一个（如 /display/scheme/area-detail?tab=项目情况）时，
+      // 内容区要一起定位过去，否则会出现「高亮在项目情况、内容还停在基本情况」的错位。
+      // 放在 nextTick：底部留白要先写进 DOM，最后一个区块才滚得到顶。
+      nextTick(() => {
+        if (activeTab.value !== DRAWER_TABS[0]) scrollToTab(activeTab.value, 'auto');
+        scrollActiveTabIntoView();
+      });
       window.addEventListener('resize', recalcLayout);
       // 自定义字体（优设标题黑）异步加载会影响尺寸，加载完成后重算一次
-      document.fonts?.ready.then(recalcLayout).catch(() => {});
+      document.fonts?.ready
+        .then(() => {
+          recalcLayout();
+          scrollActiveTabIntoView();
+        })
+        .catch(() => {});
     });
     onUnmounted(() => window.removeEventListener('resize', recalcLayout));
 
@@ -145,16 +164,22 @@ export const RightDrawer = defineComponent({
       scrollActiveTabIntoView();
     };
 
-    /** 点击 Tab：平滑滚动到对应内容区块 */
-    const scrollToTab = (tab: DrawerTabLabel) => {
+    /**
+     * 滚动内容区到指定 Tab 的区块
+     *
+     * @param behavior 'smooth'（默认）点击切换用平滑滚动，并临时锁住 scrollspy；
+     *                 'auto' 初始化定位用立即滚动，无需动画、也不用锁（滚动事件本身会校准高亮）
+     */
+    const scrollToTab = (tab: DrawerTabLabel, behavior: ScrollBehavior = 'smooth') => {
       const container = contentRef.value;
       if (!container) return;
       const target = getSectionEl(tab);
       if (!target) return;
       const top = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
       activeTab.value = tab;
+      container.scrollTo({ top, behavior });
+      if (behavior !== 'smooth') return;
       lockScrollSync = true;
-      container.scrollTo({ top, behavior: 'smooth' });
       // 平滑滚动结束后解锁并校准高亮（保险计时，兼容不支持 scrollend 的浏览器）
       window.clearTimeout(lockTimer);
       lockTimer = window.setTimeout(() => {
@@ -163,18 +188,22 @@ export const RightDrawer = defineComponent({
       }, SCROLL_LOCK_MS);
     };
 
-    /** 高亮 tab 超出 Tab 栏视口时，水平滚到居中（始终保持可见） */
+    /**
+     * 让高亮 Tab 尽量在 Tab 栏里横向居中（首尾受边界限制）
+     * 点击 / scrollspy 切换后都调用：选中的 Tab 不再贴边，两侧相邻 Tab 也能点到
+     */
     const scrollActiveTabIntoView = () => {
       const bar = tabBarRef.value;
       if (!bar) return;
       const el = getTabEl(activeTab.value);
       if (!el) return;
-      const barRect = bar.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      // 完全可见就不动，避免无谓滚动
-      if (elRect.left >= barRect.left && elRect.right <= barRect.right) return;
-      const target = el.offsetLeft - (bar.clientWidth - el.offsetWidth) / 2;
-      bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+      // 居中的目标位置（offsetLeft 相对内容包装器，与 scrollLeft 同一坐标系）
+      const centered = el.offsetLeft - (bar.clientWidth - el.offsetWidth) / 2;
+      // 夹到可滚动范围内：两端 Tab 无法真正居中，只能贴边
+      const max = Math.max(0, bar.scrollWidth - bar.clientWidth);
+      const left = Math.min(Math.max(centered, 0), max);
+      if (Math.abs(left - bar.scrollLeft) < 1) return; // 已在目标位置，避免无谓滚动
+      bar.scrollTo({ left, behavior: 'smooth' });
     };
 
     return () => (

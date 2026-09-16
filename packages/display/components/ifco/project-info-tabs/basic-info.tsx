@@ -19,16 +19,16 @@ const INFO_ITEMS = [
   { label: '行政区', value: '硚口区' },
   { label: '更新片区', value: '皮子街片' },
   { label: '项目名称', value: '皮子街两厂改造项目' },
-  { label: '五改类别', value: '老旧街区改造', pill: true },
+  { label: '五改类别', value: '老旧厂区改造', pill: true },
   { label: '四好目标', value: '好街区' },
   { label: '项目来源', value: '市级更新片区内项目' },
 ];
 
 /** 项目基本信息：项目投资 标签 + 取值（两列网格） */
 const PROJECT_INVEST_ITEMS = [
-  { label: '项目投资估算', value: '0.1846亿元' },
-  { label: '已完成投资', value: '0.15亿元' },
-  { label: '资金来源及落实情况', value: '国家专项资金，已落实' },
+  { label: '项目投资估算', value: '4.88亿元' },
+  { label: '已完成投资', value: '暂无数据' },
+  { label: '资金来源及落实情况', value: '中央预算内投资约、专项债资金、金融机构信贷资金' },
 ];
 
 /** 项目基本信息内容 */
@@ -156,14 +156,14 @@ export const BasicInfo = defineComponent({
                   {/* 信息列表 */}
                   <div class="rounded-8px  p-12px border border-2px border-white/6 mt-6px bg-#0F172A/15">
                     {PROJECT_INVEST_ITEMS.map((row) => (
-                      <div key={row.label} class="flex items-center h-28px px-4px mt-8px">
+                      <div key={row.label} class="flex items-center h-28px px-4px mt-12px">
                         <div class="rd-full size-12px flex items-center justify-center bg-white/10">
                           <div class="size-4px rd-full bg-white" />
                         </div>
 
                         <span class="text-14px text-white/75 font-400 ml-12px">{row.label}</span>
 
-                        <span class="ml-auto text-14px text-white w-160px">{row.value}</span>
+                        <span class="ml-auto text-14px text-white w-160px lh-16px">{row.value}</span>
                       </div>
                     ))}
                   </div>

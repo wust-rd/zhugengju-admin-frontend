@@ -7,8 +7,8 @@ import { CollapsibleSection } from '@jeesite/display/components/collapsible-sect
 /** 改造阶段 */
 const STAGES: StepsProps['items'] = [
   { title: '准备阶段', status: 'finish' },
-  { title: '实施阶段', status: 'process' },
-  { title: '竣工阶段', status: 'wait' },
+  { title: '实施阶段', status: 'finish' },
+  { title: '竣工阶段', status: 'process' },
 ];
 
 /* ============ 批复文件数据结构（对应图示分组） ============ */

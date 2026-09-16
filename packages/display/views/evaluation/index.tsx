@@ -1,28 +1,61 @@
-import { computed, defineComponent, inject, ref } from 'vue';
+import { computed, defineComponent, inject, provide } from 'vue';
 import { match } from 'ts-pattern';
-import { ProjectTabContent } from '../../components/project-tab-content';
-import { RouterLink } from 'vue-router';
-import { MapControls } from '@jeesite/display/components/map-controls';
+import { useRoute } from 'vue-router';
 import { EvaluationViewKey } from '@jeesite/display/hooks/use-evaluation-view';
 
-/** 真实范围线（area）与项目地块（project）数据，?url 导入 + 运行时 fetch，不打进 bundle */
+import { isDrawerTab, RightDrawer, type DrawerTabLabel } from '../scheme/right-drawer';
+import type { DesignCard } from '../scheme/right-drawer/urban-design';
+import type { ExamTab } from '../scheme/right-drawer/physical-exam';
+import type { FeatureCard } from '../scheme/right-drawer/feature-plan';
+import type { RegulatoryTab } from '../scheme/right-drawer/regulatory-change';
+import { EVALUATION_IMAGES } from '../scheme/right-drawer/shared';
+import { AreaDetailViewKey, useAreaDetailView } from '../scheme/use-area-detail-view';
 
-/** OSS 图片基础地址 */
-const OSS_BASE = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/片区策划';
+/** 皮子街片区素材 OSS 基础地址（与片区详情页 views/scheme/area-detail.tsx 同一套） */
+const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片区策划-皮子街';
 
-/** 抽屉 Tab 配置：label（同时作为唯一标识）+ 内容图片 + 弹窗预览图（preview 为空表示不可点击预览） */
-const DRAWER_TABS = [
-  { label: '基本情况', image: `${OSS_BASE}/基本情况.webp`, preview: '' },
-  { label: '体检情况', image: `${OSS_BASE}/体检情况.webp`, preview: `${OSS_BASE}/片区策划图册.webp` },
-  { label: '功能策划', image: `${OSS_BASE}/功能策划.webp`, preview: `${OSS_BASE}/片区策划图册.webp` },
-  { label: '项目情况', image: `${OSS_BASE}/项目情况.webp`, preview: `${OSS_BASE}/片区项目清单.webp` },
-  {
-    label: '实施后评估',
-    image: `${OSS_BASE}/实施后评估.webp`,
-    preview: `${OSS_BASE}/实施后评估-相册.webp`,
-  },
-] as const;
-type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
+/**
+ * 一级 Tab → 左侧大图（从 area-detail.tsx 直接复制过来的一套映射）
+ *
+ * 只列「一张 Tab 对一张图」的；另外五个 Tab 的图由各自的二级选择决定：
+ * 「体检情况」看 EXAM_IMG、「规划变更」看 REG_IMG、「功能策划」看 FEATURE_IMG、
+ * 「城市设计」看 DESIGN_IMG、「实施后评估」看 shared 的 EVALUATION_IMAGES。
+ */
+type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '规划变更' | '功能策划' | '城市设计' | '实施后评估'>;
+
+const TAB_IMG: Record<PlainTab, string> = {
+  基本情况: `${AREA_OSS}/基本情况-大图.webp`,
+  项目情况: `${AREA_OSS}/项目情况.webp`,
+};
+
+/** 二级 Tab（「体检情况」内的三个清单）→ 左侧大图（皮子街素材） */
+const EXAM_IMG: Record<ExamTab, string> = {
+  问题清单: `${AREA_OSS}/体检情况-问题清单-大图.webp`,
+  资源清单: `${AREA_OSS}/体检情况-资源清单-大图.webp`,
+  需求清单: `${AREA_OSS}/体检情况-需求清单-大图.webp`,
+};
+
+/** 「规划变更」三个图纸 → 左侧大图（皮子街素材） */
+const REG_IMG: Record<RegulatoryTab, string> = {
+  调整前图纸: `${AREA_OSS}/规划变更-调整前.webp`,
+  调整后图纸: `${AREA_OSS}/规划变更-调整后.webp`,
+  调整前后对比: `${AREA_OSS}/规划变更-前后对比.webp`,
+};
+
+/** 「功能策划」两张卡片 → 左侧大图（皮子街素材） */
+const FEATURE_IMG: Record<FeatureCard, string> = {
+  总体目标: `${AREA_OSS}/功能策划-总体目标.webp`,
+  主导功能定位: `${AREA_OSS}/功能策划-主导功能定位.webp`,
+};
+
+/** 「城市设计」两张卡片 → 左侧大图（皮子街素材） */
+const DESIGN_IMG: Record<DesignCard, string> = {
+  产业发展: `${AREA_OSS}/城市设计-产业发展.webp`,
+  历史文化保护: `${AREA_OSS}/城市设计-历史文化保护.webp`,
+};
+
+/** 打开本页默认停留的 Tab：成果评估 → 实施后评估 */
+const DEFAULT_TAB: DrawerTabLabel = '实施后评估';
 
 /** 搬过来的「总览」页面（原项目实施第三个页面）：左右两张底图拼接 + 红色热点切详情大图 */
 const MAP_IMAGE_URL_LEFT = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/征收管理/总览-left.webp';
@@ -33,31 +66,38 @@ const DETAIL_IMAGE_URL = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihu
 /** 搬过来的「名称保护」页面（原项目实施第四个页面）：整页只有一张图 */
 const NAME_PROTECT_IMAGE_URL = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/征收管理/名称保护.webp';
 
+/**
+ * 成果评估页（/display/evaluation）
+ *
+ * 本页「自己的内容」（默认页）就是片区详情页那一套：左侧大图 + 右侧真实抽屉 RightDrawer，
+ * 打开即停在「实施后评估」Tab —— 实现是从 views/scheme/area-detail.tsx 直接复制过来的
+ * （按需求不抽公共组件），因此两页的 Tab ↔ 图片映射、左右联动方式完全一致。
+ *
+ * 另外两个页面仍由侧边栏第 3/4 个图标页内切换（不换路由）：
+ *   overview = 征收管理总览、nameProtect = 名称保护单图。
+ */
 export default defineComponent({
   name: 'DisplayResult',
   setup() {
-    const drawerRef = ref<HTMLDivElement | null>(null);
-    /** 右侧抽屉（地图点击打开） */
-    const drawerVisible = ref(true);
-    const activeTab = ref<DrawerTabLabel>('实施后评估');
-    const previewVisible = ref(false);
-    /** 项目 tab 三个按钮点击后弹出的图片地址 */
-    const projectPreviewSrc = ref('');
+    // 共享 Tab 状态：provide 给抽屉内的组件，本页读它换左侧大图
+    const view = useAreaDetailView();
+    provide(AreaDetailViewKey, view);
 
-    /** 当前 Tab 配置（含内容图与预览图），单一数据源派生，避免重复查找 */
-    const activeTabConfig = computed(() => DRAWER_TABS.find((t) => t.label === activeTab.value) ?? DRAWER_TABS[0]);
-    /** project / evaluation tab 使用 ProjectTabContent 多按钮组件 */
-    const isMultiButtonTab = computed(() => activeTab.value === '项目情况' || activeTab.value === '实施后评估');
-    /** 预览弹窗的图片地址：多按钮 tab 用回调传入的地址，其余 tab 用配置的 preview */
-    const previewImageSrc = computed(() =>
-      isMultiButtonTab.value ? projectPreviewSrc.value : (activeTabConfig.value.preview ?? ''),
-    );
+    // 打开本页默认停在「实施后评估」；带 ?tab=xxx 时以参数为准（非法值忽略），
+    // 与 /display/scheme/area-detail?tab=xxx 的行为保持一致
+    const { tab } = useRoute().query;
+    view.primaryTab.value = isDrawerTab(tab) ? tab : DEFAULT_TAB;
 
-    /** 关闭预览弹窗 */
-    const closePreview = () => {
-      previewVisible.value = false;
-      projectPreviewSrc.value = '';
-    };
+    /** 当前该显示的左侧大图：两个「多图」Tab 各按自己的二级选择取图，其余走 TAB_IMG 静态映射 */
+    const currentImg = computed(() => {
+      const current = view.primaryTab.value;
+      if (current === '体检情况') return EXAM_IMG[view.examTab.value];
+      if (current === '规划变更') return REG_IMG[view.regulatoryTab.value];
+      if (current === '功能策划') return FEATURE_IMG[view.featureCard.value];
+      if (current === '城市设计') return DESIGN_IMG[view.designCard.value];
+      if (current === '实施后评估') return EVALUATION_IMAGES[view.evalImgIndex.value];
+      return TAB_IMG[current]; // 此处 current 已被收窄为 PlainTab
+    });
 
     /**
      * 成果评估模块页面状态（由 layouts/index.tsx provide，Sidebar 第 3/4 个图标写入）
@@ -70,89 +110,19 @@ export default defineComponent({
     // 在 setup 中同步重置（而非 onMounted），避免先渲染一帧上次残留的页面。
     resetEvaluationView();
 
-    /** 成果评估自己的内容（左侧地图 + 右侧 Tab 抽屉）—— 默认页 */
+    /** 成果评估自己的内容（左侧大图 + 右侧真实抽屉，默认停在「实施后评估」）—— 默认页 */
     const renderOwnContent = () => (
       <>
-        <div class="flex-1 w-1430px h-full relative">
-          {/* <RouterLink to="/display/scheme">
-            <img src={`${OSS_BASE}/知音东苑片-返回.webp`} class="absolute top-12px left-12px w-250px h-56px" />
-          </RouterLink> */}
-
-          <img src={`${OSS_BASE}/知音东苑片-${activeTab.value}.webp`} class="w-full h-full object-fill" />
-
-          {/* 地图控件：右下角 */}
-          <div class="absolute right-24px bottom-24px z-10">
-            <MapControls />
-          </div>
+        {/* 左侧大图：跟随右侧抽屉当前 Tab 切换（object-contain 完整显示） */}
+        <div class="relative h-full min-w-0 flex-1 overflow-hidden">
+          <img src={currentImg.value} alt={view.primaryTab.value} class="size-full object-contain" />
         </div>
 
-        {/* 右侧 Drawer：地图点击打开，Tab 切换内容 */}
-        <div
-          class={
-            'w-420px flex flex-col bg-[#0f2b47] text-white shadow-2xl transition-transform duration-300 ' +
-            (drawerVisible.value ? 'translate-x-0' : 'translate-x-full')
-          }
-        >
-          {/* 顶部 Tab 切换器（5 等分胶囊样式） */}
-          <div class="flex h-44px items-stretch bg-[#1a3a5c]">
-            {DRAWER_TABS.map((tab) => (
-              <div
-                key={tab.label}
-                class={
-                  'flex flex-1 cursor-pointer items-center justify-center text-14px whitespace-nowrap transition-all duration-200 ' +
-                  (activeTab.value === tab.label
-                    ? 'border border-[#5fbfff]/60 bg-gradient-to-r from-[#0ea5e9]/20 to-[#0E83BD] font-500 text-white shadow-lg'
-                    : 'border border-transparent text-white/60 hover:text-white')
-                }
-                onClick={() => (activeTab.value = tab.label)}
-              >
-                {tab.label}
-              </div>
-            ))}
-          </div>
-
-          {/* 内容区：多按钮 tab（project / evaluation）使用 ProjectTabContent，其余 tab 为单图点击预览 */}
-          <div class="scrollbar-none flex-1 overflow-y-auto">
-            {isMultiButtonTab.value ? (
-              <ProjectTabContent
-                bgImage={activeTabConfig.value.image}
-                topImage={`${OSS_BASE}/片区项目清单.webp`}
-                middleImage={`${OSS_BASE}/片区资金情况.webp`}
-                bottomImage={`${OSS_BASE}/实施后评估-相册.webp`}
-                onPreview={(src: string) => {
-                  projectPreviewSrc.value = src;
-                  previewVisible.value = true;
-                }}
-              />
-            ) : (
-              <img
-                src={activeTabConfig.value.image}
-                alt={activeTabConfig.value.label}
-                class={'w-full rounded-lg ' + (activeTabConfig.value.preview ? 'cursor-pointer' : '')}
-                onClick={() => {
-                  if (activeTabConfig.value.preview) {
-                    previewVisible.value = true;
-                  }
-                }}
-              />
-            )}
-          </div>
+        {/* 右侧：真实抽屉组件。RightDrawer 自身是 absolute right-0 top-0 + w-420px，
+            用等尺寸的 relative 容器兜住它的尺寸（与片区详情页里的用法一致） */}
+        <div class="relative h-full w-420px shrink-0">
+          <RightDrawer />
         </div>
-
-        {/* 预览 Modal：多按钮 tab 由 ProjectTabContent 的 onPreview 回调驱动，其余 tab 由 preview 配置驱动 */}
-        {previewVisible.value && previewImageSrc.value && (
-          <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60" onClick={closePreview}>
-            <div class="relative inline-block" onClick={(e: MouseEvent) => e.stopPropagation()}>
-              <img
-                src={previewImageSrc.value}
-                alt="图片预览"
-                class="max-h-[90vh] w-884px rounded-xl object-contain shadow-2xl"
-              />
-              {/* 右上角关闭按钮 */}
-              <div class="absolute right-0px top-0px size-64px cursor-pointer" onClick={closePreview}></div>
-            </div>
-          </div>
-        )}
       </>
     );
 

@@ -1,5 +1,6 @@
 import { computed, defineComponent, provide } from 'vue';
-import { RightDrawer, type DrawerTabLabel } from './right-drawer';
+import { useRoute } from 'vue-router';
+import { isDrawerTab, RightDrawer, type DrawerTabLabel } from './right-drawer';
 import type { FeatureCard } from './right-drawer/feature-plan';
 import type { ExamTab } from './right-drawer/physical-exam';
 import type { RegulatoryTab } from './right-drawer/regulatory-change';
@@ -57,6 +58,8 @@ const DESIGN_IMG: Record<DesignCard, string> = {
  * 片区详情页：左右布局 —— 左侧大图 + 右侧真实抽屉组件
  *
  * 入口：地图上点片区面 → 右上角「片区概况」卡片 → 「查看详情」按钮（/display/scheme/area-detail）。
+ * 也支持带 query 直接定位某个 Tab：/display/scheme/area-detail?tab=项目情况
+ * （项目实施页左上角的「皮子街片」按钮就是跳回本页并指定「项目情况」）。
  * 右侧复用真实抽屉组件 RightDrawer（7 个 Tab + 点击/滚动联动的数据面板），
  * 与另一条链路的图片版详情页（/display/scheme/detail，detail.tsx）互不影响。
  *
@@ -72,6 +75,12 @@ export default defineComponent({
   setup() {
     // 共享 Tab 状态：provide 给抽屉内的组件，本页读它换图
     const view = useAreaDetailView();
+
+    // 支持 ?tab=项目情况 这样的入参，进页面就直接停在指定 Tab
+    // （项目实施页左上角「皮子街片」按钮就是这么跳回来的；参数非法则忽略，用默认「基本情况」）
+    const { tab } = useRoute().query;
+    if (isDrawerTab(tab)) view.primaryTab.value = tab;
+
     provide(AreaDetailViewKey, view);
 
     /** 当前该显示的左侧大图：两个「多图」Tab 各按自己的二级选择取图，其余走 TAB_IMG 静态映射 */
