@@ -19,7 +19,7 @@
    - 组件位置:/ifco/progress-statistics/list(与链接地址一致)
 -->
 <template>
-  <PageWrapper>
+  <PageWrapper content-full-height content-class="flex flex-col overflow-hidden">
     <Card class="mb-3">
       <div class="flex flex-wrap items-center justify-between gap-y-2">
         <div class="flex items-center">
@@ -29,24 +29,26 @@
       </div>
     </Card>
 
-    <Card>
+    <Card class="fill-page-card flex-1 min-h-0">
       <RadioGroup
         v-model:value="activeUnit"
         :options="unitOptions"
         option-type="button"
         class="progress-stat-radios mb-2 flex flex-wrap"
       />
-      <Table
-        :columns="tableColumns"
-        :data-source="displayRows"
-        :loading="loading"
-        :scroll="{ x: scrollX, y: TABLE_HEIGHT }"
-        :components="TABLE_COMPONENTS"
-        :pagination="false"
-        bordered
-        size="small"
-        row-key="key"
-      />
+      <div ref="tableWrapRef" class="flex-1 min-h-0">
+        <Table
+          :columns="tableColumns"
+          :data-source="displayRows"
+          :loading="loading"
+          :scroll="{ x: scrollX, y: tableBodyY }"
+          :components="TABLE_COMPONENTS"
+          :pagination="false"
+          bordered
+          size="small"
+          row-key="key"
+        />
+      </div>
     </Card>
   </PageWrapper>
 </template>
@@ -67,6 +69,7 @@
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/progress-fill';
   import { exportProgressStatExcel } from './export-excel';
+  import { useTableBodyHeight } from '../../shared/table-viewport';
   import PeriodSelects from '../../shared/PeriodSelects.vue';
   import { useCurrentPeriod } from '../../shared/period-options';
 
@@ -74,6 +77,10 @@
   type StatRow = ProgressStatRow;
 
   const { showMessage } = useMessage();
+
+  // 表格视口高度:容器 flex-1 实测,详见 shared/table-viewport
+  const tableWrapRef = ref<HTMLDivElement>();
+  const tableBodyY = useTableBodyHeight(tableWrapRef);
 
   // ── 列宽拖拽(复用框架 ResizableTitle,同 sys/empUser):onHeaderCell 注入 resizable 与宽度回写 ──
   const TABLE_COMPONENTS = { header: { cell: ResizableTitle } };
@@ -220,9 +227,6 @@
     ];
   });
 
-  /** 表格区域高度:视口自适应,表格内部纵向滚动(不依赖页面滚动,表头恒在视野) */
-  const TABLE_HEIGHT = 'calc(100vh - 580px)';
-
   // 横向滚动宽度 = 各列当前宽度(含拖拽调整)之和
   const scrollX = computed(
     () =>
@@ -278,6 +282,17 @@
 </style>
 
 <style>
+  .fill-page-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .fill-page-card > .ant-card-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
   /* 自动行(汇总/项目数)仅加粗,不加背景色 */
   .progress-stat-row-sum {
     font-weight: 600;

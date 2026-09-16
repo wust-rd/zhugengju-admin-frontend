@@ -14,7 +14,9 @@
     4 个汇总行按构成行求和、「城市更新项目总数」= 项目列数(前端实时计算展示);
   - 「新增就业岗位」= 合计级录入行:指标名旁「编辑」弹 Modal 录合计值并即存(saveTotal);
   - 保存:编辑完一列点列头对钩图标即存该列(saveProject,值全量同步);
-    顶部「保存」按钮把全部已修改列依次落库;新列保存后用返回的 projectId 替换临时 key;
+    顶部「保存」按钮把全部已修改列依次落库;
+  - 新增:Drawer 表单一次填项目名称 + 全部可录入指标行(add-project-drawer),
+    保存即落库,成功后以服务端 projectId 为列 key 追加最右,不进表格编辑态;
   - 删除:有 id 的列调 deleteProject 后移除,未落库的临时列直接移除;
     二三四季度「带入」生成的列不可删,一季度带入上一年四季度的列可删;
   - 带入:调 bringIn(每周期×单位限一次,服务端校验),成功后整包重载;
@@ -26,7 +28,7 @@
   指标清单与汇总口径见 @jeesite/ifco/api/ifco/progress-fill,Excel 导出见同目录 export-excel.ts。
 -->
 <template>
-  <PageWrapper>
+  <PageWrapper content-full-height content-class="flex flex-col overflow-hidden">
     <PeriodDeadlineNote :year="year" :quarter="quarter" :deadline="fillDeadline" />
 
     <Card class="mb-3">
@@ -50,7 +52,13 @@
         </div>
         <div class="flex items-center">
           <a-button v-if="canFill" :disabled="loading" @click="handleBringIn"> 带入上一季度填写的项目列 </a-button>
-          <a-button type="primary" class="ml-2" v-if="!isOverview && canFill" @click="handleAddProject">
+          <a-button
+            type="primary"
+            class="ml-2"
+            :disabled="loading"
+            v-if="!isOverview && canFill"
+            @click="handleAddProject"
+          >
             <Icon icon="i-fluent:add-12-filled" /> 新增
           </a-button>
           <a-button class="ml-2" :loading="exporting" @click="handleExport"> 导出 </a-button>
@@ -59,7 +67,7 @@
       </div>
     </Card>
 
-    <Card>
+    <Card class="fill-page-card flex-1 min-h-0">
       <RadioGroup
         v-model:value="activeCategory"
         :options="categoryOptions"
@@ -73,12 +81,12 @@
         option-type="button"
         class="progress-fill-radios mb-2 flex flex-wrap"
       />
-      <div ref="tableWrapRef">
+      <div ref="tableWrapRef" class="flex-1 min-h-0">
         <Table
           :columns="tableColumns"
           :data-source="FILL_ROWS"
           :loading="loading"
-          :scroll="{ x: scrollX, y: TABLE_HEIGHT }"
+          :scroll="{ x: scrollX, y: tableBodyY }"
           :components="TABLE_COMPONENTS"
           :pagination="false"
           bordered
@@ -88,18 +96,7 @@
       </div>
     </Card>
 
-    <Modal v-model:open="addModalOpen" title="新增项目" centered @ok="handleAddConfirm">
-      <div class="pt-2">
-        <span class="text-gray-500">项目名称</span>
-        <Input
-          v-model:value="newProjectName"
-          placeholder="请输入项目名称"
-          allow-clear
-          class="mt-2"
-          @press-enter="handleAddConfirm"
-        />
-      </div>
-    </Modal>
+    <AddProjectDrawer @register="registerAddDrawer" @success="handleAddSaved" />
 
     <Modal v-model:open="bringModalOpen" title="带入上一季度填写的项目列" centered :footer="null" width="600">
       <div class="pt-2 text-gray-600">
@@ -148,18 +145,21 @@
     loadProgressFillData,
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/progress-fill';
-  import { Card, Input, InputNumber, Modal, RadioGroup, Select, Table } from 'antdv-next';
+  import { useDrawer } from '@jeesite/core/components/Drawer';
+  import { Card, InputNumber, Modal, RadioGroup, Select, Table } from 'antdv-next';
   import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
   import { createBringInController } from '../../shared/bring-in';
   import { useFillDeadline } from '../../shared/fill-deadline';
   import { PeriodDeadlineNote } from '@jeesite/shared/components/period-deadline-note';
   import { useCurrentPeriod } from '../../shared/period-options';
   import PeriodSelects from '../../shared/PeriodSelects.vue';
+  import AddProjectDrawer from './add-project-drawer.vue';
   import type { FillRow } from './cell-renderers';
   import { createCellRenderers } from './cell-renderers';
   import { exportProgressFillExcel } from './export-excel';
   import { createFillEditing } from './fill-editing';
   import { createTableColumns } from './table-columns';
+  import { useTableBodyHeight } from '../../shared/table-viewport';
 
   const { showMessage } = useMessage();
 
@@ -273,37 +273,28 @@
     resetEditState();
   });
 
-  // ── 新增项目:居中 Modal 命名,确认后追加最右列并滚动到位 ──────────────
-  const addModalOpen = ref(false);
-  const newProjectName = ref('');
+  // ── 新增项目:Drawer 表单(项目名称+可录入指标行),保存即落库,成功后追加最右列 ──
   const tableWrapRef = ref<HTMLDivElement>();
+  // 表格视口高度:容器 flex-1 实测,详见 shared/table-viewport
+  const tableBodyY = useTableBodyHeight(tableWrapRef);
+  const [registerAddDrawer, { openDrawer: openAddDrawer }] = useDrawer();
 
   function handleAddProject() {
     if (!unitEditable.value) {
       showMessage('当前单位为只读查看，不可填报');
       return;
     }
-    newProjectName.value = '';
-    addModalOpen.value = true;
+    const leaf = activeLeaf.value;
+    if (!leaf || !reportUnit.value) return;
+    openAddDrawer(true, { year: year.value, quarter: quarter.value, unit: reportUnit.value, leafKey: leaf.key });
   }
 
-  async function handleAddConfirm() {
-    const name = newProjectName.value.trim();
-    if (!name) {
-      showMessage('请输入项目名称');
-      return;
-    }
+  /** 抽屉保存成功回调:落库后的列(key=服务端 projectId)追加到当前类目最右并滚动露出 */
+  function handleAddSaved(col: ProjectColumn) {
     const leaf = activeLeaf.value;
     if (!leaf || !periodData.value) return;
-    // 新列进入编辑前,先把之前未保存的脏列自动落库
-    await autoPersistDirty();
     const tab = periodData.value[leaf.key] ?? (periodData.value[leaf.key] = { projects: [], totals: {} });
-    const col = reactive<ProjectColumn>({ key: `add-${Date.now()}`, name, imported: false, values: {} });
     tab.projects.push(col);
-    dirtyCols.set(col.key, { leafKey: leaf.key, col });
-    addModalOpen.value = false;
-    // 新增即填报:直接进入该列编辑,并把表格滚到最右露出新列
-    editing.editingColKey.value = col.key;
     nextTick(() => {
       const scroller = tableWrapRef.value?.querySelector('.ant-table-content, .ant-table-body');
       if (scroller) {
@@ -357,9 +348,6 @@
       code: item.code,
     })),
   );
-
-  /** 表格区域高度:视口自适应,表格内部纵向滚动(不依赖页面滚动,表头恒在视野) */
-  const TABLE_HEIGHT = 'calc(100vh - 460px)';
 </script>
 
 <style scoped>
@@ -369,6 +357,17 @@
 </style>
 
 <style>
+  .fill-page-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .fill-page-card > .ant-card-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
   /* 奇数项目列淡青底色(提升横向辨识度);优先级低于其后的汇总行/编辑列样式 */
   .progress-fill-col-alt {
     background: #f0fafa;

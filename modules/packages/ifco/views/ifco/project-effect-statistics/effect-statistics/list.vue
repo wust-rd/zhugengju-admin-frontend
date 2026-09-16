@@ -18,7 +18,7 @@
    - 组件位置:/ifco/effect-statistics/list(与链接地址一致)
 -->
 <template>
-  <PageWrapper>
+  <PageWrapper content-full-height content-class="flex flex-col overflow-hidden">
     <Card class="mb-3">
       <div class="flex flex-wrap items-center justify-between gap-y-2">
         <div class="flex items-center">
@@ -28,18 +28,20 @@
       </div>
     </Card>
 
-    <Card>
-      <Table
-        :columns="tableColumns"
-        :data-source="STAT_ROWS"
-        :loading="loading"
-        :scroll="{ x: scrollX, y: TABLE_HEIGHT }"
-        :components="TABLE_COMPONENTS"
-        :pagination="false"
-        bordered
-        size="small"
-        row-key="key"
-      />
+    <Card class="fill-page-card flex-1 min-h-0">
+      <div ref="tableWrapRef" class="flex-1 min-h-0">
+        <Table
+          :columns="tableColumns"
+          :data-source="STAT_ROWS"
+          :loading="loading"
+          :scroll="{ x: scrollX, y: tableBodyY }"
+          :components="TABLE_COMPONENTS"
+          :pagination="false"
+          bordered
+          size="small"
+          row-key="key"
+        />
+      </div>
     </Card>
   </PageWrapper>
 </template>
@@ -48,6 +50,7 @@
   import { Card, Table } from 'antdv-next';
   import type { TableColumnsType } from 'antdv-next';
   import ResizableTitle from '@jeesite/core/components/Table/src/components/ResizableTitle.vue';
+  import { useTableBodyHeight } from '../../shared/table-viewport';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import type { EffectStatRow } from '@jeesite/ifco/api/ifco/effect-fill';
@@ -56,6 +59,10 @@
   import { useCurrentPeriod } from '../../shared/period-options.js';
 
   const { showMessage } = useMessage();
+
+  // 表格视口高度:容器 flex-1 实测,详见 shared/table-viewport
+  const tableWrapRef = ref<HTMLDivElement>();
+  const tableBodyY = useTableBodyHeight(tableWrapRef);
 
   // ── 列宽拖拽(复用框架 ResizableTitle,同 sys/empUser):onHeaderCell 注入 resizable 与宽度回写 ──
   const TABLE_COMPONENTS = { header: { cell: ResizableTitle } };
@@ -170,9 +177,6 @@
     ];
   });
 
-  /** 表格区域高度:视口自适应,表格内部纵向滚动(不依赖页面滚动,表头恒在视野) */
-  const TABLE_HEIGHT = 'calc(100vh - 420px)';
-
   // 横向滚动宽度 = 各列当前宽度(含拖拽调整)之和
   const scrollX = computed(
     () =>
@@ -190,6 +194,17 @@
 </script>
 
 <style>
+  .fill-page-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .fill-page-card > .ant-card-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
   /* 节标题行(一、～八、)加粗 */
   .effect-stat-row-section {
     font-weight: 600;

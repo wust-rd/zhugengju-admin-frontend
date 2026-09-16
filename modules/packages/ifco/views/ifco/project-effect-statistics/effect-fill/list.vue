@@ -25,7 +25,7 @@
    - 组件位置:/ifco/effect-fill/list(与链接地址一致)
 -->
 <template>
-  <PageWrapper>
+  <PageWrapper content-full-height content-class="flex flex-col overflow-hidden">
     <PeriodDeadlineNote :year="year" :quarter="quarter" :deadline="fillDeadline" />
     <Card class="mb-3">
       <div class="flex flex-wrap items-center justify-between gap-y-2">
@@ -57,13 +57,13 @@
       </div>
     </Card>
 
-    <Card>
-      <div ref="tableWrapRef">
+    <Card class="fill-page-card flex-1 min-h-0">
+      <div ref="tableWrapRef" class="flex-1 min-h-0">
         <Table
           :columns="tableColumns"
           :data-source="FILL_ROWS"
           :loading="loading"
-          :scroll="{ x: scrollX, y: TABLE_HEIGHT }"
+          :scroll="{ x: scrollX, y: tableBodyY }"
           :components="TABLE_COMPONENTS"
           :pagination="false"
           bordered
@@ -130,6 +130,7 @@
   import { exportEffectExcel } from './export-excel';
   import { createFillEditing } from './fill-editing';
   import { createTableColumns } from './table-columns';
+  import { useTableBodyHeight } from '../../shared/table-viewport';
 
   const { showMessage } = useMessage();
 
@@ -197,6 +198,8 @@
   const addModalOpen = ref(false);
   const newProjectName = ref('');
   const tableWrapRef = ref<HTMLDivElement>();
+  // 表格视口高度:容器 flex-1 实测,详见 shared/table-viewport
+  const tableBodyY = useTableBodyHeight(tableWrapRef);
 
   function handleAddProject() {
     if (!unitEditable.value) {
@@ -275,12 +278,20 @@
       code: item.code,
     })),
   );
-
-  /** 表格区域高度:视口自适应,表格内部纵向滚动(不依赖页面滚动,表头恒在视野) */
-  const TABLE_HEIGHT = 'calc(100vh - 400px)';
 </script>
 
 <style>
+  .fill-page-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .fill-page-card > .ant-card-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
   /* 节标题行(一、～八、)加粗,不加背景色 */
   .effect-fill-row-section {
     font-weight: 600;
