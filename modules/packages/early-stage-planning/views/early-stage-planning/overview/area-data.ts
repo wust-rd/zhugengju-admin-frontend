@@ -8,6 +8,7 @@
  *  - loadAreas(batch)：该批次 FeatureCollection（按批次缓存，切回不重复请求）
  *  - districtAreaCount(areas)：按行政/功能区统计片区数量（柱状图用）
  *  - areaGroups(areas)：按区划分组 → 片区行（FUNC_TYPE_VALUE 解析成 TOD/EOD 等胶囊）
+ *  - progressItems/progressGroups(areas)：AREA_COLOR 三色图计数与推进情况分组列表
  */
 
 import {
@@ -16,6 +17,7 @@ import {
   type EspMapAreaRow,
 } from '@jeesite/early-stage-planning/api/early-stage-planning/esp-map';
 import type { XodFlag, XodItem } from '@jeesite/display/components/corner-panel/xod-row';
+import type { ProgressItem } from './progress-chart';
 import { decodeGeometry, type MultiPolygonGeometry } from './geometry-decode';
 
 /** 片区 FeatureCollection（properties 为接口行去掉 geometry 字符串后的原文属性） */
@@ -101,4 +103,63 @@ export function areaGroups(areas: AreaCollection): { title: string; badgeValue: 
     byDist.set(dist, list);
   }
   return [...byDist.entries()].map(([title, items]) => ({ title, badgeValue: items.length, items }));
+}
+
+/** 三色图色板与名称（AREA_COLOR 字段口径：2026 年第二季度推进情况，仅第一批有值） */
+const PROGRESS_META: { key: ProgressColor; name: string; title: string; color: string }[] = [
+  { key: 'green', name: '绿', title: '推进良好（绿）', color: '#2EE6A8' },
+  { key: 'yellow', name: '黄', title: '推进中（黄）', color: '#F5E334' },
+  { key: 'red', name: '红', title: '滞后（红）', color: '#FB4A64' },
+];
+
+/** 推进情况颜色 key（none = 无 AREA_COLOR 值，第二批片区全量） */
+type ProgressColor = 'green' | 'yellow' | 'red' | 'none';
+
+/** 片区 → 推进情况颜色 key（库中 area_color 只有 green/yellow/red，其余归 none） */
+function progressColorOf(f: AreaCollection['features'][number]): ProgressColor {
+  const c = f.properties.AREA_COLOR;
+  return c === 'green' || c === 'yellow' || c === 'red' ? c : 'none';
+}
+
+/** 三色图数据：AREA_COLOR 计数与占比（片数 / 批次总片数，四舍五入），只含绿/黄/红三段
+    （无颜色片区不计入，第二批全量无标注时三段均为 0；未评定片区仅在分组列表体现） */
+export function progressItems(areas: AreaCollection): ProgressItem[] {
+  const counts = new Map<ProgressColor, number>([
+    ['green', 0],
+    ['yellow', 0],
+    ['red', 0],
+    ['none', 0],
+  ]);
+  for (const f of areas.features) {
+    const key = progressColorOf(f);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const total = areas.features.length;
+  return PROGRESS_META.map(({ key, name, color }) => ({
+    key,
+    name,
+    color,
+    count: counts.get(key) ?? 0,
+    percent: total > 0 ? Math.round(((counts.get(key) ?? 0) / total) * 100) : 0,
+  }));
+}
+
+/** 推进情况分组列表：按 绿/黄/红/未评定 分组 → 片区行（FUNC 胶囊同行政区划 tab；空组不渲染） */
+export function progressGroups(areas: AreaCollection): { title: string; badgeValue: number; items: XodItem[] }[] {
+  const byKey = new Map<ProgressColor, XodItem[]>();
+  for (const f of areas.features) {
+    const p = f.properties;
+    const item: XodItem = { label: p.AREA_NAME ?? p.A_UID, ...funcFlags(p.FUNC_TYPE_VALUE) };
+    const key = progressColorOf(f);
+    const list = byKey.get(key) ?? [];
+    list.push(item);
+    byKey.set(key, list);
+  }
+  const titles: { key: ProgressColor; title: string }[] = [
+    ...PROGRESS_META.map(({ key, title }) => ({ key, title })),
+    { key: 'none', title: '未评定' },
+  ];
+  return titles
+    .filter(({ key }) => (byKey.get(key)?.length ?? 0) > 0)
+    .map(({ key, title }) => ({ title, badgeValue: byKey.get(key)?.length ?? 0, items: byKey.get(key) ?? [] }));
 }

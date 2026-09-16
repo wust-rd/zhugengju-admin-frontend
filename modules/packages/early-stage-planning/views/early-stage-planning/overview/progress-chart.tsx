@@ -16,21 +16,22 @@ export type ProgressItem = {
   color: string;
 };
 
-/** 推进情况三色图数据（静态占位，接接口后替换） */
+/** 推进情况三色图数据（内置兜底：接口数据未就绪时显示；口径同 AREA_COLOR 第一批实测） */
 const DEFAULT_ITEMS: ProgressItem[] = [
   { key: 'green', name: '绿', percent: 25, count: 20, color: '#2EE6A8' },
-  { key: 'yellow', name: '黄', percent: 37, count: 40, color: '#F5E334' },
-  { key: 'red', name: '红', percent: 28, count: 20, color: '#FB4A64' },
+  { key: 'yellow', name: '黄', percent: 50, count: 40, color: '#F5E334' },
+  { key: 'red', name: '红', percent: 25, count: 20, color: '#FB4A64' },
 ];
 
 /**
  * ProgressChart —— 片区推进情况三色图
  *
- * 绿 / 黄 / 红 三段进度条（段宽 = 百分比）+ 各段下方百分比 + 底部三列统计（名称 + 片数）。
- * 颜色带荧光发光；数据静态占位。
+ * 绿 / 黄 / 红 三段进度条（段宽 = 百分比）+ 各段下方百分比 + 底部统计列（名称 + 片数）。
+ * 颜色带荧光发光；数据由父级传 AREA_COLOR 统计（area-data.progressItems，恒三段，
+ * 无标注批次三段为 0；未评定片区只在分组列表体现，不进三色图）。
  *
  * props：
- * - items: 三色图数据（{ key, name, percent, count, color }[]，默认内置占位数据）
+ * - items: 三色图数据（{ key, name, percent, count, color }[]，不传则用内置兜底数据）
  */
 export const ProgressChart = defineComponent({
   name: 'ProgressChart',

@@ -2,56 +2,51 @@
   填报页区块一：片区基本信息（对齐设计稿）
 
   布局：垂直标签（label 在上）+ 两列栅格，概况/图片/范围/范围线通栏。
-  字段：片区名称* / 片区批次* / 行政区* / 片区规模（公顷）* / 起始时间（月份）/
+  字段：片区名称* / 片区批次* / 行政区* / 片区规模（公顷）* / 起止时间（年月区间）/
   统筹主体 / 片区概况*（150字）/ 片区概况图片*（1-3张）/ 片区范围*（东至西至…）/
-  片区范围线（GeoDataSection：上传 shp/dwg 解析渲染 + 地图绘制编辑）。
-  图片上传经 schema slot 挂进 BasicForm（参与必填校验与取值/导出）；
-  beforeUpload 返回 false 阻止真实上传，文件仅留在页面内存，后端接入后改走文件服务。
-  片区范围线同样经 slot 挂入，GeoJSON 与源文件名由组件维护，
-  保存/导出经下方 defineExpose 覆写并入（导出不落原始 GeoJSON）。
+  片区范围线（GeoField：上传解析/地图绘制，WKT 存储）。
+  起止时间：RangePicker 月份区间，经 fieldMapToTime 与 startTime/endTime 两个
+  保存字段互转（回显自动组装区间，保存自动拆两键）。
+  后端已对接（modules/esp）：图片经 use-esp-file-list 真实上传 MinIO，
+  值为文件对象数组；范围线值经 GeoField 双向换算为 WKT 字符串，
+  两值经下方 defineExpose 覆写并入取值（导出不落原始 WKT）。
 -->
 <template>
   <BasicForm @register="registerForm">
-    <!-- 片区概况图片：缩略卡上传（1-3 张），值同步进表单字段 overviewImages -->
+    <!-- 片区概况图片：缩略卡上传（1-3 张，真实上传），值同步进表单字段 overviewImages -->
     <template #overviewImages>
       <div>
         <Upload
-          :file-list="fileList"
+          :file-list="imageFileList"
           accept=".jpg,.jpeg,.png"
           list-type="picture-card"
           multiple
           :max-count="3"
           :disabled="disabled"
-          :before-upload="beforeUpload"
+          :show-upload-list="disabled ? { showRemoveIcon: false } : true"
+          :before-upload="imageBeforeUpload"
           @change="onImagesChange"
         >
-          <div v-if="fileList.length < 3" class="flex flex-col items-center justify-center gap-2px text-gray-400">
+          <div v-if="imageFileList.length < 3" class="flex flex-col items-center justify-center gap-2px text-gray-400">
             <span class="text-20px leading-none">+</span>
             <span class="text-12px">上传图片</span>
           </div>
         </Upload>
-        <div class="mt-4px text-12px text-gray-400">上传图片（1-3张），支持常见图片格式（演示：仅保留在页面内存）</div>
+        <div class="mt-4px text-12px text-gray-400">上传图片（1-3张），支持常见图片格式</div>
       </div>
     </template>
-    <!-- 片区范围线：GeoDataSection（上传 shp/dwg 解析渲染 + 地图绘制编辑；查看态只读） -->
+    <!-- 片区范围线：GeoField（上传解析/地图绘制，TopoJSON 存储；查看态只读） -->
     <template #scopeLine>
-      <GeoDataSection
-        v-model:geo-json="scopeLineGeoJson"
-        v-model:file-name="scopeLineFileName"
-        :parse-file="parseGeoFile"
-        :geometry-types="['polygon']"
-        :disabled="disabled"
-      />
+      <GeoField v-model:value="scopeLine" :disabled="disabled" />
     </template>
   </BasicForm>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionBasicInfo">
-  import { ref } from 'vue';
+  import { ref, watch } from 'vue';
   import { Upload } from 'antdv-next';
-  import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
-  import { GeoDataSection } from '@jeesite/shared/components/geo-data-section';
-  import { parseGeoFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
+  import GeoField from './geo-field.vue';
+  import { useEspFileList } from './use-esp-file-list';
   import { useSectionForm } from './use-section-form';
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
@@ -96,10 +91,10 @@
       rules: [{ required: true, message: '请输入片区规模' }],
     },
     {
-      label: '起始时间',
-      field: 'startTime',
-      component: 'DatePicker',
-      componentProps: { picker: 'month', placeholder: '具体月份', valueFormat: 'YYYY-MM', style: 'width: 100%' },
+      label: '起止时间',
+      field: 'startTimeRange',
+      component: 'RangePicker',
+      componentProps: { picker: 'month', style: 'width: 100%' },
     },
     {
       label: '统筹主体',
@@ -151,43 +146,53 @@
     rowProps: { gutter: 24 },
     baseColProps: { md: 24, lg: 12 },
     schemas: inputFormSchemas,
+    // 起止时间区间 ↔ startTime/endTime 两个保存字段（回显组装/保存拆分均由表单内核完成）
+    fieldMapToTime: [['startTimeRange', ['startTime', 'endTime'], 'YYYY-MM']],
   });
 
-  /** 已选图片（beforeUpload 返回 false，不做真实上传） */
-  const fileList = ref<UploadFile[]>(
-    (props.data?.overviewImages ?? []).map((name: string, i: number) => ({ uid: `img-${i}`, name }) as UploadFile),
-  );
+  /** 概况图片上传位（真实上传 MinIO；初值=回显文件对象数组） */
+  const {
+    fileList: imageFileList,
+    onChange: onImagesChange,
+    beforeUpload: imageBeforeUpload,
+    espFiles: imageFiles,
+  } = useEspFileList(props.data?.overviewImages);
 
-  /** 演示阶段不做真实上传：一律阻止（图片类型限制交给 accept + maxCount） */
-  function beforeUpload(): boolean {
-    return false;
-  }
+  /** 上传列表任何变化（antd 入列/上传回填/移除）→ 文件对象数组同步进表单字段 overviewImages */
+  watch(imageFileList, () => exposed.setFieldsValueSilently({ overviewImages: imageFiles() }), { deep: true });
 
-  /** 上传列表变化 → 文件名数组同步进表单字段 overviewImages（参与必填校验/保存/导出） */
-  function onImagesChange(info: { fileList: UploadFile[] }) {
-    fileList.value = info.fileList;
-    exposed.setFieldsValueSilently({ overviewImages: info.fileList.map((f) => f.name) });
-  }
+  /** 片区范围线：WKT 字符串（GeoField 维护，保存时经下方取值并入） */
+  const scopeLine = ref<string | null | undefined>(props.data?.scopeLine as string | null | undefined);
 
-  /** 片区范围线：GeoJSON 字符串 + 源文件名（GeoDataSection 维护；保存时经下方取值并入） */
-  const scopeLineGeoJson = ref<string | undefined>(props.data?.scopeLine as string | undefined);
-  const scopeLineFileName = ref<string | undefined>(props.data?.scopeLineFileName as string | undefined);
-
-  /** 范围线两值不在 schema 内（不渲染表单项），覆写取值并入；导出不落原始 GeoJSON（过长），以源文件名/已绘制标识 */
+  /**
+   * 覆写取值/导出：
+   *  - getFieldsValue 去掉 startTimeRange 中间键（fieldMapToTime 已拆出 startTime/endTime）；
+   *  - 范围线并入保存值；导出不落原始 WKT（过长），以已绘制标识；起止时间两键拼接展示。
+   */
   defineExpose({
     ...exposed,
-    getFieldsValue: () => ({
-      ...exposed.getFieldsValue(),
-      scopeLine: scopeLineGeoJson.value,
-      scopeLineFileName: scopeLineFileName.value,
-    }),
-    exportRows: (): [string, string][] =>
-      exposed
-        .exportRows()
-        .map(([label, value]) =>
-          label === '片区范围线'
-            ? [label, scopeLineFileName.value || (scopeLineGeoJson.value ? '已绘制' : '')]
-            : [label, value],
-        ),
+    getFieldsValue: () => {
+      const { startTimeRange: _range, startTime, endTime, ...rest } = exposed.getFieldsValue();
+      return {
+        ...rest,
+        startTime,
+        endTime,
+        scopeLine: scopeLine.value,
+      };
+    },
+    exportRows: (): [string, string][] => {
+      const { startTime, endTime } = exposed.getFieldsValue();
+      const rangeText = [startTime, endTime].filter(Boolean).join(' ~ ');
+      const rows: [string, string][] = [];
+      for (const [label, value] of exposed.exportRows()) {
+        if (label === '起止时间') continue;
+        // 起止时间行插在统筹主体（原起始时间的相邻位）之前
+        if (label === '统筹主体' && rangeText) {
+          rows.push(['起止时间', rangeText]);
+        }
+        rows.push([label, label === '片区范围线' ? (scopeLine.value ? '已绘制' : '') : value]);
+      }
+      return rows;
+    },
   });
 </script>

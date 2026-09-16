@@ -58,9 +58,13 @@ export function useSectionForm(options: FormProps & { data?: Recordable }) {
   return { registerForm, exposed };
 }
 
-/** 导出值格式化：数组转「、」拼接，null/undefined 转空串，其余 String */
+/** 导出值格式化：数组转「、」拼接（文件对象取 name），null/undefined 转空串，其余 String */
 function formatValue(v: unknown): string {
   if (v == null) return '';
-  if (Array.isArray(v)) return v.filter((x) => x != null && x !== '').join('、');
+  if (Array.isArray(v))
+    return v
+      .filter((x) => x != null && x !== '')
+      .map((x) => (x && typeof x === 'object' && 'name' in x ? String((x as { name: unknown }).name) : String(x)))
+      .join('、');
   return String(v);
 }

@@ -12,13 +12,20 @@ import { useMessage } from '@jeesite/core/hooks/web/useMessage';
 import type { MenuItemType } from 'antdv-next';
 import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 import { AreaLayers } from './area-layers';
-import { areaGroups, BATCHES, districtAreaCount, loadAreas, type AreaCollection } from './area-data';
 import type { EspBatch } from '@jeesite/early-stage-planning/api/early-stage-planning/esp-map';
 import { DistrictChart } from './district-chart';
 import { FuncTypeChart } from './func-type-chart';
 import { InvestTotalCard, type BatchInvest } from './invest-total-card';
 import { ProgressChart } from './progress-chart';
-import { PROGRESS_ITEMS, progressGroups } from './progress-data';
+import {
+  areaGroups,
+  BATCHES,
+  districtAreaCount,
+  loadAreas,
+  progressGroups,
+  progressItems,
+  type AreaCollection,
+} from './area-data';
 import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
 
 // 区域 tabs：激活项由 RegionTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
@@ -137,14 +144,24 @@ export default defineComponent({
       },
     ];
 
-    /** 更新片区列表数据：行政区划 tab → 各区真实片区名单；推进情况 / 功能定位 tab → 演示数据 */
+    /** 三色图数据：AREA_COLOR 计数占比（当前批次；数据未就绪为空，组件用内置兜底） */
+    const progressRows = computed(() => (areas.value ? progressItems(areas.value) : []));
+
+    /** 推进情况分组列表：绿/黄/红（+无颜色时的未评定组） */
+    const progressList = computed<CollapseGroupItem<XodItem>[]>(() => (areas.value ? progressGroups(areas.value) : []));
+
+    /** 更新片区列表数据：行政区划 tab → 各区真实片区名单；推进情况 tab → 按三色分组；
+        功能定位 tab → 演示数据 */
     const listGroups = computed<CollapseGroupItem<XodItem>[]>(() =>
       activeRegionKey.value === 'district'
         ? groups.value
         : activeRegionKey.value === 'progress'
-          ? progressGroups(activeBatch.value === '第二批' ? '第二批' : '第一批')
+          ? progressList.value
           : FUNC_LIST_GROUPS,
     );
+
+    /** 列表数据日期：推进情况 tab 对齐 AREA_COLOR 口径（2026 年第二季度），其余保持原演示日期 */
+    const listDate = computed(() => (activeRegionKey.value === 'progress' ? '2026-06-30' : '2026-05-21'));
 
     return () => (
       <DisplayPageLayout>
@@ -182,12 +199,12 @@ export default defineComponent({
               />
 
               {/* 行政区划 tab：片区行政区划分布荧光柱状图（当前批次接口数据按区划计数，区划全量）
-                  推进情况 tab：片区推进情况三色图（绿/黄/红 占比 + 片数，演示数据）
+                  推进情况 tab：片区推进情况三色图（AREA_COLOR 计数占比，恒绿/黄/红三段）
                   功能定位 tab：片区功能定位分布（FUNC_TYPE_VALUE 解析的各导向维度片区数） */}
               {activeRegionKey.value === 'district' ? (
                 <DistrictChart rows={chartRows.value} />
               ) : activeRegionKey.value === 'progress' ? (
-                <ProgressChart items={PROGRESS_ITEMS} />
+                <ProgressChart items={progressRows.value.length ? progressRows.value : undefined} />
               ) : (
                 <FuncTypeChart rows={funcRows.value} />
               )}
@@ -197,11 +214,11 @@ export default defineComponent({
 
                 <div class="ml-12px text-16px font-500 text-white">更新片区列表</div>
 
-                <div class="ml-auto text-14px text-gray-500">2026-05-21</div>
+                <div class="ml-auto text-14px text-gray-500">{listDate.value}</div>
               </div>
 
               <div class="mt-16px space-y-12px max-h-500px overflow-y-auto scrollbar-none">
-                {/* 折叠分组：行政区划 tab 为各区真实片区名单；推进情况 tab 为推进情况演示数据（均随批次联动） */}
+                {/* 折叠分组：行政区划 tab 为各区真实片区名单；推进情况 tab 为绿/黄/红分组；功能定位 tab 为演示数据 */}
                 <CollapseGroups groups={listGroups.value} isRound panelClass="rd-8px">
                   {{
                     row: (item) => <XodRow item={item as XodItem} />,

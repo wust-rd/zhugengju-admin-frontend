@@ -10,11 +10,11 @@
   （运行时测量 .jeesite-layout-multiple-header 的底沿，页签显隐自动适配）；
   该 sticky 依赖 index.vue 的 contentClass 覆盖了 PageWrapper 容器的
   overflow-y:auto（祖先 overflow 非 visible 会使 sticky 失效）。
-  头部操作：返回 / 导出（aoaToSheetXlsx 平铺导出全部区块）/ 保存
-  （逐区块校验，首个未通过区块自动滚动定位；通过后 emit 由父级落内存副本。
-  当前必填校验暂关闭——红星仅表示字段重要性，见 use-section-form 的 VALIDATE_ENABLED）。
-  各区块字段为占位结构，待设计稿/接口文档确定后调整；后端尚未介入：
-  接口对接说明见同目录 api.md（供后端直接阅读）。
+  后端已对接（modules/esp）：进入按 id 拉 GET /schemeFill/form 回显（新增
+  传空对象）；保存 POST /schemeFill/save 全量提交（projects 行剥离后端生成
+  的 id），失败展示后端 msg 并停留；导出仍为前端 xlsx 本地平铺。
+  当前必填校验暂关闭——红星仅表示字段重要性，后端轻校验兜底
+  （见 use-section-form 的 VALIDATE_ENABLED）。
 -->
 <template>
   <div class="flex flex-col gap-16px" :style="{ '--section-scroll-mt': `${sectionScrollMt}px` }">
@@ -37,10 +37,10 @@
       <a-button v-if="!isView" type="primary" :loading="saving" @click="handleSave">保存</a-button>
     </div>
 
-    <!-- 六个区块（SECTIONS 驱动渲染，xl 下右侧留出悬浮导航空间） -->
-    <div class="flex flex-col gap-16px xl:pr-160px">
+    <!-- 六个区块（详情拉取完成后渲染，保证各区块挂载回填初值完整；SECTIONS 驱动，xl 下右侧留出悬浮导航空间） -->
+    <div v-if="formData" class="flex flex-col gap-16px xl:pr-160px">
       <FormSection v-for="sec in SECTIONS" :key="sec.id" :id="sec.id" :title="sec.title">
-        <component :is="sec.component" :ref="(el) => setSectionRef(sec.id, el)" :data="record" :disabled="isView" />
+        <component :is="sec.component" :ref="(el) => setSectionRef(sec.id, el)" :data="formData" :disabled="isView" />
       </FormSection>
     </div>
 
@@ -52,12 +52,19 @@
   import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { aoaToSheetXlsx } from '@jeesite/core/components/Excel/src/Export2Excel';
+  import {
+    schemeFillForm,
+    schemeFillSave,
+    type EspSchemeFill,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
   import FormSection from './components/form-section.vue';
   import AnchorNav from './components/anchor-nav.vue';
   import type { SectionFormExposed } from './components/use-section-form';
   import SectionBasicInfo from './components/section-basic-info.vue';
   import SectionHealthCheck from './components/section-health-check.vue';
   import SectionFunctionPlan from './components/section-function-plan.vue';
+  import SectionCityDesign from './components/section-city-design.vue';
+  import SectionPlanAdjust from './components/section-plan-adjust.vue';
   import SectionProjectInfo from './components/section-project-info.vue';
   import SectionFundingPlan from './components/section-funding-plan.vue';
   import SectionAttachment from './components/section-attachment.vue';
@@ -67,13 +74,32 @@
 
   const { showMessage } = useMessage();
 
-  /** 进入时的记录快照（父级每次传入新对象，各区块按 schema 字段各取所需） */
+  /** 进入时的记录快照（列表行：id + isView；新增无 id） */
   const record = { ...(props.record || {}) } as Recordable;
   const isView = !!record.isView;
   const isNewRecord = record.isNewRecord ?? record.id == null;
 
   const title = computed(() => (isView ? '查看片区填报' : isNewRecord ? '新增片区填报' : '编辑片区填报'));
   const saving = ref(false);
+
+  /**
+   * 详情数据（编辑/查看按 id 拉取；新增直接空对象）。拉取完成才渲染区块：
+   * 各区块经 useSectionForm 在 onMounted 一次性回填初值，晚到的数据不会生效。
+   */
+  const formData = ref<Recordable>();
+
+  onMounted(async () => {
+    if (!record.id) {
+      formData.value = {};
+      return;
+    }
+    try {
+      formData.value = (await schemeFillForm(String(record.id))) as Recordable;
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : '加载填报数据失败');
+      emit('back');
+    }
+  });
 
   /**
    * 吸顶偏移 = 布局固定头（头部 + 多页签）的实际底沿。该元素为 fixed，
@@ -105,6 +131,8 @@
     { id: 'sec-basic', title: '片区基本信息', component: SectionBasicInfo },
     { id: 'sec-health', title: '片区体检情况', component: SectionHealthCheck },
     { id: 'sec-func', title: '片区功能策划', component: SectionFunctionPlan },
+    { id: 'sec-city-design', title: '片区城市设计', component: SectionCityDesign },
+    { id: 'sec-plan-adjust', title: '片区规划调整', component: SectionPlanAdjust },
     { id: 'sec-project', title: '片区项目情况', component: SectionProjectInfo },
     { id: 'sec-fund', title: '片区资金方案', component: SectionFundingPlan },
     { id: 'sec-attach', title: '附件材料', component: SectionAttachment },
@@ -124,7 +152,7 @@
     sectionRefs.set(id, inst);
   }
 
-  /** 保存：逐区块校验并收集值；首个未通过的区块滚动定位 */
+  /** 保存：逐区块校验并收集值（首个未通过的区块滚动定位）→ 全量提交后端 */
   async function handleSave() {
     const values: Recordable = {};
     let firstErrorId = '';
@@ -147,8 +175,18 @@
     }
     saving.value = true;
     try {
-      // TODO: 后端接入后在此调用保存接口（填报时间由后端记录）
-      emit('success', { ...values, id: record.id, isNewRecord });
+      // projects 行回显带后端生成的 id，保存契约无此键，提交前剥离
+      const payload = {
+        ...values,
+        id: record.id ? String(record.id) : '',
+        projects: (values.projects ?? []).map(({ id: _projectId, ...rest }: Recordable) => rest),
+      } as EspSchemeFill;
+      const saved = await schemeFillSave(payload);
+      showMessage('保存成功');
+      emit('success', { ...saved, isNewRecord });
+    } catch (error) {
+      // 后端轻校验（同名片区/字数/时间序）等业务错误：展示 msg 并停留在表单
+      showMessage(error instanceof Error ? error.message : '保存失败');
     } finally {
       saving.value = false;
     }

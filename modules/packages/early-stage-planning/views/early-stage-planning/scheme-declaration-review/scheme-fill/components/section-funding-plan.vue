@@ -31,7 +31,9 @@
                 selected(s) ? 'border-4px border-[#1677ff]' : 'border-1px border-gray-300 group-hover:border-[#1677ff]'
               "
             ></span>
-            <span class="min-w-0 flex-1 text-13px leading-18px text-gray-700 transition-colors group-hover:text-[#1677ff]">
+            <span
+              class="min-w-0 flex-1 text-13px leading-18px text-gray-700 transition-colors group-hover:text-[#1677ff]"
+            >
               {{ s }}
             </span>
           </span>

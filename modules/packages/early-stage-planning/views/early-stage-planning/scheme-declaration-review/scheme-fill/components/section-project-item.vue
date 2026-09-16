@@ -5,72 +5,77 @@
   - 字段对齐设计稿：项目名称* / 改造类别* / 实施主体 / 项目总投资估算（亿元）/
     项目资金来源（可多选）/ 本年度计划完成投资（亿元）/ 计划开工时间（月份）/
     计划竣工时间（月份）/ 主要建设内容* / 实施方案（附件，选填）；
-  - 项目矢量图斑：GeoDataSection（上传 shp/dwg 解析渲染 + 地图绘制编辑），
-    GeoJSON 与源文件名由组件维护，保存/导出经下方 defineExpose 覆写并入
-    （导出不落原始 GeoJSON，以源文件名/已绘制标识）。
+  - 已对接后端（modules/esp）：实施方案真实上传 MinIO（use-esp-file-list，
+    值=文件对象数组，已传文件名带直链）；项目矢量图斑走 GeoField
+    （上传解析/地图绘制，值为自包含 TopoJSON 字符串，经下方取值并入；
+    导出不落原始 TopoJSON，以已绘制标识）。
 -->
 <template>
   <BasicForm @register="registerForm">
     <!-- 实施方案：附件上传（选填），拖拽上传区 + 自定义附件清单 -->
     <template #planFiles>
       <Upload.Dragger
-        v-model:file-list="fileList"
+        :file-list="planFileList"
         :show-upload-list="false"
         multiple
         :disabled="disabled"
-        :before-upload="beforeUpload"
+        :before-upload="planBeforeUpload"
         @change="onPlanChange"
       >
         <div class="flex flex-col items-center justify-center">
           <span class="i-ant-design:cloud-upload-outlined text-30px text-[#3A8EF6]"></span>
           <div class="mt-8px text-14px text-gray-600">点击或拖拽文件到此处上传</div>
-          <div class="mt-4px text-12px text-gray-400">支持多选，可上传实施方案等文档（演示：仅保留在页面内存）</div>
+          <div class="mt-4px text-12px text-gray-400">支持多选，可上传实施方案等文档</div>
         </div>
       </Upload.Dragger>
 
       <!-- 已上传实施方案清单：文件图标 + 名称 + 大小 + 移除 -->
-      <div v-if="fileList.length" class="mt-12px space-y-8px">
+      <div v-if="planFileList.length" class="mt-12px space-y-8px">
         <div
-          v-for="f in fileList"
+          v-for="f in planFileList"
           :key="f.uid"
           class="flex items-center gap-12px rd-8px bg-[#F7F9FC] px-16px py-10px transition-colors hover:bg-[#EEF4FB]"
         >
           <span class="i-ant-design:file-text-outlined shrink-0 text-18px" :style="{ color: fileColor(f.name) }"></span>
 
-          <span class="min-w-0 flex-1 truncate text-14px text-gray-700" :title="f.name">{{ f.name }}</span>
+          <!-- 有直链的文件（已上传）点击新窗打开，未完成的仅展示名称 -->
+          <a
+            v-if="f.url"
+            class="min-w-0 flex-1 truncate text-14px text-gray-700 hover:text-[#3A8EF6]!"
+            :title="f.name"
+            :href="f.url"
+            target="_blank"
+            rel="noopener"
+          >
+            {{ f.name }}
+          </a>
+          <span v-else class="min-w-0 flex-1 truncate text-14px text-gray-700" :title="f.name">{{ f.name }}</span>
 
           <span v-if="fileSizeText(f)" class="shrink-0 text-12px text-gray-400">{{ fileSizeText(f) }}</span>
 
           <span
             v-if="!disabled"
             class="flex h-22px w-22px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-            @click="removeFile(f)"
+            @click="removePlanFile(f)"
           >
             <span class="i-ant-design:close-outlined"></span>
           </span>
         </div>
       </div>
     </template>
-    <!-- 项目矢量图斑：GeoDataSection（上传 shp/dwg 解析渲染 + 地图绘制编辑；查看态只读） -->
+    <!-- 项目矢量图斑：GeoField（上传解析/地图绘制，TopoJSON 存储；查看态只读） -->
     <template #mapSpot>
-      <GeoDataSection
-        v-model:geo-json="mapSpotGeoJson"
-        v-model:file-name="mapSpotFileName"
-        :parse-file="parseGeoFile"
-        :geometry-types="['polygon']"
-        :disabled="disabled"
-      />
+      <GeoField v-model:value="mapSpot" :disabled="disabled" />
     </template>
   </BasicForm>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionProjectItem">
-  import { ref } from 'vue';
+  import { ref, watch } from 'vue';
   import { Upload } from 'antdv-next';
-  import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
-  import { GeoDataSection } from '@jeesite/shared/components/geo-data-section';
-  import { parseGeoFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
+  import GeoField from './geo-field.vue';
   import { fileColor, fileSizeText } from './file-display';
+  import { useEspFileList, type EspUploadFile } from './use-esp-file-list';
   import { useSectionForm } from './use-section-form';
 
   const props = defineProps<{ value?: Recordable; disabled?: boolean }>();
@@ -78,8 +83,8 @@
   /** 通栏字段（占满整行） */
   const FULL_COL = { span: 24, md: 24, lg: 24 };
 
-  /** 改造类别 / 资金来源选项（占位字典，接口就绪后改为字典接口） */
-  const CATEGORY_OPTIONS = ['老旧小区改造', '老旧厂区改造', '老旧街区改造', '城中村改造', '其他'].map((c) => ({
+  /** 改造类别（对齐设计稿 5 类，去除「其他」） */
+  const CATEGORY_OPTIONS = ['既有建筑改造', '老旧小区改造', '老旧街区改造', '老旧厂区改造', '城中村改造'].map((c) => ({
     label: c,
     value: c,
   }));
@@ -169,45 +174,31 @@
     schemas: inputFormSchemas,
   });
 
-  /** 实施方案附件（演示阶段不做真实上传） */
-  const fileList = ref<UploadFile[]>(
-    (props.value?.planFiles ?? []).map((name: string, i: number) => ({ uid: `plan-${i}`, name }) as UploadFile),
-  );
+  /** 实施方案附件上传位（真实上传 MinIO；初值=回显文件对象数组） */
+  const {
+    fileList: planFileList,
+    onChange: onPlanChange,
+    beforeUpload: planBeforeUpload,
+    remove: removePlanFile,
+    espFiles: planFiles,
+  } = useEspFileList(props.value?.planFiles);
 
-  function beforeUpload(): boolean {
-    return false;
-  }
+  /** 上传列表任何变化（antd 入列/上传回填/自绘移除）→ 文件对象数组同步进表单字段 planFiles */
+  watch(planFileList, () => exposed.setFieldsValueSilently({ planFiles: planFiles() }), { deep: true });
 
-  function onPlanChange(info: { fileList: UploadFile[] }) {
-    fileList.value = info.fileList;
-    exposed.setFieldsValueSilently({ planFiles: info.fileList.map((f) => f.name) });
-  }
+  /** 项目矢量图斑：自包含 TopoJSON 字符串（GeoField 维护，保存时经下方取值并入） */
+  const mapSpot = ref<string | null | undefined>(props.value?.mapSpot as string | null | undefined);
 
-  /** 移除某个附件并同步表单值 */
-  function removeFile(f: UploadFile) {
-    fileList.value = fileList.value.filter((item) => item.uid !== f.uid);
-    exposed.setFieldsValueSilently({ planFiles: fileList.value.map((item) => item.name) });
-  }
-
-  /** 项目矢量图斑：GeoJSON 字符串 + 源文件名（GeoDataSection 维护；保存时经下方取值并入） */
-  const mapSpotGeoJson = ref<string | undefined>(props.value?.mapSpot as string | undefined);
-  const mapSpotFileName = ref<string | undefined>(props.value?.mapSpotFileName as string | undefined);
-
-  /** 矢量图斑两值不在 schema 内（不渲染表单项），覆写取值并入；导出不落原始 GeoJSON（过长），以源文件名/已绘制标识 */
+  /** 矢量图斑不在 schema 内（slot 渲染 GeoField），覆写取值并入；导出不落原始 TopoJSON（过长），以已绘制标识 */
   defineExpose({
     ...exposed,
     getFieldsValue: () => ({
       ...exposed.getFieldsValue(),
-      mapSpot: mapSpotGeoJson.value,
-      mapSpotFileName: mapSpotFileName.value,
+      mapSpot: mapSpot.value,
     }),
     exportRows: (): [string, string][] =>
       exposed
         .exportRows()
-        .map(([label, value]) =>
-          label === '项目矢量图斑'
-            ? [label, mapSpotFileName.value || (mapSpotGeoJson.value ? '已绘制' : '')]
-            : [label, value],
-        ),
+        .map(([label, value]) => (label === '项目矢量图斑' ? [label, mapSpot.value ? '已绘制' : ''] : [label, value])),
   });
 </script>
