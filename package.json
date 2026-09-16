@@ -49,6 +49,7 @@
     "@jeesite/vite": "workspace:*",
     "@jeesite/vmap": "workspace:*",
     "@jeesite/web": "workspace:*",
+    "@vueuse/core": "14.4.0",
     "antdv-next": "1.5.0",
     "axios": "1.19.0",
     "class-variance-authority": "^0.7.1",
