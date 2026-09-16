@@ -1,95 +1,30 @@
-import { defineComponent, ref } from 'vue';
-import { ScrollArea } from '@jeesite/display/components/scroll-area';
+import { defineComponent } from 'vue';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
+import { ProjectInfoTabs } from '@jeesite/display/components/ifco/project-info-tabs';
 
-/** 项目底图 */
-const MAP_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/知音东院片.webp';
+/** 项目底图（皮子街片区素材，原始链接为 percent-encoding，这里已解码） */
+const MAP_IMAGE_URL = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片区策划-皮子街/项目实施-背景图.webp';
 
-/** 内容图片地址 */
-const BASE_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/项目基本信息.webp';
-const RENOVATION_IMAGE_URL = 'https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/项目改造情况.webp';
-
+/**
+ * 项目实施页（/display/project）
+ *
+ * 结构：LayerControls（左上角图层按钮）+ 项目底图铺满 + 右上角项目信息 Tab 面板。
+ * Tab 面板（切换器 + 内容区）用现成组件 ProjectInfoTabs，它自带：
+ * 胶囊轨道 + 滑动高亮指示器、内容切换时的左右滑动淡入动画，以及两个 Tab 的内容。
+ */
 export default defineComponent({
   name: 'DisplayProject',
   setup() {
-    const activeTab = ref<'base' | 'renovation'>('base');
-    const previewVisible = ref(false);
+    return () => (
+      <div class="size-full">
+        <LayerControls />
 
-    return () => {
-      const isBase = activeTab.value === 'base';
+        {/* 项目底图 */}
+        <img src={MAP_IMAGE_URL} alt="项目地图" class="size-full object-cover bg-center" />
 
-      /** 项目实施模块首页（本模块只有这一页；总览 / 名称保护两页已搬到成果评估） */
-      const firstPage = (
-        <div class="size-full">
-          <LayerControls />
-
-          {/* 项目底图 */}
-          <img src={MAP_IMAGE_URL} alt="项目地图" class="size-full object-cover bg-center" />
-
-          {/* Tab 切换器 + 内容区（浮在地图上方右上角，宽度一致） */}
-          <div class="absolute top-24px right-24px z-10 w-420px">
-            <div class="flex h-52px rounded-full bg-[#1a3a5c] p-4px">
-              <div
-                class={
-                  'flex h-full flex-1 cursor-pointer items-center justify-center rounded-full text-14px text-white transition-all duration-200 ' +
-                  (isBase
-                    ? 'bg-gradient-to-r from-[#0ea5e9]/20 to-[#0E83BD] font-500 shadow-lg'
-                    : 'text-white/60 hover:text-white')
-                }
-                onClick={() => (activeTab.value = 'base')}
-              >
-                项目基本信息
-              </div>
-              <div
-                class={
-                  'flex h-full flex-1 cursor-pointer items-center justify-center rounded-full text-14px text-white transition-all duration-200 ' +
-                  (!isBase
-                    ? 'bg-gradient-to-r from-[#0ea5e9]/20 to-[#0E83BD] font-500 shadow-lg'
-                    : 'text-white/60 hover:text-white')
-                }
-                onClick={() => (activeTab.value = 'renovation')}
-              >
-                项目改造情况
-              </div>
-            </div>
-
-            {/* 内容区：与 tab 同宽，位于 tab 下方，ScrollArea 自绘滚动条使图片可滚动 */}
-            <ScrollArea className="mt-6px max-h-[calc(100vh_-_246px)]">
-              {isBase ? (
-                <img
-                  src={BASE_IMAGE_URL}
-                  alt="项目基本信息"
-                  class="w-full cursor-pointer rounded-xl"
-                  // onClick={() => (previewVisible.value = true)}
-                />
-              ) : (
-                <img
-                  src={RENOVATION_IMAGE_URL}
-                  alt="项目改造情况"
-                  class="w-full cursor-pointer rounded-xl"
-                  onClick={() => (previewVisible.value = true)}
-                />
-              )}
-            </ScrollArea>
-          </div>
-
-          {/* 图片预览 Modal：点击图片弹出，居中显示（长 776 宽 548） */}
-          {previewVisible.value && (
-            <div
-              class="fixed inset-0 z-50 flex items-center justify-center"
-              onClick={() => (previewVisible.value = false)}
-            >
-              <img
-                src="https://zhugengju-public.oss-cn-wuhan-lr.aliyuncs.com/项目实施/框.webp"
-                alt="图片预览"
-                class="w-776px h-548px bg-cover"
-              />
-            </div>
-          )}
-        </div>
-      );
-
-      return firstPage;
-    };
+        {/* 项目信息 Tab 面板：Tab 切换器 + 内容区（浮在地图上方右上角） */}
+        <ProjectInfoTabs class="absolute top-24px right-24px z-10" />
+      </div>
+    );
   },
 });

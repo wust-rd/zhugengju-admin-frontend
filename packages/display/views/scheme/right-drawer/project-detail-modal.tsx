@@ -1,4 +1,5 @@
 import { defineComponent, type CSSProperties } from 'vue';
+import { useRouter } from 'vue-router';
 
 import frameImg from '@jeesite/assets/images/display/plan/相框.webp';
 import glowImg from '@jeesite/assets/images/display/plan/光效.webp';
@@ -19,18 +20,18 @@ type DetailRow = {
   color: string;
   /** 项目名称 */
   name: string;
+  /** 建设内容 */
+  content: string;
   /** 实施主体 */
   main: string;
-  /** 投资估算 */
+  /** 投资估算（亿元） */
   invest: string;
-  /** 资金来源及落实情况 */
+  /** 资金来源 */
   fund: string;
   /** 开工时间 */
   start: string;
   /** 完工时间 */
   end: string;
-  /** 片区责任主体 */
-  resp: string;
 };
 
 const DETAIL_ROWS: DetailRow[] = [
@@ -39,36 +40,38 @@ const DETAIL_ROWS: DetailRow[] = [
     cat: '老旧街区改造',
     color: '#5B9DF0',
     name: '皮子街F地块',
+    content:
+      '新建居住、复合社会停车场、公园绿地项目（推广名：武汉城建南洋里），新建2栋高层住宅，4栋小高层住宅，以及配套底商',
     main: '汉水桥街道 市城建集团',
     invest: '14.07',
-    fund: '企业资金、银行融资',
+    fund: '产权单位出资、金融机构信贷资金',
     start: '2025.05',
     end: '2028.12',
-    resp: '汉水桥街道',
   },
   {
     id: '02',
     cat: '老旧厂区改造',
     color: '#F5C443',
     name: '皮子街两厂改造项目',
+    content: '对康成酒厂和南洋卷烟厂实施改造，并新增地下停车场。',
     main: '硚口城建集团',
-    invest: '4.77',
-    fund: '一期拟申报2026年中央预算内资金约6163万元，拟申报专项债资金约10000万元；拟争取湖北银行前期融资约3000万元；二期拟申报2026年中央预算内资金约6700万元，拟申报专项债资金约23000万元',
-    start: '一期：2025.07；二期：计划2025.12',
-    end: '一期：2026.06；二期：计划2026.12',
-    resp: '汉水桥街道',
+    invest: '4.88',
+    fund: '中央预算内投资约、专项债资金、金融机构信贷资金',
+    start: '2025.07',
+    end: '2026.12',
   },
   {
     id: '03',
     cat: '老旧小区改造',
     color: '#52D273',
     name: '燧华里、仁硚新村、房开小区老旧小区改造项目',
+    content:
+      '燧华里、仁硚新村、房开小区老旧小区改造项目，对房屋本体、弱电、排水、绿化、照明、道路等基础设施进行提升改造。',
     main: '硚口城建集团',
     invest: '0.24',
-    fund: '中央财政补助、市级财政补助、专项债',
+    fund: '中央财政补助、市级财政补助、专项债券',
     start: '2025.03',
     end: '2025.11',
-    resp: '汉水桥街道',
   },
 ];
 
@@ -90,7 +93,15 @@ export const ProjectDetailModal = defineComponent({
     'update:visible': (_: boolean) => true,
   },
   setup(props, { emit }) {
+    const router = useRouter();
+
     const close = () => emit('update:visible', false);
+
+    /** 点击表格 → 关闭弹窗并跳转「项目实施」页面 */
+    const goProject = () => {
+      close();
+      router.push('/display/project');
+    };
 
     return () => {
       if (!props.visible) return null;
@@ -132,8 +143,8 @@ export const ProjectDetailModal = defineComponent({
 
               <div class="h-1px w-full bg-white/6" />
 
-              {/* 项目清单表格 */}
-              <div class="mt-24px overflow-y-auto scrollbar-none px-24px">
+              {/* 项目清单表格（点击整表 → 跳转「项目实施」页面 /display/project） */}
+              <div class="mt-24px cursor-pointer overflow-y-auto scrollbar-none px-24px" onClick={goProject}>
                 {/* 表头（内阴影模拟光照：顶部内高光 + 底部内暗） */}
                 <div
                   class="flex h-48px items-center rounded-6px text-13px text-white/85"
@@ -145,14 +156,14 @@ export const ProjectDetailModal = defineComponent({
                   }}
                 >
                   <div class="w-48px text-center">序号</div>
-                  <div class="w-112px pl-10px">五改类别</div>
-                  <div class="w-160px pl-10px">项目名称</div>
-                  <div class="w-130px pl-10px">实施主体</div>
-                  <div class="w-72px pl-10px">投资估算</div>
-                  <div class="min-w-0 flex-1 pl-16px">资金来源及落实情况</div>
+                  <div class="w-104px pl-10px">五改类别</div>
+                  <div class="w-140px pl-10px">项目名称</div>
+                  <div class="w-240px pl-10px">建设内容</div>
+                  <div class="w-120px pl-10px">实施主体</div>
+                  <div class="w-100px pl-10px text-center">投资估算（亿元）</div>
+                  <div class="min-w-0 flex-1 pl-16px">资金来源</div>
                   <div class="w-96px pl-10px">开工时间</div>
                   <div class="w-96px pl-10px">完工时间</div>
-                  <div class="w-88px pl-10px">片区责任主体</div>
                 </div>
 
                 {/* 数据行 */}
@@ -170,19 +181,19 @@ export const ProjectDetailModal = defineComponent({
                       />
 
                       <div class="relative z-10 w-48px text-center text-14px text-white/50">{r.id}</div>
-                      <div class="relative z-10 flex w-112px items-center gap-6px">
+                      <div class="relative z-10 flex w-104px items-center gap-6px">
                         <span class="size-8px shrink-0 rd-full" style={{ backgroundColor: r.color }} />
                         <span class="text-13px text-white/80 lh-20px">{r.cat}</span>
                       </div>
-                      <div class="relative z-10 w-160px pl-10px text-14px text-white lh-20px">{r.name}</div>
-                      <div class="relative z-10 w-130px pl-10px text-13px text-white/70 lh-20px">{r.main}</div>
-                      <div class="relative z-10 w-72px pl-10px text-14px text-white/80">{r.invest}</div>
+                      <div class="relative z-10 w-140px pl-10px text-14px text-white lh-20px">{r.name}</div>
+                      <div class="relative z-10 w-240px pl-10px text-13px text-white/80 lh-20px">{r.content}</div>
+                      <div class="relative z-10 w-120px pl-10px text-13px text-white/70 lh-20px">{r.main}</div>
+                      <div class="relative z-10 w-100px text-center text-14px text-white/80">{r.invest}</div>
                       <div class="relative z-10 min-w-0 flex-1 pl-16px pr-12px text-13px text-white/80 lh-20px">
                         {r.fund}
                       </div>
                       <div class="relative z-10 w-96px pl-10px text-13px text-white/70 lh-20px">{r.start}</div>
                       <div class="relative z-10 w-96px pl-10px text-13px text-white/70 lh-20px">{r.end}</div>
-                      <div class="relative z-10 w-88px pl-10px text-13px text-white/70 lh-20px">{r.resp}</div>
                     </div>
                   ))}
                 </div>

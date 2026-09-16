@@ -1,5 +1,6 @@
-import { defineComponent, ref } from 'vue';
-import { cn } from '@jeesite/core/libs';
+import { defineComponent, inject, ref } from 'vue';
+import { cn, withAlpha } from '@jeesite/core/libs';
+import { XOD_COLOR } from '@jeesite/display/components/corner-panel/xod-row';
 
 import diamond from '@jeesite/assets/images/display/plan/diamond.svg';
 import bottomImg from '@jeesite/assets/images/display/plan/底部.png';
@@ -9,10 +10,32 @@ import albumPic2 from '@jeesite/assets/images/display/plan/test.webp';
 import albumPic3 from '@jeesite/assets/images/display/plan/area-overview-modal-header.png';
 
 import { CollapsibleSection } from '@jeesite/display/components/collapsible-section';
+import { AreaDetailViewKey, useAreaDetailView } from '../use-area-detail-view';
 import { AlbumPreviewModal } from './album-preview-modal';
+import { selectableCardClass } from './shared';
 
 /** 图册占位图（TODO: 替换为真实图册图片） */
 const ALBUM_PLACEHOLDERS = [albumPic1, albumPic2, albumPic3, albumPic1];
+
+/** 两张卡片对应的左侧大图（点击某张卡片，左侧就显示它那一张；默认第一张） */
+const FEATURE_CARDS = ['总体目标', '主导功能定位'] as const;
+export type FeatureCard = (typeof FEATURE_CARDS)[number];
+
+/** 总体目标 */
+const GOAL_TEXT =
+  '依托滨江区位优势，以“文创+宜居”为核心，打造水、城、人融合共生的“皮子文化生活街区”“滨水工业区活化更新标杆”';
+
+/** 主导功能定位 · 三个导向标签（配色取左侧看板「更新片区列表」同一套 XOD_COLOR） */
+const FUNC_TAGS: { key: string; label: string }[] = [
+  { key: 'cod', label: 'COD文旅导向' },
+  { key: 'sod', label: 'SOD公服导向' },
+  { key: 'tod', label: 'TOD交通导向' },
+];
+
+/** 主导功能定位 · 说明（多行：换行位置即展示分行，渲染处用 whitespace-pre-line） */
+const FUNC_TEXT = `TOD/COD/SOD融合发展：以公共交通、文旅服务、公共服务为导向，打造集品质居住、文旅创意、便民服务于一体的亮点片区。
+工业遗存活化：采用“修旧如旧”工艺对老旧厂区进行精心的保护性修缮，保留工业肌理与历史记忆，并规划建设集文化展示、创意办公、特色商业于一体的复合型街区，推动工业遗存焕发时代生机。
+业态多元布局：引入品牌商业综合体、文旅创意街区、公寓民宿、便民服务网点等，优化商业结构，提升区域活力。目前正在向市经信局申请“工业4A级景区”认证，助力文旅价值再升级。`;
 
 /** 功能策划 */
 export const FeaturePlan = defineComponent({
@@ -21,6 +44,11 @@ export const FeaturePlan = defineComponent({
     const previewVisible = ref(false);
     /** 打开弹窗时显示第几张图（点击缩略图时记录下标） */
     const previewIndex = ref(0);
+
+    // 卡片选中状态：优先用页面 provide 的共享实例（左侧大图据此联动），
+    // 没有 provider 时退化为组件自己的局部状态
+    const view = inject(AreaDetailViewKey, null) ?? useAreaDetailView();
+    const activeCard = view.featureCard;
 
     return () => (
       <div class="p-16px">
@@ -49,33 +77,55 @@ export const FeaturePlan = defineComponent({
             ),
             body: () => (
               <>
-                <div class="mt-16px w-full b-1 b-solid b-white/6 bg-white/2 p-12px rd-8px bg-white/6">
+                {/* 标题 + 内容：总体目标（点击后左侧大图切到「功能策划-总体目标」） */}
+                <div
+                  class={selectableCardClass(activeCard.value === '总体目标')}
+                  onClick={() => (activeCard.value = '总体目标')}
+                >
                   <div class="flex items-center h-24px">
                     <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
                       <div class="w-4px h-4px bg-white rd-full" />
                     </div>
 
-                    <div class="text-14px lh-20px text-white/75 font-500 ml-8px">片区功能定位</div>
+                    <div class="text-14px lh-20px text-white/75 font-500 ml-8px">总体目标</div>
                   </div>
 
-                  <div class="mt-8px h-20px flex items-center">
-                    <div class="text-black font-600 inline-block px-6px py-2px rd-4px bg-cyan-400 text-10px lh-14px">
-                      IOD
-                    </div>
-                    <div class="text-black font-600 inline-block px-6px py-2px rd-4px bg-#FEA517 text-10px lh-14px ml-4px">
-                      SOD
-                    </div>
-                    <div class="text-white ml-12px text-14px font-400 lh-20px">文旅+公服导向</div>
-                  </div>
-
-                  <div class="text-white text-14px font-400 lh-24px mt-8px">
-                    结合汉阳区万载知音之路历史文化主轴打造提升行动方案，万载知音文化之路，实施4大规划策略，以文化支撑、以活动引领、以景观彰显、以慢行串联，谱写一曲汉阳承古启今的韵律之歌。
-                    <br />
-                    显正片位于汉阳历史风貌区核心区域，片区以历史为描点、通过街巷织补、多样拼贴、片区更新、空间弥合等多种方式串联各大文旅资源，以期让片区达到特色提振、新旧融合、全域活化。
-                  </div>
+                  <div class="mt-8px text-white text-14px font-400 lh-24px">{GOAL_TEXT}</div>
                 </div>
 
-                <div class="mt-16px w-full b-1 b-solid b-white/6 bg-white/2 p-12px rd-8px bg-white/6">
+                {/* 标题 + 内容：主导功能定位（三个导向标签 + 说明文字；点击后左侧大图切到「功能策划-主导功能定位」） */}
+                <div
+                  class={selectableCardClass(activeCard.value === '主导功能定位')}
+                  onClick={() => (activeCard.value = '主导功能定位')}
+                >
+                  <div class="flex items-center h-24px">
+                    <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
+                      <div class="w-4px h-4px bg-white rd-full" />
+                    </div>
+
+                    <div class="text-14px lh-20px text-white/75 font-500 ml-8px">主导功能定位</div>
+                  </div>
+
+                  {/* 三个导向标签横向排列（配色取 XOD_COLOR，与左侧看板形态一致） */}
+                  <div class="mt-12px flex flex-wrap items-center gap-8px">
+                    {FUNC_TAGS.map((tag) => {
+                      const color = XOD_COLOR[tag.key] ?? '#17FEB9';
+                      return (
+                        <div
+                          key={tag.key}
+                          class="b-1 b-solid rd-4px px-8px py-2px text-14px lh-20px"
+                          style={{ background: withAlpha(color, 0.15), borderColor: withAlpha(color, 0.45), color }}
+                        >
+                          {tag.label}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div class="mt-12px text-white text-14px font-400 lh-24px whitespace-pre-line">{FUNC_TEXT}</div>
+                </div>
+
+                {/* <div class="mt-16px w-full b-1 b-solid b-white/6 bg-white/2 p-12px rd-8px bg-white/6">
                   <div class="flex items-center h-24px">
                     <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
                       <div class="w-4px h-4px bg-white rd-full" />
@@ -83,7 +133,6 @@ export const FeaturePlan = defineComponent({
 
                     <div class="text-14px lh-20px text-white/75 font-500 ml-8px">片区策划图册</div>
 
-                    {/* 展开按钮（渐变边框：background 双图层 border-box/padding-box 裁剪，兼容圆角） */}
                     <div
                       class="size-24px ml-auto flex cursor-pointer items-center justify-center rd-4px"
                       style={{
@@ -100,7 +149,6 @@ export const FeaturePlan = defineComponent({
                     </div>
                   </div>
 
-                  {/* 图册：4 张图横向排列（TODO: 换成真实图册图片） */}
                   <div class="mt-12px flex gap-6px">
                     {ALBUM_PLACEHOLDERS.map((src, i) => (
                       <img
@@ -115,7 +163,7 @@ export const FeaturePlan = defineComponent({
                       />
                     ))}
                   </div>
-                </div>
+                </div> */}
               </>
             ),
           }}
