@@ -130,6 +130,8 @@ export function createImportParser(leafByLabel: Map<string, string>): (workbook:
       return { projects, leafKeys, errors };
     }
     if (errors.length) return { projects, leafKeys, errors };
+    // 条目按列序预建（保证输出顺序 = 原表列序，与值出现的行序无关），无值列最后过滤
+    const entries = projectCols.map(({ name, leafKey }) => ({ leafKey, name, values: {} }) as ImportedProject);
 
     // ── 指标行读取（行 4 起：C 列代码 → key） ────────────────────────
     for (let row = 3; row < rows.length; row += 1) {
@@ -138,18 +140,14 @@ export function createImportParser(leafByLabel: Map<string, string>): (workbook:
       const key = code ? CODE_TO_KEY[code] : NAME_TO_KEY[rowLabel];
       if (!key) continue;
       const asText = TEXT_KEYS.has(key);
-      for (const { col, name, leafKey } of projectCols) {
+      for (const [index, { col, leafKey }] of projectCols.entries()) {
         const value = asText ? cellTextAt(rows, row, col) : cellValueAt(rows, row, col);
         if (value === null) continue;
-        let entry = projects.find((p) => p.name === name && p.leafKey === leafKey);
-        if (!entry) {
-          entry = { leafKey, name, values: {} };
-          projects.push(entry);
-          leafKeys.add(leafKey);
-        }
-        entry.values[key] = value;
+        entries[index].values[key] = value;
+        leafKeys.add(leafKey);
       }
     }
+    projects.push(...entries.filter((entry) => Object.keys(entry.values).length > 0));
     if (!projects.length) {
       errors.push('所有项目列均无数据（占位列没有值不导入，请检查文件是否填入了数值）');
     }

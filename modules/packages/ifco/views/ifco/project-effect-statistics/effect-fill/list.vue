@@ -48,6 +48,7 @@
         </div>
         <div class="flex items-center">
           <a-button v-if="canFill" :disabled="loading" @click="handleBringIn"> 带入上一季度填写的项目列 </a-button>
+          <a-button v-if="canFill" class="ml-2" @click="handleOpenImport"> 导入 </a-button>
           <a-button type="primary" class="ml-2" v-if="canFill" @click="handleAddProject">
             <Icon icon="i-fluent:add-12-filled" /> 新增
           </a-button>
@@ -99,6 +100,7 @@
     </Modal>
 
     <AddProjectDrawer @register="registerAddDrawer" @success="handleAddSaved" />
+    <ImportDrawer @register="registerImportDrawer" @success="handleImported" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoEffectFillList">
@@ -128,6 +130,7 @@
   import { createCellRenderers } from './cell-renderers';
   import { exportEffectAllProjectsExcel, exportEffectExcel } from './export-excel';
   import AddProjectDrawer from './add-project-drawer.vue';
+  import ImportDrawer from './import-drawer.vue';
   import { createFillEditing } from './fill-editing';
   import { createTableColumns } from './table-columns';
   import { useTableBodyHeight } from '../../shared/table-viewport';
@@ -199,6 +202,22 @@
   // 表格视口高度:容器 flex-1 实测,详见 shared/table-viewport
   const tableBodyY = useTableBodyHeight(tableWrapRef);
   const [registerAddDrawer, { openDrawer: openAddDrawer }] = useDrawer();
+  const [registerImportDrawer, { openDrawer: openImportDrawer }] = useDrawer();
+
+  function handleOpenImport() {
+    if (!unitEditable.value) {
+      showMessage('当前单位为只读查看，不可导入');
+      return;
+    }
+    openImportDrawer(true, { year: year.value, quarter: quarter.value });
+  }
+
+  /** 导入成功回调：退出编辑态并整包重载（服务端同名覆盖 + 新增追加） */
+  async function handleImported() {
+    resetEditState();
+    dirtyCols.clear();
+    await loadFill();
+  }
 
   function handleAddProject() {
     if (!unitEditable.value) {

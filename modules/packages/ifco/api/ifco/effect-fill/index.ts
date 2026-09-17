@@ -334,6 +334,24 @@ export type BringInResult = {
   fromQuarter: string;
 };
 
+/** 导入写入参数（year/quarter/unit 由页面带当前周期与所选单位） */
+export type EffectImportProjectsParams = {
+  year: number | string;
+  quarter: string;
+  unit: string;
+  /** 解析出的项目列（name + 指标 key → 值；双值行拆 a/b 两键） */
+  projects: { name: string; values: Record<string, number> }[];
+};
+
+/** Excel 导入成效项目列（同名覆盖 + 新增追加；值全量同步） */
+export async function importEffectProjects(
+  params: EffectImportProjectsParams,
+): Promise<{ broughtProjectCount: number; overwrittenProjectCount: number; skippedProjectCount: number }> {
+  return unwrap<{ broughtProjectCount: number; overwrittenProjectCount: number; skippedProjectCount: number }>(
+    defHttp.postJson({ url: BASE + '/fill/importProjects', data: params }),
+  );
+}
+
 /** 成效带入上一季度（与进展域带入次数互不影响；force=强制，覆盖同名项目列数据） */
 export async function bringInPrevPeriod(params: {
   year: number | string;
