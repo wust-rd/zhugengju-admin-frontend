@@ -151,19 +151,20 @@ export const PostEvaluationModal = defineComponent({
               <div
                 class="relative mt-16px h-154px w-812px overflow-hidden rounded-4px border border-[#7FD8F0]/45 mx-auto p-12px"
                 style={{
-                  boxShadow: 'inset 0 -6px 20px 8px #38DEFF20'
+                  boxShadow: 'inset 0 -6px 20px 8px #38DEFF20',
                 }}
               >
                 {/* 标题行 */}
                 <div class="flex h-30px items-center">
                   <div class="size-8px ml-4px bg-[#4FB8E8]" />
-                  <div class="text-20px font-500 text-[#E4FBFF] ml-12px">老街区变身"新地标"，"好房子"融入武汉市更新片</div>
+                  <div class="text-20px font-500 text-[#E4FBFF] ml-12px">
+                    老街区变身"新地标"，"好房子"融入武汉市更新片
+                  </div>
                 </div>
 
                 {/* 内容行：正文 + 右侧图标占位 */}
                 <div class="flex items-center gap-24px p-12px text-14px text-white lh-20px b-1px b-solid b-white/6 mt-12px bg-#0F172A15 rd-4px">
-                    实现原住民原地回迁居住提质，全面升级市政、消防与便民配套；完整保留汉口里分街巷肌理，活化历史建筑传承老城文脉；配套特色商业街区互补江汉路商圈，拓展公共休闲空间，打造居住、文旅、商业融合发展模式，成为中心城区城市更新示范样板。
-  
+                  实现原住民原地回迁居住提质，全面升级市政、消防与便民配套；完整保留汉口里分街巷肌理，活化历史建筑传承老城文脉；配套特色商业街区互补江汉路商圈，拓展公共休闲空间，打造居住、文旅、商业融合发展模式，成为中心城区城市更新示范样板。
                 </div>
               </div>
 

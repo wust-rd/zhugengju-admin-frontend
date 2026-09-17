@@ -30,16 +30,29 @@ const DEFAULT_ITEMS: ProgressItem[] = [
  * 颜色带荧光发光；数据由父级传 AREA_COLOR 统计（area-data.progressItems，恒三段，
  * 无标注批次三段为 0；未评定片区只在分组列表体现，不进三色图）。
  *
+ * 点击色段或底部统计块 → emit select(green/yellow/red)：父级据此筛选列表与地图；
+ * 再次点击同一颜色 → emit select(null) 取消；有选中时未选中颜色降透明度。
+ *
  * props：
  * - items: 三色图数据（{ key, name, percent, count, color }[]，不传则用内置兜底数据）
+ * - activeKey: 当前选中的颜色 key（null = 未筛选）
  */
 export const ProgressChart = defineComponent({
   name: 'ProgressChart',
   props: {
     /** 三色图数据，不传则用内置占位数据 */
     items: { type: Array as PropType<ProgressItem[]>, default: () => DEFAULT_ITEMS },
+    /** 当前选中的颜色 key（无筛选为 null；未选中颜色降透明度） */
+    activeKey: { type: String as PropType<string | null>, default: null },
   },
-  setup(props) {
+  emits: {
+    /** 点击色段/统计块传出颜色 key；再次点击同一颜色传出 null（取消筛选） */
+    select: (key: string | null) => key === null || typeof key === 'string',
+  },
+  setup(props, { emit }) {
+    /** 选中态：未选中颜色整体压暗 */
+    const dim = (key: string) => (props.activeKey && key !== props.activeKey ? 0.35 : 1);
+
     return () => (
       <StatCard class="mt-16px">
         {/* 标题栏 */}
@@ -48,10 +61,15 @@ export const ProgressChart = defineComponent({
           <div class="ml-20px text-white text-16px">片区推进情况三色图</div>
         </div>
 
-        {/* 分段进度条 + 百分比：三段连排，段宽 = 百分比，剩余留白 */}
+        {/* 分段进度条 + 百分比：三段连排，段宽 = 百分比，剩余留白；点击筛选 */}
         <div class="mt-32px flex gap-6px w-full">
           {props.items.map((item) => (
-            <div key={item.key} class="flex flex-col items-center" style={{ flex: `${item.percent} 1 0%` }}>
+            <div
+              key={item.key}
+              class="flex flex-col items-center cursor-pointer transition-opacity duration-200"
+              style={{ flex: `${item.percent} 1 0%`, opacity: dim(item.key) }}
+              onClick={() => emit('select', props.activeKey === item.key ? null : item.key)}
+            >
               <div
                 class="h-10px w-full rd-full"
                 style={{ background: item.color, boxShadow: `0 0 8px ${item.color}` }}
@@ -61,13 +79,14 @@ export const ProgressChart = defineComponent({
           ))}
         </div>
 
-        {/* 底部三列统计：发光竖条 + 名称 + 数量，底部带同色浅荧光 */}
+        {/* 底部三列统计：发光竖条 + 名称 + 数量，底部带同色浅荧光；点击与色段同筛选 */}
         <div class="mt-24px mb-16px grid grid-cols-3 gap-x-8px">
           {props.items.map((item) => (
             <div
               key={item.key}
-              class="relative overflow-hidden flex items-center gap-8px px-12px py-8px rd-8px bg-white/5 h-40px"
-              style={{ boxShadow: `inset 0 -8px 16px -14px ${item.color}` }}
+              class="relative overflow-hidden flex items-center gap-8px px-12px py-8px rd-8px bg-white/5 h-40px cursor-pointer transition-opacity duration-200"
+              style={{ boxShadow: `inset 0 -8px 16px -14px ${item.color}`, opacity: dim(item.key) }}
+              onClick={() => emit('select', props.activeKey === item.key ? null : item.key)}
             >
               <div
                 class="w-4px h-16px rd-full shrink-0"
