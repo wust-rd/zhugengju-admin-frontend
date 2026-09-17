@@ -121,11 +121,13 @@
 
 - **form.vue**：`BasicDrawer` 必须加 **`force-render`**（页面加载即挂载抽屉内容，消除首次打开的懒挂载）；**不要**绑定响应式的 `:show-footer`；
 - **打开方（list.vue）**：在 `openDrawer` **之前**预设底部按钮显隐：`setDrawerProps({ showFooter: !record.isView })`；
-- **form.vue 回调内**：只设表单级禁用 `await setProps({ disabled: isView })`（抽屉体内，安全）。
+- **form.vue 回调内**：只设表单级禁用 `await setProps({ disabled: isView })`（抽屉体内，安全）；
+- **防闪烁＝打开动画零翻转**：打开走「先回填、后掀开」——list.vue 用 `openDrawer(false, record)` 只传数据不打开；form.vue 回调整个跑完（resetFields 回填 + disabled）后，末尾 `setDrawerProps({ open: true })` 才掀开。本地同步数据**不要**在回调里挂 `loading` 遮罩（loading true→false 在动画期间一闪而过，本身就是闪烁源；接后端异步取数后再恢复 loading）。
 
 **原因**：打开动画/首次懒挂载进行中翻转抽屉级 prop（show-footer true→false）会打断 antdv-next Drawer 的首次渲染——表现为**首次点击不弹抽屉、无任何报错、第二次点击才弹**（内容挂载完成后翻转即无害，故仅首击失败）。
+**抽屉闪烁是另一类问题（force-render 管不到）**：`openDrawer(true)` 先掀开、回调再跑——整批字段回填、loading 遮罩挂摘、整表置 disabled 都落在滑入动画的帧上，肉眼即闪烁；新增不带数据无可见变化所以不闪，查看/编辑带数据回填最明显。把全部翻转挪到抽屉闭合状态（open=false 期间）完成即可根除。
 
-参照实现：`modules/packages/urban-protection/views/urban-protection/urban/relic/` 与 `urban-health-check` 各 form.vue 及其头注释。
+参照实现：`modules/packages/urban-protection/views/urban-protection/urban/relic/` 与 `urban-health-check` 各 form.vue 及其头注释；「先回填后掀开」参照 `modules/packages/ifco/views/ifco/annual-plan/task-dispatch/`（list.vue 的 handleForm + form.vue 回调，文件头注释含打开时序说明）。
 
 ## 原型页移植风格（硬性规则）
 
