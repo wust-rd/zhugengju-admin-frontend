@@ -9,10 +9,8 @@
  * 「全武汉市」汇总（不带 unit 的聚合口径）作为第一个 sheet。
  * 数值纯数字输出（无千分位）；r3（其中：本年新开工）数值直出含 0；全表细边框。
  */
-import { write } from 'xlsx-js-style';
 import type { Range, WorkBook, WorkSheet } from 'xlsx-js-style';
-import { saveAs } from 'file-saver';
-import { finishBorderedSheet, fixedPlusUniformCols } from '../../shared/excel';
+import { saveWorkbook, finishBorderedSheet, fixedPlusUniformCols } from '../../shared/excel';
 import type { ProgressStatRow } from '@jeesite/ifco/api/ifco/progress-fill';
 import { DATA_CATEGORIES, LEAF_CATEGORIES, quarterLabel } from '@jeesite/ifco/api/ifco/progress-fill';
 
@@ -88,9 +86,5 @@ export async function exportProgressStatExcel({ year, quarter, unitName, sheets 
     SheetNames: sheets.map((sheet) => sheet.name),
     Sheets: Object.fromEntries(sheets.map((sheet) => [sheet.name, buildStatSheet(sheet.rows)])),
   };
-  const buffer = write(workbook, { bookType: 'xlsx', type: 'array' });
-  saveAs(
-    new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `项目进展统计_${year}年${quarterLabel(quarter)}${unitName ? `_${unitName}` : ''}.xlsx`,
-  );
+  await saveWorkbook(workbook, `项目进展统计_${year}年${quarterLabel(quarter)}${unitName ? `_${unitName}` : ''}.xlsx`);
 }

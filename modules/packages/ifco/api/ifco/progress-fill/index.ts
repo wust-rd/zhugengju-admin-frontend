@@ -12,7 +12,7 @@
  * 指标名称缩进：接口 name 不含缩进，level 值 = 全角空格缩进数（已实测 r3=4、r8=14）。
  */
 
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { match } from 'ts-pattern';
 import { defHttp } from '@jeesite/core/utils/http/axios';
 import { useGlobSetting } from '@jeesite/core/hooks/setting';
@@ -146,6 +146,8 @@ export const DATA_CATEGORIES = reactive<CategoryDef[]>([]);
 export const LEAF_CATEGORIES = reactive<CategoryDef[]>([]);
 /** 报送单位（已按数据权限过滤；value=单位编码） */
 export const UNITS = reactive<UnitVo[]>([]);
+/** 是否可「导出所有项目」（仅超管/综合协调组；来自 /dict/units 的 exportAll 标记） */
+export const CAN_EXPORT_ALL_PROJECTS = ref(false);
 /** 单位编码 → 名称 */
 export const UNIT_NAME_MAP = reactive<Record<string, string>>({});
 
@@ -191,11 +193,17 @@ function adaptCategories(vos: CategoryVo[]): CategoryDef[] {
 export async function ensureProgressDicts(): Promise<void> {
   if (dictsPromise) return dictsPromise;
   dictsPromise = (async () => {
-    const [indicatorVos, categoryVos, unitVos] = await Promise.all([
+    const [indicatorVos, categoryVos, unitBody] = await Promise.all([
       unwrap<IndicatorVo[]>(defHttp.get({ url: BASE + '/dict/indicators' })),
       unwrap<CategoryVo[]>(defHttp.get({ url: BASE + '/dict/categories' })),
-      unwrap<UnitVo[]>(defHttp.get({ url: BASE + '/dict/units' })),
+      defHttp.get<unknown>({ url: BASE + '/dict/units' }),
     ]);
+    // units 响应 v2：{code, msg, data:[...], exportAll}（exportAll 在顶层,不能走 unwrap）
+    const unitsBody = unitBody as { code?: number; msg?: string; data?: UnitVo[]; exportAll?: boolean };
+    const unitVos: UnitVo[] = unitsBody.data ?? [];
+    if (unitsBody.code !== undefined && unitsBody.code !== 200) {
+      throw new Error(unitsBody.msg || '单位清单请求失败');
+    }
     INDICATORS.splice(0, INDICATORS.length, ...indicatorVos.map(adaptIndicator));
     Object.keys(INDICATOR_MAP).forEach((k) => delete INDICATOR_MAP[k]);
     for (const item of INDICATORS) INDICATOR_MAP[item.key] = item;
@@ -213,6 +221,7 @@ export async function ensureProgressDicts(): Promise<void> {
     UNITS.splice(0, UNITS.length, ...unitVos);
     Object.keys(UNIT_NAME_MAP).forEach((k) => delete UNIT_NAME_MAP[k]);
     for (const unit of unitVos) UNIT_NAME_MAP[unit.code] = unit.name;
+    CAN_EXPORT_ALL_PROJECTS.value = unitsBody.exportAll === true;
   })().catch((e) => {
     // 失败允许重试：丢弃共享 Promise
     dictsPromise = undefined;
@@ -260,6 +269,48 @@ export async function loadProgressFillData(
     };
   }
   return { periodData, broughtIn: vo.broughtIn === true };
+}
+
+// ── 导出所有项目（仅超管/综合协调组）：全单位整包数据 ─────────────────
+
+/** GET /fill/allProjects 的单位包 */
+type AllProjectsUnitVo = {
+  unitCode: string;
+  unitName: string;
+  tabs: Record<string, { projects: FillProjectVo[]; totals: Record<string, number> | null }>;
+};
+
+/** GET /fill/allProjects 的 data */
+type AllProjectsVo = {
+  year: string;
+  quarter: string;
+  unitDatas: AllProjectsUnitVo[];
+};
+
+/** 前端形态：单位名 + 已适配的整包 periodData */
+export type ProgressAllProjectsUnitData = {
+  unitName: string;
+  periodData: PeriodFillData;
+};
+
+export async function loadAllProgressProjects(
+  year: number | string,
+  quarter: string,
+): Promise<ProgressAllProjectsUnitData[]> {
+  const vo = await unwrap<AllProjectsVo>(
+    defHttp.get({ url: BASE + '/fill/allProjects', params: { year: String(year), quarter } }),
+  );
+  return (vo.unitDatas ?? []).map((unit) => {
+    const periodData: PeriodFillData = {};
+    for (const leaf of LEAF_CATEGORIES) {
+      const tab = unit.tabs?.[leaf.key];
+      periodData[leaf.key] = {
+        projects: (tab?.projects ?? []).map(adaptProject),
+        totals: { ...(tab?.totals ?? {}) },
+      };
+    }
+    return { unitName: unit.unitName, periodData };
+  });
 }
 
 // ── 填报写操作 ───────────────────────────────────────────────────────
