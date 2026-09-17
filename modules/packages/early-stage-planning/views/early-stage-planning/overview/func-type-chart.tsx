@@ -8,8 +8,9 @@ import { defineComponent, onMounted, shallowRef, watch } from 'vue';
 /** 功能定位维度（other = 未命中任何导向 / FUNC_TYPE 为空） */
 export type FuncKey = 'cod' | 'tod' | 'iod' | 'sod' | 'eod' | 'hod' | 'other';
 
-/** 各维度单一配色（柱体从该色向底部渐变变浅；顶帽用亮色） */
-const FUNC_COLORS: Record<FuncKey, { color: string; cap: string }> = {
+/** 各维度单一配色（柱体从该色向底部渐变变浅；顶帽用亮色）；
+    统计图 / 更新片区列表胶囊 / 地图功能定位着色三处共用的统一色板 */
+export const FUNC_COLORS: Record<FuncKey, { color: string; cap: string }> = {
   cod: { color: '#0891B2', cap: '#22D3EE' },
   tod: { color: '#D97706', cap: '#FBBF24' },
   iod: { color: '#059669', cap: '#34D399' },

@@ -27,7 +27,8 @@ export type AreaCollection = {
     type: 'Feature';
     /** 片区唯一号（A_UID，地图点击联动用） */
     id?: string;
-    properties: Omit<EspMapAreaRow, 'geometry'>;
+    /** 派生属性：FUNC_TYPE_VALUE 首个编码小写（如 'cod'），无编码为 undefined —— 地图功能定位着色用 */
+    properties: Omit<EspMapAreaRow, 'geometry'> & { FUNC_FIRST?: string };
     geometry: MultiPolygonGeometry;
   }[];
 };
@@ -66,7 +67,17 @@ function toCollection(rows: EspMapAreaRow[]): AreaCollection {
   for (const row of rows) {
     try {
       const { geometry, ...props } = row;
-      features.push({ type: 'Feature', id: row.A_UID, properties: props, geometry: decodeGeometry(geometry) });
+      // 功能定位着色键：首个编码小写（无编码 undefined，地图 match 表达式走兜底灰）
+      const funcFirst = String(row.FUNC_TYPE_VALUE ?? '')
+        .split(',')[0]
+        ?.trim()
+        .toLowerCase();
+      features.push({
+        type: 'Feature',
+        id: row.A_UID,
+        properties: { ...props, FUNC_FIRST: funcFirst || undefined },
+        geometry: decodeGeometry(geometry),
+      });
     } catch (e) {
       console.warn(`[esp-map] 片区 ${row?.A_UID} geometry 解析失败，已跳过`, e);
     }
@@ -125,8 +136,9 @@ export function areaGroups(areas: AreaCollection): { title: string; badgeValue: 
   return [...byDist.entries()].map(([title, items]) => ({ title, badgeValue: items.length, items }));
 }
 
-/** 三色图色板与名称（AREA_COLOR 字段口径：2026 年第二季度推进情况，仅第一批有值） */
-const PROGRESS_META: { key: ProgressColor; name: string; color: string }[] = [
+/** 三色图/地图推进情况着色色板（AREA_COLOR 字段口径：2026 年第二季度推进情况，仅第一批有值；
+    key 同时是要素 AREA_COLOR 值与筛选值） */
+export const PROGRESS_META: { key: ProgressColor; name: string; color: string }[] = [
   { key: 'green', name: '绿', color: '#2EE6A8' },
   { key: 'yellow', name: '黄', color: '#F5E334' },
   { key: 'red', name: '红', color: '#FB4A64' },

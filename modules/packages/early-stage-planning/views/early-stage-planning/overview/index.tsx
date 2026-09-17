@@ -1,7 +1,7 @@
 import arrow1Svg from '@jeesite/assets/svg/display/arrow1.svg';
 import { ArtFont } from '@jeesite/display/components/art-font';
 import { CollapseGroups, type CollapseGroupItem } from '@jeesite/display/components/collapse-groups';
-import { XodItem, XodRow } from '@jeesite/display/components/corner-panel/xod-row';
+import type { XodItem } from '@jeesite/display/components/corner-panel/xod-row';
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlassRing } from '@jeesite/display/components/glass-ring';
 import { type GlowTabItem } from '@jeesite/display/components/glow-tabs';
@@ -12,6 +12,7 @@ import { useMessage } from '@jeesite/core/hooks/web/useMessage';
 import type { MenuItemType } from 'antdv-next';
 import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 import { AreaLayers } from './area-layers';
+import { FuncTagRow } from './func-tag-row';
 import { DistrictChart } from './district-chart';
 import { FuncTypeChart, type FuncKey } from './func-type-chart';
 import { InvestTotalCard, type BatchInvest } from './invest-total-card';
@@ -225,7 +226,7 @@ export default defineComponent({
                     key 含筛选值 —— GlowCollapse 非受控展开，重挂载以应用「选中区展开、其余收起」 */}
                 <CollapseGroups key={listKey.value} groups={groups.value} isRound panelClass="rd-8px">
                   {{
-                    row: (item) => <XodRow item={item as XodItem} />,
+                    row: (item) => <FuncTagRow item={item as XodItem} />,
                   }}
                 </CollapseGroups>
               </div>
@@ -238,7 +239,9 @@ export default defineComponent({
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
 
                 {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素，TopoJSON/WKT 解码还原），批次切换 setData 刷新 */}
-                <AreaLayers areas={mapAreas.value} />
+                {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素），fill-color 按当前 tab 维度
+                    match 着色（行政区划=批次双色 / 推进情况=三色 / 功能定位=首个编码色），左下角图例 */}
+                <AreaLayers areas={mapAreas.value} colorBy={regionKey.value} />
               </VMap>
             </>
           ),
