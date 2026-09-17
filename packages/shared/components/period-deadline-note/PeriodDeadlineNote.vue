@@ -17,10 +17,6 @@
     deadline: string | Date;
   }>();
 
-  const QUARTER_LABELS: Record<string, string> = { '1': '一', '2': '二', '3': '三', '4': '四' };
-
-  const quarterLabel = computed(() => QUARTER_LABELS[String(props.quarter)] ?? String(props.quarter));
-
   const deadlineLabel = computed(() => {
     if (typeof props.deadline === 'string') {
       return props.deadline;
@@ -32,6 +28,6 @@
 
 <template>
   <div class="text-red-500 text-14px">
-    *当前填报周期：{{ year }}年{{ quarterLabel }}季度，截止填报日期：{{ deadlineLabel }}
+    *当前填报周期：{{ year }}年第{{ quarter }}季度，截止填报日期：{{ deadlineLabel }}
   </div>
 </template>
