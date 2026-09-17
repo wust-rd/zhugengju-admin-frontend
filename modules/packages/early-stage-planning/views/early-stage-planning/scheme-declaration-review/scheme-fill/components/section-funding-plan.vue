@@ -5,7 +5,8 @@
    - 总体投资估算（亿元）*：复用 Scheme.invest（与列表页同名字段打通）；
    - 片区资金来源（选填）：14 项「圈选 + 金额（亿元）」网格（4 列自适应），
      圈选样式仿设计稿 radio 圆点，圆点与来源名整块可点切换；输入金额自动视为选中。
-     值结构：{ 来源名: 金额|null }。
+     值结构：{ 来源名: 金额|null }；
+   - 资金来源概况（选填，≤500 字）：普通 schema 文本域，随表单模型自动取值/回显。
 
   实现注意（坑）：
    - 金额输入不用 antd InputNumber：它 changeOnBlur 默认开启，失焦时会用
@@ -91,6 +92,13 @@
       slot: 'fundSources',
       colProps: { span: 24, md: 24, lg: 24 },
     },
+    {
+      label: '资金来源概况',
+      field: 'fundOverview',
+      component: 'InputTextArea',
+      colProps: { span: 24, md: 24, lg: 24 },
+      componentProps: { maxlength: 500, rows: 4, showCount: true, placeholder: '不超过500字' },
+    },
   ];
 
   const { registerForm, exposed } = useSectionForm({
@@ -152,7 +160,7 @@
     exposed.setFieldsValueSilently({ fundSources: out });
   }
 
-  /** 覆写导出：资金来源汇总为一行（来源（金额亿元）用「；」拼接） */
+  /** 覆写导出：资金来源汇总为一行（来源（金额亿元）用「；」拼接）；概况行从表单模型取 */
   function exportRows(): [string, string][] {
     const rows: [string, string][] = [['总体投资估算（亿元）', investText.value.trim()]];
     const picked = FUND_SOURCES.filter(selected);
@@ -167,6 +175,7 @@
             .join('；')
         : '（无）',
     ]);
+    rows.push(['资金来源概况', String(exposed.getFieldsValue().fundOverview ?? '')]);
     return rows;
   }
 

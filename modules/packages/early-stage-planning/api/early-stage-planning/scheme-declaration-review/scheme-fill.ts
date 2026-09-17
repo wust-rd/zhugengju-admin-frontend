@@ -117,6 +117,8 @@ export type EspSchemeFill = {
   invest?: number | null;
   /** { 来源名: 金额|null }，键存在即选中 */
   fundSources?: Record<string, number | null>;
+  /** 资金来源概况（2026-09-17 新增，≤500 字，待后端实现） */
+  fundOverview?: string;
   schemePlanFiles?: EspSchemeFile[];
   chartFiles?: EspSchemeFile[];
   healthReportFiles?: EspSchemeFile[];

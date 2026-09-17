@@ -55,7 +55,7 @@ export default defineComponent({
     // ---- 更新片区数据（按批次请求 esp 图斑接口；地图/柱状图/分组列表共用，按批次缓存） ----
     const areas = shallowRef<AreaCollection | null>(null);
     /** 当前选中批次（'第一批' | '第二批' | '全部'，见 area-data.BatchKey） */
-    const activeBatch = ref<string>('第一批');
+    const activeBatch = ref<string>('全部');
     /** 各批次片区数（下拉 label 回显；批次数据加载完成后补充） */
     const batchCounts = shallowRef<Partial<Record<string, number>>>({});
     const batches = computed<MenuItemType[]>(() =>
