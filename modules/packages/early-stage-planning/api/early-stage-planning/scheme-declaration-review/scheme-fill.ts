@@ -92,8 +92,14 @@ export type EspSchemeFill = {
   /** 片区范围线（WKT 字符串，MULTIPOLYGON） */
   scopeLine?: string | null;
   problemList?: string[];
+  /** 问题整治清单配图（2026-09-17 新增，≤5 张文件对象数组） */
+  problemImages?: EspSchemeFile[];
   opportunityList?: string[];
+  /** 发展机遇清单配图（2026-09-17 新增，≤5 张文件对象数组） */
+  opportunityImages?: EspSchemeFile[];
   demandList?: string[];
+  /** 更新诉求清单配图（2026-09-17 新增，≤5 张文件对象数组） */
+  demandImages?: EspSchemeFile[];
   /** 总体目标（2026-09-16 新增，≤200 字） */
   overallGoal?: string;
   funcTypes?: string[];

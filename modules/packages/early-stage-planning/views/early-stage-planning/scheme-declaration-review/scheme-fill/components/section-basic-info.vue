@@ -21,7 +21,7 @@
           accept=".jpg,.jpeg,.png"
           list-type="picture-card"
           multiple
-          :max-count="3"
+          :max-count="1"
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="imageBeforeUpload"
@@ -32,7 +32,7 @@
             <span class="text-12px">上传图片</span>
           </div>
         </Upload>
-        <div class="mt-4px text-12px text-gray-400">上传图片（1-3张），支持常见图片格式</div>
+        <div class="mt-4px text-12px text-gray-400">上传图片（1张），支持常见图片格式</div>
       </div>
     </template>
     <!-- 片区范围线：GeoField（上传解析/地图绘制，TopoJSON 存储；查看态只读） -->
