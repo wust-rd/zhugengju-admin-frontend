@@ -47,7 +47,7 @@ export const VMapControls = defineComponent({
       type: String as PropType<Orientation>,
       default: 'horizontal',
     },
-    /** 是否显示底图切换按钮（点击向上弹出四个底图缩略图竖排面板），默认 true */
+    /** 是否显示底图切换按钮（点击向上弹出底图缩略图竖排面板），默认 true */
     showBasemap: { type: Boolean, default: true },
     /** 是否显示缩放（+ / -）按钮组，默认 true */
     showZoom: { type: Boolean, default: true },
@@ -225,7 +225,7 @@ export const VMapControls = defineComponent({
     // ── 渲染：底图 → 罗盘 → 3D → 定位 → 全屏 → 缩放 ─────────────
     return () => (
       <div class={containerClass.value}>
-        {/* 底图切换：点击按钮向上 fadeUp 弹出四个底图缩略图竖排面板，再次点击按钮向下淡出收起；
+        {/* 底图切换：点击按钮向上 fadeUp 弹出底图缩略图竖排面板，再次点击按钮向下淡出收起；
             展开期间按钮图标变蓝，选中项蓝框高亮且点击底图不收起面板（仅按钮可收起） */}
         {props.showBasemap && (
           <div class="relative flex items-center">

@@ -15,7 +15,8 @@ const TIANDITU_SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7'];
 /** 武汉市中心（大屏各 overview 页共用初始视口中心） */
 export const WUHAN_CENTER: [number, number] = [114.2761773, 30.5344542];
 
-/** 构建天地图瓦片 URL 数组（layer 传 'vec_c'/'cva_c' 等 _c 系列图层名） */
+/** 构建天地图瓦片 URL 数组（layer 传 DataServer 图层名：_c 经纬度系列如 'vec_c'/'cva_c'，
+ * 或 _w 墨卡托系列如 'vec_w'/'img_w'——后者供 3857 地图共用，见 basemap/basemap.ts） */
 export function tiandituTileUrls(layer: string): string[] {
   return TIANDITU_SUBDOMAINS.map(
     (s) =>

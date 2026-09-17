@@ -8,10 +8,11 @@
 import { useMap } from '@jeesite/vmap';
 import { defineComponent, onBeforeUnmount, type PropType } from 'vue';
 import { watch } from 'vue';
+import { colors } from '@jeesite/core/libs/colors';
 
 const BATCH_COLOR: Record<string, string> = {
-  第一批: '#773ceb',
-  第二批: '#3a86ec',
+  第一批: colors.purple[600],
+  第二批: colors.cyan[600],
 };
 
 const SOURCE_ID = 'esp-areas';

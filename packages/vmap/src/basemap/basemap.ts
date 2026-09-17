@@ -2,15 +2,22 @@ import { ref } from 'vue';
 import type { MapOptions, StyleSpecification } from 'maplibre-gl';
 import sgjElectricImg from '@jeesite/assets/images/vmap/数公基电子地图.webp';
 import sgjRemoteImg from '@jeesite/assets/images/vmap/数公基遥感影像.webp';
+import tdtElectricImg from '@jeesite/assets/images/vmap/天地图电子地图.png';
+import tdtRemoteImg from '@jeesite/assets/images/vmap/天地图遥感影像.png';
 import yztElectricImg from '@jeesite/assets/images/vmap/一张图电子地图.webp';
 import yztRemoteImg from '@jeesite/assets/images/vmap/一张图遥感影像.webp';
+import { tiandituTileUrls } from '../tianditu';
 import { YZT_WMTS_TILES, ensureYztWmtsProtocol } from './yzt-wmts-protocol';
 import { YZT_GATEWAY_BASE, YZT_TOKEN } from './yzt-gateway';
 
 /**
  * 底图 preset —— 各大屏 overview 页共用
  *
- * 双平台四底图（数公基电子/数公基遥感/一张图电子/一张图遥感）：
+ * 三平台六底图（天地图电子/天地图遥感/数公基电子/数公基遥感/一张图电子/一张图遥感）：
+ *  - 天地图：官方公共在线底图（token 见 web/.env 的 VITE_TIANDITU_TOKEN，需客户端
+ *    出公网）。DataServer REST **_w 系列**（Web Mercator，与本地图 3857 一致，勿用
+ *    _c 经纬度系列）：电子 = vec_w + cva_w 注记、遥感 = img_w + cia_w 注记，
+ *    复用 ../tianditu 的 tiandituTileUrls 构造器；**默认选中「天地图电子地图」**
  *  - 数公基：局方服务平台的 ArcGIS REST 缓存服务（ServiceAdapter 代理），
  *    Web Mercator / EPSG:3857、256px PNG、0~19 级，token 内置在路径中
  *  - 一张图：湖北省自然资源一张图 tip-gateway 外网代理（网关地址与 token 见
@@ -61,10 +68,39 @@ function yztWmsTileUrls(service: { proxy: string; wmsLayer: string }): string[] 
   ];
 }
 
-/** 底图样式：数公基电子地图（默认显示）+ 数公基遥感 / 一张图遥感（初始隐藏，由底图切换器控制互斥显隐） */
+/** 底图样式：天地图电子地图（默认显示）+ 其余五底图（初始隐藏，由底图切换器控制互斥显隐） */
 export const basemapStyle: StyleSpecification = {
   version: 8,
   sources: {
+    // 天地图 _w 系列（3857）；min/maxzoom 与 ../tianditu 的 _c 定义保持一致（z2~18，之上过采样）
+    'basemap-tdt-vec': {
+      type: 'raster',
+      tiles: tiandituTileUrls('vec_w'),
+      tileSize: 256,
+      minzoom: 2,
+      maxzoom: 18,
+    },
+    'basemap-tdt-cva': {
+      type: 'raster',
+      tiles: tiandituTileUrls('cva_w'),
+      tileSize: 256,
+      minzoom: 2,
+      maxzoom: 18,
+    },
+    'basemap-tdt-img': {
+      type: 'raster',
+      tiles: tiandituTileUrls('img_w'),
+      tileSize: 256,
+      minzoom: 2,
+      maxzoom: 18,
+    },
+    'basemap-tdt-cia': {
+      type: 'raster',
+      tiles: tiandituTileUrls('cia_w'),
+      tileSize: 256,
+      minzoom: 2,
+      maxzoom: 18,
+    },
     'basemap-sgj-emap': {
       type: 'raster',
       tiles: sgjTileUrls('EMAP_WEB'),
@@ -104,7 +140,13 @@ export const basemapStyle: StyleSpecification = {
     },
   },
   layers: [
-    { id: 'basemap-sgj-emap', type: 'raster', source: 'basemap-sgj-emap' },
+    // 天地图电子地图（默认）：矢量底图 + 中文注记
+    { id: 'basemap-tdt-vec', type: 'raster', source: 'basemap-tdt-vec' },
+    { id: 'basemap-tdt-cva', type: 'raster', source: 'basemap-tdt-cva' },
+    // 天地图遥感影像：影像底图 + 影像注记（注记必须叠在影像之上）
+    { id: 'basemap-tdt-img', type: 'raster', source: 'basemap-tdt-img', layout: { visibility: 'none' } },
+    { id: 'basemap-tdt-cia', type: 'raster', source: 'basemap-tdt-cia', layout: { visibility: 'none' } },
+    { id: 'basemap-sgj-emap', type: 'raster', source: 'basemap-sgj-emap', layout: { visibility: 'none' } },
     { id: 'basemap-sgj-yx', type: 'raster', source: 'basemap-sgj-yx', layout: { visibility: 'none' } },
     { id: 'basemap-yzt-yx', type: 'raster', source: 'basemap-yzt-yx', layout: { visibility: 'none' } },
     // vec_c 与 cva_c 同构，经 yztwmts:// 协议取图；上游对当前 token 屏蔽
@@ -133,6 +175,8 @@ export interface BasemapOption {
 
 /** 底图切换面板可选项 */
 export const BASEMAP_OPTIONS: readonly BasemapOption[] = [
+  { name: '天地图电子地图', image: tdtElectricImg, layerIds: ['basemap-tdt-vec', 'basemap-tdt-cva'] },
+  { name: '天地图遥感影像', image: tdtRemoteImg, layerIds: ['basemap-tdt-img', 'basemap-tdt-cia'] },
   { name: '数公基电子地图', image: sgjElectricImg, layerIds: ['basemap-sgj-emap'] },
   { name: '数公基遥感影像', image: sgjRemoteImg, layerIds: ['basemap-sgj-yx'] },
   // vec_c 上游屏蔽期间取图失败该瓦片透明：选中=注记叠在空白底图上，授权放开后自动恢复完整
@@ -140,8 +184,8 @@ export const BASEMAP_OPTIONS: readonly BasemapOption[] = [
   { name: '一张图遥感影像', image: yztRemoteImg, layerIds: ['basemap-yzt-yx', 'basemap-yzt-cva'] },
 ];
 
-/** 初始选中的底图名（对应 basemapStyle 中默认可见的 'basemap-sgj-emap' 图层） */
-export const DEFAULT_BASEMAP_NAME = '数公基电子地图';
+/** 初始选中的底图名（对应 basemapStyle 中默认可见的 'basemap-tdt-vec' + 'basemap-tdt-cva' 图层） */
+export const DEFAULT_BASEMAP_NAME = '天地图电子地图';
 
 /**
  * 全局共享的底图选中态（模块级单例）：overview 页面来回切换时各 VMapControls
