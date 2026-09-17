@@ -35,7 +35,7 @@ export const GeoDataSection = defineComponent({
     uploadText: { type: String, default: '上传 shp / dwg 文件' },
   },
   emits: ['update:geoJson', 'update:fileName'],
-  setup(props, { emit }) {
+  setup(props, { emit, slots }) {
     const parsing = ref(false);
     const editOpen = ref(false);
     const { showMessage } = useMessage();
@@ -55,6 +55,23 @@ export const GeoDataSection = defineComponent({
       return false;
     }
 
+    /**
+     * 程序化打开文件选择框（uploadButton 插槽模式用：插槽触发元素自行决定何时选择，
+     * 如「hover 选坐标系 → 点 item 打开文件框」）。动态 input 用完即弃，每次重选同文件也生效。
+     */
+    function selectFile() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = props.accept;
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (file) {
+          void handleSelectFile(file);
+        }
+      };
+      input.click();
+    }
+
     return () => (
       <div>
         <div class="mb-8px flex items-center justify-between">
@@ -63,11 +80,24 @@ export const GeoDataSection = defineComponent({
           </span>
           <div class="flex shrink-0 gap-8px">
             {!props.disabled && (
-              <Upload before-upload={handleSelectFile} accept={props.accept} showUploadList={false} maxCount={1}>
-                <Button preIcon="i-ant-design:upload-outlined" class="rounded-none" loading={parsing.value}>
-                  {props.uploadText}
-                </Button>
-              </Upload>
+              <>
+                {/* uploadButton 插槽：完全自管上传触发（不经 antd Upload），作用域提供
+                    parsing（解析中）与 selectFile（打开文件选择框）；无插槽走默认 Upload */}
+                {slots.uploadButton
+                  ? slots.uploadButton({ parsing: parsing.value, selectFile })
+                  : (() => (
+                      <Upload
+                        before-upload={handleSelectFile}
+                        accept={props.accept}
+                        showUploadList={false}
+                        maxCount={1}
+                      >
+                        <Button preIcon="i-ant-design:upload-outlined" class="rounded-none" loading={parsing.value}>
+                          {props.uploadText}
+                        </Button>
+                      </Upload>
+                    ))()}
+              </>
             )}
             {!props.disabled && (
               <Button preIcon="i-ant-design:edit-outlined" class="rounded-none" onClick={() => (editOpen.value = true)}>

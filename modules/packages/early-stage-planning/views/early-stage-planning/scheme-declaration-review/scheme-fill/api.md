@@ -19,7 +19,7 @@
 | `schemeFillSave(data)` | `POST /a/esp/schemeFill/save` | 保存（全量提交；projects 行剥离回显 id） |
 | `schemeFillDelete(id)` | `POST /a/esp/schemeFill/delete` | 删除（仅待审查片区） |
 | `espFileUpload(file)` | `POST /a/esp/file/upload` | 单文件上传 MinIO（响应 fileName 归一为 name） |
-| `schemeFillParseVector(file)` | `POST /a/esp/schemeFill/parseVector` | 矢量解析（dwg/shp(zip或配套)/geojson → WKT） |
+| `schemeFillParseVector(file, type)` | `POST /a/esp/schemeFill/parseVector` | 矢量解析（仅 .dwg；type=源坐标系 CGCS_WH_2000【默认，武汉2000】/ WGS84 → WKT） |
 | `wktToGeoJson` / `geoJsonToWkt` | — | WKT ↔ GeoJSON 互转（手写解析，无第三方依赖；与 geometry 列存量格式一致） |
 
 ## 前端消费约定（与后端契约的差异点）

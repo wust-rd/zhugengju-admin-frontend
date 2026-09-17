@@ -136,14 +136,19 @@ export type EspSchemeListRow = {
   reportOrg: string | null;
 };
 
+/** 矢量解析的源坐标系（type 入参；返回 wkt/bbox 始终为 WGS84） */
+export type EspCoordType = 'CGCS_WH_2000' | 'WGS84';
+
 /** 矢量解析结果（parseVector；后端 JTS 生成，坐标无损） */
 export type EspParseVectorResult = {
-  /** WKT 文本（MULTIPOLYGON；确认后随表单原样存入 scopeLine / mapSpot） */
+  /** WKT 文本（MULTIPOLYGON，WGS84；确认后随表单原样存入 scopeLine / mapSpot） */
   wkt: string;
   bbox: number[];
   featureCount: number;
-  sourceFormat: 'dwg' | 'shp' | 'geojson';
+  sourceFormat: 'dwg' | 'dxf' | 'shp' | 'geojson';
   reprojected: boolean;
+  /** 回显入参 type */
+  sourceCrs: string;
 };
 
 /** 保存响应 */
@@ -193,8 +198,8 @@ export async function schemeFillDelete(id: string): Promise<{ id: string; aUid: 
  * uploadFile 直走 axios 实例（不经过 transformRequestHook 解包），resolve 的是完整
  * AxiosResponse —— .data 才是后端 {code, msg, data} body（同 policy.ts 的处理）
  */
-async function uploadBody<T>(file: File, path: string): Promise<T> {
-  const res = await defHttp.uploadFile({ url: uploadUrl(path) }, { file, name: 'files' });
+async function uploadBody<T>(file: File, path: string, data?: Recordable): Promise<T> {
+  const res = await defHttp.uploadFile({ url: uploadUrl(path) }, { file, name: 'files', data });
   return unwrap<T>((res as Recordable)?.data);
 }
 
@@ -212,9 +217,16 @@ export async function espFileUpload(file: File): Promise<EspSchemeFile> {
   return { name: first.fileName, url: first.url, objectKey: first.objectKey, size: first.size };
 }
 
-/** 2.2 矢量解析（dwg/shp(配套或zip)/geojson → WKT，不落库） */
-export async function schemeFillParseVector(file: File): Promise<EspParseVectorResult> {
-  return uploadBody<EspParseVectorResult>(file, '/esp/schemeFill/parseVector');
+/**
+ * 2.2 矢量解析（dwg/dxf/shp/geojson → WKT，不落库）
+ *
+ * @param type 源坐标系：CGCS_WH_2000（武汉2000，默认）/ WGS84；返回 wkt/bbox 始终为 WGS84
+ */
+export async function schemeFillParseVector(
+  file: File,
+  type: EspCoordType = 'CGCS_WH_2000',
+): Promise<EspParseVectorResult> {
+  return uploadBody<EspParseVectorResult>(file, '/esp/schemeFill/parseVector', { type });
 }
 
 // ---------------- 3. WKT ↔ GeoJSON 互转（存储 ↔ 展示） ----------------
