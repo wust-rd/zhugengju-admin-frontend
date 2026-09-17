@@ -68,14 +68,17 @@ export async function exportEffectExcel({
     rows,
     [],
     [{ wch: 42 }, { wch: 10 }, { wch: 8 }, { wch: 14 }, ...projects.map(() => ({ wch: 12 }))],
-    { rowHeights: { 0: headerRowHeight ?? 60 } },
+    { rowHeights: { 0: headerRowHeight ?? 100 } },
   );
 
   const workbook: WorkBook = {
     SheetNames: [`湖北省武汉市${year}年${quarterLabel(quarter)}项目成效情况`],
     Sheets: { [`湖北省武汉市${year}年${quarterLabel(quarter)}项目成效情况`]: worksheet },
   };
-  await saveWorkbook(workbook, `${unitName ? `${unitName}：` : ''}湖北省武汉市${year}年${quarterLabel(quarter)}项目实施成效情况表.xlsx`);
+  await saveWorkbook(
+    workbook,
+    `${unitName ? `${unitName}：` : ''}湖北省武汉市${year}年${quarterLabel(quarter)}项目实施成效情况表.xlsx`,
+  );
 }
 
 /**

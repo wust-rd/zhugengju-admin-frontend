@@ -13,6 +13,7 @@
 
 import { reactive } from 'vue';
 import { match } from 'ts-pattern';
+import NP from 'number-precision';
 import { defHttp } from '@jeesite/core/utils/http/axios';
 import { useGlobSetting } from '@jeesite/core/hooks/setting';
 import type { ProjectColumn } from '../common';
@@ -440,7 +441,7 @@ export function cellValue(
     .exhaustive();
 }
 
-/** 一行指标的「合计」：双值行按位求和返回二元组；普通行 = 数值之和；节标题行无合计 */
+/** 一行指标的「合计」：双值行按位求和返回二元组；普通行 = 数值之和；节标题行无合计（金额累加走 number-precision，规避浮点尾差） */
 export function rowTotal(
   item: EffectIndicatorDef,
   data: EffectUnitData | undefined,
@@ -454,8 +455,8 @@ export function rowTotal(
         for (const column of data?.projects ?? []) {
           const value = cellValue(item, column);
           if (Array.isArray(value)) {
-            sumA += value[0];
-            sumB += value[1];
+            sumA = NP.plus(sumA, value[0]);
+            sumB = NP.plus(sumB, value[1]);
           }
         }
         return [sumA, sumB] as [number, number];
@@ -463,7 +464,7 @@ export function rowTotal(
       let sum = 0;
       for (const column of data?.projects ?? []) {
         const value = cellValue(item, column);
-        if (typeof value === 'number') sum += value;
+        if (typeof value === 'number') sum = NP.plus(sum, value);
       }
       return sum;
     })

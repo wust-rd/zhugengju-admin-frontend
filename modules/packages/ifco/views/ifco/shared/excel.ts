@@ -32,6 +32,8 @@ const HEADER_ALIGNMENT = { vertical: 'center', horizontal: 'center', wrapText: t
 export type SheetStyleOptions = {
   /** 各行行高（pt），按行号索引；只给需要定高的行设置，如 { 0: 30 } = 表头行 30pt */
   rowHeights?: Record<number, number>;
+  /** 额外允许自动换行的行（0 起行号；第 1 行表头默认已换行，多行表头的项目名行等按需追加） */
+  wrapRows?: number[];
   /**
    * 冻结窗格：x = 冻结的列数（左侧 x 列），y = 冻结的行数（顶部 y 行）。
    * 不传默认 { x: 1, y: 1 }（冻结第一行 + 第一列）。
@@ -67,15 +69,17 @@ export function finishBorderedSheet(
     }
     worksheet['!rows'] = rowInfos;
   }
+  const wrapRowSet = new Set(options?.wrapRows ?? []);
   const area = utils.decode_range(worksheet['!ref']!);
   for (let row = area.s.r; row <= area.e.r; row += 1) {
     for (let col = area.s.c; col <= area.e.c; col += 1) {
       const address = utils.encode_cell({ r: row, c: col });
       const cell = ((worksheet[address] as CellObject | undefined) ?? { t: 's', v: '' }) as CellObject;
+      const base = row === 0 ? HEADER_ALIGNMENT : col === 0 ? FIRST_COL_BODY_ALIGNMENT : CENTER_ALIGNMENT;
       cell.s = {
         ...(cell.s ?? {}),
         border: { top: THIN, bottom: THIN, left: THIN, right: THIN },
-        alignment: row === 0 ? HEADER_ALIGNMENT : col === 0 ? FIRST_COL_BODY_ALIGNMENT : CENTER_ALIGNMENT,
+        alignment: wrapRowSet.has(row) ? { ...base, wrapText: true } : base,
       };
       worksheet[address] = cell;
     }

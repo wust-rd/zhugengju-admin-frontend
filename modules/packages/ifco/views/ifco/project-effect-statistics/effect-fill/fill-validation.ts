@@ -14,6 +14,7 @@
  * 约定：比较仅在两侧均已填写时进行（未填项不参与比较）；规则 7 由
  * syncEffectAutoSums 写入值实现（保存前必调），天然满足相等。
  */
+import NP from 'number-precision';
 import type { ProjectColumn } from '@jeesite/ifco/api/ifco/common';
 import { EFFECT_INDICATOR_MAP } from '@jeesite/ifco/api/ifco/effect-fill';
 
@@ -44,7 +45,7 @@ export function syncEffectAutoSums(col: ProjectColumn) {
   for (const [target, parts] of Object.entries(EFFECT_AUTO_SUM)) {
     const nums = parts.map((key) => num(col.values[key])).filter((v): v is number => v !== undefined);
     if (nums.length) {
-      col.values[target] = nums.reduce((a, b) => a + b, 0);
+      col.values[target] = nums.reduce((a, b) => NP.plus(a, b), 0);
     } else {
       delete col.values[target];
     }
@@ -80,7 +81,7 @@ export function validateEffectColumn(col: ProjectColumn): string | undefined {
     const main = codeValue(col, rule.main);
     const partNums = rule.parts.map((code) => codeValue(col, code)).filter((v): v is number => v !== undefined);
     if (main === undefined || partNums.length === 0) continue;
-    if (partNums.reduce((a, b) => a + b, 0) > main) {
+    if (partNums.reduce((a, b) => NP.plus(a, b), 0) > main) {
       return `${prefix}代码${rule.main}（${nameOf(rule.main)}）不能小于 ${rule.parts.map((code) => `代码${code}`).join('+')} 之和，请调整后再保存`;
     }
   }

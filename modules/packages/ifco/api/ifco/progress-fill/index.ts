@@ -14,6 +14,7 @@
 
 import { reactive, ref } from 'vue';
 import { match } from 'ts-pattern';
+import NP from 'number-precision';
 import { defHttp } from '@jeesite/core/utils/http/axios';
 import { useGlobSetting } from '@jeesite/core/hooks/setting';
 import type { CategoryDef, ProjectColumn, TabFillData, PeriodFillData } from '../common';
@@ -313,6 +314,26 @@ export async function loadAllProgressProjects(
   });
 }
 
+// ── 导入（Excel 上传解析后的批量写入：同名覆盖 + 新增追加） ───────────
+
+/** 导入写入参数（year/quarter/unit 由页面带当前周期与所选单位） */
+export type ImportProjectsParams = {
+  year: number | string;
+  quarter: string;
+  unit: string;
+  /** 解析出的项目列（leafKey + name + 指标 key → 值） */
+  projects: { leafKey: string; name: string; values: Record<string, number | string> }[];
+};
+
+/** 导入结果（与强制带入同语义的三计数） */
+export async function importProgressProjects(
+  params: ImportProjectsParams,
+): Promise<{ broughtProjectCount: number; overwrittenProjectCount: number; skippedProjectCount: number }> {
+  return unwrap<{ broughtProjectCount: number; overwrittenProjectCount: number; skippedProjectCount: number }>(
+    defHttp.postJson({ url: BASE + '/fill/importProjects', data: params }),
+  );
+}
+
 // ── 填报写操作 ───────────────────────────────────────────────────────
 
 /** 保存项目列返回 */
@@ -440,7 +461,7 @@ export async function loadProgressStatData(
   };
 }
 
-// ── 展示口径：sum 汇总 / count 项目数由前端实时计算（同后端口径） ──────
+// ── 展示口径：sum 汇总 / count 项目数由前端实时计算（同后端口径；金额累加走 number-precision，规避 IEEE 754 浮点尾差） ──
 
 /**
  * 单元格取值：汇总行 = 构成子行递归求和；count/total 行不落单元格（返回 undefined）；
@@ -453,7 +474,7 @@ export function cellValue(item: IndicatorDef, column: ProjectColumn): number | s
       for (const partKey of item.parts ?? []) {
         const part = INDICATOR_MAP[partKey];
         const value = part ? cellValue(part, column) : undefined;
-        if (typeof value === 'number') sum += value;
+        if (typeof value === 'number') sum = NP.plus(sum, value);
       }
       return sum;
     })
@@ -481,7 +502,7 @@ export function tabTotal(item: IndicatorDef, tab: TabFillData | undefined): numb
       let sum = 0;
       for (const column of tab?.projects ?? []) {
         const value = cellValue(item, column);
-        if (typeof value === 'number') sum += value;
+        if (typeof value === 'number') sum = NP.plus(sum, value);
       }
       return sum;
     })
@@ -496,7 +517,7 @@ export function grandTotal(item: IndicatorDef, periodData: PeriodFillData | unde
       let sum = 0;
       for (const leaf of LEAF_CATEGORIES) {
         const value = tabTotal(item, periodData?.[leaf.key]);
-        if (typeof value === 'number') sum += value;
+        if (typeof value === 'number') sum = NP.plus(sum, value);
       }
       return sum;
     })

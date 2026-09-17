@@ -13,6 +13,7 @@
  * 数值直出含 0（r3）；样式走共用层（细边框/居中/表头换行/冻结窗格）。
  */
 import type { Range, WorkBook, WorkSheet } from 'xlsx-js-style';
+import NP from 'number-precision';
 import { saveWorkbook, finishBorderedSheet, fixedPlusUniformCols } from '../../shared/excel';
 import type { CategoryDef, IndicatorDef, PeriodFillData, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
 import {
@@ -62,11 +63,7 @@ function cellOut(item: IndicatorDef, value: number | string | undefined): number
 }
 
 /** 叶子区块布局：从 startCol 起排「项目列 + 小计」 */
-function layoutLeaves(
-  category: CategoryDef,
-  periodData: PeriodFillData,
-  startCol: number,
-): LeafBlock[] {
+function layoutLeaves(category: CategoryDef, periodData: PeriodFillData, startCol: number): LeafBlock[] {
   let nextCol = startCol;
   return (category.children ?? [category]).map((leaf) => {
     const projects = periodData[leaf.key]?.projects ?? [];
@@ -96,7 +93,7 @@ function sumOfLeaves(item: IndicatorDef, periodData: PeriodFillData, leafKeys: s
   let sum = 0;
   for (const key of leafKeys) {
     const value = tabTotal(item, periodData[key]);
-    if (typeof value === 'number') sum += value;
+    if (typeof value === 'number') sum = NP.plus(sum, value);
   }
   return cellOut(item, sum);
 }
@@ -161,12 +158,20 @@ function buildSingleSheet(periodData: PeriodFillData): WorkSheet {
   }
 
   return finishBorderedSheet(rows, merges, fixedPlusUniformCols(lastCol, [42, 10, 8, 14], 12), {
+    // 第 3 行（0 起 2）= 项目名称行：列窄名长，定高 + 自动换行
+    rowHeights: { 2: 100 },
+    wrapRows: [2],
     freeze: { x: 1, y: 3 },
   });
 }
 
 /** 单位导出：当前页面整包数据 → 单 sheet */
-export async function exportProgressFillExcel({ year, quarter, unitName, periodData }: ProgressExportParams): Promise<void> {
+export async function exportProgressFillExcel({
+  year,
+  quarter,
+  unitName,
+  periodData,
+}: ProgressExportParams): Promise<void> {
   const sheetName = `湖北省武汉市${year}年${quarterLabel(quarter)}项目实施进展情况`;
   const workbook: WorkBook = { SheetNames: [sheetName], Sheets: { [sheetName]: buildSingleSheet(periodData) } };
   await saveWorkbook(workbook, `${unitName ? `${unitName}：` : ''}${sheetName}表.xlsx`);
@@ -180,7 +185,10 @@ export async function exportProgressAllProjectsExcel({ year, quarter, units }: P
     for (const leaf of LEAF_CATEGORIES) {
       const tab = unit.periodData[leaf.key];
       if (!tab?.projects.length) continue;
-      const target = (merged[leaf.key] ??= { projects: [], totals: {} }) as { projects: ProjectColumn[]; totals: Record<string, number> };
+      const target = (merged[leaf.key] ??= { projects: [], totals: {} }) as {
+        projects: ProjectColumn[];
+        totals: Record<string, number>;
+      };
       target.projects.push(...tab.projects);
       target.totals ??= {};
       for (const [key, value] of Object.entries(tab.totals ?? {})) {

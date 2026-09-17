@@ -52,6 +52,7 @@
         </div>
         <div class="flex items-center">
           <a-button v-if="canFill" :disabled="loading" @click="handleBringIn"> 带入上一季度填写的项目列 </a-button>
+          <a-button v-if="canFill" class="ml-2" @click="handleOpenImport"> 导入 </a-button>
           <a-button
             type="primary"
             class="ml-2"
@@ -105,6 +106,7 @@
     </Card>
 
     <AddProjectDrawer @register="registerAddDrawer" @success="handleAddSaved" />
+    <ImportDrawer @register="registerImportDrawer" @success="handleImported" />
 
     <Modal v-model:open="bringModalOpen" title="带入上一季度填写的项目列" centered :footer="null" width="600">
       <div class="pt-2 text-gray-600">
@@ -147,6 +149,7 @@
   import { useCurrentPeriod } from '../../shared/period-options';
   import PeriodSelects from '../../shared/PeriodSelects.vue';
   import AddProjectDrawer from './add-project-drawer.vue';
+  import ImportDrawer from './import-drawer.vue';
   import type { FillRow } from './cell-renderers';
   import { createCellRenderers } from './cell-renderers';
   import { exportProgressAllProjectsExcel, exportProgressFillExcel } from './export-excel';
@@ -351,6 +354,23 @@
     } finally {
       exportingAll.value = false;
     }
+  }
+
+  // ── 导入:Excel 批量写入(同名覆盖+新增追加),成功后整包重载 ────────────
+  const [registerImportDrawer, { openDrawer: openImportDrawer }] = useDrawer();
+
+  function handleOpenImport() {
+    if (!unitEditable.value) {
+      showMessage('当前单位为只读查看，不可导入');
+      return;
+    }
+    openImportDrawer(true, { year: year.value, quarter: quarter.value });
+  }
+
+  async function handleImported() {
+    resetEditState();
+    dirtyCols.clear();
+    await loadFill();
   }
 
   // ── 表格行与卡片标题 ────────────────────────────────────────────────
