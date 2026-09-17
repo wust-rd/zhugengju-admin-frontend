@@ -20,7 +20,7 @@ export type ProjectColumn = {
   /** 服务端项目 id（新增未落库的临时列为空；保存成功后回填为 key 同值） */
   id?: string;
   name: string;
-  /** 是否为「带入上一季度」生成的列（二三四季度不可删除，一季度带入的可删除） */
+  /** 是否为「带入上第1季度」生成的列（二三第4季度不可删除，第1季度带入的可删除） */
   imported: boolean;
   /** 单元格值：指标 key → 数值（文字行为字符串；双值行存二元组 [数,面积]，成效域使用；无值 = 未填） */
   values: Record<string, number | string | [number, number]>;
@@ -38,25 +38,25 @@ export type PeriodFillData = Record<string, TabFillData>;
 
 /** 季度选项 */
 export const QUARTER_OPTIONS = [
-  { label: '一季度', value: '1' },
-  { label: '二季度', value: '2' },
-  { label: '三季度', value: '3' },
-  { label: '四季度', value: '4' },
+  { label: '第1季度', value: '1' },
+  { label: '第2季度', value: '2' },
+  { label: '第3季度', value: '3' },
+  { label: '第4季度', value: '4' },
 ];
 
 const QUARTER_LABELS: Record<string, string> = {
-  '1': '一季度',
-  '2': '二季度',
-  '3': '三季度',
-  '4': '四季度',
+  '1': '第1季度',
+  '2': '第2季度',
+  '3': '第3季度',
+  '4': '第4季度',
 };
 
 export function quarterLabel(quarter: string): string {
   return QUARTER_LABELS[quarter] ?? quarter;
 }
 
-// ── 填报周期选项：上线周期（2026 年三季度）～ 当前周期 ─────────────────
-// 系统于 2026 年 9 月上线，全部数据自 2026 年三季度开始录入：
+// ── 填报周期选项：上线周期（2026 年第3季度）～ 当前周期 ─────────────────
+// 系统于 2026 年 9 月上线，全部数据自 2026 年第3季度开始录入：
 // 上线前周期（2024、2025 及更早）不存在；未来周期（当前季度之后）不可选。
 
 /** 系统上线年份（首个可填报年份） */
