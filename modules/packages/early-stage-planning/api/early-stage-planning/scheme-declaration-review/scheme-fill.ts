@@ -46,6 +46,10 @@ export type EspSchemeFile = { name: string; url?: string; objectKey?: string; si
 /** 片区项目行（projects 数组元素；id 为后端生成，保存时前端剥离） */
 export type EspSchemeProject = {
   id?: string;
+  /** 项目唯一号（后端生成，回显透传） */
+  pUid?: string;
+  /** 0=存量导入行（回显只读，保存时后端跳过，前端不回传）/ 1=填报行（2026-09-17 后端回显含存量行） */
+  fillFlag?: '0' | '1';
   name?: string;
   /** 改造类别：既有建筑改造/老旧小区改造/老旧街区改造/老旧厂区改造/城中村改造（2026-09-16 去除「其他」） */
   category?: string;
@@ -117,7 +121,7 @@ export type EspSchemeFill = {
   invest?: number | null;
   /** { 来源名: 金额|null }，键存在即选中 */
   fundSources?: Record<string, number | null>;
-  /** 资金来源概况（2026-09-17 新增，≤500 字，待后端实现） */
+  /** 资金来源概况（2026-09-17 新增，≤500 字；后端复用 fund_src 列存储，存量导入原文同语义回显） */
   fundOverview?: string;
   schemePlanFiles?: EspSchemeFile[];
   chartFiles?: EspSchemeFile[];

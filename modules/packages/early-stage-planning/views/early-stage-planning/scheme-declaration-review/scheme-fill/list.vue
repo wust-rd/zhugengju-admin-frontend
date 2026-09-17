@@ -5,7 +5,8 @@
   后端已对接（modules/esp，接口文档见后端 modules/esp/docs/接口文档-方案填报.md）：
    - 两 Tab 共用一张 BasicTable，按 isApprove 分开查询（1=已批准存量片区（默认）/
      2=待审查（新增填报）片区，后端语义：新增保存的片区进入 Tab②）；
-   - 「新增」两 Tab 均显示（保存成功后自动切到 Tab②，新记录立即可见）；
+   - 「新增」仅 Tab② 显示：Tab① 已批准片区为手动入库的存量数据，只查看/编辑，
+     不可新增（后端也拒绝删除）；
    - 操作列：查看/编辑按 id 拉详情回显；删除仅 Tab② 显示（后端拒绝删除存量
      已批准片区，Tab① 不给入口）。
   新增 / 查看 / 编辑 均以组件方式切换到整页填报表单（form.vue），不新增路由与菜单注册；
@@ -36,9 +37,9 @@
           <span>填报列表</span>
         </template>
         <template #toolbar>
-          <!-- 两 Tab 均可新增：新增保存的片区为待审查片区（后端 is_approve=2），
-               保存成功后 handleSuccess 自动切到 Tab② 并刷新，新记录立即可见 -->
-          <a-button type="primary" @click="handleForm({ isNewRecord: true })">
+          <!-- 新增仅 Tab②：Tab① 已批准片区为手动入库的存量数据，只让编辑；
+               新增保存的片区为待审查片区（is_approve=2），落当前列表立即可见 -->
+          <a-button v-if="activeTab === 'reviewing'" type="primary" @click="handleForm({ isNewRecord: true })">
             <span class="inline-flex items-center gap-4px"> <span class="i-fluent:add-12-filled"></span> 新增 </span>
           </a-button>
         </template>
