@@ -68,7 +68,7 @@ const EVALUATION_TEXT = `(一)人居环境改善，供给“好房子”
 社会效益：提升居民满意度与获得感，完善社区服务体系，增强社区凝聚力与认同感。
 文化效益：保护工业遗存，传承城市文脉，推动工业记忆与现代功能融合，打造具有辨识度的城市更新样板。四大举措协同推进，塑造“好房子、好小区、好社区、好街区”四好发展样板。`;
 
-/** 实施后评估 */
+/** 更新后评估 */
 export const PostEvaluation = defineComponent({
   setup() {
     /** 图册预览弹窗可见性 / 初始图片下标 */
@@ -91,7 +91,7 @@ export const PostEvaluation = defineComponent({
                 <div class="flex h-36px w-full items-center relative pb-4px">
                   <img src={diamond} alt="基本信息" class="w-20px h-20px ml-2px" />
 
-                  <div class="text-18px font-400 text-white ml-8px font-youshe">片区实施后评估</div>
+                  <div class="text-18px font-400 text-white ml-8px font-youshe">片区更新后评估</div>
 
                   {/* 箭头：打开朝下（SVG 原方向不旋转），关闭朝右（逆时针转 90°） */}
                   <img
@@ -114,7 +114,7 @@ export const PostEvaluation = defineComponent({
                       <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
                         <div class="w-4px h-4px bg-white rd-full" />
                       </div>
-                      <div class="text-14px lh-20px text-white/75 font-500 ml-8px">片区实施后评估</div>
+                      <div class="text-14px lh-20px text-white/75 font-500 ml-8px">片区更新后评估</div>
 
                       {/* 查看详情按钮 */}
                       <ViewDetailButton
@@ -237,7 +237,7 @@ export const PostEvaluation = defineComponent({
                       <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
                         <div class="w-4px h-4px bg-white rd-full" />
                       </div>
-                      <div class="text-14px lh-20px text-white/75 font-500 ml-8px">实施后评估图</div>
+                      <div class="text-14px lh-20px text-white/75 font-500 ml-8px">更新后评估图</div>
                       <div class="ml-8px text-12px text-white/40">点击切换左侧大图</div>
                     </div>
 
@@ -246,7 +246,7 @@ export const PostEvaluation = defineComponent({
                         <img
                           key={src}
                           src={src}
-                          alt={`实施后评估图 ${index + 1}`}
+                          alt={`更新后评估图 ${index + 1}`}
                           class={selectableThumbClass(activeImg.value === index)}
                           onClick={() => (activeImg.value = index)}
                         />
@@ -264,7 +264,7 @@ export const PostEvaluation = defineComponent({
           />
         </div>
 
-        {/* 实施后评估弹窗（独立文件，结构与图册弹窗一模一样，可自行修改） */}
+        {/* 更新后评估弹窗（独立文件，结构与图册弹窗一模一样，可自行修改） */}
         <PostEvaluationModal
           visible={previewVisible.value}
           images={ALBUM_PLACEHOLDERS}

@@ -16,10 +16,10 @@ export const DRAWER_TABS = [
   '体检情况',
   '功能策划',
   '城市设计',
-  '规划变更',
+  '规划调整',
   '项目情况',
   // '资金方案',
-  '实施后评估',
+  '更新后评估',
 ] as const;
 export type DrawerTabLabel = (typeof DRAWER_TABS)[number];
 
@@ -33,10 +33,10 @@ const TAB_COMPONENTS = {
   体检情况: PhysicalExam,
   功能策划: FeaturePlan,
   城市设计: UrbanDesign,
-  规划变更: RegulatoryChange,
+  规划调整: RegulatoryChange,
   项目情况: ProjectInfo,
   资金方案: FundPlan,
-  实施后评估: PostEvaluation,
+  更新后评估: PostEvaluation,
 };
 
 /* ---------- 交互参数（可调） ---------- */

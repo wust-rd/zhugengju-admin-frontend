@@ -9,7 +9,7 @@ import arrowImg from '@jeesite/assets/images/display/plan/箭头开关.svg';
 
 import { AreaDetailViewKey, useAreaDetailView } from '../use-area-detail-view';
 
-/** 规划变更的三个图纸按钮（一排放置；默认第一个 = 调整前图纸） */
+/** 规划调整 = 调整前图纸） */
 const CHANGE_TABS = ['调整前图纸', '调整后图纸', '调整前后对比'] as const;
 export type RegulatoryTab = (typeof CHANGE_TABS)[number];
 
@@ -21,7 +21,7 @@ const CHANGE_TEXT = `部分居住用地、防护绿地、中小学用地、社�
 const BTN_WIDTH = 120;
 
 /**
- * 规划变更（片区详情页右侧抽屉的第 5 个 Tab）
+ * 规划调整（片区详情页右侧抽屉的第 5 个 Tab）
  *
  * 「调整内容」标题 + 说明文字 + 一排三个图纸按钮；按钮点中的那张图显示在**页面左侧大图区**，
  * 所以这里只写共享状态（use-area-detail-view 的 regulatoryTab），实际换图由 area-detail 页负责。
@@ -42,9 +42,9 @@ export const RegulatoryChange = defineComponent({
           v-slots={{
             header: ({ isOpen }) => (
               <div class="flex h-36px w-full items-center relative pb-4px">
-                <img src={diamond} alt="规划变更" class="w-20px h-20px ml-2px" />
+                <img src={diamond} alt="规划调整" class="w-20px h-20px ml-2px" />
 
-                <div class="text-18px font-400 text-white ml-8px font-youshe">规划变更</div>
+                <div class="text-18px font-400 text-white ml-8px font-youshe">规划调整</div>
 
                 {/* 箭头：打开朝下（SVG 原方向不旋转），关闭朝右（逆时针转 90°） */}
                 <img

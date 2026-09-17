@@ -18,10 +18,10 @@ const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片�
  * 一级 Tab → 左侧大图（从 area-detail.tsx 直接复制过来的一套映射）
  *
  * 只列「一张 Tab 对一张图」的；另外五个 Tab 的图由各自的二级选择决定：
- * 「体检情况」看 EXAM_IMG、「规划变更」看 REG_IMG、「功能策划」看 FEATURE_IMG、
- * 「城市设计」看 DESIGN_IMG、「实施后评估」看 shared 的 EVALUATION_IMAGES。
+ * 「体检情况」看 EXAM_IMG、「规划调整」看 REG_IMG、「功能策划」看 FEATURE_IMG、
+ * 「城市设计」看 DESIGN_IMG、「更新后评估」看 shared 的 EVALUATION_IMAGES。
  */
-type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '规划变更' | '功能策划' | '城市设计' | '实施后评估'>;
+type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '规划调整' | '功能策划' | '城市设计' | '更新后评估'>;
 
 const TAB_IMG: Record<PlainTab, string> = {
   基本情况: `${AREA_OSS}/基本情况-大图.webp`,
@@ -35,11 +35,11 @@ const EXAM_IMG: Record<ExamTab, string> = {
   需求清单: `${AREA_OSS}/体检情况-需求清单-大图.webp`,
 };
 
-/** 「规划变更」三个图纸 → 左侧大图（皮子街素材） */
+/** 「规划调整」三个图纸 → 左侧大图（皮子街素材） */
 const REG_IMG: Record<RegulatoryTab, string> = {
-  调整前图纸: `${AREA_OSS}/规划变更-调整前.webp`,
-  调整后图纸: `${AREA_OSS}/规划变更-调整后.webp`,
-  调整前后对比: `${AREA_OSS}/规划变更-前后对比.webp`,
+  调整前图纸: `${AREA_OSS}/规划调整-调整前.webp`,
+  调整后图纸: `${AREA_OSS}/规划调整-调整后.webp`,
+  调整前后对比: `${AREA_OSS}/规划调整-前后对比.webp`,
 };
 
 /** 「功能策划」两张卡片 → 左侧大图（皮子街素材） */
@@ -54,8 +54,8 @@ const DESIGN_IMG: Record<DesignCard, string> = {
   历史文化保护: `${AREA_OSS}/城市设计-历史文化保护.webp`,
 };
 
-/** 打开本页默认停留的 Tab：成果评估 → 实施后评估 */
-const DEFAULT_TAB: DrawerTabLabel = '实施后评估';
+/** 打开本页默认停留的 Tab：成果评估 → 更新后评估 */
+const DEFAULT_TAB: DrawerTabLabel = '更新后评估';
 
 /** 搬过来的「总览」页面（原项目实施第三个页面）：左右两张底图拼接 + 红色热点切详情大图 */
 const MAP_IMAGE_URL_LEFT = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/征收管理/总览-left.webp';
@@ -70,7 +70,7 @@ const NAME_PROTECT_IMAGE_URL = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com
  * 成果评估页（/display/evaluation）
  *
  * 本页「自己的内容」（默认页）就是片区详情页那一套：左侧大图 + 右侧真实抽屉 RightDrawer，
- * 打开即停在「实施后评估」Tab —— 实现是从 views/scheme/area-detail.tsx 直接复制过来的
+ * 打开即停在「更新后评估」Tab —— 实现是从 views/scheme/area-detail.tsx 直接复制过来的
  * （按需求不抽公共组件），因此两页的 Tab ↔ 图片映射、左右联动方式完全一致。
  *
  * 另外两个页面仍由侧边栏第 3/4 个图标页内切换（不换路由）：
@@ -83,7 +83,7 @@ export default defineComponent({
     const view = useAreaDetailView();
     provide(AreaDetailViewKey, view);
 
-    // 打开本页默认停在「实施后评估」；带 ?tab=xxx 时以参数为准（非法值忽略），
+    // 打开本页默认停在「更新后评估」；带 ?tab=xxx 时以参数为准（非法值忽略），
     // 与 /display/scheme/area-detail?tab=xxx 的行为保持一致
     const { tab } = useRoute().query;
     view.primaryTab.value = isDrawerTab(tab) ? tab : DEFAULT_TAB;
@@ -92,10 +92,10 @@ export default defineComponent({
     const currentImg = computed(() => {
       const current = view.primaryTab.value;
       if (current === '体检情况') return EXAM_IMG[view.examTab.value];
-      if (current === '规划变更') return REG_IMG[view.regulatoryTab.value];
+      if (current === '规划调整') return REG_IMG[view.regulatoryTab.value];
       if (current === '功能策划') return FEATURE_IMG[view.featureCard.value];
       if (current === '城市设计') return DESIGN_IMG[view.designCard.value];
-      if (current === '实施后评估') return EVALUATION_IMAGES[view.evalImgIndex.value];
+      if (current === '更新后评估') return EVALUATION_IMAGES[view.evalImgIndex.value];
       return TAB_IMG[current]; // 此处 current 已被收窄为 PlainTab
     });
 
@@ -110,7 +110,7 @@ export default defineComponent({
     // 在 setup 中同步重置（而非 onMounted），避免先渲染一帧上次残留的页面。
     resetEvaluationView();
 
-    /** 成果评估自己的内容（左侧大图 + 右侧真实抽屉，默认停在「实施后评估」）—— 默认页 */
+    /** 成果评估自己的内容（左侧大图 + 右侧真实抽屉，默认停在「更新后评估」）—— 默认页 */
     const renderOwnContent = () => (
       <>
         {/* 左侧大图：跟随右侧抽屉当前 Tab 切换（object-contain 完整显示） */}

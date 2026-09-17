@@ -15,11 +15,11 @@ const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片�
  * 一级 Tab → 左侧大图（只列「一张 Tab 对一张图」的那些）
  *
  * 另五个 Tab 的图由各自的二级选择决定，不在这张表里：
- * 「体检情况」看 EXAM_IMG、「规划变更」看 REG_IMG、「功能策划」看 FEATURE_IMG、
- * 「城市设计」看 DESIGN_IMG、「实施后评估」看 shared 的 EVALUATION_IMAGES。
+ * 「体检情况」看 EXAM_IMG、「规划调整」看 REG_IMG、「功能策划」看 FEATURE_IMG、
+ * 「城市设计」看 DESIGN_IMG、「更新后评估」看 shared 的 EVALUATION_IMAGES。
  * 用 Exclude 把它们排除后，以后再加一个普通 Tab 却忘了配图，这里会直接编译报错。
  */
-type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '规划变更' | '功能策划' | '城市设计' | '实施后评估'>;
+type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '规划调整' | '功能策划' | '城市设计' | '更新后评估'>;
 
 const TAB_IMG: Record<PlainTab, string> = {
   基本情况: `${AREA_OSS}/基本情况-大图.webp`,
@@ -35,11 +35,11 @@ const EXAM_IMG: Record<ExamTab, string> = {
   需求清单: `${AREA_OSS}/体检情况-需求清单-大图.webp`,
 };
 
-/** 「规划变更」三个图纸 → 左侧大图（皮子街素材，均已验证可访问） */
+/** 「规划调整」三个图纸 → 左侧大图（皮子街素材，均已验证可访问） */
 const REG_IMG: Record<RegulatoryTab, string> = {
-  调整前图纸: `${AREA_OSS}/规划变更-调整前.webp`,
-  调整后图纸: `${AREA_OSS}/规划变更-调整后.webp`,
-  调整前后对比: `${AREA_OSS}/规划变更-前后对比.webp`,
+  调整前图纸: `${AREA_OSS}/规划调整-调整前.webp`,
+  调整后图纸: `${AREA_OSS}/规划调整-调整后.webp`,
+  调整前后对比: `${AREA_OSS}/规划调整-前后对比.webp`,
 };
 
 /** 「功能策划」两张卡片 → 左侧大图（皮子街素材，点击卡片切换；默认「总体目标」那张） */
@@ -64,7 +64,7 @@ const DESIGN_IMG: Record<DesignCard, string> = {
  * 与另一条链路的图片版详情页（/display/scheme/detail，detail.tsx）互不影响。
  *
  * 左右联动：本页 provide 一份共享 Tab 状态（use-area-detail-view），
- * RightDrawer 写一级 Tab、PhysicalExam 写体检情况的二级 Tab、RegulatoryChange 写规划变更的图纸，
+ * RightDrawer 写一级 Tab、PhysicalExam 写体检情况的二级 Tab、RegulatoryChange 写规划调整的图纸，
  * 本页读同一份状态决定左侧显示哪张图。图片映射表只放在本页（交互归抽屉、展示归页面）。
  *
  * 说明：页面本身是 RouterView 的内容，外层 display 布局已是 flex 行，所以这里直接返回
@@ -87,10 +87,10 @@ export default defineComponent({
     const currentImg = computed(() => {
       const tab = view.primaryTab.value;
       if (tab === '体检情况') return EXAM_IMG[view.examTab.value];
-      if (tab === '规划变更') return REG_IMG[view.regulatoryTab.value];
+      if (tab === '规划调整') return REG_IMG[view.regulatoryTab.value];
       if (tab === '功能策划') return FEATURE_IMG[view.featureCard.value];
       if (tab === '城市设计') return DESIGN_IMG[view.designCard.value];
-      if (tab === '实施后评估') return EVALUATION_IMAGES[view.evalImgIndex.value];
+      if (tab === '更新后评估') return EVALUATION_IMAGES[view.evalImgIndex.value];
       return TAB_IMG[tab]; // 此处 tab 已被收窄为 PlainTab
     });
 

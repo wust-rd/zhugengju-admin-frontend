@@ -13,7 +13,7 @@ import type { DesignCard } from './right-drawer/urban-design';
  * 而且是被「点击 Tab」和「内容区滚动 scrollspy」双向驱动的，页面自己拿不到。
  * 所以把状态提到一份共享实例上：页面 provide 并据此换左侧大图，
  * RightDrawer（一级 Tab）、PhysicalExam（体检情况的二级 Tab）、
- * RegulatoryChange（规划变更的图纸按钮）、FeaturePlan（功能策划的卡片）、
+ * RegulatoryChange（规划调整的图纸按钮）、FeaturePlan（功能策划的卡片）、
  * UrbanDesign（城市设计的卡片）inject 后读写同一份状态。
  *
  * 与 packages/display/hooks/use-evaluation-view.ts 同一套模式
@@ -29,13 +29,13 @@ export function useAreaDetailView() {
   const primaryTab = ref<DrawerTabLabel>('基本情况');
   /** 「体检情况」内的 3 个清单 Tab，默认「问题清单」 */
   const examTab = ref<ExamTab>('问题清单');
-  /** 「规划变更」内的 3 个图纸，默认「调整前图纸」（即默认显示第一张图） */
+  /** 「规划调整」内的 3 个图纸，默认「调整前图纸」（即默认显示第一张图） */
   const regulatoryTab = ref<RegulatoryTab>('调整前图纸');
   /** 「功能策划」内被点中的卡片，默认「总体目标」（即默认显示第一张图） */
   const featureCard = ref<FeatureCard>('总体目标');
   /** 「城市设计」内被点中的卡片，默认「产业发展」（即默认显示第一张图） */
   const designCard = ref<DesignCard>('产业发展');
-  /** 「实施后评估」选中的那张图的下标（对应 shared.ts 的 EVALUATION_IMAGES），默认第一张 */
+  /** 「更新后评估」选中的那张图的下标（对应 shared.ts 的 EVALUATION_IMAGES），默认第一张 */
   const evalImgIndex = ref(0);
 
   return { primaryTab, examTab, regulatoryTab, featureCard, designCard, evalImgIndex };

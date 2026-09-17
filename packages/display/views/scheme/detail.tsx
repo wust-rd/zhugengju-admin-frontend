@@ -15,9 +15,9 @@ const DRAWER_TABS = [
   { label: '功能策划', image: `${OSS_BASE}/功能策划.webp`, preview: `${OSS_BASE}/片区策划图册.webp` },
   { label: '项目情况', image: `${OSS_BASE}/项目情况.webp`, preview: `${OSS_BASE}/片区项目清单.webp` },
   {
-    label: '实施后评估',
-    image: `${OSS_BASE}/实施后评估.webp`,
-    preview: `${OSS_BASE}/实施后评估-相册.webp`,
+    label: '更新后评估',
+    image: `${OSS_BASE}/更新后评估.webp`,
+    preview: `${OSS_BASE}/更新后评估-相册.webp`,
   },
 ] as const;
 type DrawerTabLabel = (typeof DRAWER_TABS)[number]['label'];
@@ -52,7 +52,7 @@ export default defineComponent({
     /** 当前 Tab 配置（含内容图与预览图），单一数据源派生，避免重复查找 */
     const activeTabConfig = computed(() => DRAWER_TABS.find((t) => t.label === activeTab.value) ?? DRAWER_TABS[0]);
     /** project / evaluation tab 使用 ProjectTabContent 多按钮组件 */
-    const isMultiButtonTab = computed(() => activeTab.value === '项目情况' || activeTab.value === '实施后评估');
+    const isMultiButtonTab = computed(() => activeTab.value === '项目情况' || activeTab.value === '更新后评估');
     /** 预览弹窗的图片地址：多按钮 tab 用回调传入的地址，其余 tab 用配置的 preview */
     const previewImageSrc = computed(() =>
       isMultiButtonTab.value ? projectPreviewSrc.value : (activeTabConfig.value.preview ?? ''),
@@ -117,7 +117,7 @@ export default defineComponent({
                 bgImage={activeTabConfig.value.image}
                 topImage={`${OSS_BASE}/片区项目清单.webp`}
                 middleImage={`${OSS_BASE}/片区资金情况.webp`}
-                bottomImage={`${OSS_BASE}/实施后评估-相册.webp`}
+                bottomImage={`${OSS_BASE}/更新后评估-相册.webp`}
                 onPreview={(src: string) => {
                   projectPreviewSrc.value = src;
                   previewVisible.value = true;

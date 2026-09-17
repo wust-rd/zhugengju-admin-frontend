@@ -22,7 +22,7 @@ export const selectableCardClass = (active: boolean) =>
 /**
  * 可点击的缩略图样式（选中态同上，交互语义与 selectableCardClass 一致）
  *
- * 用于「一排缩略图，点哪张页面左侧大图就显示哪张」（post-evaluation 的实施后评估图）。
+ * 用于「一排缩略图，点哪张页面左侧大图就显示哪张」（post-evaluation 的更新后评估图）。
  *
  * @param active 是否为当前选中项
  */
@@ -38,10 +38,10 @@ export const selectableThumbClass = (active: boolean) =>
 const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片区策划-皮子街';
 
 /**
- * 「实施后评估」的两张图
+ * 「更新后评估」的两张图
  *
  * 放在这里共用：Tab 内要用它们渲染缩略图，页面要用选中那张当左侧大图，
  * 两边各写一份地址容易改一处漏一处。**状态本身是下标**（use-area-detail-view 的 evalImgIndex），
  * 页面直接 `EVALUATION_IMAGES[下标]`。
  */
-export const EVALUATION_IMAGES = [`${AREA_OSS}/实施后评估-1.webp`, `${AREA_OSS}/实施后评估-2.webp`];
+export const EVALUATION_IMAGES = [`${AREA_OSS}/更新后评估-1.webp`, `${AREA_OSS}/更新后评估-2.webp`];

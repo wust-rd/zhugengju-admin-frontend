@@ -44,7 +44,8 @@ export function defaultInfoValue(label: string): string {
  *
  * 结构：标题图 → 相框（片区图垫底 + 相框覆盖层）→ 统计卡片 → 详细信息列表 → 查看详情按钮
  * 统计卡片 / 详细信息列表完全由 stats / infos 两个 props 数据驱动，新增条目只需改数据。
- * 功能定位的导向胶囊（COD / IOD / SOD…）复用左侧数据看板「更新片区列表」的 XOD_COLOR 配色。
+ * 功能定位的导向胶囊（COD / IOD / SOD…）复用左侧数据看板「更新片区列表」的 XOD_COLOR 配色；
+ * 该项带 badges 时该行只渲染胶囊、不渲染 value 文字（value 仍可留着，方便以后要显示文字时切回来）。
  *
  * props：
  * - stats: 顶部统计卡片项（{ label, value, tag? }[]），不传用内置演示数据
@@ -111,10 +112,11 @@ export const AreaOverviewModal = defineComponent({
               </div>
 
               <div class="mt-12px flex items-center text-16px lh-24px text-white">
-                {/* 导向胶囊：与左侧看板「更新片区列表」同款样式
-                    （XOD_COLOR 配色 + Chakra Petch 西文字体 + 32×16 圆角小胶囊） */}
-                {!!item.badges?.length && (
-                  <div class="mr-12px flex flex-wrap items-center gap-6px">
+                {/* 有导向胶囊（COD / IOD / SOD…）时这一行只展示胶囊、不展示文字：
+                    FUNC_TYPE 原文与胶囊信息重复且较脏，用胶囊更清楚。
+                    胶囊与左侧看板「更新片区列表」同款（XOD_COLOR 配色 + Chakra Petch 西文字体 + 32×16 圆角） */}
+                {item.badges?.length ? (
+                  <div class="flex flex-wrap items-center gap-6px">
                     {item.badges.map((code) => (
                       <div
                         key={code}
@@ -125,8 +127,9 @@ export const AreaOverviewModal = defineComponent({
                       </div>
                     ))}
                   </div>
+                ) : (
+                  item.value
                 )}
-                {/* {item.value} */}
               </div>
 
               {/* 分隔线：最后一项不显示 */}
