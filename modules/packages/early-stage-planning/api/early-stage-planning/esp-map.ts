@@ -28,8 +28,12 @@ function unwrap<T = any>(body: any): T {
   return body as T;
 }
 
-/** 批次类型 */
-export type EspBatch = '第一批' | '第二批';
+/**
+ * 批次类型。「新增」= 方案填报新增待审查片区（库中 is_approve='2'，被后端
+ * DAO 硬编码的 is_approve='1' 过滤，当前下发 0 行）——需求已写入接口文档，
+ * 等后端在 EspMapDao 增加分支支持；支持前传该值按精确匹配规则返回空列表。
+ */
+export type EspBatch = '第一批' | '第二批' | '新增';
 
 // ---------------- 类型（属性键为 GeoJSON 原名大写；仅列页面用到的字段，其余键运行时仍在） ----------------
 

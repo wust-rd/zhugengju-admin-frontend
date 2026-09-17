@@ -36,8 +36,9 @@ export type AreaCollection = {
 /** 批次选择 key（「全部」= 不传 batch 查全量，UI 概念，非接口参数） */
 export type BatchKey = EspBatch | '全部';
 
-/** 批次清单（下拉选项与加载入口共用；全部为两批合并全量约 182 片） */
-export const BATCHES: BatchKey[] = ['第一批', '第二批', '全部'];
+/** 批次清单（下拉选项与加载入口共用；「新增」= 方案填报新增片区当前 0 片
+ *  （后端 is_approve='2' 未下发，见 esp-map.ts 注释与接口文档）；全部为合并全量约 182 片） */
+export const BATCHES: BatchKey[] = ['第一批', '第二批', '新增', '全部'];
 
 /** 区划写法归并（接口两批数据对同一功能区存在不同写法）：长写法并入短写法 */
 const DIST_MERGE: Record<string, string> = {

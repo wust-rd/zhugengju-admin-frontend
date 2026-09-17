@@ -62,6 +62,8 @@ export const AreaLayers = defineComponent({
     areas: { type: Object as PropType<Recordable | null>, default: null },
     /** 着色维度（district 按 BATCH / progress 按 AREA_COLOR / func 按首个功能编码） */
     colorBy: { type: String as PropType<ColorBy>, default: 'district' },
+    /** 地图飞行令牌：父级图表筛选设置/取消时递增，变化后 fitBounds 到当前要素范围 */
+    fitToken: { type: Number, default: 0 },
   },
 
   setup(props) {
@@ -70,25 +72,62 @@ export const AreaLayers = defineComponent({
     /** 图例随维度切换 */
     const legend = computed<LegendItem[]>(() => schemeOf(props.colorBy).legend);
 
+    /** 要素集 → [[minLng, minLat], [maxLng, maxLat]]（MultiPolygon 全环全点） */
+    function bboxOf(
+      features: { geometry: { coordinates: number[][][][] } }[],
+    ): [[number, number], [number, number]] | null {
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const f of features) {
+        for (const polygon of f.geometry.coordinates) {
+          for (const ring of polygon) {
+            for (const [x, y] of ring) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+      }
+      return Number.isFinite(minX)
+        ? [
+            [minX, minY],
+            [maxX, maxY],
+          ]
+        : null;
+    }
+
     /** 数据 / 维度 / 地图任一就绪即同步：source+layer 已存在时 setData + setPaintProperty
-        增量更新，否则补齐（setStyle 换底图后亦会重加） */
+        增量更新，否则补齐（setStyle 换底图后亦会重加）；fitToken 变化（图表筛选设置/取消）
+        后飞行到当前要素刚好铺满视口（取消筛选即对称飞回全量范围；空命中不飞） */
+    let lastFitToken = 0;
     watch(
-      [() => props.areas, () => props.colorBy, map, isLoaded],
-      ([areas, colorBy, m, loaded]) => {
+      [() => props.areas, () => props.colorBy, () => props.fitToken, map, isLoaded],
+      ([areas, colorBy, , m, loaded]) => {
         if (!m || !loaded || !areas) return;
         const { expr } = schemeOf(colorBy);
         if (m.getSource(SOURCE_ID)) {
           (m.getSource(SOURCE_ID) as maplibregl.GeoJSONSource).setData(areas as any);
           if (m.getLayer(LAYER_ID)) m.setPaintProperty(LAYER_ID, 'fill-color', expr as never);
-          return;
+        } else {
+          m.addSource(SOURCE_ID, { type: 'geojson', data: areas as any });
+          m.addLayer({
+            id: LAYER_ID,
+            type: 'fill',
+            source: SOURCE_ID,
+            paint: { 'fill-color': expr as never, 'fill-opacity': 0.35 },
+          });
         }
-        m.addSource(SOURCE_ID, { type: 'geojson', data: areas as any });
-        m.addLayer({
-          id: LAYER_ID,
-          type: 'fill',
-          source: SOURCE_ID,
-          paint: { 'fill-color': expr as never, 'fill-opacity': 0.35 },
-        });
+        if (props.fitToken !== lastFitToken) {
+          lastFitToken = props.fitToken;
+          const features = (areas as { features?: { geometry: { coordinates: number[][][][] } }[] }).features ?? [];
+          const bbox = bboxOf(features);
+          // maxZoom 防止单个小图斑过度放大
+          if (bbox) m.fitBounds(bbox, { padding: 60, duration: 800, maxZoom: 15 });
+        }
       },
       { immediate: true, flush: 'post' },
     );

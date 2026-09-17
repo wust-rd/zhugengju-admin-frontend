@@ -39,9 +39,11 @@ const regionTabs: GlowTabItem[] = [
 
 /** 批次投资进度数据（业务口径数据；后端就绪后替换此处常量；全部 = 两批相加）
  *  口径：done = 已完成投资（累计完成）；plan2026 = 2026 年计划完成投资（2026年完成） */
-const BATCH_INVEST: Record<'第一批' | '第二批' | '全部', BatchInvest> = {
+const BATCH_INVEST: Record<'第一批' | '第二批' | '新增' | '全部', BatchInvest> = {
   第一批: { label: '第一批', total: 1310.71, done: 853.45, plan2026: 312.76 },
   第二批: { label: '第二批', total: 1934.09, done: 946.26, plan2026: 442.87 },
+  // 新增批次（方案填报新增片区）当前 0 片，后端下发后替换为真实口径
+  新增: { label: '新增', total: 0, done: 0, plan2026: 0 },
   全部: { label: '全部', total: 3244.8, done: 1799.71, plan2026: 755.63 },
 };
 
@@ -97,9 +99,13 @@ export default defineComponent({
     watch([activeRegionKey, batchKey], () => {
       chartFilter.value = null;
     });
+    /** 地图飞行令牌：图表筛选设置/取消时递增，AreaLayers 收到后 fitBounds 到当前要素范围 */
+    const fitToken = ref(0);
+
     /** 统计图点击回调：再点同一项取消；null 为图表空白点击取消 */
     function onChartSelect(value: string | null) {
       chartFilter.value = value === null ? null : chartFilter.value === value ? null : value;
+      fitToken.value += 1;
     }
 
     /** 筛选命中的要素（地图渲染用，三个 tab 均过滤；null = 全量） */
@@ -241,7 +247,7 @@ export default defineComponent({
                 {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素，TopoJSON/WKT 解码还原），批次切换 setData 刷新 */}
                 {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素），fill-color 按当前 tab 维度
                     match 着色（行政区划=批次双色 / 推进情况=三色 / 功能定位=首个编码色），左下角图例 */}
-                <AreaLayers areas={mapAreas.value} colorBy={regionKey.value} />
+                <AreaLayers areas={mapAreas.value} colorBy={regionKey.value} fitToken={fitToken.value} />
               </VMap>
             </>
           ),
