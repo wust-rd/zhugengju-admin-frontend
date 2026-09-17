@@ -52,6 +52,14 @@
             <Icon icon="i-fluent:add-12-filled" /> 新增
           </a-button>
           <a-button class="ml-2" :loading="exporting" @click="handleExport"> 导出 </a-button>
+          <a-button
+            v-if="canExportAllProjects"
+            class="ml-2"
+            :loading="exportingAll"
+            @click="handleExportAll"
+          >
+            导出所有项目
+          </a-button>
           <a-button v-if="canFill" type="primary" class="ml-2" :loading="saving" @click="handleSave"> 保存 </a-button>
         </div>
       </div>
@@ -108,6 +116,7 @@
     loadEffectFillData,
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/effect-fill';
+  import { CAN_EXPORT_ALL_PROJECTS, loadAllEffectProjects } from '@jeesite/ifco/api/ifco/effect-fill';
   import { Card, Input, Modal, Select, Table } from 'antdv-next';
   import { computed, nextTick, onMounted, reactive, ref } from 'vue';
   import { createBringInController } from '../../shared/bring-in';
@@ -117,7 +126,7 @@
   import PeriodSelects from '../../shared/PeriodSelects.vue';
   import type { FillRow } from './cell-renderers';
   import { createCellRenderers } from './cell-renderers';
-  import { exportEffectExcel } from './export-excel';
+  import { exportEffectAllProjectsExcel, exportEffectExcel } from './export-excel';
   import AddProjectDrawer from './add-project-drawer.vue';
   import { createFillEditing } from './fill-editing';
   import { createTableColumns } from './table-columns';
@@ -234,6 +243,29 @@
 
   // ── 导出 ────────────────────────────────────────────────────────────
   const exporting = ref(false);
+  /** 仅超管/综合协调组可见（/dict/units 的 exportAll 标记） */
+  const canExportAllProjects = CAN_EXPORT_ALL_PROJECTS;
+  const exportingAll = ref(false);
+
+  async function handleExportAll() {
+    if (exportingAll.value || loading.value) return;
+    exportingAll.value = true;
+    try {
+      await ensureEffectDicts();
+      const units = await loadAllEffectProjects(year.value, quarter.value);
+      const projectCount = units.reduce((sum, unit) => sum + unit.projects.length, 0);
+      if (!projectCount) {
+        showMessage(`${year.value} 年${quarterLabel(quarter.value)}暂无任何单位填报项目`);
+        return;
+      }
+      await exportEffectAllProjectsExcel({ year: year.value, quarter: quarter.value, units });
+      showMessage(`已导出 ${quarterLabel(quarter.value)}全部项目（共 ${units.length} 个单位、${projectCount} 个项目）`);
+    } catch (e: unknown) {
+      showMessage(e instanceof Error ? e.message : '导出失败');
+    } finally {
+      exportingAll.value = false;
+    }
+  }
 
   async function handleExport() {
     if (exporting.value || !unitData.value) return;

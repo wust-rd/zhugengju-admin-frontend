@@ -18,7 +18,7 @@ import { useGlobSetting } from '@jeesite/core/hooks/setting';
 import type { ProjectColumn } from '../common';
 import { ensureProgressDicts, unwrap } from '../progress-fill';
 
-export { UNITS, UNIT_NAME_MAP, ensureProgressDicts } from '../progress-fill';
+export { UNITS, UNIT_NAME_MAP, CAN_EXPORT_ALL_PROJECTS, ensureProgressDicts } from '../progress-fill';
 export { QUARTER_OPTIONS, quarterLabel } from '../common';
 
 /** 指标行类型：fill=直接填报行；section=节标题行（一、～八、，不填写） */
@@ -170,6 +170,50 @@ export async function ensureEffectDicts(): Promise<void> {
     throw e;
   });
   return dictsPromise;
+}
+
+// ── 导出所有项目（仅超管/综合协调组）：全量单位项目明细 ────────────────
+
+/** GET /fill/allProjects 的单位包 */
+export type EffectAllProjectsUnit = {
+  unitCode: string;
+  unitName: string;
+  projects: EffectProjectVo[];
+};
+
+/** GET /fill/allProjects 的 data */
+type AllProjectsVo = {
+  year: string;
+  quarter: string;
+  unitDatas: EffectAllProjectsUnit[];
+};
+
+/** 前端形态：项目列已归一（key=id、values 剔空、双值合并二元组） */
+export type EffectAllProjectsUnitData = {
+  unitCode: string;
+  unitName: string;
+  projects: ProjectColumn[];
+};
+
+export async function loadAllEffectProjects(
+  year: number | string,
+  quarter: string,
+): Promise<EffectAllProjectsUnitData[]> {
+  const vo = await unwrap<AllProjectsVo>(
+    defHttp.get({ url: BASE + '/fill/allProjects', params: { year: String(year), quarter } }),
+  );
+  return (vo.unitDatas ?? []).map((unit) => ({
+    unitCode: unit.unitCode,
+    unitName: unit.unitName,
+    projects: (unit.projects ?? []).map((project) => {
+      const values: Record<string, number | string | [number, number]> = {};
+      for (const [k, v] of Object.entries(project.values ?? {})) {
+        if (v === null || v === '' || v === undefined) continue;
+        values[k] = v;
+      }
+      return { key: project.id, id: project.id, name: project.name, imported: project.imported, values };
+    }),
+  }));
 }
 
 // ── 填报数据：整包加载（双值 a/b 两键 → 合并行二元组） ────────────────

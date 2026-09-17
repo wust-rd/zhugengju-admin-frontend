@@ -24,7 +24,7 @@
         <div class="flex items-center">
           <PeriodSelects v-model:year="year" v-model:quarter="quarter" @change="loadStat" />
         </div>
-        <a-button @click="handleExport"> 导出 </a-button>
+        <a-button :loading="exporting" @click="handleExport"> 导出 </a-button>
       </div>
     </Card>
 
@@ -51,6 +51,7 @@
   import type { TableColumnsType } from 'antdv-next';
   import ResizableTitle from '@jeesite/core/components/Table/src/components/ResizableTitle.vue';
   import { useTableBodyHeight } from '../../shared/table-viewport';
+  import { exportEffectStatExcel } from './export-excel';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import type { EffectStatRow } from '@jeesite/ifco/api/ifco/effect-fill';
@@ -187,9 +188,25 @@
       unitColumnsData.reduce((sum, unit) => sum + widthFor(unit.code, 200), 0),
   );
 
-  // ── 导出(按钮保留,功能待做) ─────────────────────────────────────────
-  function handleExport() {
-    showMessage('导出功能建设中');
+  // ── 导出:单排表头平铺表(全武汉市 + 各可见单位列),文件名官方口径 ─────
+  const exporting = ref(false);
+
+  async function handleExport() {
+    if (exporting.value || loading.value) return;
+    exporting.value = true;
+    try {
+      await exportEffectStatExcel({
+        year: year.value,
+        quarter: quarter.value,
+        units: [...unitColumnsData],
+        rows: [...STAT_ROWS],
+      });
+      showMessage(`已导出 ${year.value} 年${quarterLabel(quarter.value)}项目实施成效统计`);
+    } catch (e: unknown) {
+      showMessage(e instanceof Error ? e.message : '导出失败');
+    } finally {
+      exporting.value = false;
+    }
   }
 </script>
 
