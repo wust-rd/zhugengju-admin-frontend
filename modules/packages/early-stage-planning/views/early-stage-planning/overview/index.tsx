@@ -9,7 +9,8 @@ import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-import type { MenuItemType } from 'antdv-next';
+import { Input, type MenuItemType } from 'antdv-next';
+import { CircleX, Search } from 'lucide-vue-next';
 import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 import { AreaLayers } from './area-layers';
 import { FuncTagRow } from './func-tag-row';
@@ -89,6 +90,22 @@ export default defineComponent({
 
     watch(batchKey, (b) => applyBatch(b), { immediate: true });
 
+    /** 初始化各批次计数：额外发一次全量请求按行 BATCH 归类（第一批/第二批/新增/全部），
+        使下拉各档位一开始就带数量；结果同时充当「全部」档缓存（loadAreas 去重，不重复请求）。
+        新增填报片区（is_approve='2'）不在全量响应内，计数恒 0，后端支持后选中该档时由 applyBatch 回填 */
+    loadAreas('全部')
+      .then((fc) => {
+        const counts: Record<string, number> = { 全部: fc.features.length, 新增: 0 };
+        for (const f of fc.features) {
+          const b = f.properties.BATCH;
+          counts[b] = (counts[b] ?? 0) + 1;
+        }
+        batchCounts.value = { ...batchCounts.value, ...counts };
+      })
+      .catch(() => {
+        // 计数失败静默：不影响当前批次加载（applyBatch 有独立错误提示），选中对应批次时再回填
+      });
+
     // ---- 图表点击筛选（值随 tab 维度：district → 区划名；progress → 颜色；func → 维度 key） ----
     const chartFilter = ref<string | null>(null);
     /** activeRegionKey 规整为三个统计维度之一（filterPredicate / 数据管道用） */
@@ -117,15 +134,22 @@ export default defineComponent({
 
     /** 列表分组数据：行政区划 tab 保持全量分组（点击只控制展开态）；
         推进情况 / 功能定位 tab 仅保留命中片区分组 */
+    /** 片区名称模糊筛选关键字（纯前端本地过滤，空串 = 不过滤） */
+    const searchKeyword = ref('');
+
     const groups = computed<CollapseGroupItem<XodItem>[]>(() => {
       const src = areas.value;
       if (!src) return [];
       const list = regionKey.value === 'district' ? src : (mapAreas.value ?? src);
-      return areaGroups(list).map((g) =>
-        regionKey.value === 'district' && chartFilter.value
-          ? { ...g, defaultExpanded: g.title === chartFilter.value }
-          : g,
-      );
+      const kw = searchKeyword.value.trim().toLowerCase();
+      return areaGroups(list)
+        .map((g) => ({ ...g, items: kw ? g.items.filter((i) => i.label.toLowerCase().includes(kw)) : g.items }))
+        .filter((g) => g.items.length > 0)
+        .map((g) =>
+          regionKey.value === 'district' && chartFilter.value
+            ? { ...g, defaultExpanded: g.title === chartFilter.value }
+            : g,
+        );
     });
 
     /** 列表重挂载 key：筛选变化时重建分组（GlowCollapse 为非受控展开，靠重挂载应用展开态） */
@@ -224,7 +248,22 @@ export default defineComponent({
 
                 <div class="ml-12px text-16px font-500 text-white">更新片区列表</div>
 
-                <div class="ml-auto text-14px text-gray-500">2026-05-21</div>
+                {/* 片区名称模糊筛选（纯前端，本地过滤当前列表；样式对齐 SearchFilter 的暗色输入框） */}
+                <Input
+                  value={searchKeyword.value}
+                  classes={{
+                    root: '!bg-white/6 !border-gray-500 focus-within:!border-cyan-500 ml-auto w-168px h-32px text-white !rd-8px',
+                    input: 'placeholder:!text-gray-500 text-14px',
+                  }}
+                  prefix={<Search class="size-16px text-gray-400" />}
+                  placeholder="输入片区名称"
+                  allowClear
+                  onUpdate:value={(v: any) => (searchKeyword.value = String(v ?? ''))}
+                >
+                  {{
+                    clearIcon: () => <CircleX class="size-16px text-gray-400" />,
+                  }}
+                </Input>
               </div>
 
               <div class="mt-16px space-y-12px max-h-500px overflow-y-auto scrollbar-none">
