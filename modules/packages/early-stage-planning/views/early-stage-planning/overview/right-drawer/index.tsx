@@ -1,4 +1,4 @@
-import { defineComponent, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch, type CSSProperties, type PropType } from 'vue';
 
 import { BasicInfo } from './basic-info';
 import { FeaturePlan } from './feature-plan';
@@ -7,9 +7,12 @@ import { PhysicalExam } from './physical-exam';
 import { PostEvaluation } from './post-evaluation';
 import { ProjectInfo } from './project-info';
 
-/** 抽屉 Tab 配置 */
-const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况', '资金方案', '实施后评估'] as const;
-type DrawerTabLabel = (typeof DRAWER_TABS)[number];
+/** 抽屉 Tab 配置（导出：左侧展示面板 / 详情页联动时共用同一份口径） */
+export const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况', '资金方案', '实施后评估'] as const;
+export type DrawerTabLabel = (typeof DRAWER_TABS)[number];
+
+/** 默认高亮区块（非受控模式的初值） */
+const DEFAULT_TAB: DrawerTabLabel = DRAWER_TABS[0];
 
 /** Tab 对应的内容组件 */
 const TAB_COMPONENTS = {
@@ -39,10 +42,34 @@ const SCROLL_LOCK_MS = 1200;
  *   激活项为独立的「滑动指示器」，高亮切换时平滑滑动过去
  * - 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 与手动滚动双向联动：
  *   scrollspy 同步高亮 + 程序化滚动锁 + 底部留白（最后一块也能滚到顶）
+ *
+ * 左右联动 API（详情页用，可选，不传即保持原行为）：
+ * - v-model:activeTab：受控高亮区块；父级（左侧展示面板）改这个值即切换到对应区块并平滑滚动过去；
+ * - 同一 v-model 的双向：抽屉内点击 Tab / 滚动同步高亮时也会回写父级，供左侧展示面板跟随。
  */
 export const RightDrawer = defineComponent({
-  setup() {
-    const activeTab = ref<DrawerTabLabel>('基本情况');
+  // 输出约束
+  emits: {
+    /** 高亮区块变化（v-model:activeTab 的回写） */
+    'update:activeTab': (tab: DrawerTabLabel) => !!tab,
+  },
+  // 输入约束
+  props: {
+    /** 受控高亮区块（可选）：传入即由父级驱动；不传则内部自持 */
+    activeTab: { type: String as PropType<DrawerTabLabel>, default: undefined },
+  },
+  setup(props, { emit }) {
+    /** 非受控模式下的高亮区块（受控时以 activeTab prop 为准） */
+    const innerTab = ref<DrawerTabLabel>(DEFAULT_TAB);
+    /** 生效的高亮区块：受控优先，非受控回落内部状态 */
+    const activeTab = computed<DrawerTabLabel>(() => props.activeTab ?? innerTab.value);
+
+    /** 统一写入入口：更新内部状态并回写父级（受控/非受控都走这里） */
+    const setActiveTab = (tab: DrawerTabLabel) => {
+      innerTab.value = tab;
+      emit('update:activeTab', tab);
+    };
+
     const contentRef = ref<HTMLElement | null>(null);
     const tabBarRef = ref<HTMLElement | null>(null);
 
@@ -123,7 +150,7 @@ export const RightDrawer = defineComponent({
       }
 
       if (activeTab.value === current) return; // 高亮未变化：不做后续滚动
-      activeTab.value = current;
+      setActiveTab(current);
       scrollActiveTabIntoView();
     };
 
@@ -134,7 +161,7 @@ export const RightDrawer = defineComponent({
       const target = getSectionEl(tab);
       if (!target) return;
       const top = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-      activeTab.value = tab;
+      setActiveTab(tab);
       lockScrollSync = true;
       container.scrollTo({ top, behavior: 'smooth' });
       // 平滑滚动结束后解锁并校准高亮（保险计时，兼容不支持 scrollend 的浏览器）
@@ -144,6 +171,25 @@ export const RightDrawer = defineComponent({
         syncActiveTab();
       }, SCROLL_LOCK_MS);
     };
+
+    /** 点击 Tab：切高亮（scrollToTab 内的 setActiveTab 统一写入）+ 滚动 + 保证高亮项在 Tab 栏可见 */
+    const onTabClick = (tab: DrawerTabLabel) => {
+      scrollToTab(tab);
+      scrollActiveTabIntoView();
+    };
+
+    /**
+     * 受控模式：父级（左侧展示面板）改 activeTab 时滚到对应区块。
+     * tab === innerTab 说明本次变化由抽屉内部发起（点击/scrollspy 已自行滚动过），跳过以免重复滚动。
+     */
+    watch(
+      () => props.activeTab,
+      (tab) => {
+        if (!tab || tab === innerTab.value) return;
+        scrollToTab(tab);
+        scrollActiveTabIntoView();
+      },
+    );
 
     /** 高亮 tab 超出 Tab 栏视口时，水平滚到居中（始终保持可见） */
     const scrollActiveTabIntoView = () => {
@@ -182,11 +228,7 @@ export const RightDrawer = defineComponent({
                   'relative z-10 flex shrink-0 cursor-pointer items-center justify-center px-12px text-14px whitespace-nowrap transition-colors duration-150 ' +
                   (activeTab.value === tab ? 'font-500 text-white' : 'text-white/60 hover:text-white')
                 }
-                onClick={() => {
-                  activeTab.value = tab;
-                  scrollToTab(tab);
-                  scrollActiveTabIntoView();
-                }}
+                onClick={() => onTabClick(tab)}
               >
                 {tab}
               </div>

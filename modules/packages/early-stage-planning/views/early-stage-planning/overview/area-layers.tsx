@@ -130,7 +130,10 @@ export const AreaLayers = defineComponent({
       if (!m || boundPickInst === m) return;
       boundPickInst = m;
       m.on('click', LAYER_ID, (e: maplibregl.MapMouseEvent & { features?: { properties: Recordable }[] }) => {
-        const auid = e.features?.[0]?.properties?.A_UID;
+        const properties = e.features?.[0]?.properties;
+        // 调试：点击片区时在控制台打印该片区全部属性（联调完可删）
+        console.log('[esp-map] 点选片区属性', properties);
+        const auid = properties?.A_UID;
         emit('pick', auid ? String(auid) : null);
       });
       m.on('click', (e: maplibregl.MapMouseEvent) => {

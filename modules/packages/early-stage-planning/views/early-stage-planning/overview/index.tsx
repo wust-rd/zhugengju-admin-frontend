@@ -9,11 +9,13 @@ import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { RegionTabs } from '@jeesite/display/components/region-tabs';
 import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+import { useGo } from '@jeesite/core/hooks/web/usePage';
 import { Input, type MenuItemType } from 'antdv-next';
 import { CircleX, Search } from 'lucide-vue-next';
 import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 import { AreaLayers } from './area-layers';
 import { AreaOverviewModal } from './area-overview-modal';
+import { areaDetailPath } from './area-detail/route';
 import { FuncTagRow } from './func-tag-row';
 import { DistrictChart } from './district-chart';
 import { FuncTypeChart, type FuncKey } from './func-type-chart';
@@ -76,6 +78,7 @@ export default defineComponent({
     );
 
     const { showMessage } = useMessage();
+    const go = useGo();
 
     /** activeBatch 规整为合法 BatchKey（异常值兜底第一批） */
     const batchKey = computed<BatchKey>(() =>
@@ -165,6 +168,13 @@ export default defineComponent({
         return;
       }
       pickedArea.value = mapAreas.value?.features.find((f) => f.properties.A_UID === auid) ?? null;
+    }
+
+    /** 概况面板「查看详情」：跳片区详情路由页（:id = 片区 A_UID） */
+    function openAreaDetail() {
+      const auid = pickedArea.value?.properties.A_UID;
+      if (!auid) return;
+      go(areaDetailPath(auid));
     }
 
     /** 筛选命中的要素（地图渲染用，三个 tab 均过滤；null = 全量） */
@@ -353,11 +363,12 @@ export default defineComponent({
                   onPick={onMapPick}
                 />
 
-                {/* 片区概况面板：地图点击片区弹出（点空白/关闭按钮收起） */}
+                {/* 片区概况面板：地图点击片区弹出（点空白/关闭按钮收起；「查看详情」进详情页） */}
                 {pickedArea.value && (
                   <AreaOverviewModal
                     area={pickedArea.value.properties as Omit<EspMapAreaRow, 'geometry'>}
                     onClose={() => (pickedArea.value = null)}
+                    onDetail={openAreaDetail}
                   />
                 )}
               </VMap>

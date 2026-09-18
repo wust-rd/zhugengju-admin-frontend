@@ -6,6 +6,7 @@
  * 内容由 area prop（接口片区行数据）驱动；概况图片取方案填报的 overview_images 首图
  * （schemeFill 表单接口按片区名定位 a_uid → id → form）；
  * 点击关闭按钮或地图空白处由父级收起。
+ * 「查看详情」只 emit('detail')，跳转/切换由看板页负责（见 overview/index.tsx 的 openAreaDetail）。
  */
 import { defineComponent, shallowRef, type PropType, watch } from 'vue';
 import headerImg from '@jeesite/assets/images/display/plan/area-overview-modal-header.png';
@@ -16,6 +17,7 @@ import {
   schemeFillForm,
   schemeFillPage,
 } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
+import { dash, fmtAreaHa } from './area-format';
 
 /** 片区概况图缓存（a_uid → 图片 url；null = 无图；避免重复两跳请求） */
 const overviewImgCache = new Map<string, string | null>();
@@ -24,24 +26,20 @@ const overviewImgCache = new Map<string, string | null>();
 async function fetchOverviewImg(auid: string, name: string): Promise<string | null> {
   const { list } = await schemeFillPage({ name, pageNo: 1, pageSize: 10 });
   const row = list.find((r) => r.aUid === auid || r.code === auid);
-  if (!row) return null;
+  if (!row) {
+    // 调试：联调完可删
+    console.log('[esp-map] 片区填报记录未找到（无图片等填报数据）', { auid, name });
+    return null;
+  }
   const form = await schemeFillForm(row.id);
+  // 调试：图片链接等填报字段都在这里（overviewImages / problemImages 等，url 为 MinIO 直链）；联调完可删
+  console.log(`[esp-map] 片区填报详情（${form.name ?? name}，含图片链接）`, form);
   return form.overviewImages?.[0]?.url ?? null;
 }
 
 /** 列表分隔线渐变 */
 const DIVIDER_GRADIENT =
   'linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0%, rgba(90, 244, 255, 0.15) 53.85%, rgba(255, 255, 255, 0.02) 100%)';
-
-/** 数值文本兜底（null/空 → '—'） */
-const dash = (v: string | number | null | undefined) => (v == null || v === '' ? '—' : String(v));
-
-/** 面积格式化：公顷数值 → 保留 2 位小数带单位 */
-function fmtAreaHa(v: number | string | null | undefined): string {
-  if (v == null || v === '') return '—';
-  const n = Number(v);
-  return Number.isFinite(n) ? `${n.toFixed(2)} 公顷` : String(v);
-}
 
 export const AreaOverviewModal = defineComponent({
   name: 'EarlyStagePlanningAreaOverviewModal',
@@ -54,6 +52,8 @@ export const AreaOverviewModal = defineComponent({
   emits: {
     /** 关闭面板（关闭按钮点击；地图空白关闭由父级处理） */
     close: () => true,
+    /** 查看详情：由看板页切换到片区详情页（本组件不关心怎么跳，只发事件） */
+    detail: () => true,
   },
 
   setup(props, { emit }) {
@@ -170,8 +170,11 @@ export const AreaOverviewModal = defineComponent({
             ))}
           </div>
 
-          {/* 查看详情按钮（详情页待接，暂为占位） */}
-          <div class="mt-20px flex h-44px b-1 b-solid b-[#0BD6FFBF] cursor-pointer items-center justify-center rd-full text-white">
+          {/* 查看详情按钮：切到片区详情页（大屏：左展示面板 + 右抽屉），由看板页处理 */}
+          <div
+            class="mt-20px flex h-44px b-1 b-solid b-[#0BD6FFBF] cursor-pointer items-center justify-center rd-full text-white transition-all duration-300 hover-bg-[#0BD6FF26]"
+            onClick={() => emit('detail')}
+          >
             查看详情
           </div>
         </div>
