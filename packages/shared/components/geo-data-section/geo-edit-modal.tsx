@@ -157,6 +157,7 @@ export const GeoEditModal = defineComponent({
         title="编辑地理数据"
         width="80%"
         okText="确定"
+        centered
         cancelText="取消"
         destroyOnClose
         onCancel={handleClose}
@@ -178,8 +179,9 @@ export const GeoEditModal = defineComponent({
             清空
           </Button>
         </div>
-        <div style={{ height: '420px' }} class="w-full overflow-hidden rd-4px">
+        <div style={{ height: '800px' }} class="w-full overflow-hidden rd-4px">
           <VMap style={basemapStyle} options={basemapMapOptions}>
+            <VMapControls class="absolute right-24px bottom-24px z-10" />
             <GeoEditController initialGeoJson={props.initialGeoJson} onReady={(gm: Geoman) => (geoman.value = gm)} />
           </VMap>
         </div>

@@ -1,5 +1,5 @@
 /**
- * 一张图 tdt 系列 WMTS（4490 网格）瓦片合成协议（yztwmts://{service}/{z}/{x}/{y}）
+ * 一张图 tdt 系列 WMTS（4490 网格）瓦片合成协议（hbyztwmts://{service}/{z}/{x}/{y}）
  *
  * 背景：
  * - vec_c / cva_c 为同构的 tdt WMTS 服务：代理无 WMS 端点（/wms 404，/wmts
@@ -7,7 +7,7 @@
  *   (90°N, 180°W)、L 级 = 2^L 列 × 2^(L-1) 行（caps：L10=1024×512、
  *   L19=524288×262144），与地图的 EPSG:3857 墨卡托剖分行号不通用，不能直接
  *   按 {z}/{x}/{y} 模板引用
- * - 通过 MapLibre addProtocol 注册 yztwmts:// 协议：对每个 3857 瓦片，按其
+ * - 通过 MapLibre addProtocol 注册 hbyztwmts:// 协议：对每个 3857 瓦片，按其
  *   经纬度范围取同级别的 4490 源瓦片（1 列 × 1~2 行），重采样合成一张与
  *   3857 瓦片精确对齐的 256×256 PNG
  *
@@ -29,7 +29,7 @@
  * - 服务端对越界行列不报错、直接返回空白图，网格参数以 caps 为准
  */
 import { addProtocol } from '../maplibre-gl-shim';
-import { YZT_CVA_PROXY, YZT_VEC_PROXY, YZT_GATEWAY_BASE, YZT_TOKEN } from './yzt-gateway';
+import { YZT_CVA_PROXY, YZT_VEC_PROXY, YZT_GATEWAY_BASE, YZT_TOKEN } from './hbyzt-gateway';
 
 /** 协议支持的 tdt 服务（URL 段名 → 代理路径段 + WMTS 图层名） */
 const SERVICES = {
@@ -211,24 +211,24 @@ async function compose3857Tile(
 
 /** basemap 中 tdt 系列 source 的 tiles 模板（{z}/{x}/{y} 由 MapLibre 替换后进入本协议） */
 export const YZT_WMTS_TILES: Record<ServiceName, string> = {
-  cva: 'yztwmts://cva/{z}/{x}/{y}',
-  vec: 'yztwmts://vec/{z}/{x}/{y}',
+  cva: 'hbyztwmts://cva/{z}/{x}/{y}',
+  vec: 'hbyztwmts://vec/{z}/{x}/{y}',
 };
 
 let registered = false;
 
 /**
- * 注册 yztwmts:// 协议（幂等）。在 basemap.ts 模块顶层调用，保证任何引用
+ * 注册 hbyztwmts:// 协议（幂等）。在 basemap.ts 模块顶层调用，保证任何引用
  * basemapStyle 的地图实例创建前协议已就绪。
  */
-export function ensureYztWmtsProtocol(): void {
+export function ensurehbyztwmtsProtocol(): void {
   if (registered) return;
   registered = true;
-  addProtocol('yztwmts', async (params, abortController) => {
-    // 注意 yztwmts://{service}/{z}/{x}/{y} 展开后含 "://"，按 "/" 切分会多出
+  addProtocol('hbyztwmts', async (params, abortController) => {
+    // 注意 hbyztwmts://{service}/{z}/{x}/{y} 展开后含 "://"，按 "/" 切分会多出
     // 空段，须用正则取参
-    const m = /^yztwmts:\/\/(cva|vec)\/(\d+)\/(\d+)\/(\d+)$/.exec(params.url);
-    if (!m) throw new Error(`yztwmts: 无法解析瓦片地址 ${params.url}`);
+    const m = /^hbyztwmts:\/\/(cva|vec)\/(\d+)\/(\d+)\/(\d+)$/.exec(params.url);
+    if (!m) throw new Error(`hbyztwmts: 无法解析瓦片地址 ${params.url}`);
     const data = await compose3857Tile(
       SERVICES[m[1] as ServiceName],
       Number(m[2]),

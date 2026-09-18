@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import type { MapOptions, StyleSpecification } from 'maplibre-gl';
+import type { LayerSpecification, MapOptions, StyleSpecification } from 'maplibre-gl';
 import sgjElectricImg from '@jeesite/assets/images/vmap/数公基电子地图.webp';
 import sgjRemoteImg from '@jeesite/assets/images/vmap/数公基遥感影像.webp';
 import tdtElectricImg from '@jeesite/assets/images/vmap/天地图电子地图.png';
@@ -7,8 +7,10 @@ import tdtRemoteImg from '@jeesite/assets/images/vmap/天地图遥感影像.png'
 import yztElectricImg from '@jeesite/assets/images/vmap/一张图电子地图.webp';
 import yztRemoteImg from '@jeesite/assets/images/vmap/一张图遥感影像.webp';
 import { tiandituTileUrls } from '../tianditu';
-import { YZT_WMTS_TILES, ensureYztWmtsProtocol } from './yzt-wmts-protocol';
-import { YZT_GATEWAY_BASE, YZT_TOKEN } from './yzt-gateway';
+import { YZT_WMTS_TILES, ensurehbyztwmtsProtocol } from './hbyzt-wmts-protocol';
+import { YZT_GATEWAY_BASE, YZT_TOKEN } from './hbyzt-gateway';
+import { WUHAN_MASK_LAYER_ID, wuhanMaskLayers, wuhanMaskSources } from './wuhan-mask';
+import { SGJ_SERVICE_BASE, SGJ_SERVICE_TOKEN } from './sgj-gateway';
 
 /**
  * 底图 preset —— 各大屏 overview 页共用
@@ -17,17 +19,20 @@ import { YZT_GATEWAY_BASE, YZT_TOKEN } from './yzt-gateway';
  *  - 天地图：官方公共在线底图（token 见 web/.env 的 VITE_TIANDITU_TOKEN，需客户端
  *    出公网）。DataServer REST **_w 系列**（Web Mercator，与本地图 3857 一致，勿用
  *    _c 经纬度系列）：电子 = vec_w + cva_w 注记、遥感 = img_w + cia_w 注记，
- *    复用 ../tianditu 的 tiandituTileUrls 构造器；**默认选中「天地图电子地图」**
- *  - 数公基：局方服务平台的 ArcGIS REST 缓存服务（ServiceAdapter 代理），
- *    Web Mercator / EPSG:3857、256px PNG、0~19 级，token 内置在路径中
+ *    复用 ../tianditu 的 tiandituTileUrls 构造器；**默认选中「天地图电子地图」**。
+ *    全国底图叠武汉市界遮罩（wuhan-mask.ts，米色盖住市外区域 + 市界描线）
+ *  - 数公基：局方服务平台的 ArcGIS REST 缓存服务（ServiceAdapter），
+ *    Web Mercator / EPSG:3857、256px PNG、0~19 级，token 内置在路径中；
+ *    DCI 鉴权按 Referer 来源放行，统一走 /sgj 同源代理（dev vite / 生产
+ *    nginx，转发时去 Referer，详见 sgj-gateway.ts）
  *  - 一张图：湖北省自然资源一张图 tip-gateway 外网代理（网关地址与 token 见
- *    yzt-gateway.ts）。接入遥感影像与矢量注记两项，均非标准 3857 XYZ 服务：
+ *    hbyzt-gateway.ts）。接入遥感影像与矢量注记两项，均非标准 3857 XYZ 服务：
  *    - 遥感影像 wuhanyx：WMS 支持 SRS=EPSG:3857 服务端重投影，走 WMS GetMap
  *      + {bbox-epsg-3857} 模板（超图 enhance 版 MapLibre 支持该占位符，按每张
  *      瓦片的墨卡托范围展开）。其 WMTS 为自定义 EPSG:4326 剖分（非天地图标
  *      准网格）且 GetTile 行列校验异常，不可直接使用
  *    - 注记 cva_c：代理无 WMS 端点，WMTS 为标准天地图 EPSG:4490 剖分，与
- *      3857 网格不通用；经 yzt-wmts-protocol.ts 注册的 yztwmts:// 自定义协议
+ *      3857 网格不通用；经 hbyzt-wmts-protocol.ts 注册的 yztwmts:// 自定义协议
  *      在前端取 4490 源瓦片重采样合成 3857 对齐瓦片
  *    - 矢量底图 vec_c：与 cva_c 同构的 tdt WMTS（上游对当前 token 未授权
  *      401），与 cva 共用 yztwmts:// 合成协议接入——未授权期间取图失败该
@@ -39,11 +44,7 @@ import { YZT_GATEWAY_BASE, YZT_TOKEN } from './yzt-gateway';
  */
 
 // tdt 系列合成协议须在地图实例创建前注册；本模块被引用即完成注册（幂等）
-ensureYztWmtsProtocol();
-
-/** 数公基服务根地址（ServiceAdapter 代理）与路径 token */
-const SGJ_SERVICE_BASE = 'http://10.34.4.103:8010/ServiceAdapter/MAP';
-const SGJ_SERVICE_TOKEN = 'a06a981392ba400a8144171aa9fb8168';
+ensurehbyztwmtsProtocol();
 
 /** 一张图武汉遥感影像 WMS 定义（代理路径段 + WMS 图层名，caps 中两层名等价） */
 const YZT_YX = { proxy: '6e45ab3070445ae4ed88881370ae35cb/wuhanyx', wmsLayer: 'public.wuhanyx' } as const;
@@ -138,14 +139,21 @@ export const basemapStyle: StyleSpecification = {
       // cva WMTS 最高 19 级，之上由 MapLibre 过采样放大（注记文字可接受）
       maxzoom: 19,
     },
+    // 武汉市界遮罩 + 市界轮廓线（turf 在模块加载时算好，仅天地图两组底图显示）
+    ...wuhanMaskSources(),
   },
   layers: [
-    // 天地图电子地图（默认）：矢量底图 + 中文注记
+    // 天地图电子地图（默认）：矢量底图 + 中文注记 + 武汉市界遮罩
     { id: 'basemap-tdt-vec', type: 'raster', source: 'basemap-tdt-vec' },
     { id: 'basemap-tdt-cva', type: 'raster', source: 'basemap-tdt-cva' },
-    // 天地图遥感影像：影像底图 + 影像注记（注记必须叠在影像之上）
+    // 天地图遥感影像：影像底图 + 影像注记 + 遮罩（注记必须叠在影像之上，遮罩盖市外）
     { id: 'basemap-tdt-img', type: 'raster', source: 'basemap-tdt-img', layout: { visibility: 'none' } },
     { id: 'basemap-tdt-cia', type: 'raster', source: 'basemap-tdt-cia', layout: { visibility: 'none' } },
+    // 遮罩在天地图两组底图之上、其余平台底图（本地服务）之下；默认显示
+    // （天地图电子为默认底图），跟随天地图选项显隐由 selectBasemap/applyBasemap 管理
+    ...wuhanMaskLayers().map((layer): LayerSpecification =>
+      layer.id === WUHAN_MASK_LAYER_ID ? layer : { ...layer, layout: { visibility: 'none' as const } },
+    ),
     { id: 'basemap-sgj-emap', type: 'raster', source: 'basemap-sgj-emap', layout: { visibility: 'none' } },
     { id: 'basemap-sgj-yx', type: 'raster', source: 'basemap-sgj-yx', layout: { visibility: 'none' } },
     { id: 'basemap-yzt-yx', type: 'raster', source: 'basemap-yzt-yx', layout: { visibility: 'none' } },
@@ -175,17 +183,26 @@ export interface BasemapOption {
 
 /** 底图切换面板可选项 */
 export const BASEMAP_OPTIONS: readonly BasemapOption[] = [
-  { name: '天地图电子地图', image: tdtElectricImg, layerIds: ['basemap-tdt-vec', 'basemap-tdt-cva'] },
-  { name: '天地图遥感影像', image: tdtRemoteImg, layerIds: ['basemap-tdt-img', 'basemap-tdt-cia'] },
   { name: '数公基电子地图', image: sgjElectricImg, layerIds: ['basemap-sgj-emap'] },
   { name: '数公基遥感影像', image: sgjRemoteImg, layerIds: ['basemap-sgj-yx'] },
   // vec_c 上游屏蔽期间取图失败该瓦片透明：选中=注记叠在空白底图上，授权放开后自动恢复完整
   { name: '一张图电子地图', image: yztElectricImg, layerIds: ['basemap-yzt-vec', 'basemap-yzt-cva'] },
   { name: '一张图遥感影像', image: yztRemoteImg, layerIds: ['basemap-yzt-yx', 'basemap-yzt-cva'] },
+  // 天地图为全国底图，成组叠武汉市界遮罩（遮罩/描线跟随显隐）
+  {
+    name: '天地图电子地图',
+    image: tdtElectricImg,
+    layerIds: ['basemap-tdt-vec', 'basemap-tdt-cva', WUHAN_MASK_LAYER_ID],
+  },
+  {
+    name: '天地图遥感影像',
+    image: tdtRemoteImg,
+    layerIds: ['basemap-tdt-img', 'basemap-tdt-cia', WUHAN_MASK_LAYER_ID],
+  },
 ];
 
 /** 初始选中的底图名（对应 basemapStyle 中默认可见的 'basemap-tdt-vec' + 'basemap-tdt-cva' 图层） */
-export const DEFAULT_BASEMAP_NAME = '天地图电子地图';
+export const DEFAULT_BASEMAP_NAME = '数公基电子地图';
 
 /**
  * 全局共享的底图选中态（模块级单例）：overview 页面来回切换时各 VMapControls
