@@ -23,6 +23,7 @@
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="atlasBeforeUpload"
+          @preview="onPreview"
           @change="onAtlasChange"
         >
           <div v-if="atlasFileList.length < 5" class="flex flex-col items-center justify-center gap-2px text-gray-400">
@@ -34,13 +35,23 @@
       </div>
     </template>
   </BasicForm>
+  <!-- 缩略图点击预览弹层（替代 antd 新开页面默认行为） -->
+  <ImagePreview :url="previewUrl" @close="previewUrl = ''" />
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionFunctionPlan">
-  import { watch } from 'vue';
+  import { ref, watch } from 'vue';
   import { Upload } from 'antdv-next';
+  import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
+  import ImagePreview from './image-preview.vue';
   import { useEspFileList } from './use-esp-file-list';
   import { useSectionForm } from './use-section-form';
+
+  /** 缩略图点击预览：拦截 Upload 默认新开页面，转弹窗展示 */
+  const previewUrl = ref('');
+  function onPreview(file: UploadFile) {
+    previewUrl.value = (file.url as string) || '';
+  }
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
 

@@ -49,7 +49,8 @@
 
     <!-- 激活 tab 内容：主要内容 + 设计图片 -->
     <template v-else v-for="(d, i) in designs" :key="d.uid">
-      <div v-show="i === activeIdx" class="flex flex-col gap-12px">
+      <!-- PDF 导出中全部展开（pdfExporting），截图覆盖每个类别的内容与图片 -->
+      <div v-show="i === activeIdx || pdfExporting" class="flex flex-col gap-12px">
         <div>
           <div class="mb-6px text-14px text-gray-700">主要内容</div>
           <TextArea
@@ -71,6 +72,7 @@
             :disabled="disabled"
             :show-upload-list="disabled ? { showRemoveIcon: false } : true"
             :before-upload="ctlOf(d.uid).beforeUpload"
+            @preview="onPreview"
             @change="ctlOf(d.uid).onChange"
           >
             <div class="flex flex-col items-center justify-center gap-2px text-gray-400">
@@ -82,16 +84,27 @@
         </div>
       </div>
     </template>
+    <!-- 缩略图点击预览弹层（替代 antd 新开页面默认行为） -->
+    <ImagePreview :url="previewUrl" @close="previewUrl = ''" />
   </div>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionCityDesign">
   import { computed, reactive, ref } from 'vue';
   import { Dropdown, TextArea, Upload } from 'antdv-next';
+  import type { UploadFile } from 'antdv-next';
   import type { SectionFormExposed } from './use-section-form';
+  import ImagePreview from './image-preview.vue';
+  import { pdfExporting } from './pdf-export-state';
   import { useEspFileList } from './use-esp-file-list';
   import type { EspSchemeFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
+
+  /** 缩略图点击预览：拦截 Upload 默认新开页面，转弹窗展示 */
+  const previewUrl = ref('');
+  function onPreview(file: UploadFile) {
+    previewUrl.value = (file.url as string) || '';
+  }
 
   /** 城市设计类别（对齐设计稿 6 类，不可重复；接口字典化后替换） */
   const DESIGN_TYPES = ['人居环境', '产业发展', '历史文化保护', '基础设施建设', '生态环境整治', '交通影响评价'];

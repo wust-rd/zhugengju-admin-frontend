@@ -8,6 +8,8 @@ import { GeoLayers } from './geo-layers';
  *
  * 天地图底图 + GeoJSON 图层（fill/line/circle），数据变化自适应视野。
  * 区块内展示与编辑弹窗外的预览共用本组件。
+ * preserveDrawingBuffer：保留 WebGL 绘制缓冲，否则 html2canvas 类截图工具
+ * 截到的地图是空白（数据导出 PDF 需要真实地图内容）。
  */
 export const GeoJsonMap = defineComponent({
   name: 'GeoJsonMap',
@@ -18,7 +20,7 @@ export const GeoJsonMap = defineComponent({
   setup(props) {
     return () => (
       <div style={{ height: props.height }} class="w-full overflow-hidden rd-4px">
-        <VMap style={basemapStyle} options={basemapMapOptions}>
+        <VMap style={basemapStyle} options={{ ...basemapMapOptions, preserveDrawingBuffer: true }}>
           <GeoLayers geoJson={props.geoJson} />
         </VMap>
       </div>

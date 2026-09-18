@@ -45,6 +45,16 @@ const earlyStagePlanning: AppRouteModule = {
       component: () => import('@jeesite/early-stage-planning/views/early-stage-planning/overview/area-detail/index'),
       meta: {
         title: '片区详情',
+        /**
+         * 侧边栏「当前一级模块」与面包屑的判定依据：本页不在后台菜单树里，
+         * 不指路就会走「找不到 → 取第一个模块」的兜底（new-sider 的 activeModule、
+         * useLayoutMenu 的 getCurrentParentPath 都是这个兜底，表现成左侧导航变成城市体检）。
+         * 指到该模块看板页这个真实菜单项：侧边栏显示前期规划并高亮看板项
+         * —— 与内置 ERROR_LOG_ROUTE（currentActiveMenu: '/errorLog'）同一手法。
+         * 若后台看板菜单路径不是 /early-stage-planning/overview/index，改成模块根路径
+         * /early-stage-planning 同样能命中（只是不再高亮到具体菜单项）。
+         */
+        currentActiveMenu: '/early-stage-planning/overview/index',
       },
     },
   ],

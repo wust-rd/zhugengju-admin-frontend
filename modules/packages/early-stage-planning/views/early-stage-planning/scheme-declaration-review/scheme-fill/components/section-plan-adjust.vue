@@ -30,6 +30,7 @@
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="beforeFiles.beforeUpload"
+          @preview="onPreview"
           @change="beforeFiles.onChange"
         >
           <div
@@ -52,6 +53,7 @@
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="afterFiles.beforeUpload"
+          @preview="onPreview"
           @change="afterFiles.onChange"
         >
           <div
@@ -65,16 +67,26 @@
         <div class="mt-4px text-12px text-gray-400">上传图片，支持jpg、png格式，1个</div>
       </div>
     </div>
+    <!-- 缩略图点击预览弹层（替代 antd 新开页面默认行为） -->
+    <ImagePreview :url="previewUrl" @close="previewUrl = ''" />
   </div>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionPlanAdjust">
   import { ref } from 'vue';
   import { TextArea, Upload } from 'antdv-next';
+  import type { UploadFile } from 'antdv-next';
+  import ImagePreview from './image-preview.vue';
   import { useEspFileList } from './use-esp-file-list';
   import type { SectionFormExposed } from './use-section-form';
   import type { EspSchemeFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
+
+  /** 缩略图点击预览：拦截 Upload 默认新开页面，转弹窗展示 */
+  const previewUrl = ref('');
+  function onPreview(file: UploadFile) {
+    previewUrl.value = (file.url as string) || '';
+  }
 
   /** 调整内容（≤300 字） */
   const adjustContent = ref(String(props.data?.adjustContent ?? ''));

@@ -12,7 +12,9 @@
   overflow-y:auto（祖先 overflow 非 visible 会使 sticky 失效）。
   后端已对接（modules/esp）：进入按 id 拉 GET /schemeFill/form 回显（新增
   传空对象）；保存 POST /schemeFill/save 全量提交（projects 行剥离后端生成
-  的 id），失败展示后端 msg 并停留；导出仍为前端 xlsx 本地平铺。
+  的 id），失败展示后端 msg 并停留；导出为「打印版式」PDF（export-form-pdf.ts：
+  按各区块 exportRows 数据重排紧凑版式——两列字段表+图片网格+地图快照，
+  多 tab 内容全量渲染，A4 避让分页图片不跨页）。
   当前必填校验暂关闭——红星仅表示字段重要性，后端轻校验兜底
   （见 use-section-form 的 VALIDATE_ENABLED）。
 -->
@@ -29,15 +31,18 @@
       </a-button>
       <span class="text-16px font-500">{{ title }}</span>
       <span class="flex-1"></span>
-      <a-button @click="handleExport">
-        <span class="inline-flex items-center gap-4px"
-          ><span class="i-fluent:arrow-export-ltr-16-regular"></span> 导出</span
-        >
-      </a-button>
+      <!-- 导出下拉：PDF（打印版式截图）/ Word（docx 真文档，图片可复制） -->
+      <Dropdown :trigger="['click']" :menu="{ items: exportMenuItems, onClick: onExportMenu }">
+        <a-button :loading="exporting">
+          <span class="inline-flex items-center gap-4px"
+            ><span class="i-fluent:arrow-export-ltr-16-regular"></span> 导出</span
+          >
+        </a-button>
+      </Dropdown>
       <a-button v-if="!isView" type="primary" :loading="saving" @click="handleSave">保存</a-button>
     </div>
 
-    <!-- 六个区块（详情拉取完成后渲染，保证各区块挂载回填初值完整；SECTIONS 驱动，xl 下右侧留出悬浮导航空间） -->
+    <!-- 全部区块（详情拉取完成后渲染，保证各区块挂载回填初值完整；SECTIONS 驱动，xl 下右侧留出悬浮导航空间） -->
     <div v-if="formData" class="flex flex-col gap-16px xl:pr-160px">
       <FormSection v-for="sec in SECTIONS" :key="sec.id" :id="sec.id" :title="sec.title">
         <component :is="sec.component" :ref="(el) => setSectionRef(sec.id, el)" :data="formData" :disabled="isView" />
@@ -50,8 +55,8 @@
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeFillForm">
   import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+  import { Dropdown } from 'antdv-next';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { aoaToSheetXlsx } from '@jeesite/core/components/Excel/src/Export2Excel';
   import {
     schemeFillForm,
     schemeFillSave,
@@ -59,6 +64,7 @@
   } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
   import FormSection from './components/form-section.vue';
   import AnchorNav from './components/anchor-nav.vue';
+  import { exportFormDocx, exportFormPdf } from './components/form-export';
   import type { SectionFormExposed } from './components/use-section-form';
   import SectionBasicInfo from './components/section-basic-info.vue';
   import SectionHealthCheck from './components/section-health-check.vue';
@@ -90,7 +96,9 @@
 
   onMounted(async () => {
     if (!record.id) {
-      formData.value = {};
+      // 新增：列表页仅在待审查 Tab② 提供入口，带 isApprove='2' —— 片区基本信息按
+      // 「申报年份」模式渲染（批次字段换成年份选择，值仍存 batch）；其余与编辑一致
+      formData.value = { isApprove: record.isApprove ?? '2' };
       return;
     }
     try {
@@ -192,18 +200,41 @@
     }
   }
 
-  /** 导出：全部区块平铺为「区块标题 + 字段/值」两列 Excel（复用 core 的 xlsx 工具） */
-  function handleExport() {
-    const rows: string[][] = [];
-    for (const sec of SECTIONS) {
-      const inst = sectionRefs.get(sec.id);
-      rows.push([sec.title]);
-      for (const [label, value] of inst?.exportRows() ?? []) {
-        rows.push([label, value]);
-      }
-      rows.push([]);
+  const exporting = ref(false);
+
+  /** 导出格式菜单（PDF 打印版式 / Word 真文档） */
+  const exportMenuItems = [
+    { key: 'pdf', label: '导出 PDF' },
+    { key: 'docx', label: '导出 Word' },
+  ];
+
+  function onExportMenu({ key }: { key: string | number }) {
+    void runExport(key === 'docx' ? 'docx' : 'pdf');
+  }
+
+  /** 导出：按数据重排版生成 PDF / Word（文字取各区块 exportRows，图片/地图从区块 DOM 提取），直接下载 */
+  async function runExport(format: 'pdf' | 'docx') {
+    if (!formData.value || exporting.value) {
+      return;
     }
-    aoaToSheetXlsx({ data: rows, filename: `${record.name || '片区'}-策划方案填报.xlsx` });
-    showMessage('导出成功（本地演示）');
+    exporting.value = true;
+    try {
+      const sections = SECTIONS.map((sec) => ({
+        id: sec.id,
+        title: sec.title,
+        rows: sectionRefs.get(sec.id)?.exportRows() ?? [],
+      }));
+      const headerTitle = `${record.name || '片区'}策划方案填报`;
+      if (format === 'docx') {
+        await exportFormDocx(sections, headerTitle, `${record.name || '片区'}-策划方案填报.docx`);
+      } else {
+        await exportFormPdf(sections, headerTitle, `${record.name || '片区'}-策划方案填报.pdf`);
+      }
+      showMessage('导出成功');
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : '导出失败');
+    } finally {
+      exporting.value = false;
+    }
   }
 </script>

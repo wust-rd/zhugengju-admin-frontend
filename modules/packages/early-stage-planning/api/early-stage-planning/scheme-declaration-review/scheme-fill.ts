@@ -83,6 +83,7 @@ export type EspSchemeFill = {
   /** 1=已批准存量片区 / 2=新增填报片区（后端维护，前端只读） */
   isApprove?: string;
   name?: string;
+  /** 片区批次（已批准片区：第一批/第二批）或申报年份（待审查片区 isApprove=2：YYYY，表单按模式渲染） */
   batch?: string;
   district?: string;
   areaHa?: number | null;

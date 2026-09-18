@@ -14,7 +14,11 @@ modules/packages/early-stage-planning/
 │           └── policy.ts         # defHttp 接口层（字典/政策 CRUD/文件上传/片段检索 + snake→camel 映射）
 └── views/
     ├── overview/         # 大屏展示页（display 应用，TSX，自 packages/display/views/early-stage-planning 迁入）
-    │   ├── index.tsx             # 数据看板主页面（DisplayPageLayout 左右布局）
+    │   ├── index.tsx             # 数据看板主页面（DisplayPageLayout 左右布局；点片区概况面板「查看详情」整页切到详情页）
+    │   ├── area-detail/          # 片区详情路由页（大屏）：index.tsx 页面（左展示面板 + 右 RightDrawer）/ display-panel.tsx 左侧面板 / route.ts 路径工具
+    │   ├── right-drawer/         # 片区详情右侧抽屉（6 区块 + scrollspy 联动；v-model:activeTab 供左右联动）
+    │   ├── area-format.ts        # 片区行数据展示格式化（概况面板与详情页共用，避免口径漂移）
+    │   ├── area-overview-modal.tsx # 地图点选片区的概况悬浮面板
     │   ├── district-chart.tsx    # 片区行政区划分布柱状图（echarts）
     │   └── invest-total-card.tsx # 片区投资总额卡片（Subway 数字 + 环形图）
     └── policy-management/        # 政策管理（三个菜单页，对齐 kd_server 政策库原型 static/*.html）
@@ -38,6 +42,32 @@ modules/packages/early-stage-planning/
             ├── detail-drawer.vue        # 政策详情抽屉（Description 元数据 + 版本记录 + 关联政策，两页共用）
             └── highlight.ts             # 命中词高亮切分工具（标题/摘要/命中片段共用）
 ```
+
+## 大屏页：数据看板 → 片区详情
+
+`views/overview/index.tsx`（数据看板，`DisplayPageLayout` 左数据面板 + 右地图）里，
+地图点选片区弹出 `area-overview-modal`（概况悬浮面板），面板底部「查看详情」跳到
+**片区详情路由页** `/early-stage-planning/overview/area-detail/:auid`（`:auid` = 片区 `A_UID`；
+参数名刻意不用 `:id` —— `paramMenuGuard` 会拿当前路由 params 替换后台菜单里同名的 `:xxx` 占位，
+而本模块下钻页菜单正是 `:id`/`:code` 形式，同名会互相干扰）：
+
+- 路由注册：`packages/core/router/routes/modules/early-stage-planning.ts`。**前端声明路由放在这里
+  能被真实挂载** —— BACK 菜单模式下 `permissionStore.buildRoutesAction` 同样会合并前端路由
+  （`routes = [...asyncRoutes, ...routeList]`）；且它随登录重建，不会被 `resetRouter` 清掉后
+  不再回来（直接 `router.addRoute` 的会）。路径落在 `/early-stage-planning/overview/` 前缀下，
+  布局按 `nav-links.tsx` 的 `isDisplayRoute` 自动判定为沉浸式全屏，无需开关。
+  若后端菜单后续也注册了同路径，删掉该文件即可（避免重复注册）。
+- 页面：`views/overview/area-detail/` —— `index.tsx` 路由页（按 `:id` 走 `loadAreas('全部')`
+  自行取数，刷新 / 直接打开链接都可用；从看板点进来命中同一份批次缓存，不重复请求）、
+  `display-panel.tsx` 左侧展示面板、`route.ts` 路径工具（跳转方引用，避免静态引入详情页组件）；
+- 布局：左侧展示面板 + 右侧 `right-drawer`（420px，组件自带 `absolute right-0 top-0 h-full w-420px`，
+  故页面根节点为 `relative h-[calc(100vh-88px)]`）；
+- 左右联动：`activeTab`（抽屉当前区块）由页面持有并 `v-model:activeTab` 给抽屉，
+  左侧面板既接收它（抽屉 → 面板，据此切换展示内容）也能 `tabChange` 反向驱动抽屉（面板 → 抽屉）；
+- 返回：优先 `router.back()`（回到看板，看板被 keep-alive 缓存时状态原样保留），
+  直接打开链接无历史时兜底跳看板路径；
+- 待补充：左侧展示区的真实内容（图片轮播 / 地图 / 视频等）与抽屉各区块的业务数据
+  （抽屉内 6 个区块目前仍是静态占位内容）。
 
 ## 政策管理三页
 
@@ -81,7 +111,13 @@ modules/packages/early-stage-planning/
 ## 使用方式
 
 - 包内路径用别名 `@jeesite/early-stage-planning/...`（tsconfig paths 生效）；
-- 大屏页在 `packages/display/router/index.ts` 注册路由（`/display/early-stage-planning`，组件指向本包 `views/overview/index`）；
+- 大屏（沉浸式全屏）由布局按路由自动判定：路径落在顶栏导航 `to` 的 `/模块/overview/` 目录前缀下即沉浸
+  （`packages/core/layouts/default/header/nav-links.tsx` 的 `isDisplayRoute`，内容区 padding 归零），
+  页面无需拨开关；本包看板页对应后端菜单路由 `/early-stage-planning/overview/index`
+  （`packages/display/router/index.ts` 只注册 `/display` 演示应用路由，不含本包页面）；
 - 大屏专用共享组件（RightDrawer / AreaOverviewModal 等）仍在 `packages/display/components/early-stage-planning/`，本包经 `@jeesite/display/...` 引用；
 - 管理页菜单为 BACK 模式后端注册，组件位置与链接地址一致（见各页面文件头注释）；
-- 政策管理三页已接 kd_server 接口（见下节）；overview 大屏页数据仍为静态占位，接入后端后替换。
+- 不进菜单、只能从页面里跳进去的页面用**前端声明路由**：`packages/core/router/routes/modules/early-stage-planning.ts`
+  （BACK 模式同样合并 `asyncRoutes`，见上文「大屏页」小节）；
+- 政策管理三页已接 kd_server 接口（见下节）；overview 大屏页的片区/项目图斑已接 esp 接口
+  （`api/.../esp-map.ts`），批次投资口径（`overview/index.tsx` 的 `BATCH_INVEST`）等仍为常量占位，后端下发后替换。

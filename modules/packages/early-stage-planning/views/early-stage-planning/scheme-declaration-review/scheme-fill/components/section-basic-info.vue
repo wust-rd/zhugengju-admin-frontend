@@ -2,7 +2,8 @@
   填报页区块一：片区基本信息（对齐设计稿）
 
   布局：垂直标签（label 在上）+ 两列栅格，概况/图片/范围/范围线通栏。
-  字段：片区名称* / 片区批次* / 行政区* / 片区规模（公顷）* / 起止时间（年月区间）/
+  字段：片区名称* / 片区批次*（待审查片区为「申报年份」，年份选择，同存 batch 键）/
+  行政区* / 片区规模（公顷）* / 起止时间（年月区间）/
   统筹主体 / 片区概况*（150字）/ 片区概况图片*（1-3张）/ 片区范围*（东至西至…）/
   片区范围线（GeoField：上传解析/地图绘制，WKT 存储）。
   起止时间：RangePicker 月份区间，经 fieldMapToTime 与 startTime/endTime 两个
@@ -25,6 +26,7 @@
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="imageBeforeUpload"
+          @preview="onPreview"
           @change="onImagesChange"
         >
           <div v-if="imageFileList.length < 3" class="flex flex-col items-center justify-center gap-2px text-gray-400">
@@ -40,16 +42,32 @@
       <GeoField v-model:value="scopeLine" :disabled="disabled" />
     </template>
   </BasicForm>
+  <!-- 缩略图点击预览弹层（替代 antd 新开页面默认行为） -->
+  <ImagePreview :url="previewUrl" @close="previewUrl = ''" />
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionBasicInfo">
   import { ref, watch } from 'vue';
   import { Upload } from 'antdv-next';
+  import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
   import GeoField from './geo-field.vue';
+  import ImagePreview from './image-preview.vue';
   import { useEspFileList } from './use-esp-file-list';
   import { useSectionForm } from './use-section-form';
 
+  /** 缩略图点击预览：拦截 Upload 默认新开页面，转弹窗展示 */
+  const previewUrl = ref('');
+  function onPreview(file: UploadFile) {
+    previewUrl.value = (file.url as string) || '';
+  }
+
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
+
+  /**
+   * 申报年份模式：待审查片区（isApprove=2，新增或编辑）——「片区批次」替换为
+   * 「申报年份」（年份选择，值仍存 batch 键，后端无需感知差异）；已批准片区维持批次。
+   */
+  const APPLY_YEAR = String(props.data?.isApprove ?? '') === '2';
 
   /** 下拉选项（与列表页筛选一致；接口就绪后改为字典接口） */
   const DISTRICT_OPTIONS = ['汉阳区', '江岸区', '江汉区', '硚口区', '武昌区', '青山区', '洪山区'].map((d) => ({
@@ -61,6 +79,22 @@
   /** 通栏字段（占满整行） */
   const FULL_COL = { span: 24, md: 24, lg: 24 };
 
+  /** 批次/申报年份二选一（同一保存键 batch：已批准=第一批/第二批枚举；待审查=年份 YYYY） */
+  const BATCH_SCHEMA: FormSchema = APPLY_YEAR
+    ? {
+        label: '申报年份',
+        field: 'batch',
+        component: 'DatePicker',
+        componentProps: { picker: 'year', valueFormat: 'YYYY', style: 'width: 100%', placeholder: '如 2026' },
+      }
+    : {
+        label: '片区批次',
+        field: 'batch',
+        component: 'Select',
+        componentProps: { options: BATCH_OPTIONS, placeholder: '请选择', allowClear: true },
+        rules: [{ required: true, message: '请选择片区批次' }],
+      };
+
   const inputFormSchemas: FormSchema[] = [
     {
       label: '片区名称',
@@ -69,13 +103,7 @@
       componentProps: { maxlength: 100, placeholder: '请输入' },
       rules: [{ required: true, message: '请输入片区名称' }],
     },
-    {
-      label: '片区批次',
-      field: 'batch',
-      component: 'Select',
-      componentProps: { options: BATCH_OPTIONS, placeholder: '请选择', allowClear: true },
-      rules: [{ required: true, message: '请选择片区批次' }],
-    },
+    BATCH_SCHEMA,
     {
       label: '行政区',
       field: 'district',

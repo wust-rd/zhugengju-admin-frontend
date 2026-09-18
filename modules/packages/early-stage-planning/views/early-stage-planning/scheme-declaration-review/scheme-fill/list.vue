@@ -7,6 +7,11 @@
      2=待审查（新增填报）片区，后端语义：新增保存的片区进入 Tab②）；
    - 「新增」仅 Tab② 显示：Tab① 已批准片区为手动入库的存量数据，只查看/编辑，
      不可新增（后端也拒绝删除）；
+   - 两 Tab 各自列布局：Tab① 批次列；Tab② 申报年份列（=batch，新增填报片区存年份）
+     + 状态列。审核状态四类（通过/未提交/审核中/退回修改）**后端暂无字段，前端 mock**
+     （按 id 哈希稳定分配 + 提交/重新提交写内存覆盖，刷新恢复；接口就绪后替换）；
+     操作按状态出：通过/审核中仅查看；未提交 加 编辑/提交/删除；退回修改 加
+     编辑/重新提交/修改意见；
    - 操作列：查看/编辑按 id 拉详情回显；删除仅 Tab② 显示（后端拒绝删除存量
      已批准片区，Tab① 不给入口）。
   新增 / 查看 / 编辑 均以组件方式切换到整页填报表单（form.vue），不新增路由与菜单注册；
@@ -38,8 +43,12 @@
         </template>
         <template #toolbar>
           <!-- 新增仅 Tab②：Tab① 已批准片区为手动入库的存量数据，只让编辑；
-               新增保存的片区为待审查片区（is_approve=2），落当前列表立即可见 -->
-          <a-button v-if="activeTab === 'reviewing'" type="primary" @click="handleForm({ isNewRecord: true })">
+               isApprove='2' 供表单按「申报年份」模式渲染（值仍存 batch） -->
+          <a-button
+            v-if="activeTab === 'reviewing'"
+            type="primary"
+            @click="handleForm({ isNewRecord: true, isApprove: '2' })"
+          >
             <span class="inline-flex items-center gap-4px"> <span class="i-fluent:add-12-filled"></span> 新增 </span>
           </a-button>
         </template>
@@ -54,6 +63,15 @@
             >
               {{ t }}
             </span>
+          </span>
+        </template>
+        <!-- 审核状态（Tab②；mock 分配见 script 的 statusKeyOf） -->
+        <template #reviewStatus="{ record }">
+          <span
+            class="text-13px font-500"
+            :style="{ color: REVIEW_STATUS[statusKeyOf(record) as keyof typeof REVIEW_STATUS].color }"
+          >
+            {{ REVIEW_STATUS[statusKeyOf(record) as keyof typeof REVIEW_STATUS].label }}
           </span>
         </template>
       </BasicTable>
@@ -84,8 +102,8 @@
   const formVisible = ref(false);
   const formRecord = ref<Recordable>({});
 
-  /** 表格列（对齐设计稿） */
-  const columns: BasicColumn[] = [
+  /** 表格列 · Tab① 已批准片区（对齐设计稿；批次=第一批/第二批） */
+  const approvedColumns: BasicColumn[] = [
     { title: '片区名称', dataIndex: 'name', width: 120 },
     { title: '行政区', dataIndex: 'district', width: 100 },
     { title: '片区规模（公顷）', dataIndex: 'areaHa', width: 130, align: 'center' },
@@ -96,22 +114,92 @@
     { title: '填报单位', dataIndex: 'reportOrg', width: 140 },
   ];
 
-  /** 操作列：查看 / 编辑；删除仅 Tab②（后端拒绝删除存量已批准片区，Tab① 不给入口） */
-  const actionColumn: BasicColumn = {
-    width: 150,
+  /**
+   * 表格列 · Tab② 待审查片区（对齐设计稿：申报年份 + 状态列，无批次列）。
+   * 申报年份 = batch（新增填报片区存年份，见 section-basic-info 申报年份模式）。
+   */
+  const reviewingColumns: BasicColumn[] = [
+    { title: '申报年份', dataIndex: 'batch', width: 90, align: 'center' },
+    { title: '片区名称', dataIndex: 'name', width: 120 },
+    { title: '行政区', dataIndex: 'district', width: 90 },
+    { title: '片区规模（公顷）', dataIndex: 'areaHa', width: 120, align: 'center' },
+    { title: '片区功能定位', dataIndex: 'funcTypes', width: 130, slot: 'funcType' },
+    { title: '总体投资估算（亿元）', dataIndex: 'invest', width: 140, align: 'center' },
+    { title: '填报时间', dataIndex: 'reportTime', width: 140 },
+    { title: '填报单位', dataIndex: 'reportOrg', width: 130 },
+    { title: '状态', dataIndex: 'reviewStatus', width: 90, slot: 'reviewStatus' },
+  ];
+
+  /**
+   * 审核状态（四类，对齐设计稿）。后端暂无状态字段（is_approve 仅批准标记 1/2），
+   * 前端 mock：按记录 id 哈希稳定分配（多数「通过」），提交/重新提交动作写入内存
+   * 覆盖表（刷新恢复）；后端状态接口就绪后以接口值为准并去掉本段。
+   */
+  type ReviewStatusKey = 'passed' | 'unsubmitted' | 'reviewing' | 'returned';
+  const REVIEW_STATUS: Record<ReviewStatusKey, { label: string; color: string }> = {
+    passed: { label: '通过', color: '#52c41a' },
+    unsubmitted: { label: '未提交', color: '#f5222d' },
+    reviewing: { label: '审核中', color: '#1677ff' },
+    returned: { label: '退回修改', color: '#fa8c16' },
+  };
+
+  /** 内存状态覆盖（提交/重新提交后写入；仅本页会话有效） */
+  const statusOverrides = new Map<string, ReviewStatusKey>();
+
+  /** 字符串哈希 → 稳定 mock 状态（7 取模：0/1/2 为未提交/审核中/退回修改，其余通过） */
+  function mockStatusKey(record: Recordable): ReviewStatusKey {
+    const id = String(record.id ?? record.name ?? '');
+    let h = 0;
+    for (let i = 0; i < id.length; i++) {
+      h = (h * 31 + id.charCodeAt(i)) % 997;
+    }
+    return (['unsubmitted', 'reviewing', 'returned'] as const)[h % 7] ?? 'passed';
+  }
+
+  function statusKeyOf(record: Recordable): ReviewStatusKey {
+    return statusOverrides.get(String(record.id)) ?? mockStatusKey(record);
+  }
+
+  /** 操作列 · Tab①：查看 / 编辑（存量片区不可新增不可删） */
+  const approvedActionColumn: BasicColumn = {
+    width: 120,
+    actions: (record: Recordable) => [
+      { label: '查看', onClick: () => handleForm({ ...record, isView: true }) },
+      { label: '编辑', onClick: () => handleForm({ ...record }) },
+    ],
+  };
+
+  /** 操作列 · Tab②：按状态出操作——通过/审核中仅查看；未提交 加编辑/提交/删除；
+      退回修改 加编辑/重新提交/修改意见（提交类动作 mock：写内存状态 + 刷新） */
+  const reviewingActionColumn: BasicColumn = {
+    width: 230,
     actions: (record: Recordable) => {
-      const actions: Recordable[] = [
-        { label: '查看', onClick: () => handleForm({ ...record, isView: true }) },
-        { label: '编辑', onClick: () => handleForm({ ...record }) },
-      ];
-      if (activeTab.value === 'reviewing') {
-        actions.push({
-          label: '删除',
-          color: 'error',
-          popConfirm: { title: '是否确认删除该填报记录？', confirm: () => handleDelete(record) },
-        });
+      const base: Recordable[] = [{ label: '查看', onClick: () => handleForm({ ...record, isView: true }) }];
+      const status = statusKeyOf(record);
+      if (status === 'unsubmitted') {
+        base.push(
+          { label: '编辑', onClick: () => handleForm({ ...record }) },
+          {
+            label: '提交',
+            popConfirm: { title: '确认提交审核？', confirm: () => handleSubmit(record, '已提交审核（演示）') },
+          },
+          {
+            label: '删除',
+            color: 'error',
+            popConfirm: { title: '是否确认删除该填报记录？', confirm: () => handleDelete(record) },
+          },
+        );
+      } else if (status === 'returned') {
+        base.push(
+          { label: '编辑', onClick: () => handleForm({ ...record }) },
+          {
+            label: '重新提交',
+            popConfirm: { title: '确认重新提交审核？', confirm: () => handleSubmit(record, '已重新提交审核（演示）') },
+          },
+          { label: '修改意见', onClick: () => showMessage('演示：修改意见待后端接口（审批流程未建设）') },
+        );
       }
-      return actions;
+      return base;
     },
   };
 
@@ -123,11 +211,11 @@
   const FUNC_OPTIONS = ['TOD', 'EOD', 'IOD', 'SOD', 'COD', 'HOD', 'POD'].map((f) => ({ label: f, value: f }));
   const BATCH_OPTIONS = ['第一批', '第二批'].map((b) => ({ label: b, value: b }));
 
-  const [registerTable, { reload }] = useTable({
+  const [registerTable, { reload, setColumns, setProps }] = useTable({
     api: schemeFillPage,
     beforeFetch: (params: Recordable) => ({ ...params, isApprove: activeTab.value === 'approved' ? '1' : '2' }),
-    columns,
-    actionColumn,
+    columns: approvedColumns,
+    actionColumn: approvedActionColumn,
     showTableSetting: true,
     useSearchForm: true,
     pagination: { pageSize: 10 },
@@ -162,12 +250,22 @@
     },
   });
 
-  /** Tab 切换 → 按新 isApprove 重新查询（回到第一页） */
-  watch(activeTab, () => {
+  /** Tab 切换 → 换列与操作列（Tab② 为申报年份+状态列、按状态操作）+ 按新 isApprove 重新查询 */
+  watch(activeTab, (tab) => {
+    const reviewing = tab === 'reviewing';
+    void setColumns(reviewing ? reviewingColumns : approvedColumns);
+    void setProps({ actionColumn: reviewing ? reviewingActionColumn : approvedActionColumn });
     if (!formVisible.value) {
       void reload();
     }
   });
+
+  /** 提交 / 重新提交（mock：后端无审核流转接口，仅写内存状态并刷新本页） */
+  async function handleSubmit(record: Recordable, tip: string) {
+    statusOverrides.set(String(record.id), 'reviewing');
+    showMessage(tip);
+    void reload();
+  }
 
   /** 新增/查看/修改：切换到整页表单（组件形式，不走路由）；详情由 form.vue 按 id 拉取 */
   function handleForm(record: Recordable) {

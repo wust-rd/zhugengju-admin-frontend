@@ -24,6 +24,7 @@
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="problemImages.beforeUpload"
+          @preview="onPreview"
           @change="problemImages.onChange"
         >
           <div
@@ -53,6 +54,7 @@
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="opportunityImages.beforeUpload"
+          @preview="onPreview"
           @change="opportunityImages.onChange"
         >
           <div
@@ -78,6 +80,7 @@
           :disabled="disabled"
           :show-upload-list="disabled ? { showRemoveIcon: false } : true"
           :before-upload="demandImages.beforeUpload"
+          @preview="onPreview"
           @change="demandImages.onChange"
         >
           <div
@@ -92,16 +95,26 @@
       </div>
     </template>
   </BasicForm>
+  <!-- 缩略图点击预览弹层（替代 antd 新开页面默认行为） -->
+  <ImagePreview :url="previewUrl" @close="previewUrl = ''" />
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionHealthCheck">
   import { ref, watch, type Ref } from 'vue';
   import { Upload } from 'antdv-next';
+  import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
+  import ImagePreview from './image-preview.vue';
   import { useEspFileList, type EspUploadFile } from './use-esp-file-list';
   import { useSectionForm } from './use-section-form';
   import ListEditor from './list-editor.vue';
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
+
+  /** 缩略图点击预览：拦截 Upload 默认新开页面，转弹窗展示 */
+  const previewUrl = ref('');
+  function onPreview(file: UploadFile) {
+    previewUrl.value = (file.url as string) || '';
+  }
 
   /** 通栏字段（占满整行） */
   const FULL_COL = { span: 24, md: 24, lg: 24 };

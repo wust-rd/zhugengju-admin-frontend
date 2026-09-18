@@ -79,6 +79,10 @@
   import { useSectionForm } from './use-section-form';
 
   const props = defineProps<{ value?: Recordable; disabled?: boolean }>();
+  const emit = defineEmits<{
+    /** 项目名称输入实时回传（父级 tab 标题展示用） */
+    (e: 'nameChange', name: string): void;
+  }>();
 
   /** 通栏字段（占满整行） */
   const FULL_COL = { span: 24, md: 24, lg: 24 };
@@ -95,7 +99,13 @@
       label: '项目名称',
       field: 'name',
       component: 'Input',
-      componentProps: { maxlength: 150, placeholder: '请输入' },
+      componentProps: {
+        maxlength: 150,
+        placeholder: '请输入',
+        // 输入实时上抛：父级 tab 标题随名称联动展示
+        onChange: (e: unknown) =>
+          emit('nameChange', String((e as { target?: { value?: string } })?.target?.value ?? '')),
+      },
       rules: [{ required: true, message: '请输入项目名称' }],
     },
     {
