@@ -16,7 +16,7 @@ import {
   grandTotal,
   tabTotal,
 } from '@jeesite/ifco/api/ifco/progress-fill';
-import { NEW_START_KEY, renderDisplay, renderNewStart, type CellRenderers, type FillRow } from './cell-renderers';
+import { renderDisplay, type CellRenderers, type FillRow } from './cell-renderers';
 
 export type TableColumnsDeps = {
   activeLeaf: ComputedRef<CategoryDef | null>;
@@ -105,8 +105,7 @@ export function createTableColumns(deps: TableColumnsDeps) {
         align: 'right',
         onHeaderCell: resizableHeaderCell,
         onCell: sumRowOnCell,
-        render: (_value: unknown, record: FillRow) =>
-          renderDisplayByKind(record, tabTotal(INDICATOR_MAP[record.key], tab)),
+        render: (_value: unknown, record: FillRow) => renderDisplay(tabTotal(INDICATOR_MAP[record.key], tab)),
       },
       ...projectColumns,
     ];
@@ -123,7 +122,7 @@ export function createTableColumns(deps: TableColumnsDeps) {
       onHeaderCell: resizableHeaderCell,
       onCell: sumRowOnCell,
       render: (_value: unknown, record: FillRow) =>
-        renderDisplayByKind(record, tabTotal(INDICATOR_MAP[record.key], data?.[leaf.key])),
+        renderDisplay(tabTotal(INDICATOR_MAP[record.key], data?.[leaf.key])),
     });
     /** 嵌套类目拆为三个二级子列(一级表头跨列),简单类目单列 */
     const categoryColumns: TableColumnsType<FillRow> = DATA_CATEGORIES.map((cat) =>
@@ -144,16 +143,10 @@ export function createTableColumns(deps: TableColumnsDeps) {
         align: 'right',
         onHeaderCell: resizableHeaderCell,
         onCell: sumRowOnCell,
-        render: (_value: unknown, record: FillRow) =>
-          renderDisplayByKind(record, grandTotal(INDICATOR_MAP[record.key], data)),
+        render: (_value: unknown, record: FillRow) => renderDisplay(grandTotal(INDICATOR_MAP[record.key], data)),
       },
       ...categoryColumns,
     ];
-  }
-
-  /** 小计/合计列的显示:r3 数值直出(含 0),其余未填与 0 置空 */
-  function renderDisplayByKind(record: FillRow, value: number | string | undefined) {
-    return record.key === NEW_START_KEY ? renderNewStart(value) : renderDisplay(value);
   }
 
   const tableColumns = computed<TableColumnsType<FillRow>>(() =>

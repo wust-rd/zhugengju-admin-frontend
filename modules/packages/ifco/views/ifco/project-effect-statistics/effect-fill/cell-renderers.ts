@@ -181,7 +181,7 @@ export function createCellRenderers(deps: CellRendererDeps) {
       nameNode,
       unitEditable.value
         ? h('span', { class: 'flex shrink-0 items-center gap-1' }, [
-            h(Tooltip, { title: editing ? '完成并保存本列' : '编辑本列' }, () =>
+            h(Tooltip, { title: editing ? '保存本列' : '编辑本列' }, () =>
               h(Icon, {
                 icon: editing ? 'ant-design:save-outlined' : 'ant-design:edit-outlined',
                 class: 'effect-fill-icon-edit',

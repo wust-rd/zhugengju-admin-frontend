@@ -5,7 +5,7 @@
  * 项目列头带编辑/删除图标（只读单位不渲染）。键盘导航由 shared/cell-nav 提供。
  */
 import { h, ref, type ComputedRef, type Ref } from 'vue';
-import { Input, InputNumber, Popconfirm, Switch, Tooltip } from 'antdv-next';
+import { Input, InputNumber, Popconfirm, Tooltip } from 'antdv-next';
 import { Icon } from '@jeesite/core/components/Icon';
 import type { IndicatorDef, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
 import { cellValue } from '@jeesite/ifco/api/ifco/progress-fill';
@@ -21,19 +21,10 @@ export type FillRow = {
   code: string;
 };
 
-/** 其中：本年新开工（r3，编码 102）：开关型指标，0=非新开工、1=是新开工；
- *  小计 = 各项目列该字段的合计（即为"是新开工"的项目个数） */
-export const NEW_START_KEY = 'r3';
-
 /** 未填内容与 0 一律置空(不补斜杠、不补 0) */
 export function renderDisplay(value: number | string | undefined) {
   if (value === undefined || value === '' || value === 0) return '';
   return typeof value === 'number' ? String(value) : value;
-}
-
-/** r3 显示口径：数值直出（含 0），不走通用"未填与 0 置空" */
-export function renderNewStart(value: number | string | [number, number] | undefined) {
-  return String(Number(value ?? 0));
 }
 
 export type CellRendererDeps = {
@@ -59,18 +50,6 @@ export function createCellRenderers(deps: CellRendererDeps) {
   /** 单元格:编辑列内渲染输入控件(自动行除外),其余为只读文本 */
   function renderFillCell(item: IndicatorDef, col: ProjectColumn, leafKey: string) {
     if (editingColKey.value === col.key && (item.kind === 'fill' || item.kind === 'text')) {
-      if (item.key === NEW_START_KEY) {
-        // 新开工:开关录入(0/1),不参与键盘导航(无可键入的输入框,Enter/方向键会跳过本行)
-        return h('div', { class: 'flex w-full justify-center' }, [
-          h(Switch, {
-            size: 'default',
-            checked: Number(col.values[item.key] ?? 0) === 1,
-            checkedChildren: '是新开工',
-            unCheckedChildren: '非新开工',
-            'onUpdate:checked': (checked) => setCellValue(col, item.key, checked === true ? 1 : 0, leafKey),
-          }),
-        ]);
-      }
       if (item.kind === 'text') {
         return h('div', { class: 'w-full', onKeydownCapture: handleCellNav }, [
           h(Input, {
@@ -90,14 +69,17 @@ export function createCellRenderers(deps: CellRendererDeps) {
           min: 0,
           controls: false,
           placeholder: '请输入',
-          'onUpdate:value': (value2: number | string | null) =>
-            setCellValue(col, item.key, value2 ?? undefined, leafKey),
+          // 键入过程可能回调字符串,统一数值化再入列(校验/求和/落库口径一致)
+          'onUpdate:value': (value2: number | string | null) => {
+            if (value2 === null || value2 === '') {
+              setCellValue(col, item.key, undefined, leafKey);
+              return;
+            }
+            const num = typeof value2 === 'number' ? value2 : Number(String(value2).replace(/[,，\s]/g, ''));
+            setCellValue(col, item.key, Number.isFinite(num) ? num : undefined, leafKey);
+          },
         }),
       ]);
-    }
-    if (item.key === NEW_START_KEY) {
-      // 新开工读态:显示数值(0/1),未填默认 0
-      return renderNewStart(col.values[item.key]);
     }
     return renderDisplay(cellValue(item, col));
   }
@@ -173,7 +155,7 @@ export function createCellRenderers(deps: CellRendererDeps) {
       nameNode,
       unitEditable.value
         ? h('span', { class: 'flex shrink-0 items-center gap-1' }, [
-            h(Tooltip, { title: isEditing ? '完成并保存本列' : '编辑本列' }, () =>
+            h(Tooltip, { title: isEditing ? '保存本列' : '编辑本列' }, () =>
               h(Icon, {
                 icon: isEditing ? 'ant-design:save-outlined' : 'ant-design:edit-outlined',
                 class: 'progress-fill-icon-edit',

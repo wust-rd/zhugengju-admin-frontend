@@ -33,7 +33,7 @@
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import type { IndicatorDef, ProjectColumn } from '@jeesite/ifco/api/ifco/progress-fill';
   import { INDICATORS, cellValue, saveProgressProject } from '@jeesite/ifco/api/ifco/progress-fill';
-  import { NEW_START_KEY, renderDisplay } from './cell-renderers';
+  import { renderDisplay } from './cell-renderers';
   import { validateProgressColumn } from './fill-validation';
 
   const emit = defineEmits(['success', 'register']);
@@ -50,15 +50,11 @@
   /** 当前类目已有项目数（打开时由 list.vue 传入；项目数行显示新增后的总数） */
   const tabProjectCount = ref(0);
 
-  /** 从表单模型收集可录入值（fill/text、去空、r3 转 0/1）——提交落库与汇总行实时预览共用 */
+  /** 从表单模型收集可录入值（fill/text、去空）——提交落库与汇总行实时预览共用 */
   function collectValues(model: Recordable): Record<string, number | string> {
     const values: Record<string, number | string> = {};
     for (const item of INDICATORS) {
       if (item.kind !== 'fill' && item.kind !== 'text') continue;
-      if (item.key === NEW_START_KEY) {
-        values[item.key] = model[item.key] === true ? 1 : 0;
-        continue;
-      }
       const value = model[item.key];
       if (value !== undefined && value !== null && value !== '') values[item.key] = value;
     }
@@ -110,28 +106,17 @@
         };
         return schema;
       })
-      .with('fill', () => {
-        // 本年新开工（r3）：开关型指标（0/1），同表格编辑态；其余数值行 InputNumber
-        const schema: FormSchema =
-          item.key === NEW_START_KEY
-            ? {
-                ...base,
-                component: 'Switch',
-                componentProps: { checkedChildren: '是新开工', unCheckedChildren: '非新开工' },
-              }
-            : {
-                ...base,
-                component: 'InputNumber',
-                componentProps: {
-                  min: 0,
-                  allowClear: true,
-                  controls: true,
-                  placeholder: '请输入',
-                  style: 'width: 100%',
-                },
-              };
-        return schema;
-      })
+      .with('fill', (): FormSchema => ({
+        ...base,
+        component: 'InputNumber',
+        componentProps: {
+          min: 0,
+          allowClear: true,
+          controls: true,
+          placeholder: '请输入',
+          style: 'width: 100%',
+        },
+      }))
       .exhaustive();
   }
 
@@ -186,7 +171,7 @@
       return;
     }
     const values = collectValues(data);
-    const error = validateProgressColumn({ key: 'add', name, imported: false, values });
+    const error = validateProgressColumn({ key: 'add', name, imported: false, values }, params.leafKey);
     if (error) {
       showMessage(error);
       return;

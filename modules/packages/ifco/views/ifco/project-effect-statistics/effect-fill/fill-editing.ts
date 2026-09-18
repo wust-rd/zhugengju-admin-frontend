@@ -30,13 +30,15 @@ export function createFillEditing(deps: FillEditingDeps) {
 
   const editingColKey = ref<string>();
   const saving = ref(false);
+  /** 数据校验/保存失败提示（红字显示在表格上方，不走 message；空 = 无错误） */
+  const validationError = ref<string>();
   const dirtyCols = new Map<string, ProjectColumn>();
 
   function resetEditState() {
     editingColKey.value = undefined;
   }
 
-  /** 筛选条件变化:未保存修改先确认再丢弃,确认后整包重载 */
+  /** 筛选条件变化:未保存修改先确认再丢弃,确认后整包重载;切换时清空校验错误提示 */
   function handleFilterChange() {
     if (dirtyCols.size) {
       Modal.confirm({
@@ -47,6 +49,7 @@ export function createFillEditing(deps: FillEditingDeps) {
         onOk: () => {
           resetEditState();
           dirtyCols.clear();
+          validationError.value = undefined;
           reload();
         },
       });
@@ -54,17 +57,15 @@ export function createFillEditing(deps: FillEditingDeps) {
     }
     resetEditState();
     dirtyCols.clear();
+    validationError.value = undefined;
     reload();
   }
 
   /** 单列落库:双值行二元组拆回 a/b 两键(仅 fill 行键提交,值全量同步)。
-   *  提交前先同步自动计算行(233=234+235+236),再做保存前校验(仅前端拦截) */
+   *  纯保存:不校验(校验统一由「全表数据校验」按钮负责);
+   *  仅同步自动计算行(233=234+235+236)后提交 */
   async function persistColumn(col: ProjectColumn) {
     syncEffectAutoSums(col);
-    const error = validateEffectColumn(col);
-    if (error) {
-      throw new Error(error);
-    }
     const res = await saveEffectProject({
       year: year.value,
       quarter: quarter.value,
@@ -86,14 +87,32 @@ export function createFillEditing(deps: FillEditingDeps) {
   }
 
   /** 切换前自动落库(共用工厂):把当前全部脏列依次保存;失败列保留在登记中并提示 */
-  const autoPersistDirty = createAutoPersist(dirtyCols, (col) => persistColumn(col), showMessage);
+  const autoPersistDirty = createAutoPersist(
+    dirtyCols,
+    (col) => persistColumn(col),
+    (msg) => (validationError.value = msg),
+  );
+
+  /** 全表数据校验:本单位全部项目列逐列校验(含未修改列),错误逐条写入红字区;
+   *  返回 {通过与否, 检查列数}(调用方提示用) */
+  function validateAllColumns() {
+    const errors: string[] = [];
+    let checked = 0;
+    for (const col of unitData.value?.projects ?? []) {
+      checked += 1;
+      const error = validateEffectColumn(col);
+      if (error) errors.push(error);
+    }
+    validationError.value = errors.length ? errors.join('\n') : undefined;
+    return { passed: errors.length === 0, checked };
+  }
 
   /** 顶部保存:把全部脏列依次落库 */
   async function handleSave() {
     const dirtyCount = dirtyCols.size;
     if (!dirtyCount) {
       resetEditState();
-      showMessage(`暂无修改，${year.value} 年${quarterLabel(quarter.value)}项目实施成效填报数据已是最新`);
+      showMessage(`已保存，${year.value} 年${quarterLabel(quarter.value)}项目实施成效填报数据已是最新`);
       return;
     }
     saving.value = true;
@@ -110,31 +129,24 @@ export function createFillEditing(deps: FillEditingDeps) {
     saving.value = false;
     resetEditState();
     if (failed > 0) {
-      showMessage(`有 ${failed} 列保存失败：${firstError}`);
+      validationError.value = `有 ${failed} 列保存失败：${firstError}`;
     } else {
+      validationError.value = undefined;
       showMessage(`已保存 ${year.value} 年${quarterLabel(quarter.value)}项目实施成效填报（共 ${dirtyCount} 个项目列）`);
     }
   }
 
-  /** 进入/退出编辑:退出时该列若有改动立即落库(只读单位不允许进入编辑);
-   *  校验未通过时保持编辑态,提示用户调整后再保存 */
+  /** 进入/退出编辑:退出时该列若有改动立即落库(只读单位不允许进入编辑) */
   async function toggleEdit(col: ProjectColumn) {
     if (editingColKey.value === col.key) {
-      if (dirtyCols.has(col.key)) {
-        syncEffectAutoSums(col);
-        const error = validateEffectColumn(col);
-        if (error) {
-          showMessage(error);
-          return;
-        }
-      }
+      // 保存本列:纯保存,不校验(校验统一由「全表数据校验」按钮负责;r233 在落库前自动计算)
       editingColKey.value = undefined;
       if (dirtyCols.has(col.key)) {
         saving.value = true;
         try {
           await persistColumn(col);
         } catch (e: unknown) {
-          showMessage(e instanceof Error ? e.message : '保存失败');
+          validationError.value = e instanceof Error ? e.message : '保存失败';
         } finally {
           saving.value = false;
         }
@@ -147,6 +159,7 @@ export function createFillEditing(deps: FillEditingDeps) {
     }
     // 进入新列编辑前,先把之前未保存的脏列自动落库(填一列保存一列)
     await autoPersistDirty();
+    validationError.value = undefined;
     editingColKey.value = col.key;
   }
 
@@ -168,6 +181,8 @@ export function createFillEditing(deps: FillEditingDeps) {
   return {
     editingColKey,
     saving,
+    validationError,
+    validateAllColumns,
     dirtyCols,
     resetEditState,
     handleFilterChange,

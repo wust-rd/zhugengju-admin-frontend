@@ -42,9 +42,6 @@ export type ProgressAllExportParams = {
   units: { unitName: string; periodData: PeriodFillData }[];
 };
 
-/** 其中：本年新开工（开关型指标，数值直出含 0） */
-const NEW_START_KEY = 'r3';
-
 /** 叶子类目的列区块（项目列若干 + 末列小计） */
 type LeafBlock = {
   key: string;
@@ -54,11 +51,8 @@ type LeafBlock = {
   endCol: number;
 };
 
-/** 未填与 0 置空(与页面展示一致)；r3 例外，数值直出含 0 */
-function cellOut(item: IndicatorDef, value: number | string | undefined): number | string | undefined {
-  if (item.key === NEW_START_KEY) {
-    return Number(value ?? 0);
-  }
+/** 未填与 0 置空(与页面展示一致) */
+function cellOut(value: number | string | undefined): number | string | undefined {
   return value === 0 ? undefined : value;
 }
 
@@ -95,7 +89,7 @@ function sumOfLeaves(item: IndicatorDef, periodData: PeriodFillData, leafKeys: s
     const value = tabTotal(item, periodData[key]);
     if (typeof value === 'number') sum = NP.plus(sum, value);
   }
-  return cellOut(item, sum);
+  return cellOut(sum);
 }
 
 /**
@@ -149,9 +143,9 @@ function buildSingleSheet(periodData: PeriodFillData): WorkSheet {
     for (const block of blocks) {
       for (const leaf of block.leaves) {
         for (const project of leaf.projects) {
-          cells.push(cellOut(item, cellValue(item, project) as number));
+          cells.push(cellOut(cellValue(item, project) as number));
         }
-        cells.push(cellOut(item, tabTotal(item, periodData[leaf.key]) as number));
+        cells.push(cellOut(tabTotal(item, periodData[leaf.key]) as number));
       }
     }
     rows.push(indicatorRow(item, sumOfLeaves(item, periodData, leafKeys), cells));

@@ -63,20 +63,44 @@
             <Icon icon="i-fluent:add-12-filled" /> 新增
           </a-button>
           <a-button class="ml-2" :loading="exporting" @click="handleExport"> 导出 </a-button>
-          <a-button
-            v-if="canExportAllProjects"
-            class="ml-2"
-            :loading="exportingAll"
-            @click="handleExportAll"
-          >
+          <a-button v-if="canExportAllProjects" class="ml-2" :loading="exportingAll" @click="handleExportAll">
             导出所有项目
           </a-button>
+          <Tooltip>
+            <a-button class="ml-2" type="primary" @click="handleAutoFillAll"> 全表自动求和 </a-button>
+            <template #title>
+              <div>对全部项目列自动求和以下指标（未填写且子项有值时填入子项之和，已填写不覆盖）：</div>
+              <div>· 101 城市更新项目总数 = 102</div>
+              <div>· 106 中央预算资金 = 107 + 108 + 109 + 110</div>
+              <div>· 105 国家预算资金 = 106 + 111 + 112 + 113 + 114</div>
+              <div>· 104 本年实际到位资金 = 105 + 115 + 120</div>
+            </template>
+          </Tooltip>
+          <Tooltip>
+            <a-button class="ml-2" type="primary" @click="handleValidateAll"> 全表数据校验 </a-button>
+            <template #title>
+              <div>对全部项目列校验以下规则（主行留空视为 0 参与比较）：</div>
+              <div>· 116/117/118/119 有值时，115 社会资本必须填写（未填写将警告）</div>
+              <div>· 101 城市更新项目总数 ≥ 102 其中：本年新开工</div>
+              <div>· 104 本年实际到位资金 = 105 + 115 + 120</div>
+              <div>· 105 国家预算资金 ≥ 106 + 111 + 112 + 113 + 114</div>
+              <div>· 106 中央预算资金 ≥ 107 + 108 + 109 + 110</div>
+              <div>· 115 社会资本 ≥ 116 + 117 + 118</div>
+              <div>· 115 社会资本 ≥ 119</div>
+              <div>违反任一规则的项目列将在表格上方红字区逐条列出</div>
+            </template>
+          </Tooltip>
           <a-button v-if="canFill" type="primary" class="ml-2" :loading="saving" @click="handleSave"> 保存 </a-button>
         </div>
       </div>
     </Card>
 
     <Card class="fill-page-card flex-1 min-h-0">
+      <!-- 数据校验/保存失败红字提示（无错误时整行隐藏，不走 message 弹出；多条错误逐行显示） -->
+      <div v-if="validationError" class="text-red-500 mb-4 whitespace-pre-line max-h-100px of-auto">{{
+        validationError
+      }}</div>
+
       <RadioGroup
         v-model:value="activeCategory"
         :options="categoryOptions"
@@ -140,7 +164,7 @@
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/progress-fill';
   import { useDrawer } from '@jeesite/core/components/Drawer';
-  import { Card, InputNumber, Modal, RadioGroup, Select, Table } from 'antdv-next';
+  import { Card, InputNumber, Modal, RadioGroup, Select, Table, Tooltip } from 'antdv-next';
   import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
   import { createBringInController } from '../../shared/bring-in';
   import { CAN_EXPORT_ALL_PROJECTS, loadAllProgressProjects } from '@jeesite/ifco/api/ifco/progress-fill';
@@ -247,7 +271,35 @@
     renderers,
   });
 
-  const { saving, dirtyCols, resetEditState, handleFilterChange, autoPersistDirty, handleSave } = editing;
+  const {
+    saving,
+    validationError,
+    validateAllColumns,
+    autoFillAllColumns,
+    dirtyCols,
+    resetEditState,
+    handleFilterChange,
+    autoPersistDirty,
+    handleSave,
+  } = editing;
+
+  /** 全表自动代填必填项：全部项目列执行代填并登记为脏列（随保存落库）；提示代填列数 */
+  function handleAutoFillAll() {
+    const filled = autoFillAllColumns();
+    showMessage(
+      filled > 0
+        ? `全表自动代填完成（共代填 ${filled} 个项目列），请点击保存落库`
+        : '全表无需代填（必填项均已填写或子项为空）',
+    );
+  }
+
+  /** 全表数据校验：全部类目页签的全部项目列逐列校验；通过弹提示（带检查列数），有错逐条红字列出 */
+  function handleValidateAll() {
+    const { passed, checked } = validateAllColumns();
+    if (passed) {
+      showMessage(`全表数据校验通过（共检查 ${checked} 个项目列）`);
+    }
+  }
   const TABLE_COMPONENTS = table.TABLE_COMPONENTS;
   const tableColumns = table.tableColumns;
   const scrollX = table.scrollX;
@@ -367,9 +419,12 @@
     openImportDrawer(true, { year: year.value, quarter: quarter.value });
   }
 
-  async function handleImported() {
+  async function handleImported(res?: { unit?: string }) {
     resetEditState();
     dirtyCols.clear();
+    if (res?.unit && res.unit !== reportUnit.value) {
+      reportUnit.value = res.unit; // 切到被导入的单位(编辑态已清,不触发丢弃确认;v-model 同步下拉显示)
+    }
     await loadFill();
   }
 

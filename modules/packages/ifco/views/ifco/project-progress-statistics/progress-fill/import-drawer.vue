@@ -1,8 +1,8 @@
 <!--
   ifco —— 项目进展填报「导入」抽屉（BasicDrawer + antdv Upload，单文件本地解析）
 
-  界面：项目报送单位 Select + Excel 上传（仅 .xlsx/.xls）+ 底部错误区域（红字列表，
-  不走 message）。单位可选范围 = 综合协调组/超管全部 19 个；普通区局仅本单位。
+  界面：使用须知（导入语义与导入后操作指引）+ 项目报送单位 Select + Excel 上传（仅 .xlsx/.xls）
+  + 底部错误区域（红字列表，不走 message）。单位可选范围 = 综合协调组/超管全部 19 个；普通区局仅本单位。
   导入语义 = 同名覆盖 + 新增追加（与强制带入同语义），目标周期 = 页面当前所选年+季。
 
   解析（官方三行表头模板，唯一模板校验）：
@@ -24,6 +24,20 @@
     @ok="handleImport"
   >
     <div class="flex flex-col gap-16px">
+      <!-- 使用须知：导入语义与导入后的操作指引 -->
+      <div class="flex flex-col gap-6px rd-6px bg-#f6ffed px-12px py-10px">
+        <div class="text-14px font-600 text-gray-800">使用须知</div>
+        <div class="text-14px text-gray-600">1. 上传文件后，Excel 内的所有数据将原封不动写入系统。</div>
+        <div class="text-14px text-gray-600">
+          2. 导入完成后，表格页面的「项目报送单位」将自动切换为本抽屉所选的单位。
+        </div>
+        <div class="text-14px text-gray-600">
+          3. 导入完成后，请依次点击页面上的【全表自动求和】、【全表数据校验】、【保存】按钮，完成求和与校验后方可生效。
+        </div>
+        <div class="text-14px text-gray-600">
+          4. 更改后的 Excel 再次导入时，将自动覆盖系统中的原有数据；每次导入后均应重复上述操作过程。
+        </div>
+      </div>
       <div>
         <div class="mb-4px text-gray-700">项目报送单位</div>
         <Select
@@ -140,7 +154,8 @@
         unit: unitCode.value,
         projects: parsed.projects.map((p) => ({ leafKey: p.leafKey, name: p.name, values: p.values })),
       });
-      emit('success', res);
+      // 单位随事件带出:页面据此把项目报送单位切换到被导入的单位
+      emit('success', { ...res, unit: unitCode.value });
       showMessage(
         `导入成功：新增 ${res.broughtProjectCount} 列、覆盖同名 ${res.overwrittenProjectCount} 列、跳过同名 ${res.skippedProjectCount} 列`,
       );

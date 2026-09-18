@@ -23,13 +23,8 @@ type ExportParams = {
   sheets: { name: string; rows: ProgressStatRow[] }[];
 };
 
-/** 其中：本年新开工（开关型指标，数值直出含 0）；其余未填与 0 置空 */
-const NEW_START_KEY = 'r3';
-
-function numberOut(key: string, value: number | undefined): number | undefined {
-  if (key === NEW_START_KEY) {
-    return Number(value ?? 0);
-  }
+/** 未填与 0 置空 */
+function numberOut(value: number | undefined): number | undefined {
   return value === 0 ? undefined : value;
 }
 
@@ -70,8 +65,8 @@ function buildStatSheet(rows: ProgressStatRow[]): WorkSheet {
     row.name,
     row.unit || undefined,
     row.code || undefined,
-    numberOut(row.key, row.grand),
-    ...LEAF_CATEGORIES.map((leaf) => numberOut(row.key, row.categories[leaf.key])),
+    numberOut(row.grand),
+    ...LEAF_CATEGORIES.map((leaf) => numberOut(row.categories[leaf.key])),
   ]);
 
   return finishBorderedSheet(

@@ -53,20 +53,32 @@
             <Icon icon="i-fluent:add-12-filled" /> 新增
           </a-button>
           <a-button class="ml-2" :loading="exporting" @click="handleExport"> 导出 </a-button>
-          <a-button
-            v-if="canExportAllProjects"
-            class="ml-2"
-            :loading="exportingAll"
-            @click="handleExportAll"
-          >
+          <a-button v-if="canExportAllProjects" class="ml-2" :loading="exportingAll" @click="handleExportAll">
             导出所有项目
           </a-button>
+          <Tooltip>
+            <a-button class="ml-2" type="primary" @click="handleValidateAll"> 全表数据校验 </a-button>
+            <template #title>
+              <div>对全部项目列校验以下规则：</div>
+              <div>· 各项取整数（含双值行两槽，不支持小数）</div>
+              <div>· 201 既有建筑改造面积 ≥ 202 + 203</div>
+              <div>· 201 ≥ 204</div>
+              <div>· 213 新增社区基本公共服务设施数 ≥ 214 + 215 + 216</div>
+              <div>· 220 老旧街区改造和新增产业空间面积 ≥ 221</div>
+              <div>· 223 老旧厂区改造和新增产业空间面积 ≥ 224</div>
+              <div>· 229 城市地下管线管网改造和新增长度 ≥ 230 + 231 + 232 + 233</div>
+              <div>· 233 排水管道长度由 234 + 235 + 236 自动计算</div>
+              <div>违反任一规则的项目列将在表格上方红字区逐条列出</div>
+            </template>
+          </Tooltip>
           <a-button v-if="canFill" type="primary" class="ml-2" :loading="saving" @click="handleSave"> 保存 </a-button>
         </div>
       </div>
     </Card>
 
     <Card class="fill-page-card flex-1 min-h-0">
+      <!-- 数据校验/保存失败红字提示（无错误时整行隐藏，不走 message 弹出；多条错误逐行显示） -->
+      <div v-if="validationError" class="text-red-500 mb-4 whitespace-pre-line">{{ validationError }}</div>
       <div ref="tableWrapRef" class="flex-1 min-h-0">
         <Table
           :columns="tableColumns"
@@ -119,7 +131,7 @@
     quarterLabel,
   } from '@jeesite/ifco/api/ifco/effect-fill';
   import { CAN_EXPORT_ALL_PROJECTS, loadAllEffectProjects } from '@jeesite/ifco/api/ifco/effect-fill';
-  import { Card, Input, Modal, Select, Table } from 'antdv-next';
+  import { Card, Input, Modal, Select, Table, Tooltip } from 'antdv-next';
   import { computed, nextTick, onMounted, reactive, ref } from 'vue';
   import { createBringInController } from '../../shared/bring-in';
   import { useFillDeadline } from '../../shared/fill-deadline';
@@ -192,7 +204,24 @@
   const renderers = createCellRenderers({ quarter, unitEditable: canFill, showMessage, editing });
   const table = createTableColumns({ unitData, editingColKey: editing.editingColKey, colWidths, renderers });
 
-  const { saving, dirtyCols, resetEditState, handleFilterChange, autoPersistDirty, handleSave } = editing;
+  const {
+    saving,
+    validationError,
+    validateAllColumns,
+    dirtyCols,
+    resetEditState,
+    handleFilterChange,
+    autoPersistDirty,
+    handleSave,
+  } = editing;
+
+  /** 全表数据校验：本单位全部项目列逐列校验；通过弹提示（带检查列数），有错逐条红字列出 */
+  function handleValidateAll() {
+    const { passed, checked } = validateAllColumns();
+    if (passed) {
+      showMessage(`全表数据校验通过（共检查 ${checked} 个项目列）`);
+    }
+  }
   const TABLE_COMPONENTS = table.TABLE_COMPONENTS;
   const tableColumns = table.tableColumns;
   const scrollX = table.scrollX;
@@ -213,9 +242,12 @@
   }
 
   /** 导入成功回调：退出编辑态并整包重载（服务端同名覆盖 + 新增追加） */
-  async function handleImported() {
+  async function handleImported(res?: { unit?: string }) {
     resetEditState();
     dirtyCols.clear();
+    if (res?.unit && res.unit !== reportUnit.value) {
+      reportUnit.value = res.unit; // 切到被导入的单位(编辑态已清,不触发丢弃确认;v-model 同步下拉显示)
+    }
     await loadFill();
   }
 

@@ -135,7 +135,8 @@
         unit: unitCode.value,
         projects: parsed.projects,
       });
-      emit('success', res);
+      // 单位随事件带出:页面据此把项目报送单位切换到被导入的单位
+      emit('success', { ...res, unit: unitCode.value });
       showMessage(
         `导入成功：新增 ${res.broughtProjectCount} 列、覆盖同名 ${res.overwrittenProjectCount} 列、跳过同名 ${res.skippedProjectCount} 列`,
       );
