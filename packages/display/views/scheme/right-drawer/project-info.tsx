@@ -13,7 +13,7 @@ import { ProjectDetailModal } from './project-detail-modal';
 const PROJECT_LIST = [
   { id: '01', type: '老旧街区改造', color: '#5B9DF0', name: '皮子街F地块' },
   { id: '02', type: '老旧厂区改造', color: '#5B9DF0', name: '皮子街两厂改造项目' },
-  { id: '03', type: '老旧小区改造', color: '#52D273', name: '任燧华里、仁硚新村、房开小区老旧小区改造项目东新村' },
+  { id: '03', type: '老旧小区改造', color: '#52D273', name: '燧华里、仁硚新村、房开小区老旧小区改造项目东新村' },
   // { id: '04', type: '老旧街区', color: '#F5C443', name: '绍兴片城市更新项目' },
   // { id: '05', type: '老旧街区', color: '#F5C443', name: '楚宝片改造项目' },
 ];
