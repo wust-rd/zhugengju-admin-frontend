@@ -18,6 +18,12 @@ import { MapContextKey } from './context';
 import type { MapViewport } from './types';
 import { getViewport } from './utils';
 
+// 提高瓦片图片请求并发上限（默认 16，全局设置一次）：一张图遥感影像 =
+// WMS 慢瓦片（服务端重投影，150KB+/张）与 hbyztwmts:// 协议注记瓦片同批激活，
+// 默认并发下协议请求会被 WMS 慢请求占满队列，表现为注记长时间不加载
+// （先选电子地图激活过协议 source 再切遥感则命中缓存正常）。上限放宽无副作用
+MapLibreGL.setMaxParallelImageRequests?.(64);
+
 type MapStyleOption = string | StyleSpecification;
 
 /**
