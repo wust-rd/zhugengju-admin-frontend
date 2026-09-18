@@ -1,19 +1,41 @@
 <!--
   ifco —— 年度计划编制 · 纳入年度计划（项目级 查看/采纳编辑 抽屉，工作台行内）
 
-  与 ../form.vue（任务级查看/编辑抽屉）区分：本抽屉针对单个项目，标题
-  「纳入年度计划 · 项目名」。上半部为任务下发信息只读回显（市级任务要求 +
-  区级任务分解要求两分区，dynamicDisabled 恒只读——下发要求项目侧不可改）；
-  最下「确认信息」分区可编辑：本年度计划完成投资（亿元）/备注，均非必填、
-  各占一行（备注 textarea）；查看模式（isView）确认信息同样禁用＝整表只读，
-  底部按钮由打开方经 showFooter 预隐藏。提交即把该项目置为已采纳并写入这两
-  个值（工作台表格「年度投资计划(亿元)」列即 yearPlanInvest），emit success
-  交工作台写回内存。
+  与 ../form.vue（任务级查看/编辑表单抽屉）区分：本抽屉针对单个项目，标题
+  「纳入年度计划 · 项目名」。任务下发信息为纯展示项（不走表单控件，对齐
+  设计稿：无分组标题条，两列「label：值」文字 + 年度刚性目标说明整行 +
+  各区年度刚性投资目标「区名 数值」一行四个）；只有「确认信息」是表单分区：
+  本年度计划完成投资（亿元）/备注，均非必填、各占一行（备注 textarea）。
+  查看模式（isView）确认信息同样禁用＝整表只读，底部按钮由打开方经
+  showFooter 预隐藏。提交即把该项目置为已采纳并写入这两个值（工作台表格
+  「年度投资计划(亿元)」列即 yearPlanInvest），emit success 交工作台写回内存。
   打开时序（防闪烁）：打开方 openDrawer 传 open=false，回填就绪后掀开
   （见前端 AGENTS.md 抽屉硬性规则）。当前后端尚未介入。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" force-render width="50%" :title="title" @register="registerDrawer" @ok="handleSubmit">
+    <!-- 任务下发信息（纯展示，非表单项） -->
+    <div class="pb-16px b-b b-b-solid b-gray-100 text-14px">
+      <div class="grid grid-cols-1 gap-x-32px gap-y-10px md:grid-cols-2">
+        <div v-for="item in taskInfoItems" :key="item.label">
+          <span class="text-gray-500">{{ item.label }}：</span>
+          <span class="text-gray-800">{{ item.value }}</span>
+        </div>
+        <div class="md:col-span-2">
+          <span class="text-gray-500">年度刚性目标说明：</span>
+          <span class="text-gray-800">{{ task.rigidTargetRemark || '/' }}</span>
+        </div>
+      </div>
+      <!-- 各区年度刚性投资目标（一行四个） -->
+      <div class="mt-16px grid grid-cols-2 gap-x-24px gap-y-8px md:grid-cols-4">
+        <div v-for="name in DISTRICTS" :key="name">
+          <span class="text-gray-500">{{ name }}</span>
+          <span class="ml-8px text-gray-800">{{ districtValue(name) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 确认信息（唯一的表单分区） -->
     <BasicForm @register="registerForm" />
   </BasicDrawer>
 </template>
@@ -27,91 +49,37 @@
   const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
-  /** 打开方传入的目标项目（{ task, project } 结构中的 project） */
+  /** 打开方传入的目标项目与所属任务（{ task, project } 结构） */
+  const task = ref<CompilationTask>({} as CompilationTask);
   const project = ref<WorkbenchProject>({} as WorkbenchProject);
 
-  /** 查看模式：确认信息同样禁用（任务信息恒只读，查看＝整表只读） */
+  /** 查看模式：确认信息同样禁用（任务信息为纯展示，查看＝整表只读） */
   const isView = ref(false);
 
   const title = computed(() => `纳入年度计划 · ${project.value.projectName ?? ''}`);
 
-  // ── 表单 ────────────────────────────────────────────────────────────
-  /** 各区目标字段的表单字段名（与任务级抽屉同构） */
-  function districtTargetField(name: string) {
-    return `districtTarget_${name}`;
+  // ── 任务信息展示区 ──────────────────────────────────────────────────
+  /** 金额展示：两位小数（空值显示 /） */
+  function fmtAmount(value?: number): string {
+    return typeof value === 'number' ? value.toFixed(2) : '/';
   }
 
+  const taskInfoItems = computed(() => [
+    { label: '任务年份', value: task.value.taskYear ? String(task.value.taskYear) : '/' },
+    { label: '采纳日期', value: task.value.adoptDate || '/' },
+    { label: '编制开始时间', value: task.value.compileStartDate || '/' },
+    { label: '市级编制结束时间', value: task.value.compileEndDate || '/' },
+    { label: '区级编制结束时间', value: task.value.districtCompileEndDate || '/' },
+    { label: '年度刚性投资目标（亿元）', value: fmtAmount(task.value.annualRigidTarget) },
+  ]);
+
+  /** 各区年度刚性投资目标（展示值） */
+  function districtValue(name: string): string {
+    return fmtAmount(task.value.districtTargets?.[name]);
+  }
+
+  // ── 确认信息表单 ────────────────────────────────────────────────────
   const inputFormSchemas: FormSchema[] = [
-    // ── 市级任务要求（任务下发信息，只读回显） ─────────────────────────
-    {
-      label: '市级任务要求',
-      field: 'cityGroup',
-      component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
-    },
-    {
-      label: '任务年份',
-      field: 'taskYear',
-      component: 'Input',
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '采纳日期',
-      field: 'adoptDate',
-      component: 'Input',
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '编制开始时间',
-      field: 'compileStartDate',
-      component: 'Input',
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '市级编制结束时间',
-      field: 'compileEndDate',
-      component: 'Input',
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '年度刚性目标说明',
-      field: 'rigidTargetRemark',
-      component: 'InputTextArea',
-      componentProps: { rows: 3 },
-      colProps: { md: 24, lg: 24 },
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '年度刚性投资目标（亿元）',
-      field: 'annualRigidTarget',
-      component: 'InputNumber',
-      componentProps: { precision: 2 },
-      colProps: { md: 24, lg: 24 },
-      dynamicDisabled: () => true,
-    },
-    // ── 区级任务分解要求（任务下发信息，只读回显） ─────────────────────
-    {
-      label: '区级任务分解要求',
-      field: 'districtGroup',
-      component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
-    },
-    {
-      label: '区级编制结束时间',
-      field: 'districtCompileEndDate',
-      component: 'Input',
-      colProps: { md: 24, lg: 24 },
-      dynamicDisabled: () => true,
-    },
-    ...DISTRICTS.map((name) => ({
-      label: `${name}年度刚性投资目标（亿元）`,
-      field: districtTargetField(name),
-      component: 'InputNumber' as const,
-      componentProps: { precision: 2 },
-      colProps: { md: 24, lg: 24 },
-      dynamicDisabled: () => true,
-    })),
-    // ── 确认信息（可编辑，均非必填，各占一行） ─────────────────────────
     {
       label: '确认信息',
       field: 'confirmGroup',
@@ -139,30 +107,18 @@
   const [registerForm, { resetFields, setFieldsValue, validate }] = useForm({
     labelWidth: 240,
     schemas: inputFormSchemas,
-    baseColProps: { md: 24, lg: 12 },
+    baseColProps: { md: 24, lg: 24 },
   });
 
   const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data: any) => {
     // 打开方 openDrawer 传 open=false：回填全部就绪后才掀开（防闪烁，见文件头注释）
     await resetFields();
     isView.value = !!data?.isView;
-    const task = (data?.task ?? {}) as CompilationTask;
+    task.value = (data?.task ?? {}) as CompilationTask;
     project.value = (data?.project ?? {}) as WorkbenchProject;
-    const districtValues: Recordable = {};
-    for (const name of DISTRICTS) {
-      districtValues[districtTargetField(name)] = task.districtTargets?.[name];
-    }
     await setFieldsValue({
-      taskYear: task.taskYear,
-      adoptDate: task.adoptDate ?? '',
-      compileStartDate: task.compileStartDate ?? '',
-      compileEndDate: task.compileEndDate ?? '',
-      districtCompileEndDate: task.districtCompileEndDate ?? '',
-      annualRigidTarget: task.annualRigidTarget,
-      rigidTargetRemark: task.rigidTargetRemark ?? '',
       yearPlanInvest: project.value.yearPlanInvest,
       remarks: project.value.remarks ?? '',
-      ...districtValues,
     });
     setDrawerProps({ open: true });
   });
