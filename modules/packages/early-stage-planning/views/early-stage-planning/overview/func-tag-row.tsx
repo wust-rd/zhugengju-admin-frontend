@@ -31,7 +31,12 @@ export const FuncTagRow = defineComponent({
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: '' },
   },
 
-  setup(props) {
+  emits: {
+    /** 行点击（父级据此做地图聚焦等联动；由根元素原生 click 转发） */
+    click: (e: MouseEvent) => e instanceof MouseEvent,
+  },
+
+  setup(props, { emit }) {
     // 读取父容器（CornerPanel）注入的选中行 key；不在 CornerPanel 内时回退为永不选中
     const activeKey = inject(CORNER_ACTIVE_KEY, ref(''));
     const isActive = computed(() => activeKey.value !== '' && activeKey.value === (props.rowKey || props.item.label));
@@ -45,6 +50,7 @@ export const FuncTagRow = defineComponent({
           isActive.value && props.activeClass,
           props.class,
         )}
+        onClick={(e: MouseEvent) => emit('click', e)}
       >
         {/* 行首圆点：未选中白色，选中青色 */}
         <div

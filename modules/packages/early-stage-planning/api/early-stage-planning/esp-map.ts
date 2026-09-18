@@ -57,6 +57,12 @@ export type EspMapAreaRow = {
   PROJECT_CNT: number | null;
   /** 三色图颜色 green/yellow/red（仅第一批片区有值，2026-09-11 库表新增） */
   AREA_COLOR: string | null;
+  /** 图斑面积（公顷） */
+  AREA_HA: number | string | null;
+  /** 唯一号说明 / 四至范围等备注 */
+  UID_NOTE: string | null;
+  /** 标准化开工日期文本（可能含「策划中」等） */
+  START_DATE: string | null;
   /** 自包含 TopoJSON 原文（字符串） */
   geometry: string;
 };

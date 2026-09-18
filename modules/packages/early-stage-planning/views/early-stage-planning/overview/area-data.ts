@@ -6,32 +6,42 @@
  * 解码，兼容历史 TopoJSON 导入产物）还原为 MultiPolygon 后组装 FeatureCollection，供地图
  * addSource 与左侧看板共用。本文件提供页面所需的视图：
  *  - loadAreas(batch)：该批次 FeatureCollection（按批次缓存，切回不重复请求）
+ *  - loadProjects(batch)：该批次项目图斑 FeatureCollection（地图放大层级/片区聚焦时展示）
  *  - districtAreaCount(areas)：按行政/功能区统计片区数量（柱状图用）
- *  - areaGroups(areas)：按区划分组 → 片区行（FUNC_TYPE_VALUE 解析成 TOD/EOD 等胶囊）
+ *  - areaGroups(areas)：按区划分组 → 片区行（FUNC_TYPE_VALUE 解析成 TOD/EOD 等胶囊，含 auid）
  *  - progressItems(areas)：AREA_COLOR 三色图计数
+ *  - bboxOf(features)：要素集包围盒（地图 fitBounds 用）
  */
 
 import {
   espMapAreas,
+  espMapProjects,
   type EspBatch,
   type EspMapAreaRow,
+  type EspMapProjectRow,
 } from '@jeesite/early-stage-planning/api/early-stage-planning/esp-map';
 import type { XodFlag, XodItem } from '@jeesite/display/components/corner-panel/xod-row';
 import type { ProgressItem } from './progress-chart';
 import { decodeGeometry, type MultiPolygonGeometry } from './geometry-decode';
 
-/** 片区 FeatureCollection（properties 为接口行去掉 geometry 字符串后的原文属性） */
-export type AreaCollection = {
+/** 通用图斑 FeatureCollection（properties 为接口行去掉 geometry 字符串 + FUNC_FIRST 派生属性） */
+export type PolygonCollection<R> = {
   type: 'FeatureCollection';
   features: {
     type: 'Feature';
-    /** 片区唯一号（A_UID，地图点击联动用） */
+    /** 要素唯一号（片区 A_UID / 项目 P_UID） */
     id?: string;
     /** 派生属性：FUNC_TYPE_VALUE 首个编码小写（如 'cod'），无编码为 undefined —— 地图功能定位着色用 */
-    properties: Omit<EspMapAreaRow, 'geometry'> & { FUNC_FIRST?: string };
+    properties: Omit<R, 'geometry'> & { FUNC_FIRST?: string };
     geometry: MultiPolygonGeometry;
   }[];
 };
+
+/** 片区 FeatureCollection */
+export type AreaCollection = PolygonCollection<EspMapAreaRow>;
+
+/** 项目图斑 FeatureCollection */
+export type ProjectCollection = PolygonCollection<EspMapProjectRow>;
 
 /** 批次选择 key（「全部」= 不传 batch 查全量，UI 概念，非接口参数） */
 export type BatchKey = EspBatch | '全部';
@@ -62,9 +72,14 @@ export function filterPredicate(
   return (f) => funcFlags(f.properties.FUNC_TYPE_VALUE)[filter as XodFlag] === true;
 }
 
-/** 接口行 → FeatureCollection（geometry 解码失败的行跳过并告警，不中断整批） */
-function toCollection(rows: EspMapAreaRow[]): AreaCollection {
-  const features: AreaCollection['features'] = [];
+/** 接口行 → FeatureCollection（geometry 解码失败的行跳过并告警，不中断整批；
+    片区/项目图斑共用，idOf 取行唯一号） */
+function toCollection<R extends { geometry: string; FUNC_TYPE_VALUE?: string | null }>(
+  rows: R[],
+  idOf: (row: R) => string | undefined,
+  rowLabel: string,
+): PolygonCollection<R> {
+  const features: PolygonCollection<R>['features'] = [];
   for (const row of rows) {
     try {
       const { geometry, ...props } = row;
@@ -75,12 +90,12 @@ function toCollection(rows: EspMapAreaRow[]): AreaCollection {
         .toLowerCase();
       features.push({
         type: 'Feature',
-        id: row.A_UID,
+        id: idOf(row),
         properties: { ...props, FUNC_FIRST: funcFirst || undefined },
         geometry: decodeGeometry(geometry),
       });
     } catch (e) {
-      console.warn(`[esp-map] 片区 ${row?.A_UID} geometry 解析失败，已跳过`, e);
+      console.warn(`[esp-map] ${rowLabel} geometry 解析失败，已跳过`, e);
     }
   }
   return { type: 'FeatureCollection', features };
@@ -94,11 +109,58 @@ const cache = new Map<BatchKey, Promise<AreaCollection>>();
 export function loadAreas(batch: BatchKey): Promise<AreaCollection> {
   let p = cache.get(batch);
   if (!p) {
-    p = espMapAreas(batch === '全部' ? undefined : batch).then(toCollection);
+    p = espMapAreas(batch === '全部' ? undefined : batch).then((rows) =>
+      toCollection(rows, (r) => r.A_UID ?? undefined, '片区'),
+    );
     cache.set(batch, p);
     p.catch(() => cache.delete(batch));
   }
   return p;
+}
+
+/** 项目图斑批次缓存 */
+const projectCache = new Map<BatchKey, Promise<ProjectCollection>>();
+
+/** 加载某批次项目图斑（全量约 529 行；缓存策略同 loadAreas。地图放大到项目层级、
+    或左侧列表点击片区聚焦时展示，样式参考投融建运 project-fills） */
+export function loadProjects(batch: BatchKey): Promise<ProjectCollection> {
+  let p = projectCache.get(batch);
+  if (!p) {
+    p = espMapProjects(batch === '全部' ? undefined : batch).then((rows) =>
+      toCollection(rows, (r) => r.P_UID ?? undefined, '项目'),
+    );
+    projectCache.set(batch, p);
+    p.catch(() => projectCache.delete(batch));
+  }
+  return p;
+}
+
+/** 要素集 → [[minLng, minLat], [maxLng, maxLat]]（MultiPolygon 全环全点）；空集返回 null */
+export function bboxOf(
+  features: { geometry: { coordinates: number[][][][] } }[],
+): [[number, number], [number, number]] | null {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const f of features) {
+    for (const polygon of f.geometry.coordinates) {
+      for (const ring of polygon) {
+        for (const [x, y] of ring) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+  }
+  return Number.isFinite(minX)
+    ? [
+        [minX, minY],
+        [maxX, maxY],
+      ]
+    : null;
 }
 
 /** 按区划统计片区数量，保持数据出现顺序（柱状图用；写法归并后 16 个区划） */
@@ -123,12 +185,15 @@ export function funcFlags(value: string | null): Partial<XodItem> {
   return item;
 }
 
+/** 更新片区列表行：XodItem + 片区唯一号（列表点击 → 地图飞到该片区并聚焦其项目图斑） */
+export type AreaRow = XodItem & { auid: string };
+
 /** 按区划分组 → 片区行（FUNC_TYPE_VALUE 解析胶囊；写法归并后同区分组） */
-export function areaGroups(areas: AreaCollection): { title: string; badgeValue: number; items: XodItem[] }[] {
-  const byDist = new Map<string, XodItem[]>();
+export function areaGroups(areas: AreaCollection): { title: string; badgeValue: number; items: AreaRow[] }[] {
+  const byDist = new Map<string, AreaRow[]>();
   for (const f of areas.features) {
     const p = f.properties;
-    const item: XodItem = { label: p.AREA_NAME ?? p.A_UID, ...funcFlags(p.FUNC_TYPE_VALUE) };
+    const item: AreaRow = { label: p.AREA_NAME ?? p.A_UID ?? '', auid: p.A_UID ?? '', ...funcFlags(p.FUNC_TYPE_VALUE) };
     const dist = DIST_MERGE[p.DIST ?? ''] ?? p.DIST ?? '';
     const list = byDist.get(dist) ?? [];
     list.push(item);

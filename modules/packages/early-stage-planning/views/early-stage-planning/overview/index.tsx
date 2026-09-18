@@ -13,6 +13,7 @@ import { Input, type MenuItemType } from 'antdv-next';
 import { CircleX, Search } from 'lucide-vue-next';
 import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 import { AreaLayers } from './area-layers';
+import { AreaOverviewModal } from './area-overview-modal';
 import { FuncTagRow } from './func-tag-row';
 import { DistrictChart } from './district-chart';
 import { FuncTypeChart, type FuncKey } from './func-type-chart';
@@ -20,15 +21,21 @@ import { InvestTotalCard, type BatchInvest } from './invest-total-card';
 import { ProgressChart } from './progress-chart';
 import {
   areaGroups,
+  type AreaRow,
   BATCHES,
   type BatchKey,
+  bboxOf,
   districtAreaCount,
   filterPredicate,
   funcFlags,
   loadAreas,
+  loadProjects,
   progressItems,
   type AreaCollection,
+  type ProjectCollection,
 } from './area-data';
+import type { FocusArea } from './area-layers';
+import type { EspMapAreaRow } from '@jeesite/early-stage-planning/api/early-stage-planning/esp-map';
 import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
 
 // 区域 tabs：激活项由 RegionTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
@@ -58,6 +65,8 @@ export default defineComponent({
 
     // ---- 更新片区数据（按批次请求 esp 图斑接口；地图/柱状图/分组列表共用，按批次缓存） ----
     const areas = shallowRef<AreaCollection | null>(null);
+    /** 项目图斑（当前批次；地图放大层级 / 列表点片区聚焦时展示，样式参考投融建运） */
+    const projects = shallowRef<ProjectCollection | null>(null);
     /** 当前选中批次（'第一批' | '第二批' | '全部'，见 area-data.BatchKey） */
     const activeBatch = ref<string>('全部');
     /** 各批次片区数（下拉 label 回显；批次数据加载完成后补充） */
@@ -74,10 +83,17 @@ export default defineComponent({
     );
 
     /** 请求当前批次全部片区（geometry 解码由 loadAreas 内完成；
-        竞态保护：批次快速切换时只认最后一次请求的结果） */
+        竞态保护：批次快速切换时只认最后一次请求的结果）；
+        项目图斑随后台并加载（辅助数据，失败静默） */
     let loadSeq = 0;
     async function applyBatch(batch: BatchKey) {
       const seq = ++loadSeq;
+      projects.value = null;
+      loadProjects(batch)
+        .then((pfc) => {
+          if (seq === loadSeq) projects.value = pfc;
+        })
+        .catch(() => {});
       try {
         const fc = await loadAreas(batch);
         if (seq !== loadSeq) return;
@@ -112,17 +128,43 @@ export default defineComponent({
     const regionKey = computed<'district' | 'progress' | 'func'>(() =>
       activeRegionKey.value === 'district' || activeRegionKey.value === 'progress' ? activeRegionKey.value : 'func',
     );
-    /** 切换 tab / 批次时清除筛选（跨维度筛选值无意义，且换批次后语义易错位） */
+    /** 片区聚焦（列表点击片区行）：飞到该片区并只显示其项目图斑；再点同一行取消 */
+    const focusArea = shallowRef<FocusArea | null>(null);
+
+    /** 切换 tab / 批次时清除筛选（跨维度筛选值无意义，且换批次后语义易错位），并取消片区聚焦 */
     watch([activeRegionKey, batchKey], () => {
       chartFilter.value = null;
+      focusArea.value = null;
     });
     /** 地图飞行令牌：图表筛选设置/取消时递增，AreaLayers 收到后 fitBounds 到当前要素范围 */
     const fitToken = ref(0);
 
-    /** 统计图点击回调：再点同一项取消；null 为图表空白点击取消 */
+    /** 统计图点击回调：再点同一项取消；null 为图表空白点击取消（图表筛选与片区聚焦互斥） */
     function onChartSelect(value: string | null) {
       chartFilter.value = value === null ? null : chartFilter.value === value ? null : value;
+      focusArea.value = null;
       fitToken.value += 1;
+    }
+
+    function onAreaRowClick(item: AreaRow) {
+      if (!item.auid || focusArea.value?.auid === item.auid) {
+        focusArea.value = null;
+        return;
+      }
+      const f = areas.value?.features.find((ft) => ft.properties.A_UID === item.auid);
+      const bbox = f ? bboxOf([f]) : null;
+      focusArea.value = bbox ? { auid: item.auid, bbox } : null;
+    }
+
+    /** 地图点选片区（A_UID → 片区概况面板；null = 地图空白点击收起）。
+        数据源取当前批次的 mapAreas（与地图所见一致；图表筛选后仍可点选命中片区） */
+    const pickedArea = shallowRef<AreaCollection['features'][number] | null>(null);
+    function onMapPick(auid: string | null) {
+      if (auid == null) {
+        pickedArea.value = null;
+        return;
+      }
+      pickedArea.value = mapAreas.value?.features.find((f) => f.properties.A_UID === auid) ?? null;
     }
 
     /** 筛选命中的要素（地图渲染用，三个 tab 均过滤；null = 全量） */
@@ -130,6 +172,18 @@ export default defineComponent({
       if (!areas.value || !chartFilter.value) return areas.value;
       const pred = filterPredicate(regionKey.value, chartFilter.value);
       return { ...areas.value, features: areas.value.features.filter(pred) };
+    });
+
+    /** 项目图斑渲染数据：图表筛选生效时只保留命中片区内的项目（与片区面口径一致） */
+    const projectsShown = computed<ProjectCollection | null>(() => {
+      if (!projects.value || !mapAreas.value || !chartFilter.value) return projects.value;
+      const auids = new Set(
+        mapAreas.value.features.map((f) => f.properties.A_UID).filter((v): v is string => v != null),
+      );
+      return {
+        ...projects.value,
+        features: projects.value.features.filter((f) => f.properties.A_UID != null && auids.has(f.properties.A_UID)),
+      };
     });
 
     /** 列表分组数据：行政区划 tab 保持全量分组（点击只控制展开态）；
@@ -271,7 +325,9 @@ export default defineComponent({
                     key 含筛选值 —— GlowCollapse 非受控展开，重挂载以应用「选中区展开、其余收起」 */}
                 <CollapseGroups key={listKey.value} groups={groups.value} isRound panelClass="rd-8px">
                   {{
-                    row: (item) => <FuncTagRow item={item as XodItem} />,
+                    row: (item) => (
+                      <FuncTagRow item={item as XodItem} onClick={() => onAreaRowClick(item as AreaRow)} />
+                    ),
                   }}
                 </CollapseGroups>
               </div>
@@ -285,8 +341,25 @@ export default defineComponent({
 
                 {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素，TopoJSON/WKT 解码还原），批次切换 setData 刷新 */}
                 {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素），fill-color 按当前 tab 维度
-                    match 着色（行政区划=批次双色 / 推进情况=三色 / 功能定位=首个编码色），左下角图例 */}
-                <AreaLayers areas={mapAreas.value} colorBy={regionKey.value} fitToken={fitToken.value} />
+                    match 着色（行政区划=批次双色 / 推进情况=三色 / 功能定位=首个编码色），左下角图例；
+                    项目图斑放大到 13 级自动显示，列表点击片区聚焦飞行并只显示其项目 */}
+                <AreaLayers
+                  areas={mapAreas.value}
+                  colorBy={regionKey.value}
+                  fitToken={fitToken.value}
+                  projects={projectsShown.value}
+                  focus={focusArea.value}
+                  highlight={(pickedArea.value?.properties.A_UID as string | undefined) ?? null}
+                  onPick={onMapPick}
+                />
+
+                {/* 片区概况面板：地图点击片区弹出（点空白/关闭按钮收起） */}
+                {pickedArea.value && (
+                  <AreaOverviewModal
+                    area={pickedArea.value.properties as Omit<EspMapAreaRow, 'geometry'>}
+                    onClose={() => (pickedArea.value = null)}
+                  />
+                )}
               </VMap>
             </>
           ),
