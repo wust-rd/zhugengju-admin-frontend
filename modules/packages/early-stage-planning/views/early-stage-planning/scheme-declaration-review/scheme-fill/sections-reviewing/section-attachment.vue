@@ -16,15 +16,15 @@
      语义与之相同，故继续复用（后端零改动）；
    - 「市政府批准认定材料 / 专家论证情况 / 区级联合审查意见 / 市级审查意见」为
      新增文件位（govCertFiles / expertArgumentFiles / districtJointReviewFiles /
-     cityReviewFiles），后端需在 ESP_FILE_URL 增加 4 个 field_code，明细见
-     《接口文档-片区策划申报审查.md》第 2.4 节；后端实现前：保存照发新键（DTO 未定义会被
-     忽略，不影响现状保存），回显为空、页面按空态渲染。
+     cityReviewFiles），后端 2026-09-20 已支持（ESP_FILE_URL 扩展 field_code，
+     无 DDL），保存/回显均已打通，明细见《接口文档-片区策划申报审查.md》。
 
   每行 = 右对齐标签（红星=设计稿要求的必填位）+ 通栏框 + 框下格式/大小提示。
   框内：空态居中显示设计稿示例文案（placeholder）与上传图标，已传文件居中显示
   文件链接（hover 显删除 ×，点击框空白处追加文件）。
   已对接后端（modules/esp）：真实上传 MinIO（use-esp-file-list，值=文件对象
-  数组，已传文件名带直链新窗打开）；单文件 > 100MB 直接拦截不入列（设计稿限定）。
+  数组，已传文件名带直链新窗打开——pdf/word 即外链预览；每行另有下载图标，
+  查看模式也可用）；单文件 > 100MB 直接拦截不入列（设计稿限定）。
   必填校验：validate 时缺文件的必填位框体标红并 reject（form.vue 提交时滚动定位）——
   当前 validate 体仍为注释状态（红星仅表示重要性，附件不纳入提交校验，待确认项），
   需要卡附件时放开下方 validate 注释即可。
@@ -79,6 +79,15 @@
                 </a>
                 <span v-else class="min-w-0 flex-1 truncate text-13px text-gray-700" :title="f.name">{{ f.name }}</span>
                 <span v-if="fileSizeText(f)" class="shrink-0 text-12px text-gray-400">{{ fileSizeText(f) }}</span>
+                <!-- 下载（查看模式也可用） -->
+                <span
+                  v-if="f.url"
+                  class="flex h-20px w-20px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 transition-colors hover:bg-blue-50 hover:text-[#3A8EF6]"
+                  title="下载"
+                  @click.stop="downloadEspFile(f)"
+                >
+                  <span class="i-ant-design:download-outlined text-12px"></span>
+                </span>
                 <span
                   v-if="!disabled"
                   class="flex h-20px w-20px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
@@ -121,7 +130,7 @@
   import { Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { fileColor, fileSizeText } from '../components/file-display';
+  import { fileColor, fileSizeText, downloadEspFile } from '../components/file-display';
   import type { EspUploadFile } from '../components/use-esp-file-list';
   import { useEspFileList } from '../components/use-esp-file-list';
   import type { SectionFormExposed } from '../components/use-section-form';

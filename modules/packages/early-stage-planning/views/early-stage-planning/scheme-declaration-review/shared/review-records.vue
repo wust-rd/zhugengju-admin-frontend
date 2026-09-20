@@ -17,15 +17,13 @@
     - showJoint / showMain：显示哪类记录（**填报单位只看主审 → showJoint=false**，
       标题变「片区申报审核结果」；主审/联审 = 两类都看 → 标题「审查记录」）；
     - viewerUnit：联审单位视角 —— 只看自己被指派的轮次、自己那条记录、以及与各轮关联的主审意见。
-  数据全部来自 ../shared/review-mock.ts（前端假数据）。
+  数据由调用方传入（后端 schemeReview/form 的 records + rounds，已按查看者角色过滤）。
 -->
 <template>
   <div class="flex flex-col gap-12px">
     <div class="text-15px font-600 text-gray-800">{{ title }}</div>
 
-    <div v-if="!items.length" class="rd-6px bg-[#f7f9fc] px-12px py-10px text-12px text-gray-400">
-      暂无审查记录。
-    </div>
+    <div v-if="!items.length" class="rd-6px bg-[#f7f9fc] px-12px py-10px text-12px text-gray-400"> 暂无审查记录。 </div>
 
     <!-- 时间线：左侧竖线 + 圆点，条目按时间正序 -->
     <div v-else class="flex flex-col gap-16px border-0 border-l-1px border-l-solid border-[#e5e7eb] pl-16px">
@@ -96,26 +94,26 @@
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationReviewRecords">
   import { computed, reactive } from 'vue';
   import RecordCard from './review-record-card.vue';
-  import {
-    jointRoundsOf,
-    mainRecordsOf,
-    reviewRecordsOf,
-    roundText,
-    type JointRound,
-    type ReviewRecord,
-  } from './review-mock';
+  import { roundText } from './review-constants';
+  import type {
+    EspJointRound,
+    EspReviewRecord,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-review';
 
   const props = withDefaults(
     defineProps<{
-      row?: Recordable;
+      /** 审查记录（后端已按查看者角色过滤；主审=全部、填报=仅主审、联审=本部门+关联主审） */
+      records?: EspReviewRecord[];
+      /** 联合审查轮次（各轮指派单位 + 推送时间） */
+      rounds?: EspJointRound[];
       /** 显示联合审查意见（填报单位只看主审 → 传 false） */
       showJoint?: boolean;
       /** 显示主审意见 */
       showMain?: boolean;
-      /** 联审单位名称：只显示与自己相关的记录；不传=全部可见 */
+      /** 联审单位名称：按「只看自己那条 + 轮次关联主审意见」的紧凑形态展示；不传=全量形态 */
       viewerUnit?: string;
     }>(),
-    { row: () => ({}), showJoint: true, showMain: true, viewerUnit: undefined },
+    { records: () => [], rounds: () => [], showJoint: true, showMain: true, viewerUnit: undefined },
   );
 
   /** 时间线条目：轮次块 / 主审意见卡 */
@@ -123,29 +121,29 @@
     kind: 'round';
     time: string;
     round: number;
-    units: JointRound['units'];
+    units: EspJointRound['units'];
     /** 可见的联审记录（主审视角=本轮全部；联审视角=自己那条） */
-    records: ReviewRecord[];
+    records: EspReviewRecord[];
     submitted: number;
     total: number;
     /** 与本轮关联的主审意见（联审单位视角用：本轮推送之后、下一轮推送之前的那一条） */
-    mainAfter?: ReviewRecord;
+    mainAfter?: EspReviewRecord;
   };
-  type TimelineItem = RoundItem | { kind: 'record'; time: string; record: ReviewRecord };
+  type TimelineItem = RoundItem | { kind: 'record'; time: string; record: EspReviewRecord };
 
   /** 联审单位视角：只保留它被指派的轮次；主审/填报单位视角：全部轮次 */
   const rounds = computed(() => {
-    const all = jointRoundsOf(props.row);
-    if (!props.viewerUnit) return all;
-    return all.filter((item) => item.units.some((unit) => unit.name === props.viewerUnit));
+    if (!props.viewerUnit) return props.rounds;
+    return props.rounds.filter((item) => item.units.some((unit) => unit.name === props.viewerUnit));
   });
 
   /** 时间线条目：轮次块 + 主审意见卡，按时间正序（同时间轮次块在前） */
   const items = computed<TimelineItem[]>(() => {
     const list: TimelineItem[] = [];
-    const allRecords = reviewRecordsOf(props.row);
-    const allRounds = jointRoundsOf(props.row);
-    const mainsAsc = [...mainRecordsOf(props.row)].reverse(); // 正序
+    const allRecords = props.records;
+    const allRounds = props.rounds;
+    // 主审记录正序（接口按提交顺序返回，倒序取最新在前的语义由展示端处理）
+    const mainsAsc = allRecords.filter((record) => record.role === 'main');
     if (props.showJoint) {
       for (const round of rounds.value) {
         const records = allRecords.filter(
@@ -155,17 +153,17 @@
             (!props.viewerUnit || record.unitName === props.viewerUnit),
         );
         // 本轮关联的主审意见＝本轮推送之后、下一轮推送之前的那一条（联审单位视角才给）
-        let mainAfter: ReviewRecord | undefined;
+        let mainAfter: EspReviewRecord | undefined;
         if (props.viewerUnit) {
           const roundIndex = allRounds.findIndex((item) => item.round === round.round);
-          const nextTime = allRounds[roundIndex + 1]?.time;
+          const nextTime = allRounds[roundIndex + 1]?.pushTime;
           mainAfter = mainsAsc.find(
-            (record) => record.time >= round.time && (!nextTime || record.time < nextTime),
+            (record) => record.reviewTime >= (round.pushTime ?? '') && (!nextTime || record.reviewTime < nextTime),
           );
         }
         list.push({
           kind: 'round',
-          time: round.time,
+          time: round.pushTime ?? '',
           round: round.round,
           units: round.units,
           records,
@@ -178,12 +176,10 @@
     // 联审单位视角：主审意见已并入轮次块，不再单列
     if (props.showMain && !props.viewerUnit) {
       for (const record of mainsAsc) {
-        list.push({ kind: 'record', time: record.time, record });
+        list.push({ kind: 'record', time: record.reviewTime, record });
       }
     }
-    return list.sort((a, b) =>
-      a.time === b.time ? (a.kind === 'round' ? -1 : 1) : a.time < b.time ? -1 : 1,
-    );
+    return list.sort((a, b) => (a.time === b.time ? (a.kind === 'round' ? -1 : 1) : a.time < b.time ? -1 : 1));
   });
 
   /** 板块标题：两类都看=审查记录；只看主审=片区申报审核结果；只看联审=联合审查结果 */
@@ -206,12 +202,12 @@
   }
 
   /** 某单位在本轮的记录（未提交则 undefined） */
-  function recordOf(item: RoundItem, unit: { name: string }): ReviewRecord | undefined {
+  function recordOf(item: RoundItem, unit: { name: string }): EspReviewRecord | undefined {
     return item.records.find((record) => record.unitName === unit.name);
   }
 
   /** 当前 tab 对应的记录 */
-  function selectedRecord(item: RoundItem): ReviewRecord | undefined {
+  function selectedRecord(item: RoundItem): EspReviewRecord | undefined {
     const unit = item.units.find((u) => u.code === activeCode(item));
     return unit ? recordOf(item, unit) : undefined;
   }

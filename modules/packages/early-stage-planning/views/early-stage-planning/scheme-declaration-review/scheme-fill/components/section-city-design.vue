@@ -70,9 +70,10 @@
             list-type="picture-card"
             multiple
             :disabled="disabled"
-            :show-upload-list="disabled ? { showRemoveIcon: false } : true"
+            :show-upload-list="{ showRemoveIcon: !disabled, showDownloadIcon: true }"
             :before-upload="ctlOf(d.uid).beforeUpload"
             @preview="onPreview"
+            @download="onDownload"
             @change="ctlOf(d.uid).onChange"
           >
             <div class="flex flex-col items-center justify-center gap-2px text-gray-400">
@@ -94,6 +95,7 @@
   import type { UploadFile } from 'antdv-next';
   import type { SectionFormExposed } from './use-section-form';
   import ImagePreview from './image-preview.vue';
+  import { downloadEspFile } from './file-display';
   import { pdfExporting } from './pdf-export-state';
   import { useEspFileList } from './use-esp-file-list';
   import type { EspSchemeFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
@@ -104,6 +106,11 @@
   const previewUrl = ref('');
   function onPreview(file: UploadFile) {
     previewUrl.value = (file.url as string) || '';
+  }
+
+  /** 缩略卡下载图标（antd 内置，仅 done 态显示）：统一走 blob 下载，跨域回退新窗打开 */
+  function onDownload(file: UploadFile) {
+    void downloadEspFile(file);
   }
 
   /** 城市设计类别（对齐设计稿 6 类，不可重复；接口字典化后替换） */

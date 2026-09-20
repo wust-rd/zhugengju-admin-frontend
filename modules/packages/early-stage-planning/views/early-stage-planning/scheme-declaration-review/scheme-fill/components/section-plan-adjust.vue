@@ -28,9 +28,10 @@
           list-type="picture-card"
           :max-count="1"
           :disabled="disabled"
-          :show-upload-list="disabled ? { showRemoveIcon: false } : true"
+          :show-upload-list="{ showRemoveIcon: !disabled, showDownloadIcon: true }"
           :before-upload="beforeFiles.beforeUpload"
           @preview="onPreview"
+          @download="onDownload"
           @change="beforeFiles.onChange"
         >
           <div
@@ -51,9 +52,10 @@
           list-type="picture-card"
           :max-count="1"
           :disabled="disabled"
-          :show-upload-list="disabled ? { showRemoveIcon: false } : true"
+          :show-upload-list="{ showRemoveIcon: !disabled, showDownloadIcon: true }"
           :before-upload="afterFiles.beforeUpload"
           @preview="onPreview"
+          @download="onDownload"
           @change="afterFiles.onChange"
         >
           <div
@@ -76,6 +78,7 @@
   import { TextArea, Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
   import ImagePreview from './image-preview.vue';
+  import { downloadEspFile } from './file-display';
   import { useEspFileList } from './use-esp-file-list';
   import type { SectionFormExposed } from './use-section-form';
   import type { EspSchemeFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
@@ -86,6 +89,11 @@
   const previewUrl = ref('');
   function onPreview(file: UploadFile) {
     previewUrl.value = (file.url as string) || '';
+  }
+
+  /** 缩略卡下载图标（antd 内置，仅 done 态显示）：统一走 blob 下载，跨域回退新窗打开 */
+  function onDownload(file: UploadFile) {
+    void downloadEspFile(file);
   }
 
   /** 调整内容（≤300 字） */

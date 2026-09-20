@@ -39,7 +39,8 @@ const SCROLL_LOCK_MS = 1200;
  * 右侧抽屉：常显示面板，内容区为 Tab 切换页面
  *
  * - 顶部 Tab 切换器：横向排列，超出宽度可横向滑动（滚动条隐藏）；
- *   激活项为独立的「滑动指示器」，高亮切换时平滑滑动过去
+ *   激活项为独立的「滑动指示器」，高亮切换时平滑滑动过去，并把选中项滚动到
+ *   Tab 栏居中（尽量），保证下一个 tab 始终可点
  * - 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 与手动滚动双向联动：
  *   scrollspy 同步高亮 + 程序化滚动锁 + 底部留白（最后一块也能滚到顶）
  *
@@ -191,16 +192,14 @@ export const RightDrawer = defineComponent({
       },
     );
 
-    /** 高亮 tab 超出 Tab 栏视口时，水平滚到居中（始终保持可见） */
+    /** 选中 tab 滚到 Tab 栏居中（尽量居中）：不判断「是否可见」——否则点到视口右缘的
+        tab 时它原地不动，下一个 tab 仍在屏幕外点不到；两侧空间不足时 scrollLeft 的
+        0/最大值边界自然夹住，居中到头的项再点也不会晃动 */
     const scrollActiveTabIntoView = () => {
       const bar = tabBarRef.value;
       if (!bar) return;
       const el = getTabEl(activeTab.value);
       if (!el) return;
-      const barRect = bar.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      // 完全可见就不动，避免无谓滚动
-      if (elRect.left >= barRect.left && elRect.right <= barRect.right) return;
       const target = el.offsetLeft - (bar.clientWidth - el.offsetWidth) / 2;
       bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
     };

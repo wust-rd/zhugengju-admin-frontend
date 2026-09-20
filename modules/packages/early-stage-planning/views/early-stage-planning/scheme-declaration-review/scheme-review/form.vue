@@ -1,8 +1,8 @@
 <!--
   片区申报审查页（scheme-review/form.vue）
-  入口：审查列表（….scheme-review/list.vue）的「审查」/「查看」；
-  身份：按**登录账号的授权角色**判定（填报单位 esp_pqchsbsc_fill_unit / 联合审查单位
-  esp_pqchsbsc_joint_review / 主审单位 esp_pqchsbsc_main_review，见 ../shared/review-mock.ts）。
+  入口：审查列表（….scheme-review/list.vue）的「审查」/「查看」；填报页 Tab②「查看」
+  （viewer=fill）。已对接后端（modules/esp，2026-09-20 审查流转）：详情/提交/推送走
+  /a/esp/schemeReview/*，records 按查看者角色过滤、按钮可用性 actions 后端统一计算。
 
   页面结构（上面填报内容只读 + 中间审查记录 + 下面填写区）：
    1. 填报内容八个区块只读回显（待审查片区取 sections-reviewing 版基本信息与 9 位附件材料，
@@ -14,8 +14,9 @@
         （自己没提交时，主审后来出的结论也能看到），不暴露其他单位进度；
    3. 「片区申报审核」填写区：
       - 主审单位：审核结果 通过 / 退回修改 + 审核意见 + 附件；顶部 导出 / 联合审查 / 提交；
-        提交 → 通过（终态）或 退回修改；联合审查 → 弹窗多选单位，点确定即推送
-        （轮次 +1、状态 → 联合审查中，弹窗里主审已填内容不作数）；
+        提交 → 通过（终态）或 退回修改；联合审查 → 弹窗多选单位（候选=后端联审单位字典），
+        点确定即推送（轮次 +1、状态 → 联合审查中，站内消息由后端按部门推送，
+        弹窗里主审已填内容不作数）；
       - 联合审查单位：审核结果 通过 / 退回修改 / 不涉及 + 审核意见 + 附件；顶部 导出 / 提交；
         每轮每单位只能提交一次，提交后不可修改（列表只给「查看」）；
       - 查看模式（mode='view'）：不显示填写区，仅看填报内容 + 审查记录。
@@ -46,11 +47,9 @@
           >
         </a-button>
       </Dropdown>
-      <!-- 联合审查：仅主审单位、审查模式；弹窗点确定即推送 -->
-      <a-button v-if="showReviewForm && isMain" @click="jointOpen = true">
-        <span class="inline-flex items-center gap-4px"
-          ><span class="i-ant-design:team-outlined"></span> 联合审查</span
-        >
+      <!-- 联合审查：仅主审单位、审查模式（后端 actions.canJointPush）；弹窗点确定即推送 -->
+      <a-button v-if="showReviewForm && actions.canJointPush" @click="jointOpen = true">
+        <span class="inline-flex items-center gap-4px"><span class="i-ant-design:team-outlined"></span> 联合审查</span>
       </a-button>
       <!-- 提交：二次确认（主审=结论会更新片区状态；联审单位=提交后不可修改） -->
       <Popconfirm
@@ -83,7 +82,8 @@
         class="scroll-mt-[var(--section-scroll-mt,12px)] bg-white rd-8px px-24px py-20px shadow-sm"
       >
         <ReviewRecords
-          :row="record"
+          :records="records"
+          :rounds="rounds"
           :show-joint="!isFill"
           :show-main="true"
           :viewer-unit="viewerUnit"
@@ -190,20 +190,26 @@
   </div>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeReviewForm">
-  import { computed, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+  import { computed, onActivated, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
   import { Dropdown, Popconfirm, Radio, RadioGroup, TextArea, Upload } from 'antdv-next';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { dateUtil } from '@jeesite/core/utils/dateUtil';
   import {
-    schemeFillForm,
-  } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
+    schemeReviewForm,
+    schemeReviewJointPush,
+    schemeReviewJointSubmit,
+    schemeReviewMainSubmit,
+    type EspJointRound,
+    type EspReviewActions,
+    type EspReviewRecord,
+    type ReviewConclusion,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-review';
   import FormSection from '../scheme-fill/components/form-section.vue';
   import AnchorNav from '../scheme-fill/components/anchor-nav.vue';
   import { fileColor, fileSizeText } from '../scheme-fill/components/file-display';
   import { exportFormDocx, exportFormPdf } from '../scheme-fill/components/form-export';
   import type { SectionFormExposed } from '../scheme-fill/components/use-section-form';
   import type { EspUploadFile } from '../scheme-fill/components/use-esp-file-list';
-  import { useEspFileList } from '../scheme-fill/components/use-esp-file-list';
+  import { toUploadFile, useEspFileList } from '../scheme-fill/components/use-esp-file-list';
   // 待审查片区（isApprove=2）用 sections-reviewing 版；其余六区块与填报页共用 components/
   import SectionBasicInfo from '../scheme-fill/sections-reviewing/section-basic-info.vue';
   import SectionAttachment from '../scheme-fill/sections-reviewing/section-attachment.vue';
@@ -215,23 +221,7 @@
   import SectionFundingPlan from '../scheme-fill/components/section-funding-plan.vue';
   import ReviewRecords from '../shared/review-records.vue';
   import JointReviewModal from '../shared/joint-review-modal.vue';
-  import { sendJointReviewNotice } from '../shared/review-notice';
-  import {
-    CONCLUSION_LABEL,
-    ROLE_LABEL,
-    currentIdentity,
-    hasSubmittedCurrentRound,
-    isAssignedToMe,
-    jointRoundsOf,
-    mainRecordsOf,
-    pushJointReview,
-    reviewRecordsOf,
-    statusOf,
-    submitJointReview,
-    submitMainReview,
-    type ReviewConclusion,
-    type ReviewerIdentity,
-  } from '../shared/review-mock';
+  import { CONCLUSION_LABEL, ROLE_LABEL, currentIdentity, statusKeyOf } from '../shared/review-constants';
 
   const props = defineProps<{
     record?: Recordable;
@@ -266,49 +256,65 @@
 
   const title = computed(() => `${record.name || '片区'}申报审查`);
 
-  /** 联审单位可填写：状态为联合审查中 + 本轮被指派 + 本轮未提交 */
-  const jointCanAct =
-    viewerRole === 'joint' &&
-    statusOf(record) === 'jointReviewing' &&
-    isAssignedToMe(record) &&
-    !hasSubmittedCurrentRound(record);
+  /** 行/详情状态（列表行带 reviewStatus；详情就绪后以 scheme.reviewStatus 为准） */
+  const reviewStatus = computed(() => statusKeyOf(formData.value ?? record));
 
-  /** 是否显示「片区申报审核」填写区（填报单位 / 无审查角色只看不填） */
-  const showReviewForm = computed(() => !isViewMode && (isMain || jointCanAct));
+  /**
+   * 是否显示「片区申报审核」填写区：主审=canMainReview / 联审=canJointReview（后端 actions）。
+   * 主审分支额外排除「退回修改」：后端 actions 暂未排除 returned（见《后端待处理问题清单》
+   * 问题 1），前端先按状态兜底，后端修复后两端口径一致、此条件可留可删。
+   */
+  const showReviewForm = computed(
+    () =>
+      !isViewMode &&
+      (isMain ? actions.value.canMainReview && reviewStatus.value !== 'returned' : actions.value.canJointReview),
+  );
 
-  /** 说明条：非本人范围 / 已提交不可修改 / 无审查角色 */
+  /** 说明条：非本人范围 / 已提交不可修改 / 无审查角色（口径同后端 actions 计算条件） */
   const notice = computed(() => {
-    if (isViewMode || isMain || isFill) return '';
+    if (isViewMode || isFill) return '';
+    if (isMain) {
+      if (reviewStatus.value === 'passed') return '该片区已通过（终态），仅供查看。';
+      if (reviewStatus.value === 'unsubmitted') return '该片区尚未提交申报，仅供查看。';
+      if (reviewStatus.value === 'returned') return '该片区已退回填报单位修改，待其重新提交后方可再次审查。';
+      return '';
+    }
     if (viewerRole !== 'joint') return '当前账号没有审查角色（填报单位 / 联合审查单位 / 主审单位），仅供查看。';
-    if (statusOf(record) !== 'jointReviewing') return '该片区当前不在联合审查阶段，仅供查看。';
-    if (!isAssignedToMe(record)) return '该片区本轮未指派给贵单位，仅供查看。';
-    if (hasSubmittedCurrentRound(record)) return '贵单位本轮意见已提交，提交后不可修改，仅供查看。';
+    if (reviewStatus.value !== 'jointReviewing') return '该片区当前不在联合审查阶段，仅供查看。';
+    if (!actions.value.canJointReview) return '该片区本轮未指派给贵单位或已提交过意见，仅供查看。';
     return '';
   });
 
-  /** 审查记录是否有内容（决定是否渲染记录区块与锚点）：
-      填报单位只看主审记录，故对其而言只有主审出过意见才算有内容 */
-  const hasRecords = computed(() =>
-    isFill
-      ? mainRecordsOf(record).length > 0
-      : jointRoundsOf(record).length > 0 || mainRecordsOf(record).length > 0,
-  );
+  /** 审查记录是否有内容（决定是否渲染记录区块与锚点；records 后端已按查看者过滤） */
+  const hasRecords = computed(() => records.value.length > 0);
 
   /**
-   * 填报内容（只读回显）：真实片区按 id 拉详情；种子假数据（record.mock）无后端片区，
-   * 直接用行数据渲染骨架，不调接口。
+   * 审查页详情（后端 schemeReview/form 一次取齐）：
+   *  - scheme：填报全字段（含 reviewStatus），驱动只读区块回显与状态相关展示；
+   *  - records：审查记录（后端已按查看者角色过滤：主审=全部 / 填报=仅主审 /
+   *    联审=本部门记录+被指派轮推送之后的主审意见）；
+   *  - rounds：各轮指派单位；actions：按钮可用性（canMainReview/canJointPush/
+   *    canJointReview/canEdit，后端按角色+状态+指派+已提交计算）。
    */
   const formData = ref<Recordable>();
+  const records = ref<EspReviewRecord[]>([]);
+  const rounds = ref<EspJointRound[]>([]);
+  const actions = ref<EspReviewActions>({
+    canMainReview: false,
+    canJointPush: false,
+    canJointReview: false,
+    canEdit: false,
+  });
 
   onMounted(async () => {
-    if (record.mock) {
-      formData.value = { ...record, isApprove: '2' };
-      return;
-    }
     try {
-      formData.value = (await schemeFillForm(String(record.id))) as Recordable;
+      const detail = await schemeReviewForm(String(record.id));
+      formData.value = detail.scheme as Recordable;
+      records.value = detail.records ?? [];
+      rounds.value = detail.rounds ?? [];
+      actions.value = detail.actions;
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : '加载片区填报数据失败');
+      showMessage(error instanceof Error ? error.message : '加载片区审查数据失败');
       emit('back');
     }
   });
@@ -360,14 +366,29 @@
    * 审查意见表单：不预填审核结果 —— 每一轮都是一次新的判断（上一轮结论在「审查记录」里可查），
    * 只把上一轮主审的审核意见/附件带出来，减少重复录入。
    */
-  const lastMain = isMain ? mainRecordsOf(record)[0] : undefined;
+  /** 主审最近一条意见（详情就绪后预填审核意见/附件，减少重复录入；结论不预填——每轮都是新判断） */
+  const lastMain = computed(() => {
+    const mains = records.value.filter((item) => item.role === 'main');
+    return mains.length ? mains[mains.length - 1] : undefined;
+  });
+
   const review = reactive<{ conclusion?: ReviewConclusion; opinion: string }>({
     conclusion: undefined,
-    opinion: lastMain?.opinion ?? '',
+    opinion: '',
   });
 
   /** 附件上传状态机（复用填报页的 MinIO 上传封装） */
-  const { fileList, onChange, beforeUpload, remove, espFiles } = useEspFileList(lastMain?.files);
+  const { fileList, onChange, beforeUpload, remove, espFiles } = useEspFileList();
+
+  // 详情就绪后带出上一轮主审的意见与附件
+  watch(
+    lastMain,
+    (item) => {
+      review.opinion = item?.opinion ?? '';
+      fileList.value = (item?.files ?? []).map((f, i) => toUploadFile(f, `last-${i}`));
+    },
+    { immediate: true },
+  );
 
   function removeFile(f: EspUploadFile) {
     remove(f);
@@ -383,7 +404,7 @@
   const saving = ref(false);
 
   /** 提交：主审 → 通过/退回修改（写状态）；联审单位 → 本轮意见（每轮一次，不可修改） */
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!review.conclusion) {
       showMessage('请选择审核结果');
       return;
@@ -400,12 +421,17 @@
           showMessage('主审单位只能选择通过或退回修改');
           return;
         }
-        submitMainReview(record, { conclusion: review.conclusion, ...payload }, identity);
+        await schemeReviewMainSubmit(String(record.id), {
+          conclusion: review.conclusion,
+          ...payload,
+        });
         showMessage(review.conclusion === 'passed' ? '审查已提交：通过' : '审查已提交：退回修改');
       } else {
-        const created = submitJointReview(record, { conclusion: review.conclusion, ...payload }, identity);
-        if (!created) {
-          showMessage('贵单位本轮意见已提交，不可重复提交');
+        try {
+          await schemeReviewJointSubmit(String(record.id), { conclusion: review.conclusion, ...payload });
+        } catch (error) {
+          // 后端校验（最新轮指派本部门 / 本轮未提交）不通过时展示 msg
+          showMessage(error instanceof Error ? error.message : '提交失败');
           return;
         }
         showMessage(`联合审查意见已提交：${CONCLUSION_LABEL[review.conclusion].label}`);
@@ -419,29 +445,32 @@
   // ---------------- 联合审查（主审发起） ----------------
 
   const jointOpen = ref(false);
+  const jointSaving = ref(false);
 
   /**
    * 弹窗「确定」即推送（业务确认：推送后主审弹窗里填的审核内容不作数）：
-   * 轮次 +1、片区状态 → 联合审查中、发**系统站内消息**给联合审查单位（见 ../shared/review-notice.ts），
-   * 同时当前页弹框架通知提示。
+   * 后端插一轮（round=max+1）、状态 → 联合审查中，并给被选单位按部门发站内消息
+   * （receive_type=2，发送失败后端仅记日志不阻断）；当前页弹框架通知提示。
    */
-  async function handleJointConfirm(units: ReviewerIdentity[]) {
-    const round = pushJointReview(record, units);
-    const sent = await sendJointReviewNotice({
-      rowName: String(record.name ?? ''),
-      round: round.round,
-      units,
-      senderName: identity.name,
-    });
-    // antdv-next 的 notification 用 title/description（不是 antd React 的 message）
-    notification.success({
-      title: `联合审查已推送（第 ${round.round} 轮）`,
-      description: sent
-        ? `已发送系统通知给：${units.map((unit) => unit.name).join('、')}`
-        : `已推送：${units.map((unit) => unit.name).join('、')}（系统通知发送失败，请检查 msg 接口权限）`,
-      duration: 4,
-    });
-    emit('success');
+  async function handleJointConfirm(units: { code: string; name: string }[]) {
+    jointSaving.value = true;
+    try {
+      const pushed = await schemeReviewJointPush(
+        String(record.id),
+        units.map((unit) => unit.code),
+      );
+      // antdv-next 的 notification 用 title/description（不是 antd React 的 message）
+      notification.success({
+        title: `联合审查已推送（第 ${pushed.round} 轮）`,
+        description: `已推送：${units.map((unit) => unit.name).join('、')}（站内消息由系统发送）`,
+        duration: 4,
+      });
+      emit('success');
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : '联合审查推送失败');
+    } finally {
+      jointSaving.value = false;
+    }
   }
 
   // ---------------- 导出（与填报页同一套：打印版式 PDF / 真文档 Word） ----------------
@@ -456,28 +485,31 @@
     void runExport(key === 'docx' ? 'docx' : 'pdf');
   }
 
-  /** 审查记录 → 导出行（[标签, 值]，供 PDF/Word 的字段表渲染） */
+  /** 审查记录 → 导出行（[标签, 值]，供 PDF/Word 的字段表渲染；数据=详情接口的 records/rounds） */
   function recordRows(): [string, string][] {
     const rows: [string, string][] = [];
-    const all = reviewRecordsOf(record);
-    for (const round of jointRoundsOf(record)) {
-      const roundRecords = all.filter((item) => item.role === 'joint' && item.round === round.round);
+    for (const round of rounds.value) {
+      const roundRecords = records.value.filter((item) => item.role === 'joint' && item.round === round.round);
       rows.push([
         `第 ${round.round} 次联合审查单位`,
         `${round.units.map((unit) => unit.name).join('、')}（已提交 ${roundRecords.length}/${round.units.length}）`,
       ]);
       for (const item of roundRecords) {
-        rows.push([`${item.unitName}（${item.time}）`, recordSummary(item)]);
+        rows.push([`${item.unitName}（${item.reviewTime}）`, recordSummary(item)]);
       }
     }
-    for (const item of mainRecordsOf(record)) {
-      rows.push([`主审 ${item.unitName}（${item.time}）`, recordSummary(item)]);
+    for (const item of [...records.value].filter((item) => item.role === 'main').reverse()) {
+      rows.push([`主审 ${item.unitName}（${item.reviewTime}）`, recordSummary(item)]);
     }
     return rows;
   }
 
   /** 单条记录的导出文案：结论；意见；附件 */
-  function recordSummary(item: { conclusion: ReviewConclusion; opinion: string; files?: { name: string }[] }): string {
+  function recordSummary(item: {
+    conclusion: ReviewConclusion;
+    opinion?: string | null;
+    files?: { name: string }[];
+  }): string {
     const files = item.files?.length ? `；附件：${item.files.map((file) => file.name).join('、')}` : '';
     return `${CONCLUSION_LABEL[item.conclusion].label}；${item.opinion || '无意见'}${files}`;
   }
@@ -502,7 +534,12 @@
           rows: [
             ['审核结果', CONCLUSION_LABEL[review.conclusion].label],
             ['审核意见', review.opinion || '（无）'],
-            ['附件', espFiles().map((f) => f.name).join('、') || '（无）'],
+            [
+              '附件',
+              espFiles()
+                .map((f) => f.name)
+                .join('、') || '（无）',
+            ],
           ],
         });
       }

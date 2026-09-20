@@ -11,11 +11,10 @@
    - 联合审查单位（本页）：轮到自己（状态=联合审查中且本轮被指派）时「审查」，
      填 通过 / 退回修改 / 不涉及（每轮一次，提交后不可修改，列表只剩「查看」）。
 
-  数据来源（真实待审查片区 + 前端假数据兜底，详见 ../shared/review-mock.ts）：
-   - 主列表取后端「待审查片区」isApprove=2 分页接口（= 填报单位新增填报的片区），
-     按前端状态过滤掉「未提交」；接口不可用或查不到数据时回退种子假数据 REVIEW_SEED_ROWS；
-   - 审核状态、审查记录、联合审查轮次/单位、通知均为前端假数据（localStorage 缓存，刷新不丢）；
-   - 搜索：片区名称/行政区/申报年份走后端；状态筛选待后端状态列就绪后再加。
+  数据来源（后端审查流转已对接，2026-09-20）：列表走 GET /a/esp/schemeReview/page，
+  数据范围由后端按登录角色决定（主审/无角色=全部已提交；联审=被指派片区，行带 jointStatus
+  两态 + myTaskStatus 待办；填报=本部门片区）；状态列读行 reviewStatus（approve_status 五态）。
+  进入页面时调 GET /a/esp/schemeReview/todo 弹联审待办提醒（与后端站内消息互为补充）。
 
   ⚠️ 菜单注册（后台菜单管理）——组件位置必须与实际文件名精确一致：
    链接地址 / 组件位置：/early-stage-planning/scheme-declaration-review/scheme-review/list
@@ -57,17 +56,18 @@
             </span>
           </span>
         </template>
-        <!-- 状态：主审/填报 = 五态；**联合审查单位 = 单独两态（审核中 / 已审核）** -->
+        <!-- 状态：主审/无角色/填报 = 五态（reviewStatus）；**联合审查单位 = 单独两态
+             （jointStatus：审核中 / 已审核）** -->
         <template #reviewStatus="{ record }">
           <span
             v-if="identity.role === 'joint'"
             class="text-13px font-500"
-            :style="{ color: JOINT_SIDE_STATUS[jointSideStatusOf(record)].color }"
+            :style="{ color: JOINT_SIDE_STATUS[record.jointStatus === 'reviewed' ? 'reviewed' : 'reviewing'].color }"
           >
-            {{ JOINT_SIDE_STATUS[jointSideStatusOf(record)].label }}
+            {{ JOINT_SIDE_STATUS[record.jointStatus === 'reviewed' ? 'reviewed' : 'reviewing'].label }}
           </span>
-          <span v-else class="text-13px font-500" :style="{ color: REVIEW_STATUS[statusOf(record)].color }">
-            {{ REVIEW_STATUS[statusOf(record)].label }}
+          <span v-else class="text-13px font-500" :style="{ color: REVIEW_STATUS[statusKeyOf(record)].color }">
+            {{ REVIEW_STATUS[statusKeyOf(record)].label }}
           </span>
         </template>
       </BasicTable>
@@ -90,39 +90,37 @@
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { schemeFillPage } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
+  import {
+    schemeReviewPage,
+    schemeReviewTodo,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-review';
   import ReviewForm from './form.vue';
   import {
     JOINT_SIDE_STATUS,
     ROLE_LABEL,
-    REVIEW_SEED_ROWS,
     REVIEW_STATUS,
     currentIdentity,
-    hasSubmittedCurrentRound,
-    isAssignedToMe,
-    isSubmittedToReview,
-    jointSideStatusOf,
-    mockReviewPage,
-    pendingJointTasks,
-    statusOf,
-    visibleForJointUnit,
-    type ReviewRow,
-  } from '../shared/review-mock';
+    statusKeyOf,
+  } from '../shared/review-constants';
+  import { useSchemeDict } from '../shared/use-scheme-dict';
 
   const { notification } = useMessage();
 
   /** 当前登录者身份：由账号授权角色判定（填报单位 / 联合审查单位 / 主审单位） */
   const identity = computed(() => currentIdentity());
 
-  /** 列表范围提示（按角色口径不同） */
+  /** 列表范围提示（按角色口径不同；数据范围由后端 schemeReview/page 按登录角色决定） */
   const scopeHint = computed(() => {
     if (identity.value.role === 'joint') {
       return '只显示被发起联合审查并指派给贵单位的片区；状态：审核中 / 已审核（提交后即为已审核）';
     }
     if (identity.value.role === 'main') {
-      return '显示所有填报单位已提交的片区（暂存/未提交不进审查）；状态：未提交/审核中/退回修改/联合审查中/通过';
+      return '显示所有填报单位已提交的片区（暂存/未提交不进审查）；状态：审核中/退回修改/联合审查中/通过';
     }
-    return '演示：审核状态与审查记录为前端假数据（后端暂无状态列/审查记录表）';
+    if (identity.value.role === 'fill') {
+      return '显示本部门的申报片区（含未提交草稿），仅供查看申报与主审意见';
+    }
+    return '当前账号无审查角色：按只读口径显示全部已提交片区';
   });
 
   /** 整页表单：查看（mode=view）/ 审查（mode=review） */
@@ -140,25 +138,22 @@
     { title: '总体投资估算（亿元）', dataIndex: 'invest', width: 150, align: 'center' },
     { title: '填报时间', dataIndex: 'reportTime', width: 140 },
     { title: '填报单位', dataIndex: 'reportOrg', width: 160 },
-    { title: '状态', dataIndex: 'status', width: 150, slot: 'reviewStatus' },
+    { title: '状态', dataIndex: 'reviewStatus', width: 150, slot: 'reviewStatus' },
   ];
 
   /**
-   * 联审单位视角的可见性（列表显示条件）：只有被发起联合审查并指派到本单位才显示；
-   * 主审单位则是「所有填报单位已提交的片区」全量可见。
+   * 是否能进审查页操作：主审在 审核中/联合审查中 可审（**退回修改后流程在填报单位，
+   * 待其修改重提后方可再审**）；联审单位仅「最新轮指派本部门且未提交」（行 myTaskStatus=pending）
+   * 时可审。（进入审查页后按钮可用性以后端 form 接口的 actions 为准，这里只控列表入口）
    */
-  function canSee(record: Recordable): boolean {
-    if (identity.value.role !== 'joint') return true;
-    return visibleForJointUnit(record);
-  }
-
-  /** 是否能进审查页操作：主审在 审核中/联合审查中 可审；联审单位仅在指派且未提交时可审 */
   function canReview(record: Recordable): boolean {
-    const status = statusOf(record);
     if (identity.value.role === 'main') {
-      return status === 'reviewing' || status === 'jointReviewing';
+      return ['reviewing', 'jointReviewing'].includes(record.reviewStatus);
     }
-    return status === 'jointReviewing' && isAssignedToMe(record) && !hasSubmittedCurrentRound(record);
+    if (identity.value.role === 'joint') {
+      return record.myTaskStatus === 'pending';
+    }
+    return false;
   }
 
   /** 操作列：查看（只读，含审查记录）/ 审查（按身份与状态出） */
@@ -173,33 +168,19 @@
     },
   };
 
-  const DISTRICT_OPTIONS = ['汉阳区', '江岸区', '江汉区', '硚口区', '武昌区', '青山区', '洪山区'].map((d) => ({
-    label: d,
-    value: d,
-  }));
+  /** 行政区下拉选项（后端字典 dictOptions，失败回退内置清单） */
+  const { districtOptions: DISTRICT_OPTIONS } = useSchemeDict();
 
   /**
-   * 列表数据：后端「待审查片区」（isApprove=2）＝ 各填报单位填报的片区 → 过滤未提交 →
-   * 按角色给可见范围（**主审=全部；联审单位=只显示被指派过联合审查的片区**）→ 附前端状态。
-   * 接口不可用 / 查不到数据时回退种子假数据（联调前空页兜底）。
+   * 列表数据：直接走后端审查列表（数据范围/已提交过滤/联审两态与待办标记均由后端
+   * 按登录角色计算）；接口异常时回空列表（错误已由框架 toast，不叠加假数据）。
    */
-  async function fetchReviewRows(params: Recordable): Promise<{ list: ReviewRow[]; count: number }> {
-    const { pageNo, pageSize, ...rest } = params ?? {};
+  async function fetchReviewRows(params: Recordable): Promise<{ list: Recordable[]; count: number }> {
     try {
-      const page = await schemeFillPage({ ...rest, isApprove: '2', pageNo, pageSize });
-      const list = page.list
-        .map((row) => ({ ...row, status: statusOf(row) }))
-        .filter(isSubmittedToReview)
-        .filter(canSee);
-      if (list.length || page.count) {
-        return { list, count: list.length };
-      }
+      return await schemeReviewPage(params);
     } catch {
-      // 接口异常（后端未启动/无权限）→ 落到下面的假数据兜底
+      return { list: [], count: 0 };
     }
-    // 假数据兜底（联调前空页兜底）：同样按角色过滤（联审单位若没被指派过，列表自然为空）
-    const fallback = mockReviewPage(REVIEW_SEED_ROWS, params).list.filter(canSee);
-    return { list: fallback, count: fallback.length };
   }
 
   const [registerTable, { reload }] = useTable({
@@ -221,7 +202,8 @@
           label: '行政区',
           field: 'district',
           component: 'Select',
-          componentProps: { options: DISTRICT_OPTIONS, placeholder: '请选择', allowClear: true },
+          // 函数式 componentProps：字典后到也能刷新选项（FormItem computed 依赖）
+          componentProps: () => ({ options: DISTRICT_OPTIONS.value, placeholder: '请选择', allowClear: true }),
         },
         { label: '申报年份', field: 'batch', component: 'Input', componentProps: { placeholder: '如 2026' } },
       ],
@@ -229,17 +211,21 @@
   });
 
   /**
-   * 进入页面时的联合审查待办提醒：当前账号是联合审查单位且有待审查片区时，
-   * 弹框架通知提示（与推送时发的站内消息互为补充）。
+   * 进入页面时的联合审查待办提醒：调后端待办接口（最新轮指派本部门且未提交），
+   * 有待办时弹框架通知（与后端 jointPush 发的站内消息互为补充）。
    */
-  onMounted(() => {
-    const pending = pendingJointTasks();
-    if (pending.length) {
-      notification.info({
-        title: '联合审查待办',
-        description: `您有 ${pending.length} 个片区待联合审查（第 ${pending.map((task) => task.round).join('、')} 轮）`,
-        duration: 4,
-      });
+  onMounted(async () => {
+    try {
+      const todo = await schemeReviewTodo();
+      if (todo.jointPending > 0) {
+        notification.info({
+          title: '联合审查待办',
+          description: `您有 ${todo.jointPending} 个片区待联合审查（第 ${todo.items.map((item) => item.round).join('、')} 轮）`,
+          duration: 4,
+        });
+      }
+    } catch {
+      // 待办接口失败不影响列表
     }
   });
 

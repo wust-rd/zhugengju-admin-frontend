@@ -5,7 +5,7 @@
    - 总体投资估算（亿元）*：复用 Scheme.invest（与列表页同名字段打通）；
    - 片区资金来源（选填）：14 项「圈选 + 金额（亿元）」网格（4 列自适应），
      圈选样式仿设计稿 radio 圆点，圆点与来源名整块可点切换；输入金额自动视为选中。
-     值结构：{ 来源名: 金额|null }；
+     值结构：{ 来源名: 金额|null }；清单与项目情况的「项目资金来源」下拉共用（fund-sources.ts）；
    - 资金来源概况（选填，≤500 字）：普通 schema 文本域，随表单模型自动取值/回显。
 
   实现注意（坑）：
@@ -55,27 +55,10 @@
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionFundingPlan">
   import { reactive, ref } from 'vue';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
+  import { FUND_SOURCES } from './fund-sources';
   import { useSectionForm } from './use-section-form';
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
-
-  /** 资金来源项（对齐设计稿 14 项；接口就绪后改为字典接口） */
-  const FUND_SOURCES = [
-    '中央预算资金—中央预算内投资',
-    '中央预算资金—其他中央财政资金',
-    '中央预算资金—国债（增发国债）',
-    '中央预算资金—超长期特别国债',
-    '省级预算资金',
-    '市级及以下预算资金—市级',
-    '市级及以下预算资金—区级',
-    '地方政府一般债券',
-    '地方政府专项债券',
-    '产权单位出资',
-    '规模化实施运营主体出资',
-    '金融机构借贷资金',
-    '居民出资',
-    '其他资金',
-  ];
 
   const inputFormSchemas: FormSchema[] = [
     {

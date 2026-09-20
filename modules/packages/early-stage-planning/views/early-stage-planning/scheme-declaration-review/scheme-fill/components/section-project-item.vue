@@ -3,8 +3,8 @@
 
   - 初值取自 props.value（项目对象），保存时由父级经 expose 的统一接口取值/校验；
   - 字段对齐设计稿：项目名称* / 改造类别* / 实施主体 / 项目总投资估算（亿元）/
-    项目资金来源（可多选）/ 本年度计划完成投资（亿元）/ 计划开工时间（月份）/
-    计划竣工时间（月份）/ 主要建设内容* / 实施方案（附件，选填）；
+    项目资金来源（可多选，选项=片区资金来源 14 项清单）/ 本年度计划完成投资（亿元）/
+    计划开工时间（月份）/ 计划竣工时间（月份）/ 主要建设内容* / 实施方案（附件，选填）；
   - 已对接后端（modules/esp）：实施方案真实上传 MinIO（use-esp-file-list，
     值=文件对象数组，已传文件名带直链）；项目矢量图斑走 GeoField
     （上传解析/地图绘制，值为自包含 TopoJSON 字符串，经下方取值并入；
@@ -38,7 +38,7 @@
         >
           <span class="i-ant-design:file-text-outlined shrink-0 text-18px" :style="{ color: fileColor(f.name) }"></span>
 
-          <!-- 有直链的文件（已上传）点击新窗打开，未完成的仅展示名称 -->
+          <!-- 有直链的文件（已上传）点击新窗打开（pdf/word 即外链预览），未完成的仅展示名称 -->
           <a
             v-if="f.url"
             class="min-w-0 flex-1 truncate text-14px text-gray-700 hover:text-[#3A8EF6]!"
@@ -52,6 +52,16 @@
           <span v-else class="min-w-0 flex-1 truncate text-14px text-gray-700" :title="f.name">{{ f.name }}</span>
 
           <span v-if="fileSizeText(f)" class="shrink-0 text-12px text-gray-400">{{ fileSizeText(f) }}</span>
+
+          <!-- 下载（查看模式也可用） -->
+          <span
+            v-if="f.url"
+            class="flex h-22px w-22px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 transition-colors hover:bg-blue-50 hover:text-[#3A8EF6]"
+            title="下载"
+            @click.stop="downloadEspFile(f)"
+          >
+            <span class="i-ant-design:download-outlined"></span>
+          </span>
 
           <span
             v-if="!disabled"
@@ -74,7 +84,8 @@
   import { Upload } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
   import GeoField from './geo-field.vue';
-  import { fileColor, fileSizeText } from './file-display';
+  import { fileColor, fileSizeText, downloadEspFile } from './file-display';
+  import { FUND_SOURCES } from './fund-sources';
   import { useEspFileList, type EspUploadFile } from './use-esp-file-list';
   import { useSectionForm } from './use-section-form';
 
@@ -92,7 +103,6 @@
     label: c,
     value: c,
   }));
-  const FUND_OPTIONS = ['财政资金', '专项债券', '社会资本', '银行贷款', '其他'].map((f) => ({ label: f, value: f }));
 
   const inputFormSchemas: FormSchema[] = [
     {
@@ -131,7 +141,13 @@
       label: '项目资金来源',
       field: 'fundSources',
       component: 'Select',
-      componentProps: { options: FUND_OPTIONS, placeholder: '可多选', mode: 'multiple', allowClear: true },
+      // 选项与片区资金方案的圈选清单一致（fund-sources.ts 共用 14 项）
+      componentProps: {
+        options: FUND_SOURCES.map((s) => ({ label: s, value: s })),
+        placeholder: '可多选',
+        mode: 'multiple',
+        allowClear: true,
+      },
     },
     {
       label: '本年度计划完成投资（亿元）',

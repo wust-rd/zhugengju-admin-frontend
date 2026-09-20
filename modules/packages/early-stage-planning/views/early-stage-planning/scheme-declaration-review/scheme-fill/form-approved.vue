@@ -208,9 +208,12 @@
     saving.value = true;
     try {
       // projects 行回显带后端生成的 id，保存契约无此键，提交前剥离；
-      // funcTypes / projects[].fundSources 为多选 Select，归一为数组（见 toStrList）
+      // funcTypes / projects[].fundSources 为多选 Select，归一为数组（见 toStrList）；
+      // 编辑按 aUid 定位（后端契约主条件，id 为兼容兜底），新增不传由后端 PQ 序列取号
+      const aUid = String(record.aUid ?? formData.value?.aUid ?? '') || undefined;
       const payload = {
         ...values,
+        ...(aUid ? { aUid } : {}),
         id: record.id ? String(record.id) : '',
         funcTypes: toStrList(values.funcTypes),
         projects: (values.projects ?? []).map(({ id: _projectId, fundSources, ...rest }: Recordable) => ({

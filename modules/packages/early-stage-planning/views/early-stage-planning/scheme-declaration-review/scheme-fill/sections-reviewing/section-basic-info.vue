@@ -28,9 +28,10 @@
           multiple
           :max-count="1"
           :disabled="disabled"
-          :show-upload-list="disabled ? { showRemoveIcon: false } : true"
+          :show-upload-list="{ showRemoveIcon: !disabled, showDownloadIcon: true }"
           :before-upload="imageBeforeUpload"
           @preview="onPreview"
+          @download="onDownload"
           @change="onImagesChange"
         >
           <div v-if="!imageFileList.length" class="flex flex-col items-center justify-center gap-2px text-gray-400">
@@ -56,8 +57,10 @@
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
   import GeoField from '../components/geo-field.vue';
   import ImagePreview from '../components/image-preview.vue';
+  import { downloadEspFile } from '../components/file-display';
   import { useEspFileList } from '../components/use-esp-file-list';
   import { useSectionForm } from '../components/use-section-form';
+  import { useSchemeDict } from '../../shared/use-scheme-dict';
 
   /** 缩略图点击预览：拦截 Upload 默认新开页面，转弹窗展示 */
   const previewUrl = ref('');
@@ -65,13 +68,15 @@
     previewUrl.value = (file.url as string) || '';
   }
 
+  /** 缩略卡下载图标（antd 内置，仅 done 态显示）：统一走 blob 下载，跨域回退新窗打开 */
+  function onDownload(file: UploadFile) {
+    void downloadEspFile(file);
+  }
+
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
 
-  /** 下拉选项（与列表页筛选一致；接口就绪后改为字典接口） */
-  const DISTRICT_OPTIONS = ['汉阳区', '江岸区', '江汉区', '硚口区', '武昌区', '青山区', '洪山区'].map((d) => ({
-    label: d,
-    value: d,
-  }));
+  /** 行政区下拉选项（后端字典 dictOptions，失败回退内置清单） */
+  const { districtOptions: DISTRICT_OPTIONS } = useSchemeDict();
 
   /** 通栏字段（占满整行） */
   const FULL_COL = { span: 24, md: 24, lg: 24 };
@@ -96,7 +101,8 @@
       label: '行政区',
       field: 'district',
       component: 'Select',
-      componentProps: { options: DISTRICT_OPTIONS, placeholder: '请选择', allowClear: true },
+      // 函数式 componentProps：字典后到也能刷新选项（FormItem computed 依赖）
+      componentProps: () => ({ options: DISTRICT_OPTIONS.value, placeholder: '请选择', allowClear: true }),
       rules: [{ required: true, message: '请选择行政区' }],
     },
     {

@@ -8,16 +8,15 @@
    - 「新增」仅 Tab② 显示：Tab① 已批准片区为手动入库的存量数据，只查看/编辑，
      不可新增（后端也拒绝删除）；
    - 两 Tab 各自列布局：Tab① 批次列；Tab② 申报年份列（=batch，新增填报片区存年份）
-     + 状态列。审核状态**后端暂无字段，前端假数据**（未提交/审核中/退回修改/联合审查中/通过；
-「联合审查中」在填报单位侧仍显示「审核中」，见 fillSideStatusOf）
-     （../shared/review-mock.ts，与主审单位审查列表共用同一份状态；接口就绪后替换）：
-     填报单位「暂存」→ 未提交（可继续编辑），「保存」→ 审核中（填报单位只能查看、
+     + 状态列。审核状态读后端 page 行 reviewStatus（approve_status 五态，2026-09-20 起
+     page/form 均返回；「联合审查中」在填报单位侧仍显示「审核中」，见 fillSideStatusOf）：
+     填报单位「暂存」→ 未提交（可继续编辑），「提交」→ 审核中（填报单位只能查看，
      主审单位在 …/scheme-review/list 可见）；
-     操作按状态出：未提交 查看/编辑/提交/删除；退回修改 查看/编辑/重新提交/修改意见（弹窗按时间线列出
-     **主审单位的审查记录** —— 填报单位只能看到主审意见）；审核中（含联合审查中）/通过 仅查看。
-     审查意见接口未建设前为前端假数据；
+     操作按状态出：未提交 查看/编辑/删除；退回修改 查看/编辑/修改意见（弹窗按时间线列出
+     **主审单位的审查记录** —— 后端按填报角色过滤，填报单位只能看到主审意见）；
+     审核中（含联合审查中）/通过 仅查看。
    - 操作列：查看/编辑按 id 拉详情回显；删除仅 Tab② 显示（后端拒绝删除存量
-     已批准片区，Tab① 不给入口）。
+     已批准片区，Tab① 不给入口；且仅 未提交/退回修改 状态可删）。
   新增 / 编辑 / 查看 以组件方式切换到整页表单（不走路由，不新增菜单注册）：
   Tab① → form-approved.vue〔查看/编辑，后端已接〕；Tab② 新增/编辑 → form-reviewing.vue
   〔申报年份 + 9 位附件材料版〕；Tab② 查看 → ../scheme-review/form.vue mode=view
@@ -72,7 +71,7 @@
             </span>
           </span>
         </template>
-        <!-- 审核状态（Tab②；前端假数据，口径与审查页共用 ../shared/review-mock.ts）：
+        <!-- 审核状态（Tab②；读后端 page 行 reviewStatus=approve_status 五态）：
              「联合审查中」在填报单位看来仍显示为「审核中」（fillSideStatusOf） -->
         <template #reviewStatus="{ record }">
           <span class="text-13px font-500" :style="{ color: REVIEW_STATUS[fillSideStatusOf(record)].color }">
@@ -102,9 +101,9 @@
       @back="handleBack"
     />
 
-    <!-- 修改意见：只显示主审单位的审查记录（业务口径：填报单位只能看到主审意见）；弹窗上下居中 -->
+    <!-- 修改意见：只显示主审单位的审查记录（后端按填报角色过滤 records）；弹窗上下居中 -->
     <Modal v-model:open="opinionOpen" title="修改意见" :width="800" :footer="null" centered>
-      <ReviewRecords :row="opinionRow" :show-joint="false" />
+      <ReviewRecords :records="opinionRecords" :rounds="opinionRounds" :show-joint="false" />
     </Modal>
   </PageWrapper>
 </template>
@@ -122,9 +121,18 @@
   import SchemeFormReviewing from './form-reviewing.vue';
   import ReviewForm from '../scheme-review/form.vue';
   import ReviewRecords from '../shared/review-records.vue';
-  import { REVIEW_STATUS, fillSideStatusOf } from '../shared/review-mock';
+  import { REVIEW_STATUS, fillSideStatusOf } from '../shared/review-constants';
+  import {
+    schemeReviewForm,
+    type EspJointRound,
+    type EspReviewRecord,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-review';
+  import { useSchemeDict } from '../shared/use-scheme-dict';
 
   const { showMessage } = useMessage();
+
+  /** 搜索区下拉选项（后端字典 dictOptions，失败回退内置清单；函数式 componentProps 保持联动） */
+  const { districtOptions, funcTypeOptions } = useSchemeDict();
 
   /** 当前 Tab：approved=已批准片区填报（isApprove=1）/ reviewing=待审查片区填报（isApprove=2） */
   const activeTab = ref('approved');
@@ -137,7 +145,8 @@
 
   /** 修改意见弹窗（Tab② 退回修改）：按时间线展示主审单位的审查记录（填报单位看不到联审意见） */
   const opinionOpen = ref(false);
-  const opinionRow = ref<Recordable>({});
+  const opinionRecords = ref<EspReviewRecord[]>([]);
+  const opinionRounds = ref<EspJointRound[]>([]);
 
   /** 表格列 · Tab① 已批准片区（对齐设计稿；批次=第一批/第二批） */
   const approvedColumns: BasicColumn[] = [
@@ -168,10 +177,10 @@
   ];
 
   /**
-   * 审核状态四类（通过/未提交/审核中/退回修改）统一由前端假数据层提供
-   * （../shared/review-mock.ts，与主审单位审查列表共用同一份状态，保证两页口径一致）：
-   *  - 暂存 → 未提交（可编辑）；保存提交 → 审核中（填报单位只能查看、主审单位可见）；
-   *  - 未记录过的存量行用稳定哈希兜底，仅为演示保留，后端状态列就绪后删除。
+   * 审核状态（Tab② 状态列/操作分支）：读后端 page 行 reviewStatus（approve_status 五态，
+   * 与主审单位审查列表同一数据源）；填报单位口径「联合审查中」显示为「审核中」：
+   *  - 暂存 → 未提交（可编辑/删除）；提交 → 审核中（填报单位只读）；
+   *  - 退回修改 → 可编辑 + 修改意见；通过 → 只读。
    */
 
   /** 操作列 · Tab①：查看 / 编辑（存量片区不可新增不可删） */
@@ -215,13 +224,7 @@
     },
   };
 
-  const DISTRICT_OPTIONS = ['汉阳区', '江岸区', '江汉区', '硚口区', '武昌区', '青山区', '洪山区'].map((d) => ({
-    label: d,
-    value: d,
-  }));
-  /** 功能定位选项（对齐后端 esp 字典：TOD/COD/SOD/EOD/IOD/HOD/POD） */
-  const FUNC_OPTIONS = ['TOD', 'EOD', 'IOD', 'SOD', 'COD', 'HOD', 'POD'].map((f) => ({ label: f, value: f }));
-  const BATCH_OPTIONS = ['第一批', '第二批'].map((b) => ({ label: b, value: b }));
+  const BATCH_OPTIONS = ['第一批', '第二批', '新增'].map((b) => ({ label: b, value: b }));
 
   const [registerTable, { reload, setColumns, setProps }] = useTable({
     api: schemeFillPage,
@@ -244,13 +247,14 @@
           label: '行政区',
           field: 'district',
           component: 'Select',
-          componentProps: { options: DISTRICT_OPTIONS, placeholder: '请选择', allowClear: true },
+          // 函数式 componentProps：字典后到也能刷新选项（FormItem computed 依赖）
+          componentProps: () => ({ options: districtOptions.value, placeholder: '请选择', allowClear: true }),
         },
         {
           label: '片区功能定位',
           field: 'funcType',
           component: 'Select',
-          componentProps: { options: FUNC_OPTIONS, placeholder: '请选择', allowClear: true },
+          componentProps: () => ({ options: funcTypeOptions.value, placeholder: '请选择', allowClear: true }),
         },
         {
           label: '片区批次',
@@ -289,10 +293,19 @@
     formVisible.value = true;
   }
 
-  /** 修改意见：弹窗按时间线展示主审单位的审查记录（填报单位只能看到主审意见） */
+  /** 修改意见：打开弹窗即拉审查详情（records 后端按填报角色过滤=只含主审记录） */
   function showOpinion(record: Recordable) {
-    opinionRow.value = { ...record };
+    opinionRecords.value = [];
+    opinionRounds.value = [];
     opinionOpen.value = true;
+    schemeReviewForm(String(record.id))
+      .then((detail) => {
+        opinionRecords.value = detail.records ?? [];
+        opinionRounds.value = detail.rounds ?? [];
+      })
+      .catch((error) => {
+        showMessage(error instanceof Error ? error.message : '加载审查记录失败');
+      });
   }
 
   /** 返回列表（取消/头部返回/详情加载失败） */

@@ -7,11 +7,10 @@
    - 附件材料用 sections-reviewing/ 版（9 位：策划方案/规划图表/体检报告/市政府批准
      认定材料/专家论证情况/区级联合审查意见/市级审查意见/市政府批准材料/其他附件，
      对齐 2026-09-18 设计稿；已批准版仍为 5 位）。
-  权限与审批流后端暂未建设，先保证填报可用（角色/审查流转见下文状态口径）。
-  提交状态口径（业务约定，详见 ../shared/review-mock.ts）：
-   暂存 → 片区状态「未提交」（可继续编辑）；提交 → 「审核中」（填报单位只能查看，
-   主审单位在 …/scheme-review/list 审查列表可见）。暂存不校验必填，提交校验必填；
-   后端暂无状态列，状态先写前端假数据层。
+  权限与审批流已对接后端（2026-09-20 审查流转）：暂存（submitType=draft，宽校验）→
+   状态「未提交」（可继续编辑）；提交（submitType=submit，服务端必填校验，口径=前端
+   红星清单）→ 「审核中」（填报单位只能查看，主审单位在 …/scheme-review/list 审查列表
+   可见）；编辑/删除仅「未提交 / 退回修改」状态可操作（后端状态机校验兜底）。
   长表单拆为 6 个区块（各区块自持 BasicForm，见 components/section-*.vue）：
     1 片区基本信息 / 2 片区体检情况 / 3 片区功能策划 / 4 片区项目情况 /
     5 片区资金方案 / 6 附件材料 —— 顺序与内容见下方 SECTIONS 注册表。
@@ -87,7 +86,6 @@
   import AnchorNav from './components/anchor-nav.vue';
   import { exportFormDocx, exportFormPdf } from './components/form-export';
   import type { SectionFormExposed } from './components/use-section-form';
-  import { setReviewStatus } from '../shared/review-mock';
   // 两处差异化区块取待审查版（申报年份 / 9 位附件材料）；其余六个区块共用 components/
   import SectionBasicInfo from './sections-reviewing/section-basic-info.vue';
   import SectionAttachment from './sections-reviewing/section-attachment.vue';
@@ -194,11 +192,11 @@
   }
 
   /**
-   * 暂存 / 提交（两态，业务口径见 ../shared/review-mock.ts）：
+   * 暂存 / 提交（两态，后端 submitType 驱动状态机）：
    *  - 暂存（draft）：跳过区块必填校验（草稿允许留空）→ 落库 → 状态=未提交，仍可编辑；
-   *  - 提交（submit）：逐区块校验（首个未通过的区块滚动定位）→ 落库 → 状态=审核中，
+   *  - 提交（submit）：逐区块校验（首个未通过的区块滚动定位）→ 服务端必填校验 → 状态=审核中，
    *    填报单位转为只读、主审单位在 …/scheme-review/list 可见。
-   * 状态后端暂无字段，写前端假数据层（按接口返回的 id 记录），接口就绪后改由后端返回。
+   * 编辑约束：仅「未提交 / 退回修改」可保存（审核中/联审中/通过后端返回 400 展示 msg）。
    */
   async function handleSave(mode: 'draft' | 'submit') {
     const values: Recordable = {};
@@ -226,10 +224,15 @@
     saving.value = true;
     try {
       // projects 行回显带后端生成的 id，保存契约无此键，提交前剥离；
-      // funcTypes / projects[].fundSources 为多选 Select，归一为数组（见 toStrList）
+      // funcTypes / projects[].fundSources 为多选 Select，归一为数组（见 toStrList）；
+      // 编辑按 aUid 定位（后端契约主条件，id 为兼容兜底），新增不传由后端 PQ 序列取号；
+      // submitType：draft=暂存（宽校验→未提交）/ submit=提交（服务端必填校验→审核中）
+      const aUid = String(record.aUid ?? formData.value?.aUid ?? '') || undefined;
       const payload = {
         ...values,
+        ...(aUid ? { aUid } : {}),
         id: record.id ? String(record.id) : '',
+        submitType: mode,
         funcTypes: toStrList(values.funcTypes),
         projects: (values.projects ?? []).map(({ id: _projectId, fundSources, ...rest }: Recordable) => ({
           ...rest,
@@ -237,7 +240,6 @@
         })),
       } as EspSchemeFill;
       const saved = await schemeFillSave(payload);
-      setReviewStatus(saved.id, mode === 'draft' ? 'unsubmitted' : 'reviewing');
       showMessage(mode === 'draft' ? '已暂存，状态：未提交' : '提交成功，已提交审核');
       emit('success', { ...saved, isNewRecord });
     } catch (error) {

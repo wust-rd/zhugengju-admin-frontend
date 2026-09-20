@@ -7,11 +7,9 @@
 <template>
   <div class="flex flex-col gap-6px rd-6px bg-[#f0f7ff] px-12px py-10px">
     <div class="flex flex-wrap items-center gap-x-16px gap-y-6px text-13px">
-      <span class="inline-flex rd-3px px-5px py-1px text-12px font-500" :style="roleTagStyle">{{
-        roleTagText
-      }}</span>
+      <span class="inline-flex rd-3px px-5px py-1px text-12px font-500" :style="roleTagStyle">{{ roleTagText }}</span>
       <span class="text-gray-700">审查单位：{{ record?.unitName }}</span>
-      <span class="text-gray-700">审查时间：{{ record?.time }}</span>
+      <span class="text-gray-700">审查时间：{{ record?.reviewTime }}</span>
       <span class="text-gray-700">
         审核结果：
         <span class="font-500" :style="{ color: CONCLUSION_LABEL[conclusion].color }">
@@ -42,9 +40,13 @@
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationReviewRecordCard">
   import { computed } from 'vue';
-  import { CONCLUSION_LABEL, roundText, type ReviewConclusion, type ReviewRecord } from './review-mock';
+  import { CONCLUSION_LABEL, roundText } from './review-constants';
+  import type {
+    EspReviewRecord,
+    ReviewConclusion,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-review';
 
-  const props = defineProps<{ record?: ReviewRecord }>();
+  const props = defineProps<{ record?: EspReviewRecord }>();
 
   const conclusion = computed<ReviewConclusion>(() => props.record?.conclusion ?? 'na');
 

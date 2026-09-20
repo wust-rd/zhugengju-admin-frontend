@@ -82,6 +82,10 @@ export type EspSchemeFill = {
   id?: string;
   code?: string;
   aUid?: string;
+  /** 保存类型（2026-09-20 审查流转）：draft=暂存（宽校验→未提交）/ submit=提交（服务端必填校验→审核中）；缺省 draft */
+  submitType?: 'draft' | 'submit';
+  /** 审核状态（回显；approve_status 五态，见 scheme-review.ts ReviewStatusKey） */
+  reviewStatus?: string;
   /** 1=已批准存量片区 / 2=新增填报片区（后端维护，前端只读） */
   isApprove?: string;
   name?: string;
@@ -131,25 +135,26 @@ export type EspSchemeFill = {
   healthReportFiles?: EspSchemeFile[];
   /** 审批材料（已批准片区版第 4 位）/ 市政府批准材料（待审查片区版第 8 位）：同一文件位两版语义相同 */
   approvalFiles?: EspSchemeFile[];
-  /** 市政府批准认定材料（2026-09-18 新增文件位，待审查片区版第 4 位；后端待加 field_code） */
+  /** 市政府批准认定材料（2026-09-18 新增文件位，待审查片区版第 4 位；后端 2026-09-20 已支持） */
   govCertFiles?: EspSchemeFile[];
-  /** 专家论证情况（2026-09-18 新增文件位，待审查片区版第 5 位；后端待加 field_code） */
+  /** 专家论证情况（2026-09-18 新增文件位，待审查片区版第 5 位；后端 2026-09-20 已支持） */
   expertArgumentFiles?: EspSchemeFile[];
-  /** 区级联合审查意见（2026-09-18 新增文件位，待审查片区版第 6 位；后端待加 field_code） */
+  /** 区级联合审查意见（2026-09-18 新增文件位，待审查片区版第 6 位；后端 2026-09-20 已支持） */
   districtJointReviewFiles?: EspSchemeFile[];
-  /** 市级审查意见（2026-09-18 新增文件位，待审查片区版第 7 位；后端待加 field_code） */
+  /** 市级审查意见（2026-09-18 新增文件位，待审查片区版第 7 位；后端 2026-09-20 已支持） */
   cityReviewFiles?: EspSchemeFile[];
   otherFiles?: EspSchemeFile[];
   reportOrg?: string;
   reportTime?: string;
 };
 
-/** 列表行（page 接口） */
+/** 列表行（page 接口）；2026-09-20 起返回 reviewStatus（空值兜底：isApprove=1→passed、2→unsubmitted） */
 export type EspSchemeListRow = {
   id: string;
   code: string;
   aUid: string;
   isApprove: string;
+  reviewStatus?: string;
   name: string;
   district: string;
   areaHa: number | null;
@@ -183,9 +188,22 @@ export type EspSchemeSaveResult = {
   name: string;
   isApprove: string;
   reportTime: string;
+  /** 保存后的审核状态（draft→unsubmitted / submit→reviewing；存量已批准片区保持 passed） */
+  reviewStatus?: string;
 };
 
-// ---------------- 1. 列表 / 详情 / 保存 / 删除 ----------------
+// ---------------- 1. 字典 / 列表 / 详情 / 保存 / 删除 ----------------
+
+/**
+ * 1.0 下拉选项字典（2026-09-20 新增；列表页搜索区 + 表单共用）
+ *
+ * - 行政区 districts：GIS 边界表 DISTRICT_BOUNDARYS.name 去重（按名称排序）；
+ * - 功能定位 funcTypes：jeesite 字典 area_func_type 的 dictValue（下拉即显示编码本身）。
+ * 字符串数组，前端 map(label=value) 直接用；字典未配置时后端返回 400。
+ */
+export async function schemeFillDictOptions(): Promise<{ districts: string[]; funcTypes: string[] }> {
+  return unwrap(await defHttp.get({ url: adminPath + '/esp/schemeFill/dictOptions' }));
+}
 
 /** 1.1 分页查询（Tab 按 isApprove=1已批准/2待审查 分开查询）—— BasicTable api 直用 */
 export async function schemeFillPage(

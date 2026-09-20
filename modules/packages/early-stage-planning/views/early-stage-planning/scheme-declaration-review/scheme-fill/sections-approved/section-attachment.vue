@@ -14,7 +14,8 @@
   每行 = 右对齐标签 + 通栏框（内居中显示已传文件链接，hover 显删除 ×，
   点击框空白处追加文件）+ 框下格式提示。
   已对接后端（modules/esp）：真实上传 MinIO（use-esp-file-list，值=文件对象
-  数组，已传文件名带直链新窗打开）。
+  数组，已传文件名带直链新窗打开——pdf/word 即外链预览；每行另有下载图标，
+  查看模式也可用）。
   必填校验：validate 时缺文件的必填位框体标红并 reject（form.vue 滚动定位）。
   非 a-button/a-input 的 antd 组件必须显式 import（Upload）。
 -->
@@ -67,6 +68,15 @@
                 </a>
                 <span v-else class="min-w-0 flex-1 truncate text-13px text-gray-700" :title="f.name">{{ f.name }}</span>
                 <span v-if="fileSizeText(f)" class="shrink-0 text-12px text-gray-400">{{ fileSizeText(f) }}</span>
+                <!-- 下载（查看模式也可用） -->
+                <span
+                  v-if="f.url"
+                  class="flex h-20px w-20px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 transition-colors hover:bg-blue-50 hover:text-[#3A8EF6]"
+                  title="下载"
+                  @click.stop="downloadEspFile(f)"
+                >
+                  <span class="i-ant-design:download-outlined text-12px"></span>
+                </span>
                 <span
                   v-if="!disabled"
                   class="flex h-20px w-20px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
@@ -102,7 +112,7 @@
   import { reactive, ref } from 'vue';
   import { Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
-  import { fileColor, fileSizeText } from '../components/file-display';
+  import { fileColor, fileSizeText, downloadEspFile } from '../components/file-display';
   import type { EspUploadFile } from '../components/use-esp-file-list';
   import { useEspFileList } from '../components/use-esp-file-list';
   import type { SectionFormExposed } from '../components/use-section-form';
