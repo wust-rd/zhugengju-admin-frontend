@@ -394,6 +394,42 @@ function appendRecord(key: string, record: Omit<ReviewRecord, 'id'>): ReviewReco
   return created;
 }
 
+// ---------------- 联合审查单位自己的列表口径（两态，与主审的五态无关） ----------------
+
+/**
+ * 联审单位侧的状态（**单独一套逻辑，只有两态**）：
+ *  - `reviewing` 审核中：被指派了但自己还没提交（或被指派后主审又发起新一轮、我没交）；
+ *  - `reviewed` 已审核：自己把意见提交了 —— 只要提交过就是已审核。
+ */
+export type JointSideStatus = 'reviewing' | 'reviewed';
+
+export const JOINT_SIDE_STATUS: Record<JointSideStatus, { label: string; color: string }> = {
+  reviewing: { label: '审核中', color: '#1677ff' },
+  reviewed: { label: '已审核', color: '#52c41a' },
+};
+
+/** 我被指派的联合审查轮次（升序）；非联审角色返回空 */
+export function myJointRounds(recordOrId: Recordable | string, identity = currentIdentity()): JointRound[] {
+  if (identity.role !== 'joint') return [];
+  return jointRoundsOf(recordOrId).filter((round) => round.units.some((unit) => unit.name === identity.name));
+}
+
+/**
+ * 联审单位的列表可见性：**只有被发起联合审查且指派到本单位时，列表才显示该片区**；
+ * 没被指派过的一律不显示（主审/填报单位有自己的口径，不走这里）。
+ */
+export function visibleForJointUnit(recordOrId: Recordable | string, identity = currentIdentity()): boolean {
+  return myJointRounds(recordOrId, identity).length > 0;
+}
+
+/** 联审单位侧状态：以「我被指派的最新一轮」是否已提交为准 */
+export function jointSideStatusOf(recordOrId: Recordable | string, identity = currentIdentity()): JointSideStatus {
+  const rounds = myJointRounds(recordOrId, identity);
+  if (!rounds.length) return 'reviewing';
+  const latest = rounds[rounds.length - 1];
+  return recordsOfUnit(recordOrId, identity.name, latest.round).length ? 'reviewed' : 'reviewing';
+}
+
 /** 主审提交结论：通过 → 通过（终态）；退回修改 → 退回修改；追加主审审查记录 */
 export function submitMainReview(
   record: Recordable,

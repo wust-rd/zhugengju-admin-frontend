@@ -40,7 +40,7 @@
               </span>
             </span>
             <span class="text-12px text-gray-400">
-              演示：审核状态/审查记录为前端假数据（后端暂无状态列）；仅显示已提交片区（暂存/未提交不进审查）
+              {{ scopeHint }}
             </span>
           </div>
         </template>
@@ -57,22 +57,17 @@
             </span>
           </span>
         </template>
-        <!-- 审核状态（前端假数据，口径见 ../shared/review-mock.ts）+ 联审单位的「待我审查/我已提交」标记 -->
+        <!-- 状态：主审/填报 = 五态；**联合审查单位 = 单独两态（审核中 / 已审核）** -->
         <template #reviewStatus="{ record }">
-          <span class="inline-flex items-center gap-4px">
-            <span class="text-13px font-500" :style="{ color: REVIEW_STATUS[statusOf(record)].color }">
-              {{ REVIEW_STATUS[statusOf(record)].label }}
-            </span>
-            <span
-              v-if="jointTagOf(record)"
-              class="inline-flex rd-3px px-4px py-1px text-11px font-500"
-              :style="{
-                color: jointTagOf(record) === '待我审查' ? '#d46b08' : '#52c41a',
-                background: jointTagOf(record) === '待我审查' ? '#fff7e6' : '#f0fbf4',
-              }"
-            >
-              {{ jointTagOf(record) }}
-            </span>
+          <span
+            v-if="identity.role === 'joint'"
+            class="text-13px font-500"
+            :style="{ color: JOINT_SIDE_STATUS[jointSideStatusOf(record)].color }"
+          >
+            {{ JOINT_SIDE_STATUS[jointSideStatusOf(record)].label }}
+          </span>
+          <span v-else class="text-13px font-500" :style="{ color: REVIEW_STATUS[statusOf(record)].color }">
+            {{ REVIEW_STATUS[statusOf(record)].label }}
           </span>
         </template>
       </BasicTable>
@@ -98,6 +93,7 @@
   import { schemeFillPage } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
   import ReviewForm from './form.vue';
   import {
+    JOINT_SIDE_STATUS,
     ROLE_LABEL,
     REVIEW_SEED_ROWS,
     REVIEW_STATUS,
@@ -105,9 +101,11 @@
     hasSubmittedCurrentRound,
     isAssignedToMe,
     isSubmittedToReview,
+    jointSideStatusOf,
     mockReviewPage,
     pendingJointTasks,
     statusOf,
+    visibleForJointUnit,
     type ReviewRow,
   } from '../shared/review-mock';
 
@@ -115,6 +113,17 @@
 
   /** 当前登录者身份：由账号授权角色判定（填报单位 / 联合审查单位 / 主审单位） */
   const identity = computed(() => currentIdentity());
+
+  /** 列表范围提示（按角色口径不同） */
+  const scopeHint = computed(() => {
+    if (identity.value.role === 'joint') {
+      return '只显示被发起联合审查并指派给贵单位的片区；状态：审核中 / 已审核（提交后即为已审核）';
+    }
+    if (identity.value.role === 'main') {
+      return '显示所有填报单位已提交的片区（暂存/未提交不进审查）；状态：未提交/审核中/退回修改/联合审查中/通过';
+    }
+    return '演示：审核状态与审查记录为前端假数据（后端暂无状态列/审查记录表）';
+  });
 
   /** 整页表单：查看（mode=view）/ 审查（mode=review） */
   const formVisible = ref(false);
@@ -135,13 +144,12 @@
   ];
 
   /**
-   * 联审单位视角的标记：状态为联合审查中且本轮指派给我 → 待我审查 / 我已提交；
-   * 主审身份不显示。
+   * 联审单位视角的可见性（列表显示条件）：只有被发起联合审查并指派到本单位才显示；
+   * 主审单位则是「所有填报单位已提交的片区」全量可见。
    */
-  function jointTagOf(record: Recordable): string {
-    if (identity.value.role !== 'joint') return '';
-    if (statusOf(record) !== 'jointReviewing' || !isAssignedToMe(record)) return '';
-    return hasSubmittedCurrentRound(record) ? '我已提交' : '待我审查';
+  function canSee(record: Recordable): boolean {
+    if (identity.value.role !== 'joint') return true;
+    return visibleForJointUnit(record);
   }
 
   /** 是否能进审查页操作：主审在 审核中/联合审查中 可审；联审单位仅在指派且未提交时可审 */
@@ -171,21 +179,27 @@
   }));
 
   /**
-   * 列表数据：后端「待审查片区」（isApprove=2）＝ 填报单位新增填报的片区 → 过滤未提交 →
-   * 附前端审核状态。接口不可用 / 查不到数据时回退种子假数据（联调前空页兜底）。
+   * 列表数据：后端「待审查片区」（isApprove=2）＝ 各填报单位填报的片区 → 过滤未提交 →
+   * 按角色给可见范围（**主审=全部；联审单位=只显示被指派过联合审查的片区**）→ 附前端状态。
+   * 接口不可用 / 查不到数据时回退种子假数据（联调前空页兜底）。
    */
   async function fetchReviewRows(params: Recordable): Promise<{ list: ReviewRow[]; count: number }> {
     const { pageNo, pageSize, ...rest } = params ?? {};
     try {
       const page = await schemeFillPage({ ...rest, isApprove: '2', pageNo, pageSize });
-      const list = page.list.map((row) => ({ ...row, status: statusOf(row) })).filter(isSubmittedToReview);
+      const list = page.list
+        .map((row) => ({ ...row, status: statusOf(row) }))
+        .filter(isSubmittedToReview)
+        .filter(canSee);
       if (list.length || page.count) {
         return { list, count: list.length };
       }
     } catch {
       // 接口异常（后端未启动/无权限）→ 落到下面的假数据兜底
     }
-    return mockReviewPage(REVIEW_SEED_ROWS, params);
+    // 假数据兜底（联调前空页兜底）：同样按角色过滤（联审单位若没被指派过，列表自然为空）
+    const fallback = mockReviewPage(REVIEW_SEED_ROWS, params).list.filter(canSee);
+    return { list: fallback, count: fallback.length };
   }
 
   const [registerTable, { reload }] = useTable({
