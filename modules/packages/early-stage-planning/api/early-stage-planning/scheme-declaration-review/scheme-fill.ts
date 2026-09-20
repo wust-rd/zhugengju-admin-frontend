@@ -6,7 +6,9 @@
  * 与框架 defHttp 默认解包的 jeesite {result} 协议不同 —— 本层 unwrap() 统一处理
  * （同 expert-pool.ts 约定）。
  * 存储口径（按后端来；2026-09-15 起矢量改用 WKT，弃 TopoJSON）：
- *  - 七个文件位 + 概况图片/图册/实施方案 = 文件对象数组 [{name, url, objectKey, size}]
+ *  - 各文件位（片区策划方案/规划图表/片区体检报告/审批材料/其他附件 + 2026-09-18
+ *    待审查片区版新增的市政府批准认定材料/专家论证情况/区级联合审查意见/市级审查意见）
+ *    + 概况图片/图册/实施方案 = 文件对象数组 [{name, url, objectKey, size}]
  *    （上传走 POST /a/esp/file/upload，响应键 fileName 由本层归一为 name）；
  *  - 片区范围线 scopeLine / 项目矢量图斑 mapSpot = WKT 字符串
  *    （MULTIPOLYGON 文本，后端 JTS 生成、坐标无损，与 geometry 列存量格式一致），
@@ -127,7 +129,16 @@ export type EspSchemeFill = {
   schemePlanFiles?: EspSchemeFile[];
   chartFiles?: EspSchemeFile[];
   healthReportFiles?: EspSchemeFile[];
+  /** 审批材料（已批准片区版第 4 位）/ 市政府批准材料（待审查片区版第 8 位）：同一文件位两版语义相同 */
   approvalFiles?: EspSchemeFile[];
+  /** 市政府批准认定材料（2026-09-18 新增文件位，待审查片区版第 4 位；后端待加 field_code） */
+  govCertFiles?: EspSchemeFile[];
+  /** 专家论证情况（2026-09-18 新增文件位，待审查片区版第 5 位；后端待加 field_code） */
+  expertArgumentFiles?: EspSchemeFile[];
+  /** 区级联合审查意见（2026-09-18 新增文件位，待审查片区版第 6 位；后端待加 field_code） */
+  districtJointReviewFiles?: EspSchemeFile[];
+  /** 市级审查意见（2026-09-18 新增文件位，待审查片区版第 7 位；后端待加 field_code） */
+  cityReviewFiles?: EspSchemeFile[];
   otherFiles?: EspSchemeFile[];
   reportOrg?: string;
   reportTime?: string;

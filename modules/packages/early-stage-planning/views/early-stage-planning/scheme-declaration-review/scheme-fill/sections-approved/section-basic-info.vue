@@ -1,20 +1,23 @@
 <!--
-  填报页区块一：片区基本信息（对齐设计稿）
+  填报页区块一 · 已批准片区版（Tab① 已批准片区填报，isApprove=1 专用）
+
+  与待审查片区版的唯一字段差异：本版含「片区批次」（第一批/第二批，必填），
+  待审查版为「申报年份」（见 ../sections-reviewing/section-basic-info.vue）；
+  其余字段完全一致，为方便对照阅读刻意两份独立维护，不走复用分支。
 
   布局：垂直标签（label 在上）+ 两列栅格，概况/图片/范围/范围线通栏。
-  字段：片区名称* / 片区批次*（待审查片区为「申报年份」，年份选择，同存 batch 键）/
-  行政区* / 片区规模（公顷）* / 起止时间（年月区间）/
-  统筹主体 / 片区概况*（150字）/ 片区概况图片*（1-3张）/ 片区范围*（东至西至…）/
+  字段：片区名称* / 片区批次* / 行政区* / 片区规模（公顷）* / 起止时间（年月区间）/
+  统筹主体 / 片区概况*（150字）/ 片区概况图片（1张）/ 片区范围*（东至西至…）/
   片区范围线（GeoField：上传解析/地图绘制，WKT 存储）。
   起止时间：RangePicker 月份区间，经 fieldMapToTime 与 startTime/endTime 两个
   保存字段互转（回显自动组装区间，保存自动拆两键）。
-  后端已对接（modules/esp）：图片经 use-esp-file-list 真实上传 MinIO，
-  值为文件对象数组；范围线值经 GeoField 双向换算为 WKT 字符串，
-  两值经下方 defineExpose 覆写并入取值（导出不落原始 WKT）。
+  图片经 use-esp-file-list 真实上传 MinIO，值为文件对象数组；范围线值经
+  GeoField 双向换算为 WKT 字符串，两值经下方 defineExpose 覆写并入取值
+  （导出不落原始 WKT）。
 -->
 <template>
   <BasicForm @register="registerForm">
-    <!-- 片区概况图片：缩略卡上传（1-3 张，真实上传），值同步进表单字段 overviewImages -->
+    <!-- 片区概况图片：缩略卡上传（真实上传），值同步进表单字段 overviewImages -->
     <template #overviewImages>
       <div>
         <Upload
@@ -29,7 +32,7 @@
           @preview="onPreview"
           @change="onImagesChange"
         >
-          <div v-if="imageFileList.length < 3" class="flex flex-col items-center justify-center gap-2px text-gray-400">
+          <div v-if="!imageFileList.length" class="flex flex-col items-center justify-center gap-2px text-gray-400">
             <span class="text-20px leading-none">+</span>
             <span class="text-12px">上传图片</span>
           </div>
@@ -37,7 +40,7 @@
         <div class="mt-4px text-12px text-gray-400">上传图片（1张），支持常见图片格式</div>
       </div>
     </template>
-    <!-- 片区范围线：GeoField（上传解析/地图绘制，TopoJSON 存储；查看态只读） -->
+    <!-- 片区范围线：GeoField（上传解析/地图绘制，WKT 存储；查看态只读） -->
     <template #scopeLine>
       <GeoField v-model:value="scopeLine" :disabled="disabled" />
     </template>
@@ -45,15 +48,15 @@
   <!-- 缩略图点击预览弹层（替代 antd 新开页面默认行为） -->
   <ImagePreview :url="previewUrl" @close="previewUrl = ''" />
 </template>
-<script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionBasicInfo">
+<script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillApprovedSectionBasicInfo">
   import { ref, watch } from 'vue';
   import { Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
-  import GeoField from './geo-field.vue';
-  import ImagePreview from './image-preview.vue';
-  import { useEspFileList } from './use-esp-file-list';
-  import { useSectionForm } from './use-section-form';
+  import GeoField from '../components/geo-field.vue';
+  import ImagePreview from '../components/image-preview.vue';
+  import { useEspFileList } from '../components/use-esp-file-list';
+  import { useSectionForm } from '../components/use-section-form';
 
   /** 缩略图点击预览：拦截 Upload 默认新开页面，转弹窗展示 */
   const previewUrl = ref('');
@@ -62,12 +65,6 @@
   }
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
-
-  /**
-   * 申报年份模式：待审查片区（isApprove=2，新增或编辑）——「片区批次」替换为
-   * 「申报年份」（年份选择，值仍存 batch 键，后端无需感知差异）；已批准片区维持批次。
-   */
-  const APPLY_YEAR = String(props.data?.isApprove ?? '') === '2';
 
   /** 下拉选项（与列表页筛选一致；接口就绪后改为字典接口） */
   const DISTRICT_OPTIONS = ['汉阳区', '江岸区', '江汉区', '硚口区', '武昌区', '青山区', '洪山区'].map((d) => ({
@@ -79,22 +76,6 @@
   /** 通栏字段（占满整行） */
   const FULL_COL = { span: 24, md: 24, lg: 24 };
 
-  /** 批次/申报年份二选一（同一保存键 batch：已批准=第一批/第二批枚举；待审查=年份 YYYY） */
-  const BATCH_SCHEMA: FormSchema = APPLY_YEAR
-    ? {
-        label: '申报年份',
-        field: 'batch',
-        component: 'DatePicker',
-        componentProps: { picker: 'year', valueFormat: 'YYYY', style: 'width: 100%', placeholder: '如 2026' },
-      }
-    : {
-        label: '片区批次',
-        field: 'batch',
-        component: 'Select',
-        componentProps: { options: BATCH_OPTIONS, placeholder: '请选择', allowClear: true },
-        rules: [{ required: true, message: '请选择片区批次' }],
-      };
-
   const inputFormSchemas: FormSchema[] = [
     {
       label: '片区名称',
@@ -103,7 +84,13 @@
       componentProps: { maxlength: 100, placeholder: '请输入' },
       rules: [{ required: true, message: '请输入片区名称' }],
     },
-    BATCH_SCHEMA,
+    {
+      label: '片区批次',
+      field: 'batch',
+      component: 'Select',
+      componentProps: { options: BATCH_OPTIONS, placeholder: '请选择', allowClear: true },
+      rules: [{ required: true, message: '请选择片区批次' }],
+    },
     {
       label: '行政区',
       field: 'district',
@@ -144,7 +131,7 @@
       component: 'Upload',
       slot: 'overviewImages',
       colProps: FULL_COL,
-      rules: [{ required: true, type: 'array', message: '请上传片区概况图片（1-3张）' }],
+      rules: [{ required: true, type: 'array', message: '请上传片区概况图片' }],
     },
     {
       label: '片区范围',

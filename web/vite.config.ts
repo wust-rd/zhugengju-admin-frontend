@@ -63,8 +63,20 @@ export default defineConfig(async ({ command, mode }: ConfigEnv) => {
     server: {
       ...serverOptions,
       watch: {
-        // 与 vite 默认忽略(node_modules/.git 等)合并,减少 workspace 内产物/历史目录的无效事件
-        ignored: ['**/dist/**', '**/.history/**'],
+        // 与 vite 默认忽略(node_modules/.git 等)合并,减少 workspace 内产物/历史目录的无效事件。
+        // 后四条是给「原子写」兜底：AI 工具/编辑器保存时会在目标目录里建
+        //   .<文件名>.<pid>.<uuid>.tmpdir/<文件名>.tmp
+        // 这类瞬时临时目录 + 临时文件，chokidar 给它们挂 fs.watch 时在 Windows 上偶发 EBUSY，
+        // 而 FSWatcher 的 'error' 事件没人接管会直接把 dev server 进程带崩
+        // （现象：让 AI 改完代码后 dev server 静默退出、必须重启 dev）——忽略这些瞬时路径即可。
+        ignored: [
+          '**/dist/**',
+          '**/.history/**',
+          '**/*.tmpdir/**',
+          '**/.*.tmpdir/**',
+          '**/*.tmp',
+          '**/.*.tmp',
+        ],
       },
     },
     build: createBuildOptions(viteEnv),

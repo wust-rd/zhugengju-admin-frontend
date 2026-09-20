@@ -1,5 +1,12 @@
 <!--
-  填报页区块六：附件材料（对齐设计稿）
+  填报页区块六 · 已批准片区版（Tab① 已批准片区填报，isApprove=1 专用）
+
+  与待审查片区版的差异：本版为 5 位（片区策划方案/规划图表/片区体检报告/审批材料/
+  其他附件），待审查版按 2026-09-18 设计稿为 9 位（第 4 位不再是「审批材料/申报文件」，
+  改为「市政府批准认定材料」并新增专家论证/区级联合审查/市级审查/市政府批准材料，
+  见 ../sections-reviewing/section-attachment.vue）；两份独立维护不走复用分支。
+  两类片区互斥（is_approve 固定），第 4 位共用 approvalFiles 存储位（后端 approval_files
+  文件位；待审查版的「市政府批准材料」同用此位），仅标签随片区类型切换。
 
   资料上传区块：5 个具名附件位（配置见 ATTACH_SLOTS，均支持多文件）——
    - 片区策划方案*（pdf/doc/docx）/ 规划图表*（pdf/xls/xlsx/jpg/png）必填；
@@ -91,14 +98,14 @@
     </template>
   </div>
 </template>
-<script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionAttachment">
+<script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillApprovedSectionAttachment">
   import { reactive, ref } from 'vue';
   import { Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
-  import { fileColor, fileSizeText } from './file-display';
-  import type { EspUploadFile } from './use-esp-file-list';
-  import { useEspFileList } from './use-esp-file-list';
-  import type { SectionFormExposed } from './use-section-form';
+  import { fileColor, fileSizeText } from '../components/file-display';
+  import type { EspUploadFile } from '../components/use-esp-file-list';
+  import { useEspFileList } from '../components/use-esp-file-list';
+  import type { SectionFormExposed } from '../components/use-section-form';
   import type { EspSchemeFile } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
 
   const props = defineProps<{ data?: Recordable; disabled?: boolean }>();
@@ -158,7 +165,7 @@
   }
 
   defineExpose({
-    /** 必填红星仅表示重要性，暂不拦截保存；后端接口就绪后恢复注释中的校验逻辑 */
+    /** 附件暂不纳入提交必填校验（红星仅表示重要性）；需要卡附件时放开下方校验逻辑 */
     validate: async () => {
       // const missing = ATTACH_SLOTS.filter((item) => {
       //   const slot = uploadSlots.find((s) => s.item.field === item.field);

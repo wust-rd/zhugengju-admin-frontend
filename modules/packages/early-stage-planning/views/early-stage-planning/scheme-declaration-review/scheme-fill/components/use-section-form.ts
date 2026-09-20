@@ -43,13 +43,12 @@ export function useSectionForm(options: FormProps & { data?: Recordable }) {
   }
 
   /**
-   * 必填校验开关：当前表单红星仅表示字段重要性，不拦截保存（validate 恒通过）。
-   * 后端接口就绪需要恢复校验时，改为 true 即可（rules 均已保留在各区块 schema 中）。
+   * 必填校验：`validate` 恒为真实校验（各区块 schema 里的 rules 全部生效），
+   * **由调用方决定是否执行** —— 填报表单：暂存（草稿）不校验、提交逐区块校验
+   * （见 form-reviewing.vue 的 handleSave('draft'|'submit')）；查看/导出路径不调用 validate。
    */
-  const VALIDATE_ENABLED = false;
-
   const exposed: SectionFormExposed = {
-    validate: VALIDATE_ENABLED ? validate : async () => ({}),
+    validate,
     getFieldsValue,
     exportRows,
     setFieldsValueSilently: setFieldsValue,

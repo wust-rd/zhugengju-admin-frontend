@@ -8,13 +8,20 @@
    - 「新增」仅 Tab② 显示：Tab① 已批准片区为手动入库的存量数据，只查看/编辑，
      不可新增（后端也拒绝删除）；
    - 两 Tab 各自列布局：Tab① 批次列；Tab② 申报年份列（=batch，新增填报片区存年份）
-     + 状态列。审核状态四类（通过/未提交/审核中/退回修改）**后端暂无字段，前端 mock**
-     （按 id 哈希稳定分配 + 提交/重新提交写内存覆盖，刷新恢复；接口就绪后替换）；
-     操作按状态出：通过/审核中仅查看；未提交 加 编辑/提交/删除；退回修改 加
-     编辑/重新提交/修改意见；
+     + 状态列。审核状态**后端暂无字段，前端假数据**（未提交/审核中/退回修改/联合审查中/通过；
+「联合审查中」在填报单位侧仍显示「审核中」，见 fillSideStatusOf）
+     （../shared/review-mock.ts，与主审单位审查列表共用同一份状态；接口就绪后替换）：
+     填报单位「暂存」→ 未提交（可继续编辑），「保存」→ 审核中（填报单位只能查看、
+     主审单位在 …/scheme-review/list 可见）；
+     操作按状态出：未提交 查看/编辑/提交/删除；退回修改 查看/编辑/重新提交/修改意见（弹窗按时间线列出
+     **主审单位的审查记录** —— 填报单位只能看到主审意见）；审核中（含联合审查中）/通过 仅查看。
+     审查意见接口未建设前为前端假数据；
    - 操作列：查看/编辑按 id 拉详情回显；删除仅 Tab② 显示（后端拒绝删除存量
      已批准片区，Tab① 不给入口）。
-  新增 / 查看 / 编辑 均以组件方式切换到整页填报表单（form.vue），不新增路由与菜单注册；
+  新增 / 编辑 / 查看 以组件方式切换到整页表单（不走路由，不新增菜单注册）：
+  Tab① → form-approved.vue〔查看/编辑，后端已接〕；Tab② 新增/编辑 → form-reviewing.vue
+  〔申报年份 + 9 位附件材料版〕；Tab② 查看 → ../scheme-review/form.vue mode=view
+   （填报内容 + 审查记录：主审与各轮联合审查意见），与审查页共用同一份假数据；
   列表视图用 v-show 保留挂载（表格不卸载，搜索/分页状态与 reload 均不受切换影响）。
   注意：Tabs 需显式导入（本项目全局仅注册了 a-button/a-input，裸用 a-tabs 不会渲染）；
   contentClass 的 overflow-visible! 用于覆盖 PageWrapper 容器的 overflow-y:auto——
@@ -65,25 +72,45 @@
             </span>
           </span>
         </template>
-        <!-- 审核状态（Tab②；mock 分配见 script 的 statusKeyOf） -->
+        <!-- 审核状态（Tab②；前端假数据，口径与审查页共用 ../shared/review-mock.ts）：
+             「联合审查中」在填报单位看来仍显示为「审核中」（fillSideStatusOf） -->
         <template #reviewStatus="{ record }">
-          <span
-            class="text-13px font-500"
-            :style="{ color: REVIEW_STATUS[statusKeyOf(record) as keyof typeof REVIEW_STATUS].color }"
-          >
-            {{ REVIEW_STATUS[statusKeyOf(record) as keyof typeof REVIEW_STATUS].label }}
+          <span class="text-13px font-500" :style="{ color: REVIEW_STATUS[fillSideStatusOf(record)].color }">
+            {{ REVIEW_STATUS[fillSideStatusOf(record)].label }}
           </span>
         </template>
       </BasicTable>
     </div>
 
-    <!-- 填报视图：新增 / 查看 / 编辑 整页表单（组件切换，不走路由） -->
-    <SchemeForm v-if="formVisible" :record="formRecord" @success="handleSuccess" @back="handleBack" />
+    <!-- 整页表单（组件切换，不走路由）：
+         Tab① 已批准片区 → form-approved.vue（查看/编辑，后端已接）；
+         Tab② 待审查片区 → 查看走审查页的只读模式（scheme-review/form.vue mode=view：
+           填报内容 + 审查记录），新增/编辑走 form-reviewing.vue（申报年份/9 位附件材料版） -->
+    <ReviewForm
+      v-if="formVisible && formKind === 'view' && activeTab === 'reviewing'"
+      :record="formRecord"
+      mode="view"
+      viewer="fill"
+      @success="handleBack"
+      @back="handleBack"
+    />
+    <component
+      :is="activeTab === 'reviewing' ? SchemeFormReviewing : SchemeFormApproved"
+      v-else-if="formVisible"
+      :record="formRecord"
+      @success="handleSuccess"
+      @back="handleBack"
+    />
+
+    <!-- 修改意见：只显示主审单位的审查记录（业务口径：填报单位只能看到主审意见）；弹窗上下居中 -->
+    <Modal v-model:open="opinionOpen" title="修改意见" :width="800" :footer="null" centered>
+      <ReviewRecords :row="opinionRow" :show-joint="false" />
+    </Modal>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeFillList">
   import { ref, watch } from 'vue';
-  import { Tabs } from 'antdv-next';
+  import { Modal, Tabs } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -91,7 +118,11 @@
     schemeFillDelete,
     schemeFillPage,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
-  import SchemeForm from './form.vue';
+  import SchemeFormApproved from './form-approved.vue';
+  import SchemeFormReviewing from './form-reviewing.vue';
+  import ReviewForm from '../scheme-review/form.vue';
+  import ReviewRecords from '../shared/review-records.vue';
+  import { REVIEW_STATUS, fillSideStatusOf } from '../shared/review-mock';
 
   const { showMessage } = useMessage();
 
@@ -101,6 +132,12 @@
   /** 填报视图状态：formVisible=true 时整页显示表单，formRecord 为进入时记录快照（id + isView） */
   const formVisible = ref(false);
   const formRecord = ref<Recordable>({});
+  /** Tab② 表单形态：edit=新增/编辑（form-reviewing）/ view=查看（审查页只读模式，含审查记录） */
+  const formKind = ref<'edit' | 'view'>('edit');
+
+  /** 修改意见弹窗（Tab② 退回修改）：按时间线展示主审单位的审查记录（填报单位看不到联审意见） */
+  const opinionOpen = ref(false);
+  const opinionRow = ref<Recordable>({});
 
   /** 表格列 · Tab① 已批准片区（对齐设计稿；批次=第一批/第二批） */
   const approvedColumns: BasicColumn[] = [
@@ -131,34 +168,11 @@
   ];
 
   /**
-   * 审核状态（四类，对齐设计稿）。后端暂无状态字段（is_approve 仅批准标记 1/2），
-   * 前端 mock：按记录 id 哈希稳定分配（多数「通过」），提交/重新提交动作写入内存
-   * 覆盖表（刷新恢复）；后端状态接口就绪后以接口值为准并去掉本段。
+   * 审核状态四类（通过/未提交/审核中/退回修改）统一由前端假数据层提供
+   * （../shared/review-mock.ts，与主审单位审查列表共用同一份状态，保证两页口径一致）：
+   *  - 暂存 → 未提交（可编辑）；保存提交 → 审核中（填报单位只能查看、主审单位可见）；
+   *  - 未记录过的存量行用稳定哈希兜底，仅为演示保留，后端状态列就绪后删除。
    */
-  type ReviewStatusKey = 'passed' | 'unsubmitted' | 'reviewing' | 'returned';
-  const REVIEW_STATUS: Record<ReviewStatusKey, { label: string; color: string }> = {
-    passed: { label: '通过', color: '#52c41a' },
-    unsubmitted: { label: '未提交', color: '#f5222d' },
-    reviewing: { label: '审核中', color: '#1677ff' },
-    returned: { label: '退回修改', color: '#fa8c16' },
-  };
-
-  /** 内存状态覆盖（提交/重新提交后写入；仅本页会话有效） */
-  const statusOverrides = new Map<string, ReviewStatusKey>();
-
-  /** 字符串哈希 → 稳定 mock 状态（7 取模：0/1/2 为未提交/审核中/退回修改，其余通过） */
-  function mockStatusKey(record: Recordable): ReviewStatusKey {
-    const id = String(record.id ?? record.name ?? '');
-    let h = 0;
-    for (let i = 0; i < id.length; i++) {
-      h = (h * 31 + id.charCodeAt(i)) % 997;
-    }
-    return (['unsubmitted', 'reviewing', 'returned'] as const)[h % 7] ?? 'passed';
-  }
-
-  function statusKeyOf(record: Recordable): ReviewStatusKey {
-    return statusOverrides.get(String(record.id)) ?? mockStatusKey(record);
-  }
 
   /** 操作列 · Tab①：查看 / 编辑（存量片区不可新增不可删） */
   const approvedActionColumn: BasicColumn = {
@@ -169,20 +183,22 @@
     ],
   };
 
-  /** 操作列 · Tab②：按状态出操作——通过/审核中仅查看；未提交 加编辑/提交/删除；
-      退回修改 加编辑/重新提交/修改意见（提交类动作 mock：写内存状态 + 刷新） */
+  /**
+   * 操作列 · Tab②：按状态出操作（状态取填报单位口径，联合审查中视为审核中）——
+   *  - 未提交：查看 / 编辑 / 删除；
+   *  - 退回修改：查看 / 编辑 / **修改意见**（弹窗按时间线列出主审单位的审查记录）；
+   *  - 审核中（含联合审查中）/ 通过：仅查看（已提交，填报单位不可再编辑）。
+   * ⚠️ **提交只在「编辑」表单里做**（表单头部 暂存 / 提交），列表不再给「提交 / 重新提交」入口
+   * （业务确认：退回修改后必须进编辑页改完再提交，避免列表里原样重提）。
+   */
   const reviewingActionColumn: BasicColumn = {
-    width: 230,
+    width: 200,
     actions: (record: Recordable) => {
-      const base: Recordable[] = [{ label: '查看', onClick: () => handleForm({ ...record, isView: true }) }];
-      const status = statusKeyOf(record);
+      const base: Recordable[] = [{ label: '查看', onClick: () => handleView(record) }];
+      const status = fillSideStatusOf(record);
       if (status === 'unsubmitted') {
         base.push(
           { label: '编辑', onClick: () => handleForm({ ...record }) },
-          {
-            label: '提交',
-            popConfirm: { title: '确认提交审核？', confirm: () => handleSubmit(record, '已提交审核（演示）') },
-          },
           {
             label: '删除',
             color: 'error',
@@ -192,11 +208,7 @@
       } else if (status === 'returned') {
         base.push(
           { label: '编辑', onClick: () => handleForm({ ...record }) },
-          {
-            label: '重新提交',
-            popConfirm: { title: '确认重新提交审核？', confirm: () => handleSubmit(record, '已重新提交审核（演示）') },
-          },
-          { label: '修改意见', onClick: () => showMessage('演示：修改意见待后端接口（审批流程未建设）') },
+          { label: '修改意见', onClick: () => showOpinion(record) },
         );
       }
       return base;
@@ -260,17 +272,27 @@
     }
   });
 
-  /** 提交 / 重新提交（mock：后端无审核流转接口，仅写内存状态并刷新本页） */
-  async function handleSubmit(record: Recordable, tip: string) {
-    statusOverrides.set(String(record.id), 'reviewing');
-    showMessage(tip);
-    void reload();
-  }
-
-  /** 新增/查看/修改：切换到整页表单（组件形式，不走路由）；详情由 form.vue 按 id 拉取 */
+  /** 新增/编辑：切换到整页填报表单（组件形式，不走路由）；详情由对应表单文件按 id 拉取 */
   function handleForm(record: Recordable) {
+    formKind.value = 'edit';
     formRecord.value = record;
     formVisible.value = true;
+  }
+
+  /**
+   * 查看：Tab① 走已批准片区表单（form-approved 只读）；Tab② 走审查页只读模式
+   * （scheme-review/form.vue mode=view：填报内容 + 审查记录，含主审与联合审查意见）
+   */
+  function handleView(record: Recordable) {
+    formKind.value = 'view';
+    formRecord.value = activeTab.value === 'reviewing' ? { ...record } : { ...record, isView: true };
+    formVisible.value = true;
+  }
+
+  /** 修改意见：弹窗按时间线展示主审单位的审查记录（填报单位只能看到主审意见） */
+  function showOpinion(record: Recordable) {
+    opinionRow.value = { ...record };
+    opinionOpen.value = true;
   }
 
   /** 返回列表（取消/头部返回/详情加载失败） */

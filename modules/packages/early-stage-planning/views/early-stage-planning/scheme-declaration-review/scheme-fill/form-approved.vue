@@ -1,7 +1,11 @@
 <!--
-  市住更局 —— 策划方案填报（查看 / 新增 / 编辑 整页表单 · 编排骨架）
+  市住更局 —— 策划方案填报 · 已批准片区版（Tab① 已批准片区填报的 查看/编辑 表单）
 
-  由列表页（index.vue）以组件方式切换显示（不新增路由，菜单无需变更）。
+  由列表页（list.vue）按 Tab① 打开（component :is 切换，不新增路由）。
+  与待审查版（form-reviewing.vue）整体一致，仅两处不同：
+   - 片区基本信息用 sections-approved/ 版（含「片区批次」）；
+   - 附件材料第 4 位为「审批材料」。
+  后端已对接（modules/esp），本页为现役功能，谨慎改动。
   长表单拆为 6 个区块（各区块自持 BasicForm，见 components/section-*.vue）：
     1 片区基本信息 / 2 片区体检情况 / 3 片区功能策划 / 4 片区项目情况 /
     5 片区资金方案 / 6 附件材料 —— 顺序与内容见下方 SECTIONS 注册表。
@@ -15,12 +19,12 @@
   的 id），失败展示后端 msg 并停留；导出为「打印版式」PDF（export-form-pdf.ts：
   按各区块 exportRows 数据重排紧凑版式——两列字段表+图片网格+地图快照，
   多 tab 内容全量渲染，A4 避让分页图片不跨页）。
-  当前必填校验暂关闭——红星仅表示字段重要性，后端轻校验兜底
-  （见 use-section-form 的 VALIDATE_ENABLED）。
+  提交时逐区块必填校验（规则见各区块 schema 的 rules，红星即必填）；校验不过定位到
+  第一个问题区块并 toast。已批准存量片区不参与审批流转（提交只保存，不改状态）。
 -->
 <template>
   <div class="flex flex-col gap-16px" :style="{ '--section-scroll-mt': `${sectionScrollMt}px` }">
-    <!-- 头部：返回 + 标题 + 导出 / 保存（查看模式隐藏保存），滚动时吸顶 -->
+    <!-- 头部：返回 + 标题 + 导出 / 提交（查看模式隐藏提交按钮），滚动时吸顶 -->
     <div
       ref="barRef"
       class="sticky z-20 flex items-center gap-12px bg-white rd-8px px-16px py-12px shadow-sm"
@@ -39,7 +43,16 @@
           >
         </a-button>
       </Dropdown>
-      <a-button v-if="!isView" type="primary" :loading="saving" @click="handleSave">保存</a-button>
+      <!-- 提交：二次确认后保存（已批准存量片区不参与审批流转，状态不变） -->
+      <Popconfirm
+        v-if="!isView"
+        title="确认提交该片区填报信息？"
+        ok-text="确认提交"
+        cancel-text="取消"
+        @confirm="handleSave"
+      >
+        <a-button type="primary" :loading="saving">提交</a-button>
+      </Popconfirm>
     </div>
 
     <!-- 全部区块（详情拉取完成后渲染，保证各区块挂载回填初值完整；SECTIONS 驱动，xl 下右侧留出悬浮导航空间） -->
@@ -53,9 +66,9 @@
     <AnchorNav :sections="navSections" />
   </div>
 </template>
-<script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeFillForm">
+<script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeFillApprovedForm">
   import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
-  import { Dropdown } from 'antdv-next';
+  import { Dropdown, Popconfirm } from 'antdv-next';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
     schemeFillForm,
@@ -66,14 +79,15 @@
   import AnchorNav from './components/anchor-nav.vue';
   import { exportFormDocx, exportFormPdf } from './components/form-export';
   import type { SectionFormExposed } from './components/use-section-form';
-  import SectionBasicInfo from './components/section-basic-info.vue';
+  // 两处差异化区块取已批准版（批次/审批材料）；其余六个区块共用 components/
+  import SectionBasicInfo from './sections-approved/section-basic-info.vue';
+  import SectionAttachment from './sections-approved/section-attachment.vue';
   import SectionHealthCheck from './components/section-health-check.vue';
   import SectionFunctionPlan from './components/section-function-plan.vue';
   import SectionCityDesign from './components/section-city-design.vue';
   import SectionPlanAdjust from './components/section-plan-adjust.vue';
   import SectionProjectInfo from './components/section-project-info.vue';
   import SectionFundingPlan from './components/section-funding-plan.vue';
-  import SectionAttachment from './components/section-attachment.vue';
 
   const props = defineProps<{ record?: Recordable }>();
   const emit = defineEmits(['success', 'back']);
@@ -96,9 +110,7 @@
 
   onMounted(async () => {
     if (!record.id) {
-      // 新增：列表页仅在待审查 Tab② 提供入口，带 isApprove='2' —— 片区基本信息按
-      // 「申报年份」模式渲染（批次字段换成年份选择，值仍存 batch）；其余与编辑一致
-      formData.value = { isApprove: record.isApprove ?? '2' };
+      formData.value = {}; // 已批准片区无新增入口，此分支仅为兜底;
       return;
     }
     try {
@@ -160,6 +172,18 @@
     sectionRefs.set(id, inst);
   }
 
+  /**
+   * JeeSiteSelect 多选经 core useRuleFormItem 写回 formModel 的是逗号串（jeesite 平台
+   * 约定，配套 String 列存储），后端 List<String> 契约要数组 —— 回显未改动时是数组、
+   * 用户改动过后是逗号串，提交前统一归一
+   */
+  function toStrList(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value.filter((item) => item != null && item !== '');
+    }
+    return typeof value === 'string' && value ? value.split(',') : [];
+  }
+
   /** 保存：逐区块校验并收集值（首个未通过的区块滚动定位）→ 全量提交后端 */
   async function handleSave() {
     const values: Recordable = {};
@@ -183,14 +207,19 @@
     }
     saving.value = true;
     try {
-      // projects 行回显带后端生成的 id，保存契约无此键，提交前剥离
+      // projects 行回显带后端生成的 id，保存契约无此键，提交前剥离；
+      // funcTypes / projects[].fundSources 为多选 Select，归一为数组（见 toStrList）
       const payload = {
         ...values,
         id: record.id ? String(record.id) : '',
-        projects: (values.projects ?? []).map(({ id: _projectId, ...rest }: Recordable) => rest),
+        funcTypes: toStrList(values.funcTypes),
+        projects: (values.projects ?? []).map(({ id: _projectId, fundSources, ...rest }: Recordable) => ({
+          ...rest,
+          fundSources: toStrList(fundSources),
+        })),
       } as EspSchemeFill;
       const saved = await schemeFillSave(payload);
-      showMessage('保存成功');
+      showMessage('提交成功');
       emit('success', { ...saved, isNewRecord });
     } catch (error) {
       // 后端轻校验（同名片区/字数/时间序）等业务错误：展示 msg 并停留在表单
