@@ -121,14 +121,26 @@ export function loadAreas(batch: BatchKey): Promise<AreaCollection> {
 /** 项目图斑批次缓存 */
 const projectCache = new Map<BatchKey, Promise<ProjectCollection>>();
 
+/** 地图 symbol 标注可渲染字符：汉字/谚文/假名由引擎本地字形绘制；ASCII/拉丁扩展/罗马数字/
+    常用中英标点/带圈数字/全角字符有自托管 PBF（web/public/fonts/Noto Sans Regular，
+    与 basemapStyle.glyphs 的 range 文件一一对应）。其余字符一律剔除——缺 range 的字符
+    会使该瓦片的 symbol 文字整体渲染失败（引擎对缺失字形直接 throw） */
+const LABEL_UNSAFE_RE =
+  /[^\u0000-\u01FF\u0800-\u08FF\u2000-\u20FF\u2400-\u24FF\u3000-\u30FF\u4E00-\u9FFF\uAC00-\uD7A3\uFF00-\uFFFF]/g;
+
 /** 加载某批次项目图斑（全量约 529 行；缓存策略同 loadAreas。地图放大到项目层级、
-    或左侧列表点击片区聚焦时展示，样式参考投融建运 project-fills） */
+    或左侧列表点击片区聚焦时展示，样式参考投融建运 project-fills；
+    PJ_NAME 顺手做标注字符净化） */
 export function loadProjects(batch: BatchKey): Promise<ProjectCollection> {
   let p = projectCache.get(batch);
   if (!p) {
-    p = espMapProjects(batch === '全部' ? undefined : batch).then((rows) =>
-      toCollection(rows, (r) => r.P_UID ?? undefined, '项目'),
-    );
+    p = espMapProjects(batch === '全部' ? undefined : batch).then((rows) => {
+      const fc = toCollection(rows, (r) => r.P_UID ?? undefined, '项目');
+      for (const f of fc.features) {
+        if (f.properties.PJ_NAME) f.properties.PJ_NAME = f.properties.PJ_NAME.replace(LABEL_UNSAFE_RE, '');
+      }
+      return fc;
+    });
     projectCache.set(batch, p);
     p.catch(() => projectCache.delete(batch));
   }

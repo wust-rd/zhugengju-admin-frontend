@@ -72,6 +72,10 @@ function yztWmsTileUrls(service: { proxy: string; wmsLayer: string }): string[] 
 /** 底图样式：天地图电子地图（默认显示）+ 其余五底图（初始隐藏，由底图切换器控制互斥显隐） */
 export const basemapStyle: StyleSpecification = {
   version: 8,
+  // symbol 图层文字的字形来源：web/public/fonts 自托管 PBF（Noto Sans Regular，仅放非汉字
+  // 字符的 range 文件——汉字/谚文/假名由引擎 localIdeographFontFamily 本地绘制不走该服务）；
+  // BASE_URL 前缀兼容 tomcat 子路径（/vuePath）部署
+  glyphs: `${import.meta.env.BASE_URL}fonts/{fontstack}/{range}.pbf`,
   sources: {
     // 天地图 _w 系列（3857）；min/maxzoom 与 ../tianditu 的 _c 定义保持一致（z2~18，之上过采样）
     'basemap-tdt-vec': {

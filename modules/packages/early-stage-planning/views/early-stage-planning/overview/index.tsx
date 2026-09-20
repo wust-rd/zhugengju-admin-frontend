@@ -352,7 +352,7 @@ export default defineComponent({
                 {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素，TopoJSON/WKT 解码还原），批次切换 setData 刷新 */}
                 {/* 更新片区面：当前批次接口数据（筛选生效时仅命中要素），fill-color 按当前 tab 维度
                     match 着色（行政区划=批次双色 / 推进情况=三色 / 功能定位=首个编码色），左下角图例；
-                    项目图斑放大到 13 级自动显示，列表点击片区聚焦飞行并只显示其项目 */}
+                    项目图斑放大到 13 级自动显示并以 symbol 图层标注项目名，列表点击片区聚焦飞行并只显示其项目 */}
                 <AreaLayers
                   areas={mapAreas.value}
                   colorBy={regionKey.value}

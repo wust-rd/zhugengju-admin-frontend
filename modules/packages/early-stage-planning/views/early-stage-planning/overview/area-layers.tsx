@@ -9,6 +9,9 @@
  *  - 项目图斑：放大到 PROJECT_MINZOOM（13 级）自动显示视口内项目面，样式参考投融建运
  *    project-fills（按批次 紫/青，透明度 0.8）；左侧列表点击片区聚焦时飞到该片并放大越过
  *    该层级，项目按 minzoom 自然出现（不强制改图层层级/过滤）
+ *  - 项目名标注：symbol 图层（text-field = PJ_NAME），比图斑高一级显示（13 级图斑 /
+ *    14 级名称）并自动碰撞避让；非汉字字符（ASCII/全角/标点）走 basemapStyle.glyphs
+ *    自托管 PBF（web/public/fonts/Noto Sans Regular），汉字由引擎 localIdeographFontFamily 本地渲染
  * 数据（父级筛选后要素）或维度变化 → setData / setPaintProperty / setFilter 增量更新；
  * 左下角渲染当前维度图例。必须在 <VMap> 插槽内使用 —— useMap() 依赖 VMap 注入的地图上下文。
  */
@@ -30,6 +33,10 @@ const GRAY = '#8B9CB0';
 
 /** 项目图斑自动显示的最小层级（街道/片区尺度） */
 const PROJECT_MINZOOM = 13;
+
+/** 项目名标注显示层级：比图斑高一级——图斑刚出现时不叠名字，再放大一级才出，
+    避免过渡层级标签过密（聚焦飞行下限同步越过该层级，保证聚焦后能看到名字） */
+const PROJECT_LABEL_MINZOOM = PROJECT_MINZOOM + 1;
 
 /** 聚焦飞行的层级上限（小片区不至于贴脸）与越过项目层级的余量 */
 const FOCUS_ZOOM_MAX = 16.5;
@@ -78,6 +85,8 @@ const LINE_LAYER_ID = 'esp-areas-line';
 const HIGHLIGHT_LAYER_ID = 'esp-areas-highlight';
 const PROJECT_SOURCE_ID = 'esp-projects';
 const PROJECT_LAYER_ID = 'esp-projects-fill';
+/** 项目名标注（symbol，画在项目图斑之上，同 minzoom 门控） */
+const PROJECT_LABEL_LAYER_ID = 'esp-projects-label';
 
 /** 片区面选中态 paint 表达式（feature-state selected，方式与投融建运一致）：
     选中 → 填充变琥珀金 + 描边显示；未选中 → 维度配色 + 描边透明。
@@ -202,7 +211,8 @@ export const AreaLayers = defineComponent({
     );
 
     /** 项目图斑：数据就绪即补齐 source + fill 图层（画在片区面之上），已存在则 setData。
-        显示完全由 minzoom 控制——聚焦飞行放大越过该层级后自然出现，无需改图层状态 */
+        显示完全由 minzoom 控制——聚焦飞行放大越过该层级后自然出现，无需改图层状态；
+        项目名标注（symbol 图层）与图斑同层级门控，随 source 数据自然更新 */
     watch(
       [() => props.projects, map, isLoaded],
       ([projects, m, loaded]) => {
@@ -227,13 +237,35 @@ export const AreaLayers = defineComponent({
               'fill-opacity': 0.8,
             },
           });
+          // 项目名标注（symbol）：非汉字字符走 basemapStyle.glyphs 自托管 PBF（Noto Sans
+          // Regular），汉字由引擎本地字形渲染；text-allow-overlap 默认 false，引擎自动
+          // 碰撞避让（重叠标签让位，这是相对 DOM Marker 的核心优势）
+          m.addLayer({
+            id: PROJECT_LABEL_LAYER_ID,
+            type: 'symbol',
+            source: PROJECT_SOURCE_ID,
+            minzoom: PROJECT_LABEL_MINZOOM,
+            layout: {
+              'text-field': ['get', 'PJ_NAME'],
+              'text-font': ['Noto Sans Regular'],
+              // 随层级微放大（14 级 12px → 17 级 14px），长名单换行宽度 7em
+              'text-size': ['interpolate', ['linear'], ['zoom'], PROJECT_LABEL_MINZOOM, 12, 17, 14],
+              'text-max-width': 7,
+            },
+            paint: {
+              'text-color': '#FFFFFF',
+              // 光晕描边替代 Marker 的深色底，保证在任何底图/图斑色上可读
+              'text-halo-color': '#0f2b47',
+              'text-halo-width': 1.5,
+            },
+          });
         }
       },
       { immediate: true, flush: 'post' },
     );
 
-    /** 片区聚焦（列表点击）：飞到片区范围，目标层级下限越过项目显示层级（大片区也保证
-        飞到位后项目出现）、上限防小片区贴脸；取消聚焦不动视口（用户自行缩回） */
+    /** 片区聚焦（列表点击）：飞到片区范围，目标层级下限越过项目名标注层级（大片区也保证
+        飞到位后项目带名字出现）、上限防小片区贴脸；取消聚焦不动视口（用户自行缩回） */
     let lastFocus: FocusArea | null | undefined;
     watch(
       [() => props.focus, map, isLoaded],
@@ -243,7 +275,7 @@ export const AreaLayers = defineComponent({
         if (!focus) return;
         const cam = m.cameraForBounds(focus.bbox, { padding: 80 });
         if (!cam?.center || cam.zoom == null) return;
-        const zoom = Math.min(Math.max(cam.zoom, PROJECT_MINZOOM + 0.2), FOCUS_ZOOM_MAX);
+        const zoom = Math.min(Math.max(cam.zoom, PROJECT_LABEL_MINZOOM + 0.2), FOCUS_ZOOM_MAX);
         m.flyTo({ center: cam.center, zoom, duration: 900 });
       },
       { immediate: true, flush: 'post' },
@@ -270,7 +302,7 @@ export const AreaLayers = defineComponent({
     onBeforeUnmount(() => {
       const m = map.value;
       if (!m) return;
-      for (const id of [PROJECT_LAYER_ID, HIGHLIGHT_LAYER_ID, LINE_LAYER_ID, LAYER_ID]) {
+      for (const id of [PROJECT_LABEL_LAYER_ID, PROJECT_LAYER_ID, HIGHLIGHT_LAYER_ID, LINE_LAYER_ID, LAYER_ID]) {
         if (m.getLayer(id)) m.removeLayer(id);
       }
       for (const id of [PROJECT_SOURCE_ID, SOURCE_ID]) {
