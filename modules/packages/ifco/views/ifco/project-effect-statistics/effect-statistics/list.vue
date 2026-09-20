@@ -1,21 +1,21 @@
 <!--
   ifco —— 项目实施成效统计（/ifco/effect-statistics/list）
 
-  页面结构:Card 工具栏(填报年份/填报季度 | 导出[按钮保留,功能待做])
+  页面结构:Card 工具栏(填报年份/填报季度 | 导出)
   → 只读汇总表格:行 = 全部成效指标(含「一、～八、」节标题行,加粗不落数值),
     列 = 指标名称(固定) | 计量单位 | 代码 | 全武汉市 | 可见报送单位。
 
   口径(对接后端 modules/ifco):
   - 汇总全部在服务端算好(GET /ifco/effect/stat/data),本页直接渲染,无本地聚合;
-  - 单位列来自返回的 allowedUnits(已按数据权限过滤):区县账号 1 列,市局 13 列;
+  - 单位列来自返回的 allowedUnits(已按数据权限过滤);
   - 全武汉市列 = rows[].total(可见单位数量合计);单位列 = rows[].units[code];
   - 双值行(226/227/245/246)后端 a/b 两行,本页按 dualGroup 合并为一行
     「数 | 面积」二元组展示;
   - 空值与 0 置空(不补斜杠、不补 0)。
 
   菜单注册(菜单名称「项目成效统计」):
-   - 链接地址:/ifco/effect-statistics/list
-   - 组件位置:/ifco/effect-statistics/list(与链接地址一致)
+   - 链接地址:/ifco/project-effect-statistics/effect-statistics/list
+   - 组件位置:/ifco/project-effect-statistics/effect-statistics/list(与链接地址一致)
 -->
 <template>
   <PageWrapper content-full-height content-class="flex flex-col overflow-hidden">

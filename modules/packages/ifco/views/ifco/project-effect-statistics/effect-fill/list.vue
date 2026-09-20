@@ -21,8 +21,8 @@
   表格区域内滚动 scroll.y+固定指标名称列/Excel 导出）与进展填报一致，见 progress-fill/list.vue 头注释。
 
   菜单注册(菜单名称「项目成效填报」):
-   - 链接地址:/ifco/effect-fill/list
-   - 组件位置:/ifco/effect-fill/list(与链接地址一致)
+   - 链接地址:/ifco/project-effect-statistics/effect-fill/list
+   - 组件位置:/ifco/project-effect-statistics/effect-fill/list(与链接地址一致)
 -->
 <template>
   <PageWrapper content-full-height content-class="flex flex-col overflow-hidden">
@@ -201,7 +201,7 @@
     colWidths,
     showMessage,
   });
-  const renderers = createCellRenderers({ quarter, unitEditable: canFill, showMessage, editing });
+  const renderers = createCellRenderers({ quarter, unitEditable: canFill, editing });
   const table = createTableColumns({ unitData, editingColKey: editing.editingColKey, colWidths, renderers });
 
   const {

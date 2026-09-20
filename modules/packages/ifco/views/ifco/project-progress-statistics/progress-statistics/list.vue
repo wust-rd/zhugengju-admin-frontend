@@ -1,7 +1,7 @@
 <!--
   ifco —— 项目进展统计（/ifco/progress-statistics/list）
 
-  页面结构:Card 工具栏(填报年份/填报季度 | 导出[按钮保留,功能待做])
+  页面结构:Card 工具栏(填报年份/填报季度 | 导出)
   → RadioGroup(全武汉市 + 可见报送单位,按钮样式可换行)
   → 只读转置表格:行 = 指标,列 = 类目(与填报页总览同构:
     固定左四列 + 7 个简单类目单列 + 嵌套类目拆三个二级子列 + 最左合计)。
@@ -15,8 +15,8 @@
   - 只查询 + 导出,整页只读(无编辑/新增/带入/保存)。
 
   菜单注册(菜单名称「项目进展统计」):
-   - 链接地址:/ifco/progress-statistics/list
-   - 组件位置:/ifco/progress-statistics/list(与链接地址一致)
+   - 链接地址:/ifco/project-progress-statistics/progress-statistics/list
+   - 组件位置:/ifco/project-progress-statistics/progress-statistics/list(与链接地址一致)
 -->
 <template>
   <PageWrapper content-full-height content-class="flex flex-col overflow-hidden">
@@ -150,11 +150,6 @@
     await loadStat();
   });
 
-  /** 自动行(汇总/项目数)加粗只读 */
-  const sumRowOnCell = (record: StatRow) => ({
-    className: record.kind === 'sum' || record.kind === 'count' ? 'progress-stat-row-sum' : undefined,
-  });
-
   /** 未填内容与 0 一律置空(不补斜杠、不补 0) */
   function renderDisplay(value: number | string | undefined) {
     if (value === undefined || value === '' || value === 0) return '';
@@ -199,7 +194,6 @@
       width: widthFor(leaf.key, 150),
       align: 'right',
       onHeaderCell: resizableHeaderCell,
-      onCell: sumRowOnCell,
       render: (_value: unknown, record: StatRow) => renderDisplay(record.categories[leaf.key]),
     });
     /** 嵌套类目拆为三个二级子列(一级表头跨列),简单类目单列 */
@@ -220,7 +214,6 @@
         width: widthFor('grand', 130),
         align: 'right',
         onHeaderCell: resizableHeaderCell,
-        onCell: sumRowOnCell,
         render: (_value: unknown, record: StatRow) => renderDisplay(record.grand),
       },
       ...categoryColumns,
@@ -292,10 +285,6 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-  }
-  /* 自动行(汇总/项目数)仅加粗,不加背景色 */
-  .progress-stat-row-sum {
-    font-weight: 600;
   }
 
   .progress-stat-col-name {

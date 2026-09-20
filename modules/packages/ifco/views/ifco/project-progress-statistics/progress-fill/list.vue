@@ -23,8 +23,8 @@
   - 总览 tab 只读,按类目汇总:简单类目一列,嵌套类目拆三个二级子列,合计列固定第 4 列位。
 
   菜单注册(菜单名称「项目进展填报」):
-   - 链接地址:/ifco/progress-fill/list
-   - 组件位置:/ifco/progress-fill/list(与链接地址一致)
+   - 链接地址:/ifco/project-progress-statistics/progress-fill/list
+   - 组件位置:/ifco/project-progress-statistics/progress-fill/list(与链接地址一致)
   指标清单与汇总口径见 @jeesite/ifco/api/ifco/progress-fill,Excel 导出见同目录 export-excel.ts。
 -->
 <template>
@@ -261,7 +261,7 @@
     colWidths,
     showMessage,
   });
-  const renderers = createCellRenderers({ quarter, unitEditable: canFill, showMessage, editing });
+  const renderers = createCellRenderers({ quarter, unitEditable: canFill, editing });
   const table = createTableColumns({
     activeLeaf,
     isOverview,

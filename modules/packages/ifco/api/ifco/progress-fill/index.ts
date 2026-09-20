@@ -240,7 +240,7 @@ function adaptProject(vo: FillProjectVo): ProjectColumn {
     if (v === null || v === '' || v === undefined) continue;
     values[k] = v;
   }
-  return { key: vo.id, name: vo.name, imported: vo.imported, values };
+  return { key: vo.id, id: vo.id, name: vo.name, imported: vo.imported, values };
 }
 
 /** 一周期一单位的填报数据（前端形态，含 broughtIn 标记） */

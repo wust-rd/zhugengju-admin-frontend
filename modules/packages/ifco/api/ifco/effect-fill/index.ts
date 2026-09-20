@@ -280,6 +280,7 @@ export async function loadEffectFillData(
   const dualGroups = new Set(EFFECT_INDICATORS.filter((item) => item.dual).map((item) => item.key));
   const projects: ProjectColumn[] = (vo.projects ?? []).map((p) => ({
     key: p.id,
+    id: p.id,
     name: p.name,
     imported: p.imported,
     values: mergeDualValues(p, dualGroups),
