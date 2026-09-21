@@ -12,7 +12,7 @@ const FROST_SHELL: CSSProperties = {
 };
 
 /**
- * 实施后评估弹窗：与图册弹窗结构/内容一模一样，独立文件（不复用，方便自行修改）
+ * 更新后评估弹窗：与图册弹窗结构/内容一模一样，独立文件（不复用，方便自行修改）
  *
  * 用法（TSX）：
  * <PostEvaluationModal
@@ -109,7 +109,7 @@ export const PostEvaluationModal = defineComponent({
                     WebkitTextFillColor: 'transparent',
                   }}
                 >
-                  实施后评估
+                  更新后评估
                 </div>
 
                 {/* 下载按钮 */}

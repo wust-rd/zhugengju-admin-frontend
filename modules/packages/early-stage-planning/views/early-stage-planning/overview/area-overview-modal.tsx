@@ -4,7 +4,8 @@
  * 结构：标题图 → 相框（片区概况图片垫底 + 相框覆盖层；无图显示「暂无图片」占位）
  * → 统计卡片 → 详细信息列表 → 查看详情按钮
  * 内容由 area prop（接口片区行数据）驱动；概况图片取方案填报的 overview_images 首图
- * （schemeFill 表单接口按片区名定位 a_uid → id → form）；
+ * （loadSchemeFill 共享两跳加载 + auid 级缓存，与详情页同源——点开本面板即预热，
+ * 进详情页不重复请求）；
  * 点击关闭按钮或地图空白处由父级收起。
  * 「查看详情」只 emit('detail')，跳转/切换由看板页负责（见 overview/index.tsx 的 openAreaDetail）。
  */
@@ -13,29 +14,8 @@ import headerImg from '@jeesite/assets/images/display/plan/area-overview-modal-h
 import pictureBoxImg from '@jeesite/assets/images/display/plan/picture-box.webp';
 import arrowImg from '@jeesite/assets/images/display/plan/arrow.png';
 import type { EspMapAreaRow } from '@jeesite/early-stage-planning/api/early-stage-planning/esp-map';
-import {
-  schemeFillForm,
-  schemeFillPage,
-} from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
 import { dash, fmtAreaHa } from './area-format';
-
-/** 片区概况图缓存（a_uid → 图片 url；null = 无图；避免重复两跳请求） */
-const overviewImgCache = new Map<string, string | null>();
-
-/** 拉取片区概况图：page 按名称模糊查 → a_uid 精确匹配拿 id → form 取 overview_images 首图 */
-async function fetchOverviewImg(auid: string, name: string): Promise<string | null> {
-  const { list } = await schemeFillPage({ name, pageNo: 1, pageSize: 10 });
-  const row = list.find((r) => r.aUid === auid || r.code === auid);
-  if (!row) {
-    // 调试：联调完可删
-    console.log('[esp-map] 片区填报记录未找到（无图片等填报数据）', { auid, name });
-    return null;
-  }
-  const form = await schemeFillForm(row.id);
-  // 调试：图片链接等填报字段都在这里（overviewImages / problemImages 等，url 为 MinIO 直链）；联调完可删
-  console.log(`[esp-map] 片区填报详情（${form.name ?? name}，含图片链接）`, form);
-  return form.overviewImages?.[0]?.url ?? null;
-}
+import { loadSchemeFill } from './area-info';
 
 /** 列表分隔线渐变 */
 const DIVIDER_GRADIENT =
@@ -60,20 +40,14 @@ export const AreaOverviewModal = defineComponent({
     /** 当前片区概况图（null = 无图，相框内显示「暂无图片」占位） */
     const overviewImg = shallowRef<string | null>(null);
 
-    // 切换片区时拉取该片区概况图（缓存去重；失败/无图置 null → 暂无图片）
+    // 切换片区时拉取该片区概况图（共享缓存去重；失败/无图置 null → 暂无图片）
     watch(
       () => props.area.A_UID,
       (auid) => {
-        const cached = overviewImgCache.get(auid);
-        if (cached !== undefined) {
-          overviewImg.value = cached;
-          return;
-        }
         overviewImg.value = null;
-        fetchOverviewImg(auid, props.area.AREA_NAME ?? '')
-          .then((url) => {
-            overviewImgCache.set(auid, url);
-            if (props.area.A_UID === auid) overviewImg.value = url;
+        loadSchemeFill(auid, props.area.AREA_NAME ?? '')
+          .then((form) => {
+            if (props.area.A_UID === auid) overviewImg.value = form?.overviewImages?.[0]?.url ?? null;
           })
           .catch(() => {});
       },

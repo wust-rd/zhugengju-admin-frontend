@@ -40,6 +40,10 @@ export type PolygonCollection<R> = {
 /** 片区 FeatureCollection */
 export type AreaCollection = PolygonCollection<EspMapAreaRow>;
 
+/** 片区要素（properties = 接口行去 geometry + FUNC_FIRST 派生属性；geometry 为解码后 MultiPolygon）。
+    详情页/右侧抽屉各 tab 的片区数据口径：完整要素一并下传（含 geometry），消费方各取所需 */
+export type AreaFeature = AreaCollection['features'][number];
+
 /** 项目图斑 FeatureCollection */
 export type ProjectCollection = PolygonCollection<EspMapProjectRow>;
 

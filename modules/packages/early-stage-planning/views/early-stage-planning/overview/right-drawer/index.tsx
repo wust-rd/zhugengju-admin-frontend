@@ -1,14 +1,24 @@
 import { computed, defineComponent, onMounted, onUnmounted, ref, watch, type CSSProperties, type PropType } from 'vue';
 
+import type { AreaInfo } from '../area-info';
 import { BasicInfo } from './basic-info';
+import { CityDesign } from './city-design';
 import { FeaturePlan } from './feature-plan';
-import { FundPlan } from './fund-plan';
 import { PhysicalExam } from './physical-exam';
+import { PlanAdjust } from './plan-adjust';
 import { PostEvaluation } from './post-evaluation';
 import { ProjectInfo } from './project-info';
 
 /** 抽屉 Tab 配置（导出：左侧展示面板 / 详情页联动时共用同一份口径） */
-export const DRAWER_TABS = ['基本情况', '体检情况', '功能策划', '项目情况', '资金方案', '实施后评估'] as const;
+export const DRAWER_TABS = [
+  '基本情况',
+  '体检情况',
+  '功能策划',
+  '城市设计',
+  '规划调整',
+  '项目情况',
+  '更新后评估',
+] as const;
 export type DrawerTabLabel = (typeof DRAWER_TABS)[number];
 
 /** 默认高亮区块（非受控模式的初值） */
@@ -19,9 +29,10 @@ const TAB_COMPONENTS = {
   基本情况: BasicInfo,
   体检情况: PhysicalExam,
   功能策划: FeaturePlan,
+  城市设计: CityDesign,
+  规划调整: PlanAdjust,
   项目情况: ProjectInfo,
-  资金方案: FundPlan,
-  实施后评估: PostEvaluation,
+  更新后评估: PostEvaluation,
 };
 
 /* ---------- 交互参数（可调） ---------- */
@@ -58,6 +69,8 @@ export const RightDrawer = defineComponent({
   props: {
     /** 受控高亮区块（可选）：传入即由父级驱动；不传则内部自持 */
     activeTab: { type: String as PropType<DrawerTabLabel>, default: undefined },
+    /** 当前片区完整数据（图斑要素 + 填报表单含图片直链，form 可 null）：透传给六个 tab 消费 */
+    area: { type: Object as PropType<AreaInfo>, required: true },
   },
   setup(props, { emit }) {
     /** 非受控模式下的高亮区块（受控时以 activeTab prop 为准） */
@@ -152,7 +165,7 @@ export const RightDrawer = defineComponent({
 
       if (activeTab.value === current) return; // 高亮未变化：不做后续滚动
       setActiveTab(current);
-      scrollActiveTabIntoView();
+      scrollActiveTabIntoView(current);
     };
 
     /** 点击 Tab：平滑滚动到对应内容区块 */
@@ -173,10 +186,11 @@ export const RightDrawer = defineComponent({
       }, SCROLL_LOCK_MS);
     };
 
-    /** 点击 Tab：切高亮（scrollToTab 内的 setActiveTab 统一写入）+ 滚动 + 保证高亮项在 Tab 栏可见 */
+    /** 点击 Tab：切高亮（scrollToTab 内的 setActiveTab 统一写入）+ 滚动 + 把被点的 tab
+        居中（显式传 tab，受控模式下不等父级回传，点哪就居中哪） */
     const onTabClick = (tab: DrawerTabLabel) => {
       scrollToTab(tab);
-      scrollActiveTabIntoView();
+      scrollActiveTabIntoView(tab);
     };
 
     /**
@@ -188,17 +202,20 @@ export const RightDrawer = defineComponent({
       (tab) => {
         if (!tab || tab === innerTab.value) return;
         scrollToTab(tab);
-        scrollActiveTabIntoView();
+        scrollActiveTabIntoView(tab);
       },
     );
 
     /** 选中 tab 滚到 Tab 栏居中（尽量居中）：不判断「是否可见」——否则点到视口右缘的
         tab 时它原地不动，下一个 tab 仍在屏幕外点不到；两侧空间不足时 scrollLeft 的
-        0/最大值边界自然夹住，居中到头的项再点也不会晃动 */
-    const scrollActiveTabIntoView = () => {
+        0/最大值边界自然夹住，居中到头的项再点也不会晃动。
+        ★ tab 必须显式传入：受控模式（详情页 v-model:activeTab）下点击后 props.activeTab
+        要等父级重渲染才更新，这里读 activeTab.value 会拿到「上一个」tab，表现为点了新
+        tab 却把旧 tab 滚到中间（非受控模式 innerTab 同步更新，故只有受控模式出错） */
+    const scrollActiveTabIntoView = (tab: DrawerTabLabel = activeTab.value) => {
       const bar = tabBarRef.value;
       if (!bar) return;
-      const el = getTabEl(activeTab.value);
+      const el = getTabEl(tab);
       if (!el) return;
       const target = el.offsetLeft - (bar.clientWidth - el.offsetWidth) / 2;
       bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
@@ -246,7 +263,7 @@ export const RightDrawer = defineComponent({
             const TabContent = TAB_COMPONENTS[tab];
             return (
               <section key={tab} data-tab={tab} class="">
-                <TabContent />
+                <TabContent area={props.area} />
               </section>
             );
           })}
