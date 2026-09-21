@@ -6,4 +6,6 @@ export type StepItem = {
   title: string;
   description?: string;
   status?: StepStatus;
+  /** 禁用（不可点击进入；置灰降透明度）：用于按业务阶段限制可进入的步骤页签 */
+  disabled?: boolean;
 };

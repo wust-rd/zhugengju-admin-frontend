@@ -8,10 +8,13 @@
      list.vue 在打开前经 setDrawerProps 设置（硬性规则，动画中翻转会首击不弹）。
 
   抽屉标题 = 查看/新增/编辑 · 项目名 + 当前项目状态 Tag（已退出=灰实心、
-  已提交=蓝实心、待办=蓝描边）。已退出项目在步骤条上方以 bg-gray-100 灰条
+  已入库=蓝实心、待办=蓝描边）。已退出项目在步骤条上方以 bg-gray-100 灰条
   只读展示 退出环节/退出时间/退出原因（不占表单分区）。
   四步流转步骤条（@jeesite/ui 的 Stepper 兼页签：策划库入库→策划转储备→
   储备转实施→已实施入库；已退出整条置灰；打开抽屉固定落步骤①）：
+  步骤点亮按项目所处库开放——策划库=①②，储备库/实施库=①②③（步骤④恒不可点，
+  已退出按退出环节映射）；储备库起步骤①②只读（表单禁用、上传/审查块只读），
+  仅步骤③可编辑：
   ① 策划库入库 = 基本信息表单；② 策划转储备 = 审查文件表单（六 FormGroup 分区：
   立项审批或核准备案文件/国土空间规划符合情况/项目实施方案/其他论证材料/
   项目红线范围/审查结果，插槽承载 Upload 与 ReviewBlock，核对清单=五材料分区）；③ 储备转实施 =
@@ -29,10 +32,12 @@
    - 编辑权限（业务规则）：「不可修改」清单字段仅策划库可编辑，转储备库后锁定
      （identityLocked）；自动字段（项目编号/总体投资估算/入库时间/带出两字段）恒只读。
 
-  当前后端尚未介入：保存仅做表单校验后关闭抽屉。
+  当前后端尚未介入：页脚=取消/暂存/申请转库（查看态仅关闭）——暂存=校验通过后
+  关抽屉（未持久化）；申请转库=校验通过后二次确认，项目状态置审核中（内存态，
+  新增记录以策划库/审核中落进内存仓库）。
 -->
 <template>
-  <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer" @ok="handleSubmit">
+  <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer">
     <template #title>
       <span>{{ getTitle }}</span>
       <Tag v-if="record.status" v-bind="statusTagProps(record.status)" style="border-radius: 10px" class="ml-2">
@@ -91,7 +96,7 @@
           <template #projectApprovalOrFilingFileList>
             <div class="text-14px text-black mb-4">政府投资项目上传立项审批文件，企业投资项目请上传核准或备案文件</div>
             <Upload
-              v-if="!isView"
+              v-if="!formDisabled"
               v-model:file-list="approvalOrFilingFileList"
               class="mt-8px"
               multiple
@@ -116,7 +121,7 @@
           <!-- 国土空间规划符合情况：上传（多文件不限量，与立项审批同款交互） -->
           <template #territorialSpacePlanFileList>
             <Upload
-              v-if="!isView"
+              v-if="!formDisabled"
               v-model:file-list="territorialSpacePlanFileList"
               multiple
               :before-upload="() => false"
@@ -140,7 +145,7 @@
           <!-- 项目实施方案：上传（多文件不限量，与前两区同款交互） -->
           <template #projectImplementationPlanFileList>
             <Upload
-              v-if="!isView"
+              v-if="!formDisabled"
               v-model:file-list="projectImplementationPlanFileList"
               multiple
               :before-upload="() => false"
@@ -164,7 +169,7 @@
           <!-- 其他论证材料：文物保护/环评是否 + 上传附件（与立项审批同款交互） -->
           <template #otherArgumentFileList>
             <Upload
-              v-if="!isView"
+              v-if="!formDisabled"
               v-model:file-list="otherArgumentFileList"
               multiple
               :before-upload="() => false"
@@ -192,7 +197,7 @@
               v-model:file-name="locationFileName"
               :parse-file="parseGeoLocationFile"
               :geometry-types="['polygon']"
-              :disabled="isView"
+              :disabled="formDisabled"
             />
           </template>
           <!-- 联合审查机构审查（第一次审查）：行业主管部门（切换）+ 责任部门（市住更局） -->
@@ -202,7 +207,7 @@
               v-model:responsibility="responsibilityReview"
               :sections="REVIEW_SECTIONS"
               :org-list="reviewOrgList"
-              :disabled="isView"
+              :disabled="formDisabled"
             />
           </template>
         </BasicForm>
@@ -283,11 +288,20 @@
     <Transition :name="stageSlideName">
       <div v-show="activeStage === 3"></div>
     </Transition>
+
+    <!-- 页脚：查看态仅关闭；编辑/新增 = 取消/暂存/申请转库（申请转库带二次确认） -->
+    <template #footer>
+      <a-button class="mr-2" @click="closeDrawer"> {{ isView ? '关闭' : '取消' }} </a-button>
+      <template v-if="!isView">
+        <a-button class="mr-2" @click="handleSaveDraft"> 暂存 </a-button>
+        <a-button type="primary" @click="handleApplyTransfer"> 申请转库 </a-button>
+      </template>
+    </template>
   </BasicDrawer>
 </template>
 <script lang="ts" setup name="ViewsIfcoProjectLibraryManagementProjectManagementForm">
   import { computed, ref, watch } from 'vue';
-  import { Input, Tag, Upload } from 'antdv-next';
+  import { Input, Modal, Tag, Upload } from 'antdv-next';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import type { FormActionType } from '@jeesite/core/components/Form/src/types/form';
   import { Button } from '@jeesite/core/components/Button';
@@ -307,6 +321,7 @@
     IMPLEMENT_ORG_LIST,
     INDUSTRY_SUPERVISION_DEPT_LIST,
     LIBRARY_LABELS,
+    PROJECTS,
     PROJECT_AFFILIATION_OPTIONS,
     RENEWAL_AREA_BATCH_OPTIONS,
     RENEWAL_AREA_BATCH_LABEL,
@@ -315,6 +330,7 @@
     IMPL_REVIEW_SECTIONS,
     REVIEW_SECTIONS,
     SIX_BRING_TYPE_OPTIONS,
+    applyTransfer,
     emptyImplReviewResults,
     emptyReviewResults,
     parseGeoLocationFile,
@@ -339,6 +355,9 @@
 
   /** 编辑权限：项目转到储备库及之后，「不可修改」清单字段锁定（策划库内可编辑） */
   const identityLocked = ref(false);
+
+  /** 步骤①②（基本信息/审查文件）只读：查看态或已转出策划库（储备库起前两步骤只读、仅步骤③可编辑） */
+  const formDisabled = computed(() => isView.value || identityLocked.value);
 
   /** 当前项目归属（条件必填/片区联动用；随表单选择实时更新） */
   const currentAffiliation = ref<ProjectAffiliation | ''>('');
@@ -410,7 +429,19 @@
   /** 三段生命周期库（已退出项目按「退出环节」映射走过的步骤用） */
   const STAGE_ORDER: LibraryKey[] = ['planning', 'reserve', 'implementing'];
 
-  /** 步骤页签指针：打开抽屉固定落在步骤①（策划库入库） */
+  /**
+   * 各库可点亮的步骤（步骤条页签控制）：按项目所处库开放走过的生命周期步骤——
+   * 策划库=①②，储备库/实施库=①②③，步骤④恒不可点；已退出按退出环节映射；新增视为策划库
+   */
+  const accessibleStages = computed<number[]>(() => {
+    const library =
+      (record.value.library === 'exited' ? record.value.exitedFrom : record.value.library) ?? 'planning';
+    const last = STAGE_ORDER.indexOf(library as LibraryKey);
+    const end = (last >= 0 ? last : 0) + 1;
+    return Array.from({ length: end }, (_, index) => index);
+  });
+
+  /** 步骤页签指针：打开抽屉固定落在步骤①（策划库入库）；退出信息在步骤条上方灰条展示，不走表单 */
   const activeStage = ref(0);
 
   /** 步骤内容进入方向：切到右侧步骤=自右滑入（stage-left），反向 stage-right */
@@ -421,15 +452,17 @@
   });
 
   const stepItems = computed<StepItem[]>(() => {
+    const disabledOf = (index: number) => !accessibleStages.value.includes(index);
     // 已退出：如实表达走过的步骤（退出前所处库之前的=灰勾、其余灰数字），整条无强调色
     if (isExited.value) {
       const exitIndex = STAGE_ORDER.indexOf(record.value.exitedFrom ?? 'implementing');
       return STAGE_TITLES.map((title, index) => ({
         title,
         status: index < exitIndex ? ('finish' as const) : ('wait' as const),
+        disabled: disabledOf(index),
       }));
     }
-    // 在库/新增：当前查看的步骤为强调色，之前的常规完成态，之后的灰色
+    // 在库/新增：当前查看的步骤为强调色，之前的常规完成态，之后的灰色；未走到的步骤不可点亮
     return STAGE_TITLES.map((title, index) => ({
       title,
       status:
@@ -438,6 +471,7 @@
           : index < activeStage.value
             ? ('finish' as const)
             : ('wait' as const),
+      disabled: disabledOf(index),
     }));
   });
 
@@ -883,7 +917,7 @@
     },
   ];
 
-  const [registerReviewForm, { setFieldsValue: setReviewFieldsValue }] = useForm({
+  const [registerReviewForm, { setFieldsValue: setReviewFieldsValue, setProps: setReviewProps }] = useForm({
     labelWidth: 180,
     schemas: reviewFormSchemas,
     baseColProps: { md: 24, lg: 24 },
@@ -934,11 +968,18 @@
       colProps: { md: 24, lg: 12 },
     },
     {
-      label: '计划开完工时间',
-      field: 'implPlanDuration',
-      component: 'RangePicker',
+      label: '计划开工时间',
+      field: 'implPlanStartDate',
+      component: 'DatePicker',
       componentProps: { valueFormat: 'YYYY-MM-DD', style: 'width: 100%' },
-      colProps: { md: 24, lg: 24 },
+      colProps: { md: 24, lg: 12 },
+    },
+    {
+      label: '计划完工时间',
+      field: 'implPlanEndDate',
+      component: 'DatePicker',
+      componentProps: { valueFormat: 'YYYY-MM-DD', style: 'width: 100%' },
+      colProps: { md: 24, lg: 12 },
     },
     {
       label: '规划调整情况',
@@ -1017,7 +1058,8 @@
     setImplFieldsValue({
       implConditionReady: record.value.implConditionReady ?? '',
       implYearPlanInvest: record.value.implYearPlanInvest,
-      implPlanDuration: record.value.implPlanDuration ?? [],
+      implPlanStartDate: record.value.implPlanStartDate,
+      implPlanEndDate: record.value.implPlanEndDate,
       implInvolvePlanAdjustment: record.value.implInvolvePlanAdjustment ?? '',
       implPassedCommitteeReview: record.value.implPassedCommitteeReview ?? '',
       implFundChannelSettled: record.value.implFundChannelSettled ?? '',
@@ -1117,29 +1159,57 @@
       remarks: record.value.remarks ?? '',
       inLibraryDate: record.value.inLibraryDate ?? '',
     });
-    // 查看模式只禁用表单（抽屉体内安全）；抽屉级 showFooter 已由 list.vue 打开前设置
-    await setProps({ disabled: isView.value });
+    // 步骤①②（基本信息/审查文件）：查看态或已转出策划库均只读；步骤③仅查看态只读（储备库起可编辑）
+    await setProps({ disabled: formDisabled.value });
+    setReviewProps({ disabled: formDisabled.value });
     setImplProps({ disabled: isView.value });
     setDrawerProps({ loading: false });
   });
 
-  async function handleSubmit() {
-    if (isView.value) {
-      closeDrawer();
-      return;
-    }
-    let data: any;
+  /** 校验基本信息表单；未通过时提示并返回 undefined */
+  async function validateOrNotify(): Promise<Recordable | undefined> {
     try {
-      data = await validate();
+      return await validate();
     } catch (error: any) {
       if (error && error.errorFields) {
         showMessage(error.message || '请完善必填项');
       }
-      return;
+      return undefined;
     }
-    // TODO: 后端接入后在此调用保存接口（暂存/提交）
-    setTimeout(closeDrawer);
+  }
+
+  /** 暂存：表单校验通过即关抽屉（本地演示，未持久化） */
+  async function handleSaveDraft() {
+    const data = await validateOrNotify();
+    if (data === undefined) return;
+    // TODO: 后端接入后在此调用保存接口（暂存）
+    showMessage('暂存成功（本地演示，未持久化）');
+    closeDrawer();
     emit('success', data);
+  }
+
+  /** 申请转库：先过表单校验，再二次确认；确认后项目状态置审核中（内存态，刷新恢复） */
+  async function handleApplyTransfer() {
+    const data = await validateOrNotify();
+    if (data === undefined) return;
+    Modal.confirm({
+      title: '申请转库',
+      content: '申请后项目将进入「审核中」，由行业主管部门与责任部门审核，确认申请吗？',
+      okText: '确认申请',
+      cancelText: '取消',
+      onOk: () => {
+        // TODO: 后端接入后在此调用申请转库接口
+        if (record.value.isNewRecord) {
+          // 新增记录直接申请：以策划库/审核中落进内存仓库（编号系统自动生成，此处留空）
+          PROJECTS.push({ ...record.value, ...data, library: 'planning', status: '审核中' } as ProjectLibraryItem);
+        } else {
+          applyTransfer(record.value);
+        }
+        showMessage('已申请转库，项目进入审核中（本地演示，未持久化）');
+        closeDrawer();
+        emit('success', data);
+      },
+    });
   }
 </script>
 <style>

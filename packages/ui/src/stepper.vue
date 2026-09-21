@@ -11,6 +11,7 @@
   不参与强调。
 
   兼作页签：每项可点击，v-model:active 绑定选中下标（步骤条与内容页签联动）。
+  disabled 项不可点击进入（置灰降透明度），用于按业务阶段限制可进入的步骤。
   选中态：圆圈泛荧光 shadow；标题变实底白字胶囊（统一 px-8px，未选中背景
   透明，切换不跳动）。选中态与 status 语义独立叠加。高亮色由 tone 决定：
   blue（默认，在库项目）= 蓝 shadow + 蓝底；gray（如已退出项目）= 灰 shadow + 灰底。
@@ -20,7 +21,11 @@
     <div v-for="(step, index) in steps" :key="`${index}-${step.title}`" class="flex min-w-0 flex-1 items-start">
       <!-- 与上一环节的连线（首项无）；两侧连线均 flex-1，末项的圆被推到最右，整条铺满宽度 -->
       <div v-if="index > 0" class="mt-15px h-2px min-w-8px flex-1 rounded-full bg-#e5e5e5"></div>
-      <div class="flex min-w-64px cursor-pointer flex-col items-center gap-6px px-8px" @click="active = index">
+      <div
+        class="flex min-w-64px flex-col items-center gap-6px px-8px transition-opacity"
+        :class="step.disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'"
+        @click="handleStepClick(index)"
+      >
         <div
           class="flex h-32px w-32px shrink-0 items-center justify-center rounded-full text-14px font-500 transition-shadow"
           :class="[ICON_CLASS[step.status ?? 'wait'], active === index ? tone.shadow : undefined]"
@@ -67,4 +72,10 @@
   } as const;
 
   const tone = computed(() => TONE_CLASS[props.tone]);
+
+  /** 步骤页签点击：禁用项不可进入 */
+  function handleStepClick(index: number) {
+    if (props.steps[index]?.disabled) return;
+    active.value = index;
+  }
 </script>

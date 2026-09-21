@@ -6,18 +6,24 @@
   结构对齐设计稿：
   顶部四张统计卡（策划库/储备库/实施库/已退出，卡即单选 select——默认选中
   策划库，点选切换筛选表格，URL 无 ?library= 参数时按策划库过滤）+
-  BasicTable（项目名称/行政区/五改类型/入库年份/
-  最新项目状态/项目归属 搜索表单；配置统筹主体/实施主体、新增项目、一键提交、
-  下载模板、一键导入、一键导出 工具栏；操作列按钮随项目状态变化）。
+  BasicTable（项目名称/行政区/片区名称/片区批次/五改类型/入库年份/
+  最新项目状态/项目归属 搜索表单；配置指定填报主体（维护候选机构清单，重名/
+  空名红字拦截）、新增项目、一键提交、
+  下载模板、一键导入、一键导出 工具栏；操作列按钮随 操作视角×项目状态 变化：
+  视角=填报主体/行业主管部门/责任部门（「当前视角」切换，演示阶段页面切换、
+  生产接机构角色），状态随所在卡片库决定——策划库/储备库共用 待提交/审核中/
+  退回修改/审核通过 四状态流转，实施库=已入库（三视角仅查看+责任部门可转退出），
+  已退出终态只读）。
 
   路由参数（与列表页 URL 绑定，可分享/收藏/前进后退）：
   - ?library= 四库点选，单选、默认策划库（planning/reserve/implementing/exited，
     无参数时同样按策划库过滤）；
   - ?district= 行政区（搜索表单提交/重置时同步进 URL，进入页面时回填表单）。
 
-  查看/编辑/新增走一体表单抽屉 form.vue（查看=表单禁用，对齐
-  urban-health-check/shared/indicator-system 范式；顶部含生命周期步骤条）；
-  流转类操作（申请转储备/申请退出/一键提交等）与导入导出仍为占位待接入。
+  查看/编辑/新增/审核走一体表单抽屉 form.vue（查看=表单禁用；审核=编辑态打开、
+  审查人员在步骤②③填审查结论；页脚=取消/暂存/申请转库，申请转库二次确认后
+  状态置审核中）；转入下个库/转退出为列表操作列按钮（二次确认，内存态挪库）。
+  一键提交等批量操作与导入导出仍为占位待接入。
   当前后端尚未介入：数据来自 @jeesite/ifco/api/ifco/project-library（内存假数据，
   统计卡数字与表格前 5 行照设计稿抄录，其余确定性生成共 50 条；刷新即恢复）。
 
@@ -57,10 +63,16 @@
       </div>
     </div>
 
+    <!-- 操作视角（操作列按钮随视角×状态变化；生产接机构角色，演示阶段页面切换） -->
+    <div class="flex items-center gap-16px bg-white rd-8px px-20px py-10px shadow-sm">
+      <span class="text-14px text-gray-600">当前视角</span>
+      <RadioGroup v-model:value="currentRole" :options="roleOptions" option-type="button" />
+    </div>
+
     <!-- 列表：搜索表单 + 工具栏 + 表格 -->
     <BasicTable @register="registerTable">
       <template #toolbar>
-        <a-button @click="handleTodo('配置统筹主体/实施主体')"> 配置统筹主体/实施主体 </a-button>
+        <a-button @click="openOrgDrawer(true)"> 配置指定填报主体 </a-button>
         <a-button type="primary" @click="handleForm({ isNewRecord: true })">
           <Icon icon="i-fluent:add-12-filled" /> 新增
         </a-button>
@@ -71,7 +83,7 @@
       </template>
       <template #renewalAreaName="{ record }">{{ withSlash(record.renewalAreaName) }}</template>
       <template #functionOrientationList="{ record }">
-        {{ withSlash(joinList(record.functionOrientationList)) }}
+        {{ withSlash(joinList(record.functionOrientationList.map((code) => FUNCTION_ORIENTATION_LABEL[code] ?? code))) }}
       </template>
       <template #renewalAreaBatch="{ record }">
         {{ withSlash(record.renewalAreaBatch ? RENEWAL_AREA_BATCH_LABEL[record.renewalAreaBatch] : '') }}
@@ -88,6 +100,7 @@
       </template>
       <template #implementOrgList="{ record }">{{ withSlash(joinList(record.implementOrgList)) }}</template>
       <template #coordinateOrgList="{ record }">{{ withSlash(joinList(record.coordinateOrgList)) }}</template>
+      <template #reportOrg="{ record }">{{ withSlash(record.reportOrg) }}</template>
       <template #status="{ record }">
         <Tag v-bind="statusTagProps(record.status)" style="border-radius: 10px">
           {{ record.status }}
@@ -97,12 +110,15 @@
 
     <!-- 查看/新增/编辑一体表单抽屉 -->
     <ProjectForm @register="registerDrawer" @success="handleSuccess" />
+
+    <!-- 配置指定填报主体抽屉（维护候选机构清单，重名/空名红字拦截） -->
+    <OrgConfigDrawer @register="registerOrgDrawer" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoProjectLibraryManagementProjectManagementList">
-  import { computed, onMounted, watch } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
-  import { Tag } from 'antdv-next';
+  import { Modal, RadioGroup, Tag } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
@@ -111,23 +127,32 @@
   import { buildYearItems } from '@jeesite/core/libs/year';
   import { match } from 'ts-pattern';
   import {
-    ACTIONS_BY_STATUS,
+    ACTIONS_BY_STATUS_ROLE,
     DISTRICTS,
     FIVE_REFORM_TYPE_LABEL,
     FIVE_REFORM_TYPE_OPTIONS,
+    FUNCTION_ORIENTATION_LABEL,
     FUNCTION_ORIENTATION_OPTIONS,
     LIBRARY_CARDS,
     PROJECT_AFFILIATION_LABEL,
     PROJECT_AFFILIATION_OPTIONS,
+    ROLE_OPTIONS,
     RENEWAL_AREA_BATCH_LABEL,
+    RENEWAL_AREA_BATCH_OPTIONS,
+    RENEWAL_AREA_NAME_LIST,
     STATUS_OPTIONS,
     filterProjects,
     statusTagProps,
+    transferToExited,
+    transferToNextLibrary,
     type LibraryKey,
     type ProjectAction,
+    type ProjectLibraryItem,
+    type ProjectRole,
     type ProjectStatus,
   } from '@jeesite/ifco/api/ifco/project-library';
   import ProjectForm from './form.vue';
+  import OrgConfigDrawer from './org-config-drawer.vue';
 
   const { showMessage } = useMessage();
   const route = useRoute();
@@ -172,7 +197,7 @@
     { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
     { title: '五改类别', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '主要建设内容', dataIndex: 'mainConstructionContent', width: 260, ellipsis: true },
-    { title: '投资估算(亿元)', dataIndex: 'investEstimate', width: 120, align: 'right' },
+    { title: '项目投资估算（亿元）', dataIndex: 'investEstimate', width: 120, align: 'right' },
     { title: '资金来源', dataIndex: 'fundSourceList', width: 200, slot: 'fundSourceList' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     {
@@ -184,44 +209,80 @@
     { title: '责任部门', dataIndex: 'responsibleDept', width: 120 },
     { title: '实施主体', dataIndex: 'implementOrgList', width: 160, slot: 'implementOrgList' },
     { title: '统筹主体', dataIndex: 'coordinateOrgList', width: 140, slot: 'coordinateOrgList' },
+    { title: '指定填报主体', dataIndex: 'reportOrg', width: 150, slot: 'reportOrg' },
     { title: '最新项目状态', dataIndex: 'status', width: 120, fixed: 'right', slot: 'status' },
   ];
 
-  /** 操作列：按钮随项目状态变化（查看/编辑走一体表单抽屉，流转操作待接入） */
+  /** 当前操作视角（默认填报主体；操作列按钮随视角×状态变化） */
+  const currentRole = ref<ProjectRole>('report-org');
+
+  const roleOptions = [...ROLE_OPTIONS];
+
+  /** 操作列：按钮随 视角×状态 变化（查看/编辑/审核走一体表单抽屉，转入下个库/转退出带二次确认） */
   const actionColumn: BasicColumn = {
-    width: 210,
+    width: 240,
     actions: (record: Recordable) =>
-      (ACTIONS_BY_STATUS[record.status as ProjectStatus] ?? ['查看']).map((action: ProjectAction) => ({
-        label: action,
-        onClick: () => handleAction(action, record),
-      })),
+      (ACTIONS_BY_STATUS_ROLE[record.status as ProjectStatus]?.[currentRole.value] ?? ['查看']).map(
+        (action: ProjectAction) => ({
+          label: action,
+          onClick: () => handleAction(action, record),
+        }),
+      ),
   };
 
-  const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
+  const [registerDrawer, { openDrawer }] = useDrawer();
 
-  /** 打开表单抽屉：查看/编辑一体（查看=表单禁用）；打开前按查看与否预设
-   *  showFooter（硬性规则：打开动画期间翻转会导致首次点击不弹） */
+  /** 配置指定填报主体抽屉（独立于表单抽屉的第二个 drawer 实例） */
+  const [registerOrgDrawer, { openDrawer: openOrgDrawer }] = useDrawer();
+
+  /** 打开表单抽屉：查看/编辑一体（查看=表单禁用；页脚按钮由 footer 插槽按 isView 自控） */
   function handleForm(record: Recordable) {
-    setDrawerProps({ showFooter: !record.isView });
     openDrawer(true, record);
   }
 
-  /** 查看走只读表单、编辑走可写表单；流转类操作（申请转储备/申请退出）随后续接入
-   *  （exhaustive：后续接入新操作漏分支时编译报错） */
+  /** 查看走只读表单；编辑/审核走可写表单（审核=审查人员在步骤②③填审查结论，传原引用以便
+   *  内存流转生效）；转入下个库/转退出带二次确认（exhaustive：漏分支编译报错） */
   function handleAction(action: ProjectAction, record: Recordable) {
     match(action)
       .with('查看', () => handleForm({ ...record, isView: true }))
-      .with('编辑', () => handleForm({ ...record }))
-      .with('申请转储备', '申请退出', () => handleTodo(action))
+      .with('编辑', '审核', () => handleForm(record))
+      .with('转入下个库', () =>
+        Modal.confirm({
+          title: '转入下个库',
+          content: `确定将「${record.projectName}」转入下个库吗？`,
+          okText: '确定转入',
+          cancelText: '取消',
+          onOk: () => {
+            transferToNextLibrary(record as ProjectLibraryItem);
+            applyFilter();
+            showMessage('已转入下个库（本地演示，未持久化）');
+          },
+        }),
+      )
+      .with('转退出', () =>
+        Modal.confirm({
+          title: '转退出',
+          content: `确定将「${record.projectName}」移入已退出库吗？退出后项目只读。`,
+          okText: '确定退出',
+          cancelText: '取消',
+          onOk: () => {
+            transferToExited(record as ProjectLibraryItem);
+            applyFilter();
+            showMessage('已转退出（本地演示，未持久化）');
+          },
+        }),
+      )
       .exhaustive();
   }
 
-  /** 表单保存回调（TODO: 后端接入后更新本地数据） */
+  /** 表单抽屉回调：暂存/申请转库后重铺表格（提示由表单内给出） */
   function handleSuccess(_data: Recordable) {
-    showMessage('保存成功（本地演示，未持久化）');
+    applyFilter();
   }
 
   const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
+  const renewalAreaNameOptions = RENEWAL_AREA_NAME_LIST.map((name) => ({ label: name, value: name }));
+  const renewalAreaBatchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
   const fiveReformTypeOptions = [...FIVE_REFORM_TYPE_OPTIONS];
   const statusOptions = STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
   const affiliationOptions = [...PROJECT_AFFILIATION_OPTIONS];
@@ -238,7 +299,6 @@
     showTableSetting: true,
     showIndexColumn: false,
     useSearchForm: true,
-    pagination: { pageSize: 8 },
     canResize: true,
     formConfig: {
       baseColProps: { md: 8, lg: 6 },
@@ -250,6 +310,18 @@
           field: 'district',
           component: 'Select',
           componentProps: { options: districtOptions, allowClear: true },
+        },
+        {
+          label: '片区名称',
+          field: 'renewalAreaName',
+          component: 'Select',
+          componentProps: { options: renewalAreaNameOptions, allowClear: true },
+        },
+        {
+          label: '片区批次',
+          field: 'renewalAreaBatch',
+          component: 'Select',
+          componentProps: { options: renewalAreaBatchOptions, allowClear: true },
         },
         {
           label: '五改类别',
@@ -308,13 +380,13 @@
     },
   );
 
+  /** 切换视角：重铺表格刷新操作列按钮（数据不变） */
+  watch(currentRole, () => applyFilter());
+
   /** 进入页面：URL 带了行政区时回填搜索表单（数据已按 URL 过滤） */
   onMounted(() => {
     const { district } = urlParams();
     if (district) getForm().setFieldsValue({ district });
-    // 调试期：默认打开第一条的编辑抽屉，便于反复调整（TODO 联调完成后删除）
-    const first = filterProjects(urlParams())[0];
-    if (first) handleForm({ ...first });
   });
 
   /** 空值显示 / */
