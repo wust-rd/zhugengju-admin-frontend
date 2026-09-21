@@ -2,14 +2,15 @@
   市住更局 —— 随机分配三师（三师库管理）
 
   为「片区 × 专业领域 × 三师角色」随机分配专家：
-  - 上方面板：片区手填 + 专业领域多选（全选/清空一键切换）+ 三师角色复选（默认不勾）+ 回避规则 + 重置/抽取；
+  - 上方面板：片区下拉（可搜索，数据来自 ESP_MAP_AREA）+ 专业领域多选（全选/清空一键切换）+ 三师角色复选（默认不勾）+ 回避规则 + 重置/抽取；
+  - 选择片区后回显该片区最近一次抽取的专家；再次点击抽取若已有专家，先确认「继续抽取会覆盖原有专家」；
   - 点击抽取：按勾选的三师数量生成对应数量的专家卡片（各卡片带责任角色标签）；
   - 卡片操作：单卡「随机更换」换同角色专家、「指定人员」弹出 Modal 按姓名/领域/单位/电话模糊搜索并单选指定；
   - 结果右侧「确认选用」生成一条分配记录（整批重抽直接点「抽取」）；
   - 下方「分配记录」列表展示每条记录（时间/抽取片区/抽取领域/抽取人数/三师/详情）。
 
-  已接后端（modules/esp）：字典（1.1）、抽取（3.1）、单角色更换（3.2）、确认选用（3.3）、
-  分配记录（3.4/3.5）走接口层 @jeesite/early-stage-planning/api/early-stage-planning/expert-pool。
+  已接后端（modules/esp）：字典（1.1/1.2）、抽取（3.1）、单角色更换（3.2）、确认选用（3.3）、
+  分配记录（3.4/3.5）、片区最近记录（3.6）走接口层 @jeesite/early-stage-planning/api/early-stage-planning/expert-pool。
 
   UI 子组件（同目录）：expert-card（结果单卡）/ assign-modal（指定人员）/
   record-detail-modal（分配详情 Tab）/ expert-detail-modal（专家详情）；角色常量见 shared.ts。
@@ -20,20 +21,25 @@
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px p-16px">
-    <!-- 抽取器：片区手填 + 专业领域多选 + 三师复选 + 回避规则 + 按钮 -->
+    <!-- 抽取器：片区下拉搜索 + 专业领域多选 + 三师复选 + 回避规则 + 按钮 -->
     <div class="rd-10px p-16px h-88px" style="background-color: rgba(15, 23, 42, 0.02)">
       <div
         class="flex rd-12px flex-wrap items-center gap-x-24px gap-y-12px size-full bg-white p-8px"
         style="box-shadow: 0 16px 36px -20px rgba(76, 132, 192, 0.12)"
       >
-        <div class="flex items-center gap-8px bg-black/2 h-40px rd-8px b-1 b-solid b-black/4">
+        <div class="flex items-center gap-8px bg-black/2 h-40px rd-8px b-1 b-solid b-black/4 px-12px">
           <span class="w-52px shrink-0 text-right text-14px text-gray-500">片区</span>
-          <Input
+          <Select
             v-model:value="query.district"
-            placeholder="请输入片区名称"
-            class="w-180px"
+            :options="AREA_OPTIONS"
+            placeholder="请选择片区"
+            class="w-260px"
             :bordered="false"
             allowClear
+            showSearch
+            optionFilterProp="label"
+            :filter-option="filterAreaOption"
+            @change="onDistrictChange"
           />
         </div>
 
@@ -118,7 +124,7 @@
         </template>
 
         <div v-else class="flex w-full items-center justify-center text-14px text-gray-400">
-          请设置抽取条件后点击「抽取」
+          {{ query.district ? '该片区暂无抽取记录，请设置抽取条件后点击「抽取」' : '请选择片区并设置抽取条件后点击「抽取」' }}
         </div>
       </div>
     </div>
@@ -156,14 +162,16 @@
 <script lang="ts" setup name="ViewsEarlyStagePlanningExpertPoolRandomDrawIndex">
   import { computed, reactive, ref } from 'vue';
   import { message } from 'antdv-next';
-  import { Checkbox, Input, Select } from 'antdv-next';
+  import { Checkbox, Select } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
+    espDictAreas,
     espDictOptions,
     espDrawConfirm,
     espDrawDraw,
+    espDrawLatest,
     espDrawRecords,
     espDrawReplace,
     type EspExpert,
@@ -174,7 +182,7 @@
   import RecordDetailModal from './record-detail-modal.vue';
   import ExpertDetailModal from './expert-detail-modal.vue';
 
-  const { showMessage } = useMessage();
+  const { showMessage, createConfirm } = useMessage();
 
   // ---- 抽取器条件 ----
 
@@ -182,14 +190,34 @@
 
   /** 专业领域下拉（接口 1.1 字典；加载前静态兜底） */
   const FIELD_OPTIONS = ref(EXPERT_FIELD_FALLBACK.map((f) => ({ label: f, value: f })));
+  /** 片区下拉（接口 1.2：label=area_name，value=a_uid） */
+  const AREA_OPTIONS = ref<{ label: string; value: string }[]>([]);
   espDictOptions().then((dict) => {
     FIELD_OPTIONS.value = dict.fields.map((f) => ({ label: f, value: f }));
   });
+  espDictAreas().then((areas) => {
+    AREA_OPTIONS.value = (areas ?? []).map((a) => ({
+      label: a.areaName || a.key,
+      value: a.areaCode || a.value,
+    }));
+  });
+
+  /** 片区下拉按名称或唯一号过滤 */
+  function filterAreaOption(input: string, option: { label?: string; value?: string }) {
+    const q = (input ?? '').trim().toLowerCase();
+    if (!q) return true;
+    return String(option?.label ?? '')
+      .toLowerCase()
+      .includes(q)
+      || String(option?.value ?? '')
+        .toLowerCase()
+        .includes(q);
+  }
 
   /** 三师角色勾选状态（默认全部不勾选） */
   const typeChecked = reactive<Record<RoleKey, boolean>>({ planner: false, architect: false, assessor: false });
 
-  /** 抽取条件（片区手填、专业领域多选） */
+  /** 抽取条件（片区下拉取 a_uid、专业领域多选） */
   const query = reactive({
     district: undefined as string | undefined,
     fields: [] as string[],
@@ -213,6 +241,36 @@
   /** 抽取中 loading */
   const drawing = ref(false);
 
+  /** 选择片区后回显该片区最近一次已抽取专家 */
+  async function onDistrictChange(aUid: string | undefined) {
+    results.value = [];
+    if (!aUid) return;
+    try {
+      const latest = await espDrawLatest(aUid);
+      if (!latest) return;
+      typeChecked.planner = false;
+      typeChecked.architect = false;
+      typeChecked.assessor = false;
+      const roles: RoleKey[] = ['planner', 'architect', 'assessor'];
+      const cards: { role: RoleKey; expert: EspExpert | null }[] = [];
+      for (const role of roles) {
+        if (latest[role]) {
+          typeChecked[role] = true;
+          cards.push({ role, expert: latest[role] });
+        }
+      }
+      results.value = cards;
+      if (latest.drawFields) {
+        query.fields = latest.drawFields
+          .split('、')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    } catch (e: any) {
+      message.warning(e?.message || '查询已有抽取记录失败');
+    }
+  }
+
   /** 抽取（接口 3.1：服务端按 规划师→建筑师→评估师 各抽一名，同批次不重复；整批重抽也走这里） */
   async function handleDraw() {
     const roles = checkedTypes();
@@ -220,14 +278,31 @@
       message.warning('请至少勾选一种三师类型');
       return;
     }
-    if (!query.district?.trim()) {
-      message.warning('请先填写片区');
+    if (!query.district) {
+      message.warning('请先选择片区');
       return;
     }
+    const hasExperts = results.value.some((r) => r.expert);
+    if (hasExperts) {
+      createConfirm({
+        title: '提示',
+        content: '继续抽取会覆盖原有专家',
+        iconType: 'warning',
+        okText: '确认',
+        cancelText: '取消',
+        onOk: () => doDraw(roles),
+      });
+      return;
+    }
+    await doDraw(roles);
+  }
+
+  /** 执行随机抽取并替换当前展示的专家 */
+  async function doDraw(roles: RoleKey[]) {
     drawing.value = true;
     try {
       const data = await espDrawDraw({
-        districtCode: query.district,
+        districtCode: query.district as string,
         fields: query.fields,
         roles,
         avoidDrawn: query.avoidDrawn,
@@ -289,8 +364,8 @@
       message.warning('请先抽取');
       return;
     }
-    if (!query.district?.trim()) {
-      message.warning('请先填写片区');
+    if (!query.district) {
+      message.warning('请先选择片区');
       return;
     }
     const assigned = results.value.filter((r) => r.expert);
@@ -299,7 +374,7 @@
       return;
     }
     const idOf = (role: RoleKey) => results.value.find((r) => r.role === role)?.expert?.id ?? null;
-    await espDrawConfirm({
+    const result = await espDrawConfirm({
       districtCode: query.district,
       fields: query.fields,
       plannerId: idOf('planner'),
@@ -307,9 +382,9 @@
       assessorId: idOf('assessor'),
       assignFlag: false,
     });
-    showMessage('已生成一条分配记录');
-    results.value = [];
+    showMessage(result?.overwrite ? '已覆盖该片区原有专家并生成分配记录' : '已生成一条分配记录');
     reload();
+    await onDistrictChange(query.district);
   }
 
   // ---- 分配记录表 ----

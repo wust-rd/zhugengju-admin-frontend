@@ -60,8 +60,8 @@ export type EspDictOptions = {
   genders: string[];
 };
 
-/** 行政区选项 */
-export type EspArea = { areaCode: string; areaName: string };
+/** 片区选项（ESP_MAP_AREA：key=area_name，value=a_uid） */
+export type EspArea = { key: string; value: string; areaCode: string; areaName: string };
 
 /** 抽取结果（每角色一名专家，候选不足为 null） */
 export type EspDrawResult = {
@@ -133,9 +133,9 @@ export async function espDictOptions(): Promise<EspDictOptions> {
   return unwrap(await defHttp.get({ url: adminPath + '/esp/dict/options' }));
 }
 
-/** 1.2 抽取片区下拉（武汉市下辖区） */
+/** 1.2 抽取片区下拉（ESP_MAP_AREA：key=area_name，value=a_uid） */
 export async function espDictAreas(): Promise<EspArea[]> {
-  return unwrap(await defHttp.get({ url: adminPath + '/esp/dict/areas' }));
+  return unwrap(await defHttp.get({ url: adminPath + '/esp/dict/areas' })) ?? [];
 }
 
 // ---------------- 2. 三师信息管理 ----------------
@@ -203,7 +203,7 @@ export async function espDrawConfirm(data: {
   architectId: string | null;
   assessorId: string | null;
   assignFlag?: boolean;
-}): Promise<{ recordId: string; drawCount: number; expertIds: string[] }> {
+}): Promise<{ recordId: string; drawCount: number; expertIds: string[]; overwrite?: boolean }> {
   return unwrap(await defHttp.postJson({ url: adminPath + '/esp/draw/confirm', data }));
 }
 
@@ -222,6 +222,11 @@ export async function espDrawRecords(params: Recordable): Promise<TablePage<EspD
 /** 3.5 分配记录详情（详情弹窗） */
 export async function espDrawRecordDetail(id: string): Promise<EspDrawRecordDetail> {
   return unwrap(await defHttp.get({ url: adminPath + '/esp/draw/record', params: { id } }));
+}
+
+/** 3.6 按片区查询最近一条分配记录（选择片区后回显已抽专家；无记录返回 null） */
+export async function espDrawLatest(districtCode: string): Promise<EspDrawRecordDetail | null> {
+  return unwrap(await defHttp.get({ url: adminPath + '/esp/draw/latest', params: { districtCode } }));
 }
 
 // ---------------- 4. 考评分析 ----------------
