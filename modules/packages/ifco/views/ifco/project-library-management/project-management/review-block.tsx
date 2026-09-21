@@ -227,6 +227,12 @@ export const ReviewBlock = defineComponent({
 
     return () => (
       <div>
+        {/* 填报人再次发起留下记录 */}
+        <div class="mb-8px flex items-center gap-6px">
+          <span class="i-ant-design:audit-outlined text-16px text-#1677ff"></span>
+          <span class="text-14px font-500 text-gray-800">填报人再次发起 --- 2026-09-21 16:26:00</span>
+        </div>
+
         {/* 轮次标题 */}
         <div class="mb-8px flex items-center gap-6px">
           <span class="i-ant-design:audit-outlined text-16px text-#1677ff"></span>
