@@ -29,6 +29,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx';
+import { saveAs } from 'file-saver';
 import { pdfExporting } from './pdf-export-state';
 
 /** A4 纵向内容区（mm）：210×297，四边 10mm 页边距 */
@@ -348,16 +349,6 @@ function fitSize(w: number, h: number, maxW: number, maxH: number): { width: num
   return { width: Math.round(w * scale), height: Math.round(h * scale) };
 }
 
-/** 触发浏览器下载 blob 文件 */
-function saveBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 /** 区块字段表（label/value 两列；组标题行跨列底纹） */
 function sectionTable(sec: SectionData): Table {
   const thin = { style: BorderStyle.SINGLE, size: 1, color: 'E8E8E8' };
@@ -478,6 +469,6 @@ export async function exportFormDocx(metas: PdfSectionMeta[], headerTitle: strin
       styles: { default: { document: { run: { font: 'Microsoft YaHei', size: 21 } } } },
       sections: [{ children }],
     });
-    saveBlob(await Packer.toBlob(doc), filename);
+    saveAs(await Packer.toBlob(doc), filename);
   });
 }
