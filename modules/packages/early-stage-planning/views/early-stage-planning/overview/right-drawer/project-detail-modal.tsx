@@ -1,9 +1,12 @@
-import { computed, defineComponent, type CSSProperties, type PropType } from 'vue';
+import { computed, defineComponent, ref, watch, type CSSProperties, type PropType } from 'vue';
 import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+import { Input } from 'antdv-next';
+import { Search } from 'lucide-vue-next';
 
 import frameImg from '@jeesite/assets/images/display/plan/相框.webp';
 import glowImg from '@jeesite/assets/images/display/plan/光效.webp';
 import { dash } from '../area-format';
+import { openEspFile } from '../../scheme-declaration-review/scheme-fill/components/file-display';
 import type { EspSchemeProject } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
 
 /** 磨砂卡片外壳（关闭按钮，与图册弹窗同款样式） */
@@ -68,15 +71,57 @@ export const ProjectDetailModal = defineComponent({
     /** 资金来源（字符串数组分号拼接展示） */
     const fundSourcesOf = (p: EspSchemeProject) => p.fundSources?.join('、') || '—';
 
-    /** 实施方案查看：填报 planFiles（≤1 个）取直链新窗打开（pdf/word 外链预览、图片同理），
-        未上传提示（同填报页「有直链的文件点击新窗打开」的口径） */
+    /* ---------- 筛选 + 分页（纯前端，作用于已拉回的 projects） ---------- */
+
+    /** 筛选关键字（项目名称 / 五改类别 模糊匹配同一个输入框） */
+    const keyword = ref('');
+    /** 当前页码（1 起）与每页条数 */
+    const page = ref(1);
+    const PAGE_SIZE = 8;
+
+    /** 关键字命中的项目（名称或类别包含，大小写不敏感） */
+    const filteredProjects = computed(() => {
+      const kw = keyword.value.trim().toLowerCase();
+      if (!kw) return props.projects;
+      return props.projects.filter(
+        (p) => p.name?.toLowerCase().includes(kw) || p.category?.toLowerCase().includes(kw),
+      );
+    });
+
+    const total = computed(() => filteredProjects.value.length);
+    const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
+    /** 当前页的行 */
+    const pagedProjects = computed(() =>
+      filteredProjects.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE),
+    );
+
+    /** 翻页（夹取在 1~pageCount） */
+    function goPage(p: number) {
+      page.value = Math.min(Math.max(p, 1), pageCount.value);
+    }
+
+    /** 换片区（数据变）/ 重新打开：筛选与页码复位 */
+    watch(
+      () => props.projects,
+      () => {
+        keyword.value = '';
+        page.value = 1;
+      },
+    );
+    /** 筛选变化：结果集变短，回第一页 */
+    watch(keyword, () => {
+      page.value = 1;
+    });
+
+    /** 实施方案查看：填报 planFiles（≤1 个）——pdf/图片直链、word/excel/ppt 走 Office
+        在线预览，其余类型下载（同填报页 openEspFile 口径）；未上传提示 */
     function openPlanFile(p: EspSchemeProject) {
       const file = p.planFiles?.[0];
       if (!file?.url) {
         showMessage('该项目暂无实施方案文件', 'warning');
         return;
       }
-      window.open(file.url, '_blank', 'noopener');
+      openEspFile(file);
     }
 
     return () => {
@@ -87,13 +132,16 @@ export const ProjectDetailModal = defineComponent({
           {/* 遮罩：点击关闭 */}
           <div class="absolute inset-0 bg-black/10 backdrop-blur-sm" />
 
-          {/* 弹窗主体：相框背景 + 内容层 */}
-          <div class="relative z-10 w-1360px max-h-680px pb-42px" onClick={(e) => e.stopPropagation()}>
+          {/* 弹窗主体：相框背景 + 内容层（flex 列 + max-h：内容超高时表格区内部滚动，不漫出相框） */}
+          <div
+            class="relative z-10 flex max-h-680px w-1360px flex-col pb-42px"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* 相框背景 */}
             <img src={frameImg} alt="" class="pointer-events-none absolute inset-0 size-full object-fill" />
 
             {/* 内容层（盖在相框之上） */}
-            <div class="relative z-10 size-full">
+            <div class="relative z-10 flex min-h-0 flex-1 flex-col">
               {/* 标题 */}
               <div class="flex h-68px items-center px-32px pt-24px pb-12px">
                 <div
@@ -119,8 +167,22 @@ export const ProjectDetailModal = defineComponent({
 
               <div class="h-1px w-full bg-white/6" />
 
-              {/* 项目清单表格 */}
-              <div class="mt-24px overflow-y-auto scrollbar-none px-24px">
+              {/* 项目清单表格（min-h-0 + flex-1：行多时此区内部滚动，分页条钉在区外底部） */}
+              <div class="mt-24px min-h-0 flex-1 overflow-y-auto scrollbar-none px-24px">
+                {/* 筛选行：一个输入框按项目名称 / 五改类别模糊过滤（纯前端） */}
+                <div class="mb-16px flex items-center">
+                  <Input
+                    value={keyword.value}
+                    classes={{
+                      root: '!bg-white/6 !border-gray-500 focus-within:!border-cyan-500 w-300px h-32px text-white !rd-8px',
+                      input: 'placeholder:!text-gray-500 text-14px',
+                    }}
+                    prefix={<Search class="size-16px text-gray-400" />}
+                    placeholder="输入项目名称 / 五改类别筛选"
+                    allowClear
+                    onUpdate:value={(v: unknown) => (keyword.value = String(v ?? ''))}
+                  />
+                </div>
                 {/* 表头（内阴影模拟光照：顶部内高光 + 底部内暗） */}
                 <div
                   class="flex h-48px items-center rounded-6px text-13px text-white/85"
@@ -143,11 +205,14 @@ export const ProjectDetailModal = defineComponent({
                   <div class="whitespace-nowrap w-92px shrink-0 text-center">实施方案</div>
                 </div>
 
-                {/* 数据行 */}
+                {/* 数据行（当前页切片；序号接全量序号） */}
                 <div class="mt-6px flex flex-col gap-6px">
-                  {props.projects.map((p, i) => (
+                  {pagedProjects.value.map((p, i) => {
+                    /** 全量序号（跨页连续） */
+                    const no = (page.value - 1) * PAGE_SIZE + i + 1;
+                    return (
                     <div
-                      key={p.id ?? p.pUid ?? i}
+                      key={p.id ?? p.pUid ?? no}
                       class="group relative flex items-center rounded-6px border border-white/8 px-4px py-14px transition-all duration-200 cursor-pointer"
                     >
                       {/* hover 光效背景 */}
@@ -158,7 +223,7 @@ export const ProjectDetailModal = defineComponent({
                       />
 
                       <div class={`relative z-10 text-14px text-white/50 ${COL_CLASS.序号}`}>
-                        {String(i + 1).padStart(2, '0')}
+                        {String(no).padStart(2, '0')}
                       </div>
                       <div class={`relative z-10 flex items-center gap-6px ${COL_CLASS.五改类别}`}>
                         <span
@@ -175,7 +240,10 @@ export const ProjectDetailModal = defineComponent({
                       >
                         {dash(p.name)}
                       </div>
-                      <div class={`relative z-10 text-13px text-white/80 lh-20px ${COL_CLASS.主要建设内容}`}>
+                      <div
+                        class={`relative z-10 line-clamp-3 text-13px text-white/80 lh-20px ${COL_CLASS.主要建设内容}`}
+                        title={p.content ?? ''}
+                      >
                         {p.content?.trim() || '—'}
                       </div>
                       <div
@@ -213,13 +281,62 @@ export const ProjectDetailModal = defineComponent({
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
 
-                  {props.projects.length === 0 && (
+                  {filteredProjects.value.length === 0 && (
                     <div class="py-32px text-center text-14px text-white/40">暂无数据</div>
                   )}
                 </div>
               </div>
+
+              {/* 分页条（钉在表格滚动区外，恒可见）：左总数 + 右翻页（不足两页时只显示总数） */}
+              <div class="mt-12px flex shrink-0 items-center justify-between px-24px pb-8px">
+                <div class="text-13px text-white/50">共 {total.value} 条</div>
+
+                  {pageCount.value > 1 && (
+                    <div class="flex items-center gap-6px">
+                      <div
+                        class={
+                          'flex size-28px cursor-pointer items-center justify-center rd-6px b-1 b-solid text-14px transition-all duration-150 ' +
+                          (page.value === 1
+                            ? 'b-white/8 text-white/25'
+                            : 'b-white/15 text-white hover-b-[#4FD8FF]')
+                        }
+                        onClick={() => goPage(page.value - 1)}
+                      >
+                        <div class="i-ri-arrow-left-s-line size-16px" />
+                      </div>
+
+                      {Array.from({ length: pageCount.value }, (_, i) => i + 1).map((p) => (
+                        <div
+                          key={p}
+                          class={
+                            'flex size-28px cursor-pointer items-center justify-center rd-6px text-14px transition-all duration-150 ' +
+                            (p === page.value
+                              ? 'b-1 b-solid b-[#4FD8FF] bg-[#4FD8FF26] text-white'
+                              : 'text-white/60 hover-text-white')
+                          }
+                          onClick={() => goPage(p)}
+                        >
+                          {p}
+                        </div>
+                      ))}
+
+                      <div
+                        class={
+                          'flex size-28px cursor-pointer items-center justify-center rd-6px b-1 b-solid text-14px transition-all duration-150 ' +
+                          (page.value === pageCount.value
+                            ? 'b-white/8 text-white/25'
+                            : 'b-white/15 text-white hover-b-[#4FD8FF]')
+                        }
+                        onClick={() => goPage(page.value + 1)}
+                      >
+                        <div class="i-ri-arrow-right-s-line size-16px" />
+                      </div>
+                    </div>
+                  )}
+                </div>
             </div>
           </div>
         </div>

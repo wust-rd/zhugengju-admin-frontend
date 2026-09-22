@@ -44,8 +44,6 @@
           >
         </a-button>
       </Dropdown>
-      <!-- 暂存：保存但留在页面继续编辑（存量片区不参与审批流转，保存不改状态） -->
-      <a-button v-if="!isView" :loading="saving" @click="handleSave('draft')">暂存</a-button>
       <!-- 提交：二次确认后保存并退出回列表（已批准存量片区不参与审批流转，状态不变） -->
       <Popconfirm
         v-if="!isView"

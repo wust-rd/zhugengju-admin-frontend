@@ -54,6 +54,8 @@ const SCROLL_LOCK_MS = 1200;
  *   Tab 栏居中（尽量），保证下一个 tab 始终可点
  * - 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 与手动滚动双向联动：
  *   scrollspy 同步高亮 + 程序化滚动锁 + 底部留白（最后一块也能滚到顶）
+ * - 点击内容切区块：点到任一区块的内容（哪怕只露出半截）等同于点击该 Tab——切高亮
+ *   并把该区块平滑滚到顶；当前高亮区块内的点击不响应，模块内操作不引起视图跳动
  *
  * 左右联动 API（详情页用，可选，不传即保持原行为）：
  * - v-model:activeTab：受控高亮区块；父级（左侧展示面板）改这个值即切换到对应区块并平滑滚动过去；
@@ -221,6 +223,20 @@ export const RightDrawer = defineComponent({
       bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
     };
 
+    /** 点击内容区里的内容 → 等同于点击该区块的 Tab：切高亮 + 区块平滑滚到顶 + tab 栏居中。
+        体验上三种切区块方式（点 Tab / 滚动 / 点内容）效果一致，高亮与滚动位置永不脱节，
+        scrollspy 重算不会把高亮翻回去。当前高亮区块内的点击不响应——在模块内连续操作
+        （点缩略图、切清单等）时视图不能跳 */
+    const onContentClick = (e: MouseEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const section = target.closest<HTMLElement>('section[data-tab]');
+      if (!section) return;
+      const tab = DRAWER_TABS.find((t) => t === section.dataset.tab);
+      if (!tab || tab === activeTab.value) return;
+      onTabClick(tab);
+    };
+
     return () => (
       <div
         class="absolute right-0 top-0 flex h-full w-420px shrink-0 flex-col b-l-1 b-solid b-white/6 bg-[#01213B]"
@@ -252,10 +268,11 @@ export const RightDrawer = defineComponent({
           </div>
         </div>
 
-        {/* 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 滚动定位到对应区块 */}
+        {/* 内容区：Tab 内容按顺序排列；点击 Tab / 滚动 / 点击区块内容三种方式同步高亮 */}
         <div
           ref={contentRef}
           onScroll={syncActiveTab}
+          onClick={onContentClick}
           class="scrollbar-gutter-stable relative flex-1 overflow-y-auto"
           style={{ paddingBottom: `${bottomPadding.value}px` }}
         >
