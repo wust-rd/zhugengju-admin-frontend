@@ -2,7 +2,9 @@
   市住更局 —— 评审管理 · 新增/编辑/查看 评审项目
 
   由列表页 list.vue 组件切换打开（不新增路由）。
-  区块：项目基本信息 / 片区三师 / 评审材料。
+  区块：项目基本信息 / 片区三师 / 评审材料；
+  查看评审中/已完成项目时追加：专家个人意见 / 项目评估 / 综合评估
+  （组员只填项目评估；组长看全部并可提交综合评估，综合评估通过/不通过均→已完成）。
   片区名称下拉取 ESP_MAP_AREA；选片区后调 areaFill：回填行政区 + 抽取记录里的三师
   （专家1 规划师 / 专家2 建筑师 / 专家3 评估师，字段姓名、职称、单位只读自动填充）。
   暂存宽校验（项目名称）；提交校验红星必填 + 至少一名三师 + 组长 + 至少一份材料。
@@ -140,8 +142,18 @@
         <div class="mt-8px text-12px text-gray-400">（支持 PDF、doc/docx格式）</div>
       </section>
 
+      <ReviewPanel
+        v-if="showReviewPanel"
+        ref="reviewPanelRef"
+        :role="reviewRole"
+        :member-opinions="memberOpinions"
+        :my-opinion="myOpinion"
+        :summary="summaryOpinion"
+        :disabled="reviewDisabled"
+      />
+
       <div class="sticky bottom-0 z-20 flex justify-end gap-12px bg-white rd-8px px-16px py-12px shadow-sm">
-        <a-button @click="emit('back')">{{ isView ? '返回' : '取消' }}</a-button>
+        <a-button @click="emit('back')">{{ footerCancelText }}</a-button>
         <a-button v-if="!isView" :loading="saving" @click="handleSave('draft')">暂存</a-button>
         <Popconfirm
           v-if="!isView"
@@ -149,6 +161,15 @@
           ok-text="确认提交"
           cancel-text="取消"
           @confirm="handleSave('submit')"
+        >
+          <a-button type="primary" :loading="saving">提交</a-button>
+        </Popconfirm>
+        <Popconfirm
+          v-if="canSubmitReview"
+          :title="reviewConfirmTitle"
+          ok-text="确认提交"
+          cancel-text="取消"
+          @confirm="handleReviewSubmit"
         >
           <a-button type="primary" :loading="saving">提交</a-button>
         </Popconfirm>
@@ -165,10 +186,15 @@
   import {
     reviewProjectAreaFill,
     reviewProjectForm,
+    reviewProjectOpinion,
     reviewProjectSave,
     type EspReviewExpertSnap,
+    type EspReviewOpinion,
+    type EspReviewOpinionItem,
     type EspReviewProject,
+    type EspReviewRole,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/review-management';
+  import ReviewPanel from './review-panel.vue';
 
   const props = defineProps<{ record?: Recordable }>();
   const emit = defineEmits<{ success: []; back: [] }>();
@@ -204,7 +230,30 @@
     assessorTitle: '',
     assessorOrg: '',
     leaderId: undefined as string | undefined,
+    status: 'draft' as EspReviewProject['status'],
   });
+
+  const reviewPanelRef = ref<{
+    buildPayload: () => { member?: EspReviewOpinionItem; summary?: EspReviewOpinionItem };
+  } | null>(null);
+  const reviewRole = ref<EspReviewRole>('viewer');
+  const memberOpinions = ref<EspReviewOpinion[]>([]);
+  const myOpinion = ref<EspReviewOpinion | null>(null);
+  const summaryOpinion = ref<EspReviewOpinion | null>(null);
+
+  const showReviewPanel = computed(
+    () => isView.value && (form.status === 'reviewing' || form.status === 'completed'),
+  );
+  const reviewDisabled = computed(() => form.status === 'completed' || reviewRole.value === 'viewer');
+  const canSubmitReview = computed(
+    () => showReviewPanel.value && form.status === 'reviewing' && reviewRole.value !== 'viewer',
+  );
+  const footerCancelText = computed(() => (isView.value && !canSubmitReview.value ? '返回' : '取消'));
+  const reviewConfirmTitle = computed(() =>
+    reviewRole.value === 'leader'
+      ? '提交综合评估将结束评审（通过/不通过均变为已完成）。若只填了项目评估则仅保存意见。是否确认提交？'
+      : '是否确认提交项目评估？',
+  );
 
   type MaterialSlot = { key: string; file?: EspSchemeFile; uploading?: boolean };
   const slots = ref<MaterialSlot[]>([{ key: 'slot-0' }]);
@@ -345,6 +394,11 @@
     form.assessorTitle = data.assessorTitle || '';
     form.assessorOrg = data.assessorOrg || '';
     form.leaderId = data.leaderId || undefined;
+    form.status = data.status || 'draft';
+    reviewRole.value = data.role || 'viewer';
+    memberOpinions.value = data.memberOpinions ?? [];
+    myOpinion.value = data.myOpinion ?? null;
+    summaryOpinion.value = data.summary ?? null;
     const files = data.files ?? [];
     if (files.length) {
       slots.value = files.map((file, i) => ({ key: `slot-${i}`, file }));
@@ -391,6 +445,36 @@
       emit('success');
     } catch (error) {
       showMessage(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      saving.value = false;
+    }
+  }
+
+  async function handleReviewSubmit() {
+    if (saving.value) return;
+    const payload = reviewPanelRef.value?.buildPayload?.() ?? {};
+    if (!payload.member && !payload.summary) {
+      showMessage(reviewRole.value === 'leader' ? '请填写项目评估或综合评估' : '请填写项目评估');
+      return;
+    }
+    saving.value = true;
+    try {
+      await reviewProjectOpinion({
+        projectId: form.id,
+        member: payload.member,
+        summary: payload.summary,
+      });
+      let okMsg = '提交成功';
+      if (payload.summary) {
+        okMsg =
+          payload.summary.result === 'pass'
+            ? '综合评估已提交（通过），项目已完成'
+            : '综合评估已提交（不通过），项目已完成';
+      }
+      showMessage(okMsg);
+      emit('success');
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : '提交失败');
     } finally {
       saving.value = false;
     }

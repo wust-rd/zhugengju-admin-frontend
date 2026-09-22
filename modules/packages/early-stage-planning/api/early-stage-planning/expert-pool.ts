@@ -47,6 +47,7 @@ export type EspExpert = {
   selected: boolean;
   areaUids?: string[];
   areaNames?: string;
+  userCode?: string;
   career: string;
   reviewExperience: string;
 };
@@ -164,8 +165,10 @@ export async function espExpertForm(id: string): Promise<EspExpert> {
   return unwrap(await defHttp.get({ url: adminPath + '/esp/expert/form', params: { id } }));
 }
 
-/** 2.4 保存专家（id 空=新增） */
-export async function espExpertSave(data: Partial<EspExpert>): Promise<{ id: string; name: string }> {
+/** 2.4 保存专家（id 空=新增；手机号即登录名，无账号则自动开通） */
+export async function espExpertSave(
+  data: Partial<EspExpert>,
+): Promise<{ id: string; name: string; accountCreated?: boolean; loginCode?: string }> {
   return unwrap(await defHttp.postJson({ url: adminPath + '/esp/expert/save', data }));
 }
 

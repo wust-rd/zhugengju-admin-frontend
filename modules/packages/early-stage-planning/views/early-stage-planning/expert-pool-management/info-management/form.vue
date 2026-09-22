@@ -90,8 +90,12 @@
       label: '联系电话',
       field: 'phone',
       component: 'Input',
-      componentProps: { maxlength: 20 },
-      rules: [{ required: true, message: '请输入联系电话' }],
+      componentProps: { maxlength: 11, placeholder: '11位手机号，将作为登录账号' },
+      helpMessage: '保存后自动开通系统账号，账号为手机号',
+      rules: [
+        { required: true, message: '请输入联系电话' },
+        { pattern: /^1\d{10}$/, message: '须为11位手机号（同时作为登录账号）' },
+      ],
     },
     {
       label: '身份证号',
@@ -251,8 +255,14 @@
       return;
     }
     // 保存接口（2.4）：id 空 = 新增，非空 = 修改
-    await espExpertSave({ ...data, id: record.value.id ?? '' } as Partial<EspExpert>);
-    showMessage(record.value.isNewRecord ? '新增成功' : '保存成功');
+    const saved = await espExpertSave({ ...data, id: record.value.id ?? '' } as Partial<EspExpert>);
+    showMessage(
+      saved.accountCreated
+        ? `保存成功，已开通登录账号（账号 ${saved.loginCode || '为手机号'}，初始密码与城市更新专家相同）`
+        : record.value.isNewRecord
+          ? '新增成功'
+          : '保存成功',
+    );
     emit('success');
     setTimeout(closeDrawer);
   }

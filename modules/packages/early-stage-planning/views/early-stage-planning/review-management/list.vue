@@ -2,10 +2,10 @@
   市住更局 —— 评审管理 · 项目评审列表
 
   对齐设计稿：搜索（项目名称 / 片区名称）+ 新增项目 + 项目列表。
-  状态：待提交 / 评审中 / 已完成；操作按状态出入口：
-    评审中：查看 / 评审（评审页下期）
+  状态：待提交 / 评审中 / 已完成（已完成旁注综合评估通过或不通过）；操作按状态出入口：
+    评审中：查看 / 评审（进入评审查看页：组员填项目评估，组长看全部并可交综合评估）
     待提交：查看 / 编辑 / 提交 / 删除
-    已完成：查看 / 生成综合评审意见书（下期）
+    已完成：查看 / 生成评估报告
   新增 / 编辑 / 查看 以组件方式切换到整页表单（不走路由）。
 
   菜单注册（后台菜单管理，名称按需）：
@@ -16,7 +16,7 @@
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px overflow-visible!">
-    <div v-show="!formVisible" class="flex flex-col gap-16px">
+    <div v-show="!formVisible && !reportVisible" class="flex flex-col gap-16px">
       <BasicTable @register="registerTable" :showIndexColumn="false">
         <template #tableTitle>
           <span>项目列表</span>
@@ -31,12 +31,19 @@
         <template #status="{ record }">
           <span class="text-13px font-500" :style="{ color: STATUS_META[record.status]?.color || '#8c8c8c' }">
             {{ record.statusLabel || STATUS_META[record.status]?.label || record.status }}
+            <span
+              v-if="record.status === 'completed' && record.summaryResult"
+              :style="{ color: record.summaryResult === 'pass' ? '#52c41a' : '#ff4d4f' }"
+            >
+              （{{ record.summaryResultLabel || (record.summaryResult === 'pass' ? '通过' : '不通过') }}）
+            </span>
           </span>
         </template>
       </BasicTable>
     </div>
 
     <ReviewForm v-if="formVisible" :record="formRecord" @success="handleSuccess" @back="handleBack" />
+    <ReviewReport v-if="reportVisible" :record="reportRecord" @back="handleReportBack" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningReviewManagementList">
@@ -50,6 +57,7 @@
     reviewProjectSubmit,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/review-management';
   import ReviewForm from './form.vue';
+  import ReviewReport from './report.vue';
 
   const { showMessage } = useMessage();
 
@@ -61,6 +69,8 @@
 
   const formVisible = ref(false);
   const formRecord = ref<Recordable>({});
+  const reportVisible = ref(false);
+  const reportRecord = ref<Recordable>({});
 
   const columns: BasicColumn[] = [
     { title: '项目名称', dataIndex: 'projectName', width: 180, ellipsis: true },
@@ -70,15 +80,15 @@
     { title: '统筹主体', dataIndex: 'coordOrg', width: 160, ellipsis: true },
     { title: '责任部门', dataIndex: 'respDept', width: 140, ellipsis: true },
     { title: '开始时间', dataIndex: 'startDate', width: 120 },
-    { title: '状态', dataIndex: 'status', width: 90, slot: 'status' },
+    { title: '状态', dataIndex: 'status', width: 140, slot: 'status' },
   ];
 
   const actionColumn: BasicColumn = {
-    width: 260,
+    width: 280,
     actions: (record: Recordable) => {
       const actions: Recordable[] = [{ label: '查看', onClick: () => handleForm({ ...record, isView: true }) }];
       if (record.status === 'reviewing') {
-        actions.push({ label: '评审', onClick: () => showMessage('评审功能开发中') });
+        actions.push({ label: '评审', onClick: () => handleForm({ ...record, isView: true }) });
       } else if (record.status === 'draft') {
         actions.push(
           { label: '编辑', onClick: () => handleForm({ ...record }) },
@@ -96,7 +106,7 @@
           },
         );
       } else if (record.status === 'completed') {
-        actions.push({ label: '生成综合评审意见书', onClick: () => showMessage('生成综合评审意见书功能开发中') });
+        actions.push({ label: '生成评估报告', onClick: () => handleReport(record) });
       }
       return actions;
     },
@@ -121,12 +131,23 @@
   });
 
   function handleForm(record: Recordable) {
+    reportVisible.value = false;
     formRecord.value = record;
     formVisible.value = true;
   }
 
+  function handleReport(record: Recordable) {
+    formVisible.value = false;
+    reportRecord.value = record;
+    reportVisible.value = true;
+  }
+
   function handleBack() {
     formVisible.value = false;
+  }
+
+  function handleReportBack() {
+    reportVisible.value = false;
   }
 
   function handleSuccess() {

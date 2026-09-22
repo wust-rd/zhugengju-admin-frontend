@@ -60,7 +60,56 @@ export type EspReviewProject = {
   files?: EspSchemeFile[];
   status: EspReviewStatus;
   statusLabel?: string;
+  summaryResult?: EspReviewResult | string;
+  summaryResultLabel?: string;
   startDate?: string | null;
+  /** 当前登录用户角色：leader 组长 / member 组员 / viewer 旁观 */
+  role?: EspReviewRole;
+  currentExpertId?: string;
+  memberOpinions?: EspReviewOpinion[];
+  myOpinion?: EspReviewOpinion | null;
+  summary?: EspReviewOpinion | null;
+};
+
+export type EspReviewRole = 'leader' | 'member' | 'viewer';
+
+export type EspReviewResult = 'pass' | 'reject';
+
+export type EspReviewOpinion = {
+  id?: string;
+  expertId?: string;
+  expertName?: string;
+  kind?: 'member' | 'summary';
+  result?: EspReviewResult | string;
+  resultLabel?: string;
+  opinion?: string;
+  files?: EspSchemeFile[];
+  reviewDate?: string;
+};
+
+export type EspReviewOpinionItem = {
+  result: EspReviewResult | '';
+  opinion: string;
+  files?: EspSchemeFile[];
+};
+
+/** 评估报告专家行 */
+export type EspReviewReportExpert = {
+  id: string;
+  name: string;
+  org: string;
+  field: string;
+  title: string;
+  role: '组长' | '组员' | string;
+};
+
+/** 评估报告 */
+export type EspReviewReport = EspReviewProject & {
+  evalMode?: string;
+  implementOrg?: string;
+  evalDate?: string | null;
+  experts?: EspReviewReportExpert[];
+  exportFiles?: EspSchemeFile[];
 };
 
 /** 选择片区后回填 */
@@ -142,4 +191,25 @@ export async function reviewProjectSubmit(id: string): Promise<{
 /** 删除（仅待提交） */
 export async function reviewProjectDelete(id: string): Promise<{ id: string; projectName: string }> {
   return unwrap(await defHttp.post({ url: adminPath + '/esp/reviewProject/delete', params: { id } }));
+}
+
+/** 提交项目评估 / 综合评估 */
+export async function reviewProjectOpinion(data: {
+  projectId: string;
+  member?: EspReviewOpinionItem;
+  summary?: EspReviewOpinionItem;
+}): Promise<{
+  id: string;
+  projectName: string;
+  status: EspReviewStatus;
+  statusLabel?: string;
+  summaryResult?: string;
+  summaryResultLabel?: string;
+}> {
+  return unwrap(await defHttp.postJson({ url: adminPath + '/esp/reviewProject/opinion', data }));
+}
+
+/** 评估报告（仅已完成） */
+export async function reviewProjectReport(id: string): Promise<EspReviewReport> {
+  return unwrap(await defHttp.get({ url: adminPath + '/esp/reviewProject/report', params: { id } }));
 }
