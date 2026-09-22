@@ -12,14 +12,15 @@
   只读展示 退出环节/退出时间/退出原因（不占表单分区）。
   四步流转步骤条（@jeesite/ui 的 Stepper 兼页签：策划库入库→策划转储备→
   储备转实施→已实施入库；已退出整条置灰；打开抽屉固定落步骤①）：
-  步骤点亮按项目所处库开放——策划库=①②，储备库/实施库=①②③（步骤④恒不可点，
-  已退出按退出环节映射）；储备库起步骤①②只读（表单禁用、上传/审查块只读），
-  仅步骤③可编辑：
+  步骤点亮按项目所处库开放到「进行中」步骤——策划库=①②（填报主体填写策划库
+  入库与策划转储备），储备库=①②③（①②只读、③储备转实施），实施库=①②③④
+  （④已实施入库=流程状态页，无实际内容）；已退出按退出环节映射；储备库起
+  步骤①②只读（表单禁用、上传/审查块只读）：
   ① 策划库入库 = 基本信息表单；② 策划转储备 = 审查文件表单（六 FormGroup 分区：
   立项审批或核准备案文件/国土空间规划符合情况/项目实施方案/其他论证材料/
   项目红线范围/审查结果，插槽承载 Upload 与 ReviewBlock，核对清单=五材料分区）；③ 储备转实施 =
   实施条件确认/规划调整情况/资金落实情况（impl 前缀字段组）+ 审查结果（核对清单=实施三分区）；
-  ④ 已实施入库 暂空白。
+  ④ 已实施入库 = 流程状态页（「当前页面只表达流程状态，无实际内容」）。
   步骤切换内容进入方向滑动（v-show 不销毁表单，切换不丢填写中间态）。
 
   字段契约（api/ifco/project-library，2026-09-09 字段表）：
@@ -68,7 +69,7 @@
     <Stepper v-model:active="activeStage" :steps="stepItems" :tone="isExited ? 'gray' : 'blue'" class="mb-16px" />
 
     <!-- 步骤内容（Stepper 兼页签，切换进入方向滑动）：
-         ① 策划库入库=基本信息表单；② 策划转储备=审查文件表单；③④ 暂空白。
+         ① 策划库入库=基本信息表单；② 策划转储备=审查文件表单；③ 储备转实施表单；④ 流程状态页。
          v-show 不销毁表单（切换步骤不丢填写中间态） -->
     <Transition :name="stageSlideName">
       <div v-show="activeStage === 0">
@@ -284,9 +285,11 @@
         </BasicForm>
       </div>
     </Transition>
-    <!-- 步骤④：已实施入库（暂空白页） -->
+    <!-- 步骤④：已实施入库（实施库项目可点亮；只表达流程状态，无实际内容） -->
     <Transition :name="stageSlideName">
-      <div v-show="activeStage === 3"></div>
+      <div v-show="activeStage === 3" class="flex min-h-200px items-center justify-center">
+        <span class="text-14px text-gray-400">当前页面只表达流程状态，无实际内容</span>
+      </div>
     </Transition>
 
     <!-- 页脚：查看态仅关闭；编辑/新增 = 取消/暂存/申请转库（申请转库带二次确认） -->
@@ -423,21 +426,23 @@
   const exitedFromLabel = computed(() => (record.value.exitedFrom ? LIBRARY_LABELS[record.value.exitedFrom] : ''));
 
   // ── 四步流转步骤条（兼页签） ────────────────────────────────────────
-  /** 四步流转标题（点击切换内容区：①基本信息 ②审查文件 ③④空白） */
+  /** 四步流转标题（点击切换内容区：①基本信息 ②审查文件 ③储备转实施 ④流程状态页） */
   const STAGE_TITLES = ['策划库入库', '策划转储备', '储备转实施', '已实施入库'];
 
   /** 三段生命周期库（已退出项目按「退出环节」映射走过的步骤用） */
   const STAGE_ORDER: LibraryKey[] = ['planning', 'reserve', 'implementing'];
 
   /**
-   * 各库可点亮的步骤（步骤条页签控制）：按项目所处库开放走过的生命周期步骤——
-   * 策划库=①②，储备库/实施库=①②③，步骤④恒不可点；已退出按退出环节映射；新增视为策划库
+   * 各库可点亮的步骤（步骤条页签控制）：按项目所处库开放到「进行中」的步骤——
+   * 策划库=①②（填报主体填写策划库入库与策划转储备），储备库=①②③（①②只读、
+   * ③储备转实施），实施库=①②③④（④已实施入库=流程状态页）；已退出按退出环节
+   * 映射；新增视为策划库
    */
   const accessibleStages = computed<number[]>(() => {
     const library =
       (record.value.library === 'exited' ? record.value.exitedFrom : record.value.library) ?? 'planning';
     const last = STAGE_ORDER.indexOf(library as LibraryKey);
-    const end = (last >= 0 ? last : 0) + 1;
+    const end = (last >= 0 ? last : 0) + 2;
     return Array.from({ length: end }, (_, index) => index);
   });
 
@@ -453,24 +458,18 @@
 
   const stepItems = computed<StepItem[]>(() => {
     const disabledOf = (index: number) => !accessibleStages.value.includes(index);
-    // 已退出：如实表达走过的步骤（退出前所处库之前的=灰勾、其余灰数字），整条无强调色
+    // 已退出：整条无强调色（tone=gray），无完成勾，步骤按退出环节开放查看
     if (isExited.value) {
-      const exitIndex = STAGE_ORDER.indexOf(record.value.exitedFrom ?? 'implementing');
       return STAGE_TITLES.map((title, index) => ({
         title,
-        status: index < exitIndex ? ('finish' as const) : ('wait' as const),
+        status: 'wait' as const,
         disabled: disabledOf(index),
       }));
     }
-    // 在库/新增：当前查看的步骤为强调色，之前的常规完成态，之后的灰色；未走到的步骤不可点亮
+    // 在库/新增：当前查看的步骤为强调色，其余正常显示（无完成勾）
     return STAGE_TITLES.map((title, index) => ({
       title,
-      status:
-        index === activeStage.value
-          ? ('process' as const)
-          : index < activeStage.value
-            ? ('finish' as const)
-            : ('wait' as const),
+      status: index === activeStage.value ? ('process' as const) : ('wait' as const),
       disabled: disabledOf(index),
     }));
   });
