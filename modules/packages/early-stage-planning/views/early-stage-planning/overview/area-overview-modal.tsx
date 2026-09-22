@@ -3,9 +3,9 @@
  *
  * 结构：标题图 → 相框（片区概况图片垫底 + 相框覆盖层；无图显示「暂无图片」占位）
  * → 统计卡片 → 详细信息列表 → 查看详情按钮
- * 内容由 area prop（接口片区行数据）驱动；概况图片取方案填报的 overview_images 首图
- * （loadSchemeFill 共享两跳加载 + auid 级缓存，与详情页同源——点开本面板即预热，
- * 进详情页不重复请求）；
+ * 内容由 area prop（接口片区行数据）驱动；概况图片与片区范围/起止时间/功能定位
+ * 取方案填报表单（loadSchemeFill 共享两跳加载 + auid 级缓存，与详情页同源——点开
+ * 本面板即预热，进详情页不重复请求）；
  * 点击关闭按钮或地图空白处由父级收起。
  * 「查看详情」只 emit('detail')，跳转/切换由看板页负责（见 overview/index.tsx 的 openAreaDetail）。
  */
@@ -14,8 +14,13 @@ import headerImg from '@jeesite/assets/images/display/plan/area-overview-modal-h
 import pictureBoxImg from '@jeesite/assets/images/display/plan/picture-box.webp';
 import arrowImg from '@jeesite/assets/images/display/plan/arrow.png';
 import type { EspMapAreaRow } from '@jeesite/early-stage-planning/api/early-stage-planning/esp-map';
+import type { EspSchemeFill } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
+import { XOD_COLOR } from '@jeesite/display/components/corner-panel/xod-row';
 import { dash, fmtAreaHa } from './area-format';
 import { loadSchemeFill } from './area-info';
+
+/** 功能定位胶囊兜底色（XOD_COLOR 未覆盖的编码，如 POD） */
+const FUNC_PILL_FALLBACK = '#94a3b8';
 
 /** 列表分隔线渐变 */
 const DIVIDER_GRADIENT =
@@ -40,14 +45,20 @@ export const AreaOverviewModal = defineComponent({
     /** 当前片区概况图（null = 无图，相框内显示「暂无图片」占位） */
     const overviewImg = shallowRef<string | null>(null);
 
-    // 切换片区时拉取该片区概况图（共享缓存去重；失败/无图置 null → 暂无图片）
+    /** 填报表单（概况图 + 片区范围/起止时间/功能定位共用；null = 未填报/加载失败） */
+    const form = shallowRef<EspSchemeFill | null>(null);
+
+    // 切换片区时拉取填报表单（共享缓存去重；失败/无数据 → null，各项显示 —）
     watch(
       () => props.area.A_UID,
       (auid) => {
         overviewImg.value = null;
+        form.value = null;
         loadSchemeFill(auid, props.area.AREA_NAME ?? '')
-          .then((form) => {
-            if (props.area.A_UID === auid) overviewImg.value = form?.overviewImages?.[0]?.url ?? null;
+          .then((f) => {
+            if (props.area.A_UID !== auid) return;
+            form.value = f;
+            overviewImg.value = f?.overviewImages?.[0]?.url ?? null;
           })
           .catch(() => {});
       },
@@ -63,12 +74,16 @@ export const AreaOverviewModal = defineComponent({
         { label: '更新情况', value: a.BATCH ?? '—', tag: true },
       ];
 
-      /** 详细信息列表（badge 为值左侧的小标签；四至范围接口暂无字段，先占位） */
-      const infoItems: { label: string; value: string; badge?: string }[] = [
+      /** 详细信息列表（所在区位取图斑数据；片区范围/起止时间/功能定位取填报表单，
+          pills = 功能定位编码胶囊行，空数据显示 —；起止时间 = 起始 ~ 结束 拼一行） */
+      const infoItems: { label: string; value?: string; pills?: string[] }[] = [
         { label: '所在区位', value: dash(a.DIST) },
-        { label: '四至范围', value: '—' },
-        { label: '起始时间', value: a.START_DATE ? dash(a.START_DATE) : '—' },
-        { label: '功能定位', value: dash(a.FUNC_TYPE_NAME), badge: a.FUNC_TYPE_VALUE ?? undefined },
+        { label: '片区范围', value: dash(form.value?.scopeDesc) },
+        {
+          label: '起止时间',
+          value: dash([form.value?.startTime, form.value?.endTime].filter((v) => v != null && v !== '').join(' ~ ')),
+        },
+        { label: '功能定位', pills: form.value?.funcTypes ?? [] },
       ];
 
       return (
@@ -127,14 +142,26 @@ export const AreaOverviewModal = defineComponent({
                   <div class="ml-8px text-14px text-#53E2F6">{item.label}</div>
                 </div>
 
-                <div class="mt-12px flex items-center text-16px lh-24px text-white">
-                  {item.badge && (
-                    <div class="mr-12px inline-block bg-#17FEB9 px-6px py-2px text-10px font-600 lh-14px rd-4px text-black">
-                      {item.badge}
-                    </div>
-                  )}
-                  {item.value}
-                </div>
+                {/* 值区：功能定位 = 编码胶囊行（横排、不显示中文名），其余 = 文本 */}
+                {item.pills ? (
+                  <div class="mt-12px flex flex-wrap items-center gap-4px">
+                    {item.pills.length ? (
+                      item.pills.map((code) => (
+                        <div
+                          key={code}
+                          class="font-chakra rd-4px h-16px px-6px flex items-center justify-center text-black text-14px font-500"
+                          style={{ background: XOD_COLOR[String(code).toLowerCase()] ?? FUNC_PILL_FALLBACK }}
+                        >
+                          {String(code).toUpperCase()}
+                        </div>
+                      ))
+                    ) : (
+                      <span class="text-16px lh-24px">—</span>
+                    )}
+                  </div>
+                ) : (
+                  <div class="mt-12px flex items-center text-16px lh-24px text-white">{item.value}</div>
+                )}
 
                 {/* 分隔线：最后一项不显示 */}
                 {index < infoItems.length - 1 && (

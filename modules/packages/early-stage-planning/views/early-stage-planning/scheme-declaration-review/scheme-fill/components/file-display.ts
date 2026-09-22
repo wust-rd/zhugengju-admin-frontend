@@ -23,6 +23,25 @@ export function fileColor(name: string): string {
     .otherwise(() => '#8A94A6');
 }
 
+/** 支持跳外部直链预览的扩展名（pdf / 图片——浏览器新窗可直接打开） */
+const PREVIEW_EXTS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']);
+
+/** 是否可预览（pdf/图片且有直链；word/excel/ppt/zip 等其余类型一律只下载） */
+export function canPreview(file: { name: string; url?: string }): boolean {
+  return !!file.url && PREVIEW_EXTS.has(fileExt(file.name));
+}
+
+/**
+ * 打开已上传文件：pdf/图片 新窗直链预览，其余类型（word/excel/ppt/zip/dwg…）走 blob 下载
+ */
+export function openEspFile(file: { name: string; url?: string }): void {
+  if (!canPreview(file)) {
+    void downloadEspFile(file);
+    return;
+  }
+  window.open(file.url as string, '_blank', 'noopener');
+}
+
 /** 附件大小文案（初始回填只有文件名、拿不到 size 时返回空串） */
 export function fileSizeText(f: UploadFile): string {
   const size = f.size ?? (f.originFileObj as unknown as { size?: number } | undefined)?.size;

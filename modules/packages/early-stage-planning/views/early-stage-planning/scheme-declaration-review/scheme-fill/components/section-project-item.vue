@@ -38,9 +38,9 @@
         >
           <span class="i-ant-design:file-text-outlined shrink-0 text-18px" :style="{ color: fileColor(f.name) }"></span>
 
-          <!-- 有直链的文件（已上传）点击新窗打开（pdf/word 即外链预览），未完成的仅展示名称 -->
+          <!-- 有直链：pdf/word/图片 点名新窗外链预览；其余类型点名直接下载；未完成的仅展示名称 -->
           <a
-            v-if="f.url"
+            v-if="f.url && canPreview(f)"
             class="min-w-0 flex-1 truncate text-14px text-gray-700 hover:text-[#3A8EF6]!"
             :title="f.name"
             :href="f.url"
@@ -49,6 +49,14 @@
           >
             {{ f.name }}
           </a>
+          <span
+            v-else-if="f.url"
+            class="min-w-0 flex-1 cursor-pointer truncate text-14px text-gray-700 hover:text-[#3A8EF6]!"
+            :title="`${f.name}（点击下载）`"
+            @click.stop="downloadEspFile(f)"
+          >
+            {{ f.name }}
+          </span>
           <span v-else class="min-w-0 flex-1 truncate text-14px text-gray-700" :title="f.name">{{ f.name }}</span>
 
           <span v-if="fileSizeText(f)" class="shrink-0 text-12px text-gray-400">{{ fileSizeText(f) }}</span>
@@ -84,7 +92,7 @@
   import { Upload } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
   import GeoField from './geo-field.vue';
-  import { fileColor, fileSizeText, downloadEspFile } from './file-display';
+  import { fileColor, canPreview, fileSizeText, downloadEspFile } from './file-display';
   import { FUND_SOURCES } from './fund-sources';
   import { useEspFileList, type EspUploadFile } from './use-esp-file-list';
   import { useSectionForm } from './use-section-form';
