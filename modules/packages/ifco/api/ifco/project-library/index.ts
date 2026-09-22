@@ -12,6 +12,7 @@
  * 其余 45 条按固定规则确定性生成凑满 50 条（刷新即恢复，无随机值）。
  */
 
+import { reactive } from 'vue';
 import { match } from 'ts-pattern';
 
 /** 库：统计卡点选 = 表格筛选维度，经路由 ?library= 持久化 */
@@ -83,6 +84,12 @@ export const CITY_RENEWAL_AREA_LIST: CityRenewalArea[] = [
 /** 区级更新片区（假数据；区级片区不在前期规划库，仅有名称） */
 export const DISTRICT_RENEWAL_AREA_LIST = ['红钢城片', '街道口片', '吴家山片', '纸坊片', '前川片'];
 
+/** 全部片区名称（市级 + 区级合集；搜索表单选项） */
+export const RENEWAL_AREA_NAME_LIST = [
+  ...CITY_RENEWAL_AREA_LIST.map((area) => area.name),
+  ...DISTRICT_RENEWAL_AREA_LIST,
+];
+
 /** 片区功能定位（多选） */
 export const FUNCTION_ORIENTATION_OPTIONS = [
   { label: '交通导向（TOD）', value: 'TOD' },
@@ -92,6 +99,11 @@ export const FUNCTION_ORIENTATION_OPTIONS = [
   { label: '产业导向（IOD）', value: 'IOD' },
   { label: '康养导向（HOD）', value: 'HOD' },
 ] as const;
+
+/** 片区功能定位 value → 中英文 label（列表展示用） */
+export const FUNCTION_ORIENTATION_LABEL: Record<string, string> = Object.fromEntries(
+  FUNCTION_ORIENTATION_OPTIONS.map((item) => [item.value, item.label]),
+);
 
 /** 片区批次 */
 export const RENEWAL_AREA_BATCH_OPTIONS = [
@@ -164,12 +176,9 @@ export const FUND_SOURCE_ALL = FUND_SOURCE_OPTIONS.flatMap((group) => group.opti
 export const INDUSTRY_SUPERVISION_DEPT_LIST = ['市住更局', '市财政局', '市水务局', '市发改委'];
 
 /** 责任部门（假数据：各区住更局 + 市级行业主管部门；转库申请的主审单位） */
-export const RESPONSIBLE_DEPT_LIST = [
-  ...DISTRICTS.map((name) => `${name}住更局`),
-  ...INDUSTRY_SUPERVISION_DEPT_LIST,
-];
+export const RESPONSIBLE_DEPT_LIST = [...DISTRICTS.map((name) => `${name}住更局`), ...INDUSTRY_SUPERVISION_DEPT_LIST];
 
-/** 统筹主体（假数据；候选清单由工具栏「配置统筹主体/实施主体」维护，接口待接入） */
+/** 统筹主体（假数据） */
 export const COORDINATE_ORG_LIST = ['市发改委', '市财政局'];
 
 /** 实施主体（假数据：各类建工单位） */
@@ -181,6 +190,23 @@ export const IMPLEMENT_ORG_LIST = [
   '武汉地铁集团',
   '武汉生态投资集团',
 ];
+
+/**
+ * 指定填报主体候选机构清单（工具栏「配置指定填报主体」抽屉维护）。
+ * 模块级内存状态：跨页面共享、假数据阶段刷新即恢复。
+ */
+export const REPORT_ORG_LIST = reactive<string[]>(['武汉城建集团', '中建三局', '江岸区住建局']);
+
+/** 新增指定填报主体机构：名称为空或已被占用（清单内重名）时拦截，返回失败原因 */
+export function addReportOrg(name: string): { ok: boolean; message?: string } {
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, message: '请输入机构名称' };
+  if (REPORT_ORG_LIST.includes(trimmed)) {
+    return { ok: false, message: `机构名称「${trimmed}」已被占用，请更换名称` };
+  }
+  REPORT_ORG_LIST.push(trimmed);
+  return { ok: true };
+}
 
 /** 在库项目行（基本信息字段全集；library/status/退出信息为系统与流程字段） */
 export type ProjectLibraryItem = {
@@ -261,8 +287,10 @@ export type ProjectLibraryItem = {
   implConditionReady?: string;
   /** 本年度计划完成投资（亿元） */
   implYearPlanInvest?: number;
-  /** 计划开完工时间范围 [计划开工, 计划完工]（YYYY-MM-DD） */
-  implPlanDuration?: string[];
+  /** 计划开工时间（YYYY-MM-DD） */
+  implPlanStartDate?: string;
+  /** 计划完工时间（YYYY-MM-DD） */
+  implPlanEndDate?: string;
   /** 是否涉及规划调整（是/否；与审查文件的 involvePlanAdjustment 相互独立） */
   implInvolvePlanAdjustment?: string;
   /** 是否通过规委会审议（是/否） */
@@ -380,10 +408,7 @@ export function emptyImplReviewResults(): Record<ImplSectionKey, ReviewResult | 
 
 /** 全空的材料区块结论（回填/兜底用；fromEntries 只能给宽索引签名，键来源 REVIEW_SECTIONS 完备，断言安全） */
 export function emptyReviewResults(): Record<ReviewSectionKey, ReviewResult | ''> {
-  return Object.fromEntries(REVIEW_SECTIONS.map(({ key }) => [key, ''])) as Record<
-    ReviewSectionKey,
-    ReviewResult | ''
-  >;
+  return Object.fromEntries(REVIEW_SECTIONS.map(({ key }) => [key, ''])) as Record<ReviewSectionKey, ReviewResult | ''>;
 }
 
 /** 地理数据示例（武汉两地块红线；假数据阶段模拟后端解析结果） */
@@ -440,6 +465,8 @@ export type ProjectLibraryQuery = {
   library?: LibraryKey;
   projectName?: string;
   district?: string;
+  renewalAreaName?: string;
+  renewalAreaBatch?: string;
   fiveReformType?: string;
   /** 入库年份（按 inLibraryDate 年份过滤） */
   inLibraryYear?: number | string;
@@ -461,7 +488,7 @@ export const LIBRARY_CARDS: LibraryCard[] = [
   {
     key: 'planning',
     label: '策划库',
-    description: '区住建局统一录入，纳入统筹主体/实施主体',
+    description: '区住更局统一录入，纳入统筹主体/实施主体',
     count: 1800,
     invest: 3000,
   },
@@ -487,40 +514,69 @@ export const LIBRARY_CARDS: LibraryCard[] = [
   },
 ];
 
-/** 最新项目状态（流转状态机：策划库待提交→已提交转储备审核→…；已退出为终态只读） */
-export type ProjectStatus = '待提交' | '待储备库审核' | '待储备库回收' | '已提交' | '待重新预提交' | '已退出';
+/** 最新项目状态（状态随所在卡片库决定：策划库/储备库共用四状态流转，实施库=已入库，已退出为终态只读） */
+export type ProjectStatus = '待提交' | '审核中' | '退回修改' | '审核通过' | '已入库' | '已退出';
 
-export const STATUS_OPTIONS: ProjectStatus[] = [
-  '待提交',
-  '待储备库审核',
-  '待储备库回收',
-  '已提交',
-  '待重新预提交',
-  '已退出',
-];
+export const STATUS_OPTIONS: ProjectStatus[] = ['待提交', '审核中', '退回修改', '审核通过', '已入库', '已退出'];
 
-/** 操作列动作（设计稿：操作列按钮随项目状态变化；流转类操作待接入） */
-export type ProjectAction = '查看' | '编辑' | '申请转储备' | '申请退出';
+/** 操作视角（操作列按钮随视角×状态变化；生产接机构角色，演示阶段列表页切换） */
+export type ProjectRole = 'report-org' | 'industry-dept' | 'responsibility-dept';
 
-/** 各状态可用操作（Record 按 ProjectStatus 穷尽：新增状态漏配操作时编译报错） */
-export const ACTIONS_BY_STATUS: Record<ProjectStatus, ProjectAction[]> = {
-  待提交: ['查看', '编辑'],
-  待储备库审核: ['查看'],
-  待储备库回收: ['查看', '编辑'],
-  已提交: ['查看', '申请转储备', '申请退出'],
-  待重新预提交: ['查看', '编辑'],
-  已退出: ['查看'],
+export const ROLE_OPTIONS = [
+  { label: '填报主体', value: 'report-org' },
+  { label: '行业主管部门', value: 'industry-dept' },
+  { label: '责任部门', value: 'responsibility-dept' },
+] as const;
+
+/** 操作列动作（审核=编辑态打开表单抽屉填审查结论；转入下个库/转退出带二次确认） */
+export type ProjectAction = '查看' | '编辑' | '审核' | '转入下个库' | '转退出';
+
+/**
+ * 各状态×各视角的可用操作（Record 按 ProjectStatus×ProjectRole 双层穷尽：
+ * 新增状态/视角漏配时编译报错）。策划库/储备库四状态、实施库（已入库）
+ * 与已退出均为业务定稿口径。
+ */
+export const ACTIONS_BY_STATUS_ROLE: Record<ProjectStatus, Record<ProjectRole, ProjectAction[]>> = {
+  待提交: {
+    'report-org': ['查看', '编辑'],
+    'industry-dept': ['查看'],
+    'responsibility-dept': ['查看', '编辑', '转退出'],
+  },
+  审核中: {
+    'report-org': ['查看'],
+    'industry-dept': ['查看', '审核'],
+    'responsibility-dept': ['查看', '审核', '转退出'],
+  },
+  退回修改: {
+    'report-org': ['查看', '编辑'],
+    'industry-dept': ['查看'],
+    'responsibility-dept': ['查看', '编辑', '转退出'],
+  },
+  审核通过: {
+    'report-org': ['查看', '转入下个库'],
+    'industry-dept': ['查看'],
+    'responsibility-dept': ['查看', '转退出'],
+  },
+  已入库: {
+    'report-org': ['查看'],
+    'industry-dept': ['查看'],
+    'responsibility-dept': ['查看', '转退出'],
+  },
+  已退出: {
+    'report-org': ['查看'],
+    'industry-dept': ['查看'],
+    'responsibility-dept': ['查看'],
+  },
 };
 
-/** 状态 → Tag 配色口径（列表状态列与表单标题 Tag 同源）：终态实心（已提交=蓝、已退出=灰），待办描边蓝 */
+/** 状态 → Tag 配色口径（列表状态列与表单标题 Tag 同源）：终态实心（审核通过=绿、已入库=蓝、已退出=灰），退回修改=橙描边，其余待办描边蓝 */
 export function statusTagProps(status: ProjectStatus): { color: string; variant: 'solid' | 'outlined' } {
   return match(status)
-    .with('已提交', () => ({ color: 'blue', variant: 'solid' }) as const)
+    .with('审核通过', () => ({ color: 'green', variant: 'solid' }) as const)
+    .with('已入库', () => ({ color: 'blue', variant: 'solid' }) as const)
     .with('已退出', () => ({ color: 'default', variant: 'solid' }) as const)
-    .with('待提交', '待储备库审核', '待储备库回收', '待重新预提交', () => ({
-      color: 'blue',
-      variant: 'outlined',
-    }) as const)
+    .with('退回修改', () => ({ color: 'orange', variant: 'outlined' }) as const)
+    .with('待提交', '审核中', () => ({ color: 'blue', variant: 'outlined' }) as const)
     .exhaustive();
 }
 
@@ -546,7 +602,7 @@ const VERBATIM_ROWS: ProjectLibraryItem[] = [
     fundSituationRemark: '',
     industrySupervisionDeptList: ['市住更局'],
     responsibleDept: '江岸区住更局',
-    coordinateOrgList: ['江岸区住建局'],
+    coordinateOrgList: ['江岸区住更局'],
     implementOrgList: [],
     reportOrg: '',
     reportPerson: '',
@@ -576,14 +632,14 @@ const VERBATIM_ROWS: ProjectLibraryItem[] = [
     fundSituationRemark: '拟申报专项债资金约2800万元。',
     industrySupervisionDeptList: ['市住更局', '市水务局'],
     responsibleDept: '江岸区住更局',
-    coordinateOrgList: ['江岸区住建局'],
-    implementOrgList: ['江岸区住建局'],
-    reportOrg: '江岸区住建局',
+    coordinateOrgList: ['江岸区住更局'],
+    implementOrgList: ['江岸区住更局'],
+    reportOrg: '江岸区住更局',
     reportPerson: '夏传虎',
     reportPhone: '15902770001',
     remarks: '',
     library: 'reserve',
-    status: '待储备库审核',
+    status: '审核中',
     inLibraryDate: '2026-07-03',
   },
   {
@@ -606,14 +662,14 @@ const VERBATIM_ROWS: ProjectLibraryItem[] = [
     fundSituationRemark: '一期企业自有资金加银行贷款，二期拟引入社会资本。',
     industrySupervisionDeptList: ['市住更局', '市财政局'],
     responsibleDept: '江岸区住更局',
-    coordinateOrgList: ['江岸区住建局'],
+    coordinateOrgList: ['江岸区住更局'],
     implementOrgList: ['和纵盛地产公司'],
     reportOrg: '和纵盛地产公司',
     reportPerson: '张明',
     reportPhone: '15902770002',
     remarks: '',
     library: 'reserve',
-    status: '待储备库回收',
+    status: '退回修改',
     inLibraryDate: '2026-06-18',
   },
   {
@@ -636,14 +692,14 @@ const VERBATIM_ROWS: ProjectLibraryItem[] = [
     fundSituationRemark: '拟申报超长期特别国债约6亿元，专项债约5.6亿元。',
     industrySupervisionDeptList: ['市住更局', '市财政局', '市水务局'],
     responsibleDept: '江岸区住更局',
-    coordinateOrgList: ['江岸区住建局'],
+    coordinateOrgList: ['江岸区住更局'],
     implementOrgList: ['江岸区园林局', '武汉城建集团'],
     reportOrg: '武汉城建集团',
     reportPerson: '李建国',
     reportPhone: '15902770003',
     remarks: '',
     library: 'implementing',
-    status: '已提交',
+    status: '已入库',
     inLibraryDate: '2026-03-18',
   },
   {
@@ -673,16 +729,16 @@ const VERBATIM_ROWS: ProjectLibraryItem[] = [
     reportPhone: '',
     remarks: '',
     library: 'planning',
-    status: '待重新预提交',
+    status: '退回修改',
     inLibraryDate: '2026-05-06',
   },
 ];
 
-/** 库 → 生成行可轮转的状态 */
+/** 库 → 生成行可轮转的状态（策划/储备库共用四状态；实施库=已入库） */
 const GEN_STATUSES: Record<LibraryKey, ProjectStatus[]> = {
-  planning: ['待提交', '待重新预提交'],
-  reserve: ['待储备库审核', '待储备库回收'],
-  implementing: ['已提交'],
+  planning: ['待提交', '待提交', '待提交', '审核中', '退回修改', '审核通过'],
+  reserve: ['待提交', '待提交', '审核中', '退回修改', '审核通过'],
+  implementing: ['已入库'],
   exited: ['已退出'],
 };
 
@@ -816,7 +872,8 @@ export const PROJECTS: ProjectLibraryItem[] = [
         ? {
             implConditionReady: '是',
             implYearPlanInvest: Number((((i * 13) % 500) / 100 + 0.5).toFixed(2)),
-            implPlanDuration: ['2026-06-01', '2027-12-31'],
+            implPlanStartDate: '2026-06-01',
+            implPlanEndDate: '2027-12-31',
             implInvolvePlanAdjustment: i % 2 === 0 ? '否' : '是',
             implPassedCommitteeReview: i % 2 === 0 ? '是' : '否',
             ...(i % 2 === 1
@@ -892,7 +949,10 @@ export const PROJECTS: ProjectLibraryItem[] = [
           i % 2 === 1
             ? {
                 results: Object.fromEntries(
-                  REVIEW_SECTIONS.map(({ key }, j) => [key, (i + j) % 4 === 3 ? '' : pick(['符合', '不符合'] as const, i + j)]),
+                  REVIEW_SECTIONS.map(({ key }, j) => [
+                    key,
+                    (i + j) % 4 === 3 ? '' : pick(['符合', '不符合'] as const, i + j),
+                  ]),
                 ) as Record<ReviewSectionKey, ReviewResult | ''>,
                 conclusion: pick(['通过审查', '退回修改', ''] as const, i),
                 opinion: i % 3 === 0 ? '项目材料齐全，同意通过审查。' : '',
@@ -915,9 +975,43 @@ export function filterProjects(params: ProjectLibraryQuery): ProjectLibraryItem[
       (!params.library || item.library === params.library) &&
       (!keyword || item.projectName.includes(keyword)) &&
       (!params.district || item.district === params.district) &&
+      (!params.renewalAreaName || item.renewalAreaName === params.renewalAreaName) &&
+      (!params.renewalAreaBatch || item.renewalAreaBatch === params.renewalAreaBatch) &&
       (!params.fiveReformType || item.fiveReformType === params.fiveReformType) &&
       (!params.status || item.status === params.status) &&
       (!params.projectAffiliation || item.projectAffiliation === params.projectAffiliation) &&
       (!year || item.inLibraryDate.startsWith(year)),
   );
+}
+
+// ── 流转操作（内存态：改 PROJECTS 元素，刷新即恢复；后端接入后换接口） ──
+
+/** 今天（YYYY-MM-DD；退出时间用） */
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 申请转库（表单抽屉「申请转库」按钮）：状态置审核中 */
+export function applyTransfer(item: ProjectLibraryItem): void {
+  item.status = '审核中';
+}
+
+/** 转入下个库（审核通过后填报主体操作）：策划→储备（状态重置待提交）、储备→实施（直接已入库）；已是最后库返回 false */
+export function transferToNextLibrary(item: ProjectLibraryItem): boolean {
+  const next: Partial<Record<LibraryKey, LibraryKey>> = { planning: 'reserve', reserve: 'implementing' };
+  const target = next[item.library];
+  if (!target) return false;
+  item.library = target;
+  item.status = target === 'implementing' ? '已入库' : '待提交';
+  return true;
+}
+
+/** 转退出（责任部门操作）：记录退出环节/时间/原因，移入已退出库 */
+export function transferToExited(item: ProjectLibraryItem, reason = '责任部门转退出'): void {
+  item.exitedFrom = item.library;
+  item.exitDate = today();
+  item.exitReason = reason;
+  item.library = 'exited';
+  item.status = '已退出';
 }

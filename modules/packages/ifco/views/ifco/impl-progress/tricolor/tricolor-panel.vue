@@ -6,8 +6,9 @@
   tricolor-export.ts）+ 表格（片区维度行：投资五件套 +
   年度投资进度进度条 + 三色图状态胶囊；窄列表头自动换行）。三色口径：红=滞后、黄=预警、
   绿=进展良好，未评估显示 -。
-  区级无操作列；市级操作列=编辑（抽屉显示片区编号/片区名称，选择 红/黄/绿 提交，
-  更新片区本周期评估结果）。
+  区级/市级操作列均有「查看」（抽屉展示逐季度评估历史：每季度调整片区三色，
+  当前周期+历史季度颜色，最新在前）；市级另有「编辑」（抽屉显示片区编号/片区名称，
+  选择 红/黄/绿 提交，更新片区本周期评估结果）。
 -->
 <template>
   <div class="tricolor-table">
@@ -48,10 +49,33 @@
         style="width: 100%"
       />
     </BasicDrawer>
+
+    <!-- 三色图历史抽屉（区级/市级查看入口：逐季度评估结果，当前周期+历史季度，最新在前） -->
+    <BasicDrawer @register="registerHistoryDrawer" title="查看三色图历史" width="520px" :show-footer="false">
+      <div class="mb-16px flex flex-col gap-4px">
+        <div><span class="mr-8px text-gray-500">片区编号：</span>{{ viewTarget?.areaCode }}</div>
+        <div><span class="mr-8px text-gray-500">片区名称：</span>{{ viewTarget?.areaName }}</div>
+      </div>
+      <div class="mb-8px text-14px font-600 text-gray-800">逐季度评估结果</div>
+      <div class="flex flex-col">
+        <div
+          v-for="item in viewHistory"
+          :key="item.quarter"
+          class="flex items-center gap-12px b-b-1 b-b-solid b-gray-100 py-10px text-14px"
+        >
+          <span class="w-110px shrink-0 text-gray-700">{{ quarterLabel(item.quarter) }}</span>
+          <Tag v-if="item.status" v-bind="triColorTagProps(item.status)" style="border-radius: 10px">
+            {{ item.status }}
+          </Tag>
+          <span v-else class="text-gray-400">未评估</span>
+          <span v-if="item.current" class="text-12px text-gray-400">本周期</span>
+        </div>
+      </div>
+    </BasicDrawer>
   </div>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressSharedTricolorPanel">
-  import { ref } from 'vue';
+  import { computed, ref } from 'vue';
   import { Progress, Select, Tag } from 'antdv-next';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { BasicDrawer, useDrawer } from '@jeesite/core/components/Drawer';
@@ -117,17 +141,50 @@
     refresh();
   }
 
-  /** 市级操作列：编辑=抽屉选择三色图进展；区级无操作列 */
-  const actionColumn: BasicColumn | undefined =
-    props.role === 'urban'
-      ? {
-          width: 80,
-          fixed: 'right',
-          actions: (record: Recordable) => [
-            { label: '编辑', onClick: () => openEvaluateDrawer(record as AreaTricolorItem) },
-          ],
-        }
-      : undefined;
+  /** 市级操作列：查看=历史抽屉；编辑=抽屉选择三色图进展 */
+  const actionColumn: BasicColumn = {
+    width: 110,
+    fixed: 'right',
+    actions: (record: Recordable) => [
+      { label: '查看', onClick: () => openHistoryDrawer(record as AreaTricolorItem) },
+      ...(props.role === 'urban'
+        ? [{ label: '编辑', onClick: () => openEvaluateDrawer(record as AreaTricolorItem) }]
+        : []),
+    ],
+  };
+
+  // ── 三色图历史抽屉（每季度调整片区三色；当前周期+历史季度，最新在前） ──
+  const viewTarget = ref<AreaTricolorItem | null>(null);
+
+  /** 评估周期（YYYY-MM）→ 季度键（YYYY-Q） */
+  function quarterOf(period: string): string {
+    const year = Number(period.slice(0, 4));
+    const month = Number(period.slice(5, 7));
+    return year && month ? `${year}-${Math.ceil(month / 3)}` : period;
+  }
+
+  /** 季度键（YYYY-Q）→ 文案（2026年第3季度） */
+  function quarterLabel(quarter: string): string {
+    const [year, seq] = quarter.split('-');
+    return year && seq ? `${year}年第${seq}季度` : '/';
+  }
+
+  const viewHistory = computed<{ quarter: string; status: TriColorStatus; current?: boolean }[]>(() => {
+    const target = viewTarget.value;
+    if (!target) return [];
+    const items: { quarter: string; status: TriColorStatus; current?: boolean }[] = [
+      { quarter: quarterOf(target.evaluatePeriod), status: target.triColor, current: true },
+      ...(target.history ?? []),
+    ];
+    return items.sort((a, b) => b.quarter.localeCompare(a.quarter));
+  });
+
+  const [registerHistoryDrawer, { openDrawer: openHistory }] = useDrawer();
+
+  function openHistoryDrawer(record: AreaTricolorItem) {
+    viewTarget.value = record;
+    openHistory(true);
+  }
 
   const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
 

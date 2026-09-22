@@ -1,13 +1,18 @@
 <!--
-  ifco —— 实施进度填报 · 月度进度填报列表面板
+  ifco —— 实施进度填报 · 月度进度填报列表面板（monthly/list 页三视角同表格：
+  列与筛选不分角色，仅操作列按视角区分）
 
-  搜索表单（项目名称/五改类型/片区批次/项目归属/当前建设阶段/填报状态/选择年份/选择月份）
-  + 工具栏（一键导出）+ 表格。操作列按填报状态变化：草稿/退回修改=查看+编辑，
-  待确认/已确认=仅查看。查看/编辑走 monthly-form.vue 表单抽屉
-  （月度进度情况/月度投资情况/项目纳统情况 三区 + 退回修改横幅）。
+  搜索表单（项目名称/五改类型/片区批次/项目归属/当前建设阶段/流程状态/选择年份/
+  选择月份）+ 工具栏（一键导出）+ 表格（表头换行显示；金额四列=项目投资估算/
+  年度投资计划/年度累计完成投资/当月完成投资，均亿元右对齐；年度投资进度=
+  累计/计划派生百分比；两描述列+实施进度完成百分比+指定填报主体+入库纳统情况）。
+  操作列按流程状态变化（填报主体任何状态恒有查看）：待提交/退回修改=查看+编辑，
+  待区级审查/待市级审查/市级审查通过=仅查看。查看/编辑走
+  monthly-form.vue 表单抽屉（月度进度情况/月度投资情况/项目纳统情况 三区 +
+  退回修改横幅）。
 -->
 <template>
-  <div>
+  <div class="monthly-fill-table">
     <BasicTable @register="registerTable">
       <template #toolbar>
         <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
@@ -15,9 +20,16 @@
       <template #renewalAreaBatch="{ record }">{{ renewalAreaBatchLabel(record.renewalAreaBatch) }}</template>
       <template #fiveReformType="{ record }">{{ fiveReformLabel(record.fiveReformType) }}</template>
       <template #projectAffiliation="{ record }">{{ projectAffiliationLabel(record.projectAffiliation) }}</template>
+      <template #monthPlan="{ record }">
+        {{ monthPlanOf(record.projectCode, Number(String(record.reportMonth ?? '').slice(5, 7))) }}
+      </template>
+      <template #yearProgress="{ record }">{{ yearProgressPercent(record) }}</template>
+      <template #implementProgress="{ record }">
+        {{ record.implementProgress != null ? `${record.implementProgress}%` : '—' }}
+      </template>
       <template #progressReminder="{ record }">
-        <Tag v-bind="progressReminderTagProps(record.progressReminder)" style="border-radius: 10px">
-          {{ record.progressReminder }}
+        <Tag v-bind="progressReminderTagProps(progressReminderOf(record))" style="border-radius: 10px">
+          {{ progressReminderOf(record) }}
         </Tag>
       </template>
       <template #fillStatus="{ record }">
@@ -47,43 +59,53 @@
     CONSTRUCTION_STAGE_OPTIONS,
     FILL_STATUS_OPTIONS,
     MONTH_OPTIONS,
-    PROGRESS_REMINDER_OPTIONS,
     fillStatusTagProps,
     filterMonthlies,
     fiveReformLabel,
+    monthPlanOf,
+    progressReminderOf,
     progressReminderTagProps,
     projectAffiliationLabel,
     renewalAreaBatchLabel,
+    yearProgressPercent,
     type FillStatus,
   } from '@jeesite/ifco/api/ifco/impl-progress';
   import MonthlyForm from './monthly-form.vue';
 
   const { showMessage } = useMessage();
 
-  /** 项目编号/项目名称固定左侧，填报状态固定右侧（与操作列同翼）；金额右对齐 */
+  /** 前三列（项目编号/项目名称/行政区）固定左侧；末四列（项目进度提醒/当前建设阶段/流程状态/操作）固定右侧；金额四列右对齐、表头换行 */
   const columns: BasicColumn[] = [
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
-    { title: '项目名称', dataIndex: 'projectName', width: 200, fixed: 'left', ellipsis: true },
-    { title: '行政区', dataIndex: 'district', width: 90 },
+    { title: '项目名称', dataIndex: 'projectName', width: 200, fixed: 'left' },
+    { title: '行政区', dataIndex: 'district', width: 90, fixed: 'left' },
     { title: '片区名称', dataIndex: 'renewalAreaName', width: 100 },
+    { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
-    { title: '当前形象进度', dataIndex: 'currentProgress', width: 140, ellipsis: true },
-    { title: '项目总投资(亿元)', dataIndex: 'totalInvest', width: 120, align: 'right' },
+    { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
+    { title: '当前形象进度', dataIndex: 'currentProgress', width: 140 },
+    { title: '项目投资估算(亿元)', dataIndex: 'investEstimate', width: 130, align: 'right' },
     { title: '年度投资计划(亿元)', dataIndex: 'yearPlanInvest', width: 130, align: 'right' },
     { title: '年度累计完成投资(亿元)', dataIndex: 'yearAccumulatedInvest', width: 150, align: 'right' },
     { title: '当月完成投资(亿元)', dataIndex: 'monthCompletedInvest', width: 130, align: 'right' },
-    { title: '项目进度提醒', dataIndex: 'progressReminder', width: 100, slot: 'progressReminder' },
-    { title: '当前建设阶段', dataIndex: 'constructionStage', width: 100 },
-    { title: '填报状态', dataIndex: 'fillStatus', width: 100, fixed: 'right', slot: 'fillStatus' },
+    { title: '年度投资进度', dataIndex: 'yearProgress', width: 110, slot: 'yearProgress' },
+    { title: '当月进度计划安排（分项简要描述）', dataIndex: 'monthPlan', width: 220, slot: 'monthPlan' },
+    { title: '完成进度计划情况', dataIndex: 'monthProgressDesc', width: 220 },
+    { title: '实施进度完成百分比', dataIndex: 'implementProgress', width: 130, slot: 'implementProgress' },
+    { title: '指定填报主体', dataIndex: 'reportOrg', width: 150 },
+    { title: '入库纳统情况', dataIndex: 'statisticsIncluded', width: 110 },
+    { title: '项目进度提醒', dataIndex: 'progressReminder', width: 120, fixed: 'right', slot: 'progressReminder' },
+    { title: '当前建设阶段', dataIndex: 'constructionStage', width: 100, fixed: 'right' },
+    { title: '流程状态', dataIndex: 'fillStatus', width: 100, fixed: 'right', slot: 'fillStatus' },
   ];
 
   type MonthlyAction = '查看' | '编辑';
 
-  /** 操作列按钮按填报状态变化（exhaustive：新增状态漏配时编译报错） */
+  /** 操作列按钮按流程状态变化（exhaustive：新增状态漏配时编译报错） */
   function actionsByStatus(status: FillStatus): MonthlyAction[] {
     return match(status)
-      .with('草稿', '退回修改', () => ['查看', '编辑'] as MonthlyAction[])
-      .with('待确认', '已确认', () => ['查看'] as MonthlyAction[])
+      .with('待提交', '退回修改', () => ['查看', '编辑'] as MonthlyAction[])
+      .with('待区级审查', '待市级审查', '市级审查通过', () => ['查看'] as MonthlyAction[])
       .exhaustive();
   }
 
@@ -123,6 +145,8 @@
     dataSource: filterMonthlies({}),
     columns,
     actionColumn,
+    // 表头换行：表级 ellipsis 默认 true 会给列灌 ant-table-cell-ellipsis 截断表头（如「项目进度…」），关掉；列上显式 ellipsis: true 仍生效
+    ellipsis: false,
     showTableSetting: true,
     showIndexColumn: false,
     useSearchForm: true,
@@ -158,7 +182,7 @@
           componentProps: { options: stageOptions, allowClear: true },
         },
         {
-          label: '填报状态',
+          label: '流程状态',
           field: 'fillStatus',
           component: 'Select',
           componentProps: { options: fillStatusOptions, allowClear: true },
@@ -194,3 +218,9 @@
     showMessage(`${label}：功能待接入`);
   }
 </script>
+<style scoped>
+  /* 表头换行显示（长列名两行，如「年度累计完成投资(亿元)」） */
+  .monthly-fill-table :deep(.ant-table-thead > tr > th) {
+    white-space: normal;
+  }
+</style>

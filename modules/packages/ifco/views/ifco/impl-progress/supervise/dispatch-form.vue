@@ -3,7 +3,7 @@
 
   标题 = 新增提示/新增督办/下发 · 下发编号（编号系统生成恒只读）。
   字段：通知类型（由入口按钮带入，可改）/ 对应行政区 / 督查月份 / 下发时间 /
-  处理截止日期 / 下发部门（市住建局恒只读）/ 联系人 / 联系电话 / 具体问题 /
+  处理截止日期 / 下发部门（市住更局恒只读）/ 联系人 / 联系电话 / 具体问题 /
   涉及项目（多选，保存时按项目所属片区归组为涉及片区和项目的处理情况）。
   底部按钮：取消 / 暂存（状态=待下发，仅市级列表可见）/ 下发（状态=已下发，
   进入填报端与区级端处理流程）。当前后端尚未介入：保存直接改内存
@@ -164,7 +164,7 @@
       inspectMonth: record.value.inspectMonth ?? undefined,
       dispatchDate: record.value.dispatchDate || new Date().toISOString().slice(0, 10),
       deadline: record.value.deadline ?? undefined,
-      dispatchOrg: record.value.dispatchOrg ?? '市住建局',
+      dispatchOrg: record.value.dispatchOrg ?? '市住更局',
       contactPerson: record.value.contactPerson ?? '',
       contactPhone: record.value.contactPhone ?? '',
       problem: record.value.problem ?? '',
@@ -195,7 +195,7 @@
       inspectMonth: String(values.inspectMonth ?? ''),
       dispatchDate: String(values.dispatchDate ?? ''),
       deadline: String(values.deadline ?? ''),
-      dispatchOrg: String(values.dispatchOrg ?? '市住建局'),
+      dispatchOrg: String(values.dispatchOrg ?? '市住更局'),
       problem: String(values.problem ?? ''),
       dispatchFile: '督办单.pdf',
       contactPerson: String(values.contactPerson ?? ''),

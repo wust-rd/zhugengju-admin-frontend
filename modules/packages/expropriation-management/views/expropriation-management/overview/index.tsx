@@ -47,7 +47,7 @@ export default defineComponent({
               <LayerControls class="left-32px top-24px" />
 
               {/* 征收项目信息 Tab 面板：项目基本信息 / 征收进度汇总（右上角） */}
-              <ExpropriationInfoTabs class="absolute right-24px top-24px z-10" />
+              {/* <ExpropriationInfoTabs class="absolute right-24px top-24px z-10" /> */}
             </>
           ),
         }}

@@ -6,7 +6,7 @@
   （从审查记录派生）。
   三步步骤条（@jeesite/ui 的 Stepper 兼页签）：①基本信息查看（恒只读表单）
   → ②倒排工期计划（一月~十二月计划可留空 + 审查结果 FormGroup——审查历史按轮次
-  分组展示）→ ③确认提交（逐月计划汇总）。
+  分组展示）→ ③确认提交（流程占位页：只表达流程状态，无实际内容）。
   查看=两个表单 disabled + 底部仅关闭。
   修改计划模式（市级审查通过/退回修改行的「修改计划」入口）：仅当前月份至十二月
   计划可改，已过月份禁改（计划年份早于当前年全禁、晚于当前年全开）；保存草稿保持
@@ -51,10 +51,10 @@
     <!-- 三步步骤条（兼页签：点击切换内容区） -->
     <Stepper v-model:active="activeStep" :steps="stepItems" class="mb-16px" />
 
-    <!-- ① 基本信息查看（恒只读表单；枚举值回填时已转中文） -->
+    <!-- ① 基本信息查看（共用只读表单，两域显示全部字段；枚举值回填时已转中文） -->
     <Transition :name="slideName">
       <div v-show="activeStep === 0">
-        <BasicForm @register="handleBaseFormRegister" />
+        <BasicInfoForm :record="record" />
       </div>
     </Transition>
 
@@ -150,22 +150,10 @@
       </div>
     </Transition>
 
-    <!-- ③ 确认提交（逐月计划汇总） -->
+    <!-- ③ 确认提交（流程占位页：只表达流程状态，无实际内容） -->
     <Transition :name="slideName">
       <div v-show="activeStep === 2" class="bg-white rd-8px px-24px py-20px">
-        <div class="text-15px font-600 text-gray-900">倒排工期计划汇总</div>
-        <div class="mt-4px text-13px text-gray-400">提交后进入区级审查流程；被退回时可修改后重新提交。</div>
-        <div class="mt-12px flex flex-col gap-8px">
-          <div
-            v-for="(plan, index) in summaryPlans"
-            :key="index"
-            class="flex items-start gap-12px b-b-1 b-b-solid b-gray-100 pb-8px text-14px"
-          >
-            <span class="w-70px shrink-0 font-600 text-gray-700">{{ MONTH_PLAN_LABELS[index] }}</span>
-            <span class="text-gray-800">{{ plan || '未填写' }}</span>
-          </div>
-          <div v-if="!summaryPlans.some((plan) => plan)" class="text-14px text-gray-400">暂未填写任何月份计划</div>
-        </div>
+        <div class="text-14px text-gray-400">【当前页面只表达流程状态，无实际内容】</div>
       </div>
     </Transition>
 
@@ -189,12 +177,10 @@
     MONTH_PLAN_LABELS,
     SCHEDULES,
     fillStatusTagProps,
-    fiveReformLabel,
-    projectAffiliationLabel,
-    renewalAreaBatchLabel,
     type ReviewRecord,
     type ScheduleItem,
   } from '@jeesite/ifco/api/ifco/impl-progress';
+  import BasicInfoForm from '../shared/basic-info-form.vue';
   import type { StepItem } from '@jeesite/ui';
   import { Stepper } from '@jeesite/ui';
   import { Select, Tag, TextArea } from 'antdv-next';
@@ -344,54 +330,7 @@
     })),
   );
 
-  // ── ① 基本信息表单（恒只读；枚举值回填时转中文） ────────────────────
-  const baseSchemas: FormSchema[] = [
-    { label: '项目基本信息', field: 'basicInfoGroup', component: 'FormGroup', colProps: { md: 24, lg: 24 } },
-    { label: '项目编号', field: 'projectCode', component: 'Input', dynamicDisabled: () => true },
-    { label: '项目名称', field: 'projectName', component: 'Input', dynamicDisabled: () => true },
-    { label: '行政区', field: 'district', component: 'Input', dynamicDisabled: () => true },
-    { label: '片区名称', field: 'renewalAreaNameText', component: 'Input', dynamicDisabled: () => true },
-    { label: '片区批次', field: 'renewalAreaBatchText', component: 'Input', dynamicDisabled: () => true },
-    { label: '五改分类', field: 'fiveReformTypeText', component: 'Input', dynamicDisabled: () => true },
-    { label: '项目归属', field: 'projectAffiliationText', component: 'Input', dynamicDisabled: () => true },
-    { label: '项目投资估算(亿元)', field: 'investEstimate', component: 'Input', dynamicDisabled: () => true },
-    { label: '年度投资计划(亿元)', field: 'yearPlanInvest', component: 'Input', dynamicDisabled: () => true },
-    { label: '计划开工时间', field: 'planStartDate', component: 'Input', dynamicDisabled: () => true },
-    { label: '计划竣工时间', field: 'planCompletionDate', component: 'Input', dynamicDisabled: () => true },
-    { label: '入库时间', field: 'inLibraryDate', component: 'Input', dynamicDisabled: () => true },
-  ];
-
-  const [registerBaseForm, { setFieldsValue: setBaseFieldsValue }] = useForm({
-    labelWidth: 140,
-    schemas: baseSchemas,
-    showActionButtonGroup: false,
-    baseColProps: { md: 12, lg: 12 },
-  });
-
-  const baseFormReady = ref(false);
-
-  function applyBaseFormValues() {
-    setBaseFieldsValue({
-      projectCode: record.value.projectCode ?? '',
-      projectName: record.value.projectName ?? '',
-      district: record.value.district ?? '',
-      renewalAreaNameText: record.value.renewalAreaName || '/',
-      renewalAreaBatchText: renewalAreaBatchLabel(record.value.renewalAreaBatch ?? ''),
-      fiveReformTypeText: fiveReformLabel(record.value.fiveReformType ?? ''),
-      projectAffiliationText: projectAffiliationLabel(record.value.projectAffiliation ?? ''),
-      investEstimate: record.value.investEstimate ?? '',
-      yearPlanInvest: record.value.yearPlanInvest ?? '',
-      planStartDate: record.value.planStartDate ?? '',
-      planCompletionDate: record.value.planCompletionDate ?? '',
-      inLibraryDate: record.value.inLibraryDate ?? '',
-    });
-  }
-
-  function handleBaseFormRegister(instance: FormActionType, uuid: string) {
-    registerBaseForm(instance, uuid);
-    baseFormReady.value = true;
-    applyBaseFormValues();
-  }
+  // ── ① 基本信息查看（共用 basic-info-form） ─────────────────────────
 
   // ── ② 倒排工期计划表单（一月~十二月计划 + 审查结果 FormGroup） ────────
   const planSchemas: FormSchema[] = [
@@ -434,13 +373,6 @@
     applyPlanFormValues();
   }
 
-  // ── ③ 确认提交汇总（切到步骤③时从表单取快照，避免渲染期读未挂载表单） ─
-  const summaryPlans = ref<string[]>([]);
-
-  watch(activeStep, (next) => {
-    if (next === 2 && planFormReady.value) summaryPlans.value = getPlanFieldsValueOfMonthPlans();
-  });
-
   function getPlanFieldsValueOfMonthPlans(): string[] {
     const values = getPlanFieldsValue() as Record<string, unknown>;
     return MONTH_PLAN_LABELS.map((_, index) => String(values[`monthPlan${index}`] ?? ''));
@@ -461,7 +393,6 @@
     // 编辑/审查落步骤②（填报/看计划）；查看落步骤①（基本信息查看）
     activeStep.value = isView.value ? 0 : 1;
     // 非激活步骤面板中的表单：已挂载则直接回填，未挂载等注册回调时回填
-    if (baseFormReady.value) applyBaseFormValues();
     if (planFormReady.value) applyPlanFormValues();
     setPlanProps({ disabled: isView.value || isReview.value });
     setDrawerProps({ loading: false });

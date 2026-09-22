@@ -8,15 +8,18 @@
  * 字段口径（2026-09-18 设计稿）：
  * - 倒排工期计划：新入库项目入库后 20 天内填报当年度倒排工期计划，在库项目当年
  *   12 月 31 日前填报下一年度倒排工期计划（计划开始月份 + 一月~十二月逐月计划）；
- * - 月度进度填报：实施主体每月 25 日前填报实施项目进度（月度进度情况 / 月度投资情况 /
- *   项目纳统情况 三区）；项目进度提醒 = 正常 / 滞后 / 严重滞后；
- * - 提示/督办：市住建局按月下发工作提示与督办；填报端按项目逐行处理，区级端按
+ * - 月度进度填报：实施主体每月 25 日前填报实施项目进度（月份页签按月填——月度进度
+ *   信息 / 月度投资情况 / 项目纳统情况；已过月份只读，默认页签=当月；当前进度计划
+ *   安排导入倒排工期计划当月内容不可改）；项目进度提醒为派生项：资金进度=年度投资进度、实施进度=
+ *   实施进度完成百分比，资金超前实施 15 个百分点以上=滞后，其余（含实施超前资金）=正常；
+ * - 提示/督办：市住更局按月下发工作提示与督办；填报端按项目逐行处理，区级端按
  *   下发编号整单处理（含涉及片区和项目的处理情况）。
  *
  * 当前后端尚未介入：选项清单与行数据为静态假数据（刷新即恢复）；行政区 / 五改类别 /
  * 片区 / 项目归属复用项目库口径（@jeesite/ifco/api/ifco/project-library）。
  */
 
+import NP from 'number-precision';
 import { match } from 'ts-pattern';
 import {
   DISTRICTS,
@@ -31,10 +34,10 @@ export type FillCardKey = 'schedule' | 'monthly' | 'supervise';
 /** 区级/市级页卡片 */
 export type DistrictCardKey = 'confirm' | 'monthly-confirm' | 'tricolor' | 'supervise';
 
-/** 倒排工期 / 月度进度共用填报状态：草稿→提交→待确认→区级确认（已确认）/ 退回（退回修改）→重新提交 */
-export type FillStatus = '草稿' | '待确认' | '已确认' | '退回修改';
+/** 倒排工期 / 月度进度共用流程状态：待提交（表单未提交）→（提交）待区级审查→（区级审查通过）待市级审查→（市级审查通过）市级审查通过；区级/市级审查均可退回（退回修改）→重新提交回待区级审查 */
+export type FillStatus = '待提交' | '待区级审查' | '待市级审查' | '市级审查通过' | '退回修改';
 
-export const FILL_STATUS_OPTIONS: FillStatus[] = ['草稿', '待确认', '已确认', '退回修改'];
+export const FILL_STATUS_OPTIONS: FillStatus[] = ['待提交', '待区级审查', '待市级审查', '市级审查通过', '退回修改'];
 
 /** 提示/督办处理状态（已处理 = 区级/填报端已处理；已确认 = 市级已确认处理结果） */
 export type HandleStatus = '待处理' | '处理中' | '已处理' | '已确认';
@@ -56,11 +59,16 @@ export type SuperviseType = '工作提示' | '督办';
 
 export const SUPERVISE_TYPE_OPTIONS: SuperviseType[] = ['工作提示', '督办'];
 
-/** 当前建设阶段（月度进度填报） */
-export const CONSTRUCTION_STAGE_OPTIONS = ['前期准备', '报建报批', '施工', '竣工'] as const;
+/** 当前建设阶段（月度进度填报；由前期手续或征拆阶段转为建设中须填实际开工时间，由建设中转为已完工须填实际完工时间） */
+export const CONSTRUCTION_STAGE_OPTIONS = ['前期手续', '征拆阶段', '建设中', '已完工'] as const;
 
-/** 项目进度提醒（月度进度填报；列表红黄绿三色口径同片区三色图） */
-export const PROGRESS_REMINDER_OPTIONS = ['正常', '滞后', '严重滞后'] as const;
+/** 当前项目状态（倒排工期列表「当前项目状态」列，紫色描边标签） */
+export type ProjectStatus = '实施库入库' | '前期' | '新开工' | '在建' | '续建' | '已完工';
+
+export const PROJECT_STATUS_OPTIONS: ProjectStatus[] = ['实施库入库', '前期', '新开工', '在建', '续建', '已完工'];
+
+/** 纳统分类（入库纳统情况=是时填报） */
+export const STATISTICS_CATEGORY_OPTIONS = ['固定资产投资项目', '房地产开发项目'] as const;
 
 /** 月份选项（1~12 月，label 带「月」） */
 export const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}月`, value: i + 1 }));
@@ -81,12 +89,12 @@ export const MONTH_PLAN_LABELS = [
   '十二月',
 ] as const;
 
-/** 状态 → Tag 配色口径（列表状态列与表单标题 Tag 同源）：终态绿/灰、待办蓝、退回橙 */
+/** 状态 → Tag 配色口径（列表状态列与表单标题 Tag 同源）：待提交灰、两级审查蓝、终态绿、退回橙 */
 export function fillStatusTagProps(status: FillStatus): { color: string; variant: 'solid' | 'outlined' } {
   return match(status)
-    .with('已确认', () => ({ color: 'green', variant: 'solid' }) as const)
-    .with('草稿', () => ({ color: 'default', variant: 'solid' }) as const)
-    .with('待确认', () => ({ color: 'blue', variant: 'outlined' }) as const)
+    .with('市级审查通过', () => ({ color: 'green', variant: 'solid' }) as const)
+    .with('待提交', () => ({ color: 'default', variant: 'solid' }) as const)
+    .with('待区级审查', '待市级审查', () => ({ color: 'blue', variant: 'outlined' }) as const)
     .with('退回修改', () => ({ color: 'orange', variant: 'outlined' }) as const)
     .exhaustive();
 }
@@ -119,16 +127,15 @@ export function triColorTagProps(status: TriColorStatus): { color: string; varia
     .exhaustive();
 }
 
-/** 进度提醒 → Tag 配色口径（三色：绿/橙/红） */
+/** 进度提醒 → Tag 配色口径（正常蓝描边、滞后红描边；取值见 progressReminderOf 派生规则） */
 export function progressReminderTagProps(reminder: string): { color: string; variant: 'solid' | 'outlined' } {
   return match(reminder)
-    .with('正常', () => ({ color: 'green', variant: 'solid' }) as const)
-    .with('滞后', () => ({ color: 'orange', variant: 'outlined' }) as const)
-    .with('严重滞后', () => ({ color: 'red', variant: 'outlined' }) as const)
+    .with('正常', () => ({ color: 'blue', variant: 'outlined' }) as const)
+    .with('滞后', () => ({ color: 'red', variant: 'outlined' }) as const)
     .otherwise(() => ({ color: 'default', variant: 'solid' }) as const);
 }
 
-/** 退回信息（退回修改状态的行才有值；横幅展示提交/退回时间、退回部门、退回次数与意见） */
+/** 退回信息（月度进度退回修改状态的行才有值；横幅展示提交/退回时间、退回部门、退回次数与意见） */
 export type ReturnInfo = {
   submitDate: string;
   returnDate: string;
@@ -136,6 +143,22 @@ export type ReturnInfo = {
   /** 退回次数（第 N 次） */
   returnCount: number;
   returnOpinion: string;
+};
+
+/** 倒排工期审查记录（区级/市级每轮审查追加一条；退回重报后再审查为新一轮，历史全保留） */
+export type ReviewRecord = {
+  /** 第几轮（每次重新提交进入新一轮，同一轮先区级后市级） */
+  round: number;
+  /** 审查层级 */
+  level: '区级' | '市级';
+  /** 审查部门（区级=xx区住房和城市更新局，市级=市住房和城市更新局） */
+  reviewOrg: string;
+  /** 审查结论 */
+  conclusion: '通过审查' | '退回修改';
+  /** 审查意见 */
+  opinion: string;
+  /** 审查时间 */
+  reviewDate: string;
 };
 
 /** 倒排工期计划行 */
@@ -159,15 +182,35 @@ export type ScheduleItem = {
   inLibraryDate: string;
   /** 是否新入库（统计卡口径：新入库项目 20 天内填报当年计划） */
   isNewInLibrary: boolean;
-  /** 指定填报主体（区级确认列表「选择指导填报主体」筛选项） */
+  /** 指定填报主体（列表「指定填报主体」列、区级确认列表「选择指导填报主体」筛选项） */
   reportOrg: string;
+  /** 当前项目状态（列表「当前项目状态」列） */
+  projectStatus: ProjectStatus;
   /** 计划开始月份（YYYY-MM，提交后不可修改） */
   planStartMonth: string;
   /** 一月~十二月计划（12 长度，空串=未填） */
   monthPlans: string[];
   fillStatus: FillStatus;
-  /** 退回信息（退回修改状态有值） */
-  returnInfo?: ReturnInfo;
+  /** 最近一次提交时间（退回横幅展示） */
+  lastSubmitDate?: string;
+  /** 审查记录（区级/市级逐轮追加；退回横幅与表单审查结果区从记录派生） */
+  reviewRecords?: ReviewRecord[];
+};
+
+/** 月度进度信息逐月填报值（月度进度填报按月页签填；已过月份只读） */
+export type MonthlyProgressEntry = {
+  /** 当前建设阶段 */
+  constructionStage: string;
+  /** 当前形象进度 */
+  currentProgress: string;
+  /** 实施进度完成百分比（0~100，未填报不展示） */
+  implementProgress?: number;
+  /** 当前进度落实情况 */
+  progressDesc: string;
+  /** 实际开工时间（当前建设阶段为建设中时必填） */
+  actualStartDate?: string;
+  /** 实际完工时间（当前建设阶段为已完工时必填） */
+  actualCompletionDate?: string;
 };
 
 /** 月度进度填报行 */
@@ -181,24 +224,51 @@ export type MonthlyItem = {
   renewalAreaBatch: string;
   fiveReformType: string;
   projectAffiliation: string;
-  /** 当前形象进度（列表展示的阶段性总结） */
+  /** 当前形象进度（当月快照，列表「当前形象进度」列；逐月值在 monthEntries） */
   currentProgress: string;
-  /** 项目总投资（亿元，只读） */
-  totalInvest: number;
+  /** 项目投资估算（亿元，只读） */
+  investEstimate: number;
   /** 年度投资计划（亿元，只读） */
   yearPlanInvest: number;
-  /** 年度累计完成投资（亿元） */
+  /** 计划开工时间（基本信息展示） */
+  planStartDate: string;
+  /** 计划竣工时间（基本信息展示） */
+  planCompletionDate: string;
+  /** 入库时间（基本信息展示） */
+  inLibraryDate: string;
+  /** 本年度累计完成投资（亿元，列表「年度累计完成投资」列同源） */
   yearAccumulatedInvest: number;
   /** 当月完成投资（亿元） */
   monthCompletedInvest: number;
-  /** 当月形象进度描述 */
+  /** 截止目前累计完成投资（亿元，含往期结转） */
+  totalAccumulatedInvest: number;
+  /** 2026年1-5月累计完成投资（亿元；演示口径随周期字面展示，接后端后按填报周期动态） */
+  yearRangeAccumulatedInvest?: number;
+  /** 2025年10月前累计完成投资（亿元，往期结转；演示口径，接后端后按计划周期动态） */
+  carryOverAccumulatedInvest?: number;
+  /** 当前进度落实情况（当月快照，列表「完成进度计划情况」列） */
   monthProgressDesc: string;
+  /** 实施进度完成百分比（0~100，未填报不展示；当月快照） */
+  implementProgress?: number;
+  /** 指定填报主体（列表「指定填报主体」列） */
+  reportOrg: string;
   constructionStage: string;
-  progressReminder: string;
-  /** 是否纳入统计（是/否） */
+  /** 入库纳统情况（是/否，列表「入库纳统情况」列） */
   statisticsIncluded: string;
-  /** 统计单位名称 */
-  statisticsUnit: string;
+  /** 纳统分类（入库纳统情况=是时填报） */
+  statisticsCategory?: string;
+  /** 统计局纳统项目编码（入库纳统情况=是时填报） */
+  statisticsProjectCode?: string;
+  /** 未纳统原因（入库纳统情况=否时必填） */
+  notIncludedReason?: string;
+  /** 困难问题（需市级或市领导调度的问题） */
+  difficultyProblem?: string;
+  /** 形象进度照片文件名（里程碑节点上传，不超过 9 张；演示记录文件名） */
+  milestonePhotos?: string[];
+  /** 备注 */
+  remark?: string;
+  /** 月度进度信息逐月填报值（key=月份 1~12；列表展示当月快照字段） */
+  monthEntries?: Partial<Record<number, MonthlyProgressEntry>>;
   fillStatus: FillStatus;
   returnInfo?: ReturnInfo;
 };
@@ -276,7 +346,7 @@ export const FILL_CARDS: StatCard<FillCardKey>[] = [
     description: '新入库项目入库后20天内填报当年度倒排工期计划，在库项目当年12月31日前填报下一年度倒排工期计划',
     stats: [
       { label: '新入库项目', value: '1' },
-      { label: '待填报倒排工期计划', value: '1' },
+      { label: '待提交倒排工期计划', value: '2' },
     ],
   },
   {
@@ -292,7 +362,7 @@ export const FILL_CARDS: StatCard<FillCardKey>[] = [
   {
     key: 'supervise',
     label: '提示/督办处理',
-    description: '处理市住建局下发的提示、督办问题',
+    description: '处理市住更局下发的提示、督办问题',
     stats: [
       { label: '待处理工作提示', value: '1' },
       { label: '待处理督办', value: '1' },
@@ -328,7 +398,7 @@ export const DISTRICT_CARDS: StatCard<DistrictCardKey>[] = [
   {
     key: 'supervise',
     label: '提示/督办',
-    description: '处理市住建局下发的提示、督办问题',
+    description: '处理市住更局下发的提示、督办问题',
     stats: [
       { label: '待处理工作提示', value: '1' },
       { label: '待处理督办', value: '1' },
@@ -365,7 +435,7 @@ export const URBAN_CARDS: StatCard<DistrictCardKey>[] = [
   {
     key: 'supervise',
     label: '提示/督办',
-    description: '市住建局下发、处理提示、督办的问题',
+    description: '市住更局下发、处理提示、督办的问题',
     stats: [
       { label: '已发工作提示', value: '10' },
       { label: '已发督办', value: '10' },
@@ -375,11 +445,12 @@ export const URBAN_CARDS: StatCard<DistrictCardKey>[] = [
 
 // ── 假数据 ────────────────────────────────────────────────────────────
 
-/** 倒排工期计划（7 行：待填报 1 / 草稿 1 / 待确认 2 / 已确认 2 / 退回修改 1） */
+/** 倒排工期计划（7 行：待填报 1 / 待提交 1 / 待审查 2 / 通过审查 2 / 退回修改 1） */
 export const SCHEDULES: ScheduleItem[] = [
   {
     projectCode: '20263609',
     reportOrg: '武汉城建集团',
+    projectStatus: '新开工',
     projectName: '三阳设计之都项目（一元路片）',
     district: '江岸区',
     renewalAreaName: '一元片',
@@ -402,23 +473,28 @@ export const SCHEDULES: ScheduleItem[] = [
       '',
       '',
       '',
-      '',
+      '深化设计方案，同步开展入户调查摸底。',
       '',
       '',
       '',
     ],
     fillStatus: '退回修改',
-    returnInfo: {
-      submitDate: '2026-09-12',
-      returnDate: '2026-09-14',
-      returnOrg: '江岸区住房和城市更新局',
-      returnCount: 1,
-      returnOpinion: '请补充完善6-8月计划内容。',
-    },
+    lastSubmitDate: '2026-09-12',
+    reviewRecords: [
+      {
+        round: 1,
+        level: '区级',
+        reviewOrg: '江岸区住房和城市更新局',
+        conclusion: '退回修改',
+        opinion: '请补充完善6-8月计划内容。',
+        reviewDate: '2026-09-14',
+      },
+    ],
   },
   {
     projectCode: '20263558',
     reportOrg: '和纵盛地产公司',
+    projectStatus: '续建',
     projectName: '西马片房地产新模式试点项目等',
     district: '江岸区',
     renewalAreaName: '四马片',
@@ -441,16 +517,18 @@ export const SCHEDULES: ScheduleItem[] = [
       '基坑支护完成。',
       '',
       '',
-      '',
+      '按协议落实征地补偿费用，完成桩基工程施工图审查。',
       '',
       '',
       '',
     ],
-    fillStatus: '待确认',
+    fillStatus: '待区级审查',
+    lastSubmitDate: '2026-09-18',
   },
   {
     projectCode: '20263559',
-    reportOrg: '江岸区住建局',
+    reportOrg: '江岸区住更局',
+    projectStatus: '在建',
     projectName: '佛山街（二辉路-三阳路）道路改造',
     district: '江岸区',
     renewalAreaName: '一元片',
@@ -473,16 +551,28 @@ export const SCHEDULES: ScheduleItem[] = [
       '人行道铺装与照明安装。',
       '竣工清理与验收准备。',
       '',
-      '',
+      '完成雨污水管道开挖与路基整形。',
       '',
       '',
       '',
     ],
-    fillStatus: '待确认',
+    fillStatus: '待市级审查',
+    lastSubmitDate: '2026-09-12',
+    reviewRecords: [
+      {
+        round: 1,
+        level: '区级',
+        reviewOrg: '江岸区住房和城市更新局',
+        conclusion: '通过审查',
+        opinion: '计划内容完整，同意通过。',
+        reviewDate: '2026-09-15',
+      },
+    ],
   },
   {
     projectCode: '20263557',
     reportOrg: '武汉城建集团',
+    projectStatus: '在建',
     projectName: '黑泥湖村城中村改造项目等',
     district: '江岸区',
     renewalAreaName: '黑泥湖片',
@@ -505,16 +595,36 @@ export const SCHEDULES: ScheduleItem[] = [
       '商业地块挂牌前期准备。',
       '主体结构施工至 5 层。',
       '',
-      '',
+      '安置房主体结构施工至5层，商业地块完成挂牌准备。',
       '',
       '',
       '',
     ],
-    fillStatus: '已确认',
+    fillStatus: '市级审查通过',
+    lastSubmitDate: '2026-08-28',
+    reviewRecords: [
+      {
+        round: 1,
+        level: '区级',
+        reviewOrg: '江岸区住房和城市更新局',
+        conclusion: '通过审查',
+        opinion: '同意该倒排工期计划。',
+        reviewDate: '2026-08-30',
+      },
+      {
+        round: 1,
+        level: '市级',
+        reviewOrg: '市住房和城市更新局',
+        conclusion: '通过审查',
+        opinion: '同意。',
+        reviewDate: '2026-09-06',
+      },
+    ],
   },
   {
     projectCode: '20263556',
     reportOrg: '江岸区文旅局',
+    projectStatus: '已完工',
     projectName: '大智门火车站旧址修缮等',
     district: '江岸区',
     renewalAreaName: '',
@@ -537,16 +647,36 @@ export const SCHEDULES: ScheduleItem[] = [
       '竣工验收并移交。',
       '',
       '',
-      '',
+      '完成室内展陈施工收尾与竣工验收准备。',
       '',
       '',
       '',
     ],
-    fillStatus: '已确认',
+    fillStatus: '市级审查通过',
+    lastSubmitDate: '2026-09-05',
+    reviewRecords: [
+      {
+        round: 1,
+        level: '区级',
+        reviewOrg: '江岸区住房和城市更新局',
+        conclusion: '通过审查',
+        opinion: '同意该倒排工期计划。',
+        reviewDate: '2026-09-08',
+      },
+      {
+        round: 1,
+        level: '市级',
+        reviewOrg: '市住房和城市更新局',
+        conclusion: '通过审查',
+        opinion: '同意。',
+        reviewDate: '2026-09-16',
+      },
+    ],
   },
   {
     projectCode: '20263550',
     reportOrg: '武汉建工集团',
+    projectStatus: '前期',
     projectName: '二七沿江商务区旧改',
     district: '江岸区',
     renewalAreaName: '二七沿江片',
@@ -560,12 +690,13 @@ export const SCHEDULES: ScheduleItem[] = [
     inLibraryDate: '2026-08-20',
     isNewInLibrary: false,
     planStartMonth: '2026-06',
-    monthPlans: ['', '', '', '', '', '地块摘牌与方案设计。', '', '', '', '', '', ''],
-    fillStatus: '草稿',
+    monthPlans: ['', '', '', '', '', '地块摘牌与方案设计。', '', '', '完成地块摘牌与方案设计招标。', '', '', ''],
+    fillStatus: '待提交',
   },
   {
     projectCode: '20263601',
-    reportOrg: '江岸区住建局',
+    reportOrg: '江岸区住更局',
+    projectStatus: '实施库入库',
     projectName: '新兴街片旧城更新项目',
     district: '江岸区',
     renewalAreaName: '新兴街片',
@@ -580,11 +711,11 @@ export const SCHEDULES: ScheduleItem[] = [
     isNewInLibrary: true,
     planStartMonth: '2026-10',
     monthPlans: ['', '', '', '', '', '', '', '', '', '', '', ''],
-    fillStatus: '草稿',
+    fillStatus: '待提交',
   },
 ];
 
-/** 月度进度填报（7 行 = 应填报 7；已填报 4：待确认 2 + 已确认 2，草稿 3） */
+/** 月度进度填报（7 行 = 应填报 7；待区级审查 1 / 待市级审查 1 / 市级审查通过 2 / 退回修改 1 / 待提交 2） */
 export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
@@ -596,16 +727,49 @@ export const MONTHLIES: MonthlyItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'district-area',
     currentProgress: '桩基工程施工中',
-    totalInvest: 2.03,
+    investEstimate: 2.03,
+    reportOrg: '和纵盛地产公司',
     yearPlanInvest: 1.2,
+    planStartDate: '2026-05-01',
+    planCompletionDate: '2027-10-31',
+    inLibraryDate: '2026-06-18',
     yearAccumulatedInvest: 0.52,
     monthCompletedInvest: 0.18,
+    totalAccumulatedInvest: 0.52,
+    yearRangeAccumulatedInvest: 0.3,
+    carryOverAccumulatedInvest: 0,
     monthProgressDesc: '项目基坑开挖完成，桩基工程完成50%。',
-    constructionStage: '施工',
-    progressReminder: '正常',
+    implementProgress: 50,
+    constructionStage: '建设中',
     statisticsIncluded: '是',
-    statisticsUnit: '江岸区统计局',
-    fillStatus: '待确认',
+    statisticsCategory: '房地产开发项目',
+    statisticsProjectCode: '42010320260012',
+    difficultyProblem: '桩基施工涉及军用光缆迁改，需市级领导调度。',
+    milestonePhotos: ['桩基施工-1.jpg', '桩基施工-2.jpg', '基坑全景.jpg'],
+    monthEntries: {
+      7: {
+        constructionStage: '建设中',
+        currentProgress: '基坑支护完成',
+        implementProgress: 30,
+        progressDesc: '土方开挖完成30%，基坑支护完成。',
+        actualStartDate: '2026-03-15',
+      },
+      8: {
+        constructionStage: '建设中',
+        currentProgress: '桩基工程施工中',
+        implementProgress: 40,
+        progressDesc: '桩基工程完成40%。',
+        actualStartDate: '2026-03-15',
+      },
+      9: {
+        constructionStage: '建设中',
+        currentProgress: '桩基工程施工中',
+        implementProgress: 50,
+        progressDesc: '项目基坑开挖完成，桩基工程完成50%。',
+        actualStartDate: '2026-03-15',
+      },
+    },
+    fillStatus: '待区级审查',
   },
   {
     reportMonth: '2026-09',
@@ -617,16 +781,47 @@ export const MONTHLIES: MonthlyItem[] = [
     fiveReformType: 'urban-village',
     projectAffiliation: 'city-area',
     currentProgress: '安置房主体结构施工',
-    totalInvest: 11.6,
+    investEstimate: 11.6,
+    reportOrg: '武汉城建集团',
     yearPlanInvest: 4.5,
+    planStartDate: '2026-02-01',
+    planCompletionDate: '2028-06-30',
+    inLibraryDate: '2026-03-18',
     yearAccumulatedInvest: 3.86,
     monthCompletedInvest: 0.65,
+    totalAccumulatedInvest: 8.16,
+    yearRangeAccumulatedInvest: 2.5,
+    carryOverAccumulatedInvest: 4.3,
     monthProgressDesc: '安置房主体结构施工至5层，市政配套道路雨污管网同步施工。',
-    constructionStage: '施工',
-    progressReminder: '正常',
+    implementProgress: 60,
+    constructionStage: '建设中',
     statisticsIncluded: '是',
-    statisticsUnit: '江岸区统计局',
-    fillStatus: '待确认',
+    statisticsCategory: '房地产开发项目',
+    statisticsProjectCode: '42010320260008',
+    monthEntries: {
+      7: {
+        constructionStage: '建设中',
+        currentProgress: '安置房主体结构施工',
+        implementProgress: 45,
+        progressDesc: '安置房主体结构施工至5层。',
+        actualStartDate: '2026-02-20',
+      },
+      8: {
+        constructionStage: '建设中',
+        currentProgress: '安置房主体结构施工',
+        implementProgress: 52,
+        progressDesc: '主体结构施工至6层，市政配套道路雨污管网同步施工。',
+        actualStartDate: '2026-02-20',
+      },
+      9: {
+        constructionStage: '建设中',
+        currentProgress: '安置房主体结构施工',
+        implementProgress: 60,
+        progressDesc: '安置房主体结构施工至5层，市政配套道路雨污管网同步施工。',
+        actualStartDate: '2026-02-20',
+      },
+    },
+    fillStatus: '待市级审查',
   },
   {
     reportMonth: '2026-09',
@@ -638,16 +833,32 @@ export const MONTHLIES: MonthlyItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'city-area',
     currentProgress: '路基整形施工',
-    totalInvest: 0.28,
+    investEstimate: 0.28,
+    reportOrg: '江岸区住更局',
     yearPlanInvest: 0.15,
+    planStartDate: '2026-04-01',
+    planCompletionDate: '2026-11-30',
+    inLibraryDate: '2026-07-03',
     yearAccumulatedInvest: 0.11,
     monthCompletedInvest: 0.04,
+    totalAccumulatedInvest: 0.11,
+    yearRangeAccumulatedInvest: 0.06,
+    carryOverAccumulatedInvest: 0,
     monthProgressDesc: '雨污水管道开挖完成，路基整形完成50%。',
-    constructionStage: '施工',
-    progressReminder: '正常',
+    implementProgress: 45,
+    constructionStage: '建设中',
     statisticsIncluded: '否',
-    statisticsUnit: '',
-    fillStatus: '已确认',
+    notIncludedReason: '市政道路项目暂未达到纳统标准',
+    monthEntries: {
+      9: {
+        constructionStage: '建设中',
+        currentProgress: '路基整形施工',
+        implementProgress: 45,
+        progressDesc: '雨污水管道开挖完成，路基整形完成50%。',
+        actualStartDate: '2026-04-10',
+      },
+    },
+    fillStatus: '市级审查通过',
   },
   {
     reportMonth: '2026-09',
@@ -659,16 +870,32 @@ export const MONTHLIES: MonthlyItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'scattered',
     currentProgress: '室内展陈施工',
-    totalInvest: 0.1846,
+    investEstimate: 0.1846,
+    reportOrg: '江岸区文旅局',
     yearPlanInvest: 0.09,
+    planStartDate: '2026-01-01',
+    planCompletionDate: '2026-08-31',
+    inLibraryDate: '2026-05-06',
     yearAccumulatedInvest: 0.078,
     monthCompletedInvest: 0.012,
+    totalAccumulatedInvest: 0.078,
+    yearRangeAccumulatedInvest: 0.05,
+    carryOverAccumulatedInvest: 0,
     monthProgressDesc: '外墙清水墙修复完成，室内展陈施工完成60%。',
-    constructionStage: '施工',
-    progressReminder: '正常',
+    implementProgress: 80,
+    constructionStage: '建设中',
     statisticsIncluded: '否',
-    statisticsUnit: '',
-    fillStatus: '已确认',
+    notIncludedReason: '文物保护修缮项目不在固定资产投资纳统范围',
+    monthEntries: {
+      9: {
+        constructionStage: '建设中',
+        currentProgress: '室内展陈施工',
+        implementProgress: 80,
+        progressDesc: '外墙清水墙修复完成，室内展陈施工完成60%。',
+        actualStartDate: '2026-05-06',
+      },
+    },
+    fillStatus: '市级审查通过',
   },
   {
     reportMonth: '2026-09',
@@ -680,16 +907,26 @@ export const MONTHLIES: MonthlyItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'city-area',
     currentProgress: '设计方案深化',
-    totalInvest: 1.8,
+    investEstimate: 1.8,
+    reportOrg: '武汉城建集团',
     yearPlanInvest: 0.9,
+    planStartDate: '2026-03-01',
+    planCompletionDate: '2027-12-31',
+    inLibraryDate: '2026-09-10',
     yearAccumulatedInvest: 0,
     monthCompletedInvest: 0,
+    totalAccumulatedInvest: 0,
+    yearRangeAccumulatedInvest: 0,
+    carryOverAccumulatedInvest: 0,
     monthProgressDesc: '',
-    constructionStage: '前期准备',
-    progressReminder: '正常',
+    implementProgress: 10,
+    constructionStage: '前期手续',
     statisticsIncluded: '否',
-    statisticsUnit: '',
-    fillStatus: '草稿',
+    notIncludedReason: '项目处于前期手续阶段，未形成有效投资',
+    monthEntries: {
+      9: { constructionStage: '前期手续', currentProgress: '设计方案深化', implementProgress: 10, progressDesc: '' },
+    },
+    fillStatus: '退回修改',
     returnInfo: {
       submitDate: '2026-09-12',
       returnDate: '2026-09-14',
@@ -708,16 +945,26 @@ export const MONTHLIES: MonthlyItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'city-area',
     currentProgress: '方案设计',
-    totalInvest: 6.8,
+    investEstimate: 6.8,
+    reportOrg: '武汉建工集团',
     yearPlanInvest: 2.1,
+    planStartDate: '2026-06-01',
+    planCompletionDate: '2028-12-31',
+    inLibraryDate: '2026-08-20',
     yearAccumulatedInvest: 0.15,
     monthCompletedInvest: 0.08,
+    totalAccumulatedInvest: 0.15,
+    yearRangeAccumulatedInvest: 0.07,
+    carryOverAccumulatedInvest: 0,
     monthProgressDesc: '',
-    constructionStage: '前期准备',
-    progressReminder: '正常',
+    implementProgress: 5,
+    constructionStage: '前期手续',
     statisticsIncluded: '否',
-    statisticsUnit: '',
-    fillStatus: '草稿',
+    notIncludedReason: '前期准备阶段，未开工不计投资',
+    monthEntries: {
+      9: { constructionStage: '前期手续', currentProgress: '方案设计', implementProgress: 5, progressDesc: '' },
+    },
+    fillStatus: '待提交',
   },
   {
     reportMonth: '2026-09',
@@ -729,20 +976,29 @@ export const MONTHLIES: MonthlyItem[] = [
     fiveReformType: 'old-community',
     projectAffiliation: 'city-area',
     currentProgress: '前期摸底',
-    totalInvest: 3.2,
+    investEstimate: 3.2,
+    reportOrg: '江岸区住更局',
     yearPlanInvest: 1.5,
+    planStartDate: '2026-10-01',
+    planCompletionDate: '2028-03-31',
+    inLibraryDate: '2026-09-16',
     yearAccumulatedInvest: 0,
     monthCompletedInvest: 0,
+    totalAccumulatedInvest: 0,
+    yearRangeAccumulatedInvest: 0,
+    carryOverAccumulatedInvest: 0,
     monthProgressDesc: '',
-    constructionStage: '前期准备',
-    progressReminder: '正常',
+    constructionStage: '前期手续',
     statisticsIncluded: '否',
-    statisticsUnit: '',
-    fillStatus: '草稿',
+    notIncludedReason: '前期摸底调查阶段，尚未开工',
+    monthEntries: {
+      9: { constructionStage: '前期手续', currentProgress: '前期摸底', progressDesc: '' },
+    },
+    fillStatus: '待提交',
   },
 ];
 
-/** 提示/督办主记录（区级端整单；市住建局下发） */
+/** 提示/督办主记录（区级端整单；市住更局下发） */
 export const SUPERVISES: SuperviseItem[] = [
   {
     dispatchNo: '项目督办〔2026〕001号',
@@ -752,7 +1008,7 @@ export const SUPERVISES: SuperviseItem[] = [
     inspectMonth: '2026-10',
     dispatchDate: '2026-10-11',
     deadline: '2026-10-25',
-    dispatchOrg: '市住建局',
+    dispatchOrg: '市住更局',
     problem: '项目实际进度滞后于倒排工期计划。',
     dispatchFile: '督办单.pdf',
     contactPerson: '张三',
@@ -793,7 +1049,7 @@ export const SUPERVISES: SuperviseItem[] = [
     inspectMonth: '2026-10',
     dispatchDate: '2026-10-09',
     deadline: '2026-10-20',
-    dispatchOrg: '市住建局',
+    dispatchOrg: '市住更局',
     problem: '月度进度填报不及时，请按每月25日前完成填报。',
     dispatchFile: '工作提示函.pdf',
     districtHandleStatus: '待处理',
@@ -815,7 +1071,7 @@ export const SUPERVISES: SuperviseItem[] = [
     inspectMonth: '2026-09',
     dispatchDate: '2026-09-08',
     deadline: '2026-09-22',
-    dispatchOrg: '市住建局',
+    dispatchOrg: '市住更局',
     problem: '安置房建设进度滞后，需加快施工组织。',
     dispatchFile: '督办单.pdf',
     contactPerson: '张三',
@@ -846,7 +1102,7 @@ export const SUPERVISES: SuperviseItem[] = [
     inspectMonth: '2026-10',
     dispatchDate: '',
     deadline: '2026-11-05',
-    dispatchOrg: '市住建局',
+    dispatchOrg: '市住更局',
     problem: '月度进度填报连续两月滞后，需专项整改。',
     dispatchFile: '督办单.pdf',
     districtHandleStatus: '待处理',
@@ -879,7 +1135,7 @@ export const SUPERVISE_ROWS: SuperviseHandleRow[] = SUPERVISES.filter(
         renewalAreaName: area.area,
         fiveReformType: monthly?.fiveReformType ?? 'old-street',
         currentProgress: monthly?.currentProgress ?? '',
-        reportOrg: monthly ? `${monthly.district}住建局` : '江岸区住建局',
+        reportOrg: monthly ? `${monthly.district}住更局` : '江岸区住更局',
         handleStatus:
           supervise.dispatchNo === '项目督办〔2026〕001号' && project.foundProblem === '是'
             ? '处理中'
@@ -904,20 +1160,20 @@ export const SUPERVISE_ROWS: SuperviseHandleRow[] = SUPERVISES.filter(
 
 /** 片区三色图进展行 */
 export type AreaTricolorItem = {
-  /** 评估周期（YYYY-MM，搜索表单年/月过滤依据） */
+  /** 评估周期（YYYY-MM，搜索表单按季度过滤：月换算季度） */
   evaluatePeriod: string;
   /** 片区编号 */
   areaCode: string;
   district: string;
   areaName: string;
   renewalAreaBatch: string;
-  /** 片区功能定位（顿号拼接展示） */
+  /** 片区功能定位（代码列表，展示经 orientationLabel 转中英文后顿号拼接） */
   orientationList: string[];
   /** 总体投资估算（亿元） */
   totalInvestEstimate: number;
   /** 累计已完成投资（亿元） */
   accumulatedInvest: number;
-  /** 年度总体投资计划（亿元） */
+  /** 年度总投资计划（亿元） */
   yearTotalPlanInvest: number;
   /** 季度完成投资（亿元） */
   quarterInvest: number;
@@ -927,6 +1183,8 @@ export type AreaTricolorItem = {
   yearProgress: number;
   /** 三色图状态（空=未评估） */
   triColor: TriColorStatus;
+  /** 历史季度评估结果（每季度评估后归档一条，quarter=YYYY-Q；查看抽屉展示，最新在前） */
+  history?: { quarter: string; status: TriColorStatus }[];
 };
 
 /** 片区三色图进展（7 行：绿 2 / 黄 2 / 红 1 / 未评估 2；统计卡 待评估 2 / 应评估 7） */
@@ -945,6 +1203,10 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
     yearCompletedInvest: 0.66,
     yearProgress: 73,
     triColor: '绿色',
+    history: [
+      { quarter: '2026-2', status: '绿色' },
+      { quarter: '2026-1', status: '绿色' },
+    ],
   },
   {
     evaluatePeriod: '2026-09',
@@ -960,6 +1222,10 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
     yearCompletedInvest: 1.2,
     yearProgress: 57,
     triColor: '黄色',
+    history: [
+      { quarter: '2026-2', status: '黄色' },
+      { quarter: '2026-1', status: '绿色' },
+    ],
   },
   {
     evaluatePeriod: '2026-09',
@@ -975,6 +1241,10 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
     yearCompletedInvest: 1.05,
     yearProgress: 70,
     triColor: '绿色',
+    history: [
+      { quarter: '2026-2', status: '黄色' },
+      { quarter: '2026-1', status: '绿色' },
+    ],
   },
   {
     evaluatePeriod: '2026-09',
@@ -990,6 +1260,10 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
     yearCompletedInvest: 2.5,
     yearProgress: 56,
     triColor: '黄色',
+    history: [
+      { quarter: '2026-2', status: '黄色' },
+      { quarter: '2026-1', status: '黄色' },
+    ],
   },
   {
     evaluatePeriod: '2026-09',
@@ -1005,6 +1279,10 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
     yearCompletedInvest: 1.1,
     yearProgress: 55,
     triColor: '黄色',
+    history: [
+      { quarter: '2026-2', status: '绿色' },
+      { quarter: '2026-1', status: '黄色' },
+    ],
   },
   {
     evaluatePeriod: '2026-09',
@@ -1020,6 +1298,10 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
     yearCompletedInvest: 0.75,
     yearProgress: 50,
     triColor: '红色',
+    history: [
+      { quarter: '2026-2', status: '黄色' },
+      { quarter: '2026-1', status: '绿色' },
+    ],
   },
   {
     evaluatePeriod: '2026-09',
@@ -1035,6 +1317,7 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
     yearCompletedInvest: 0,
     yearProgress: 0,
     triColor: '',
+    history: [{ quarter: '2026-2', status: '黄色' }],
   },
 ];
 
@@ -1060,9 +1343,10 @@ export type ImplProgressQuery = {
   projectAffiliation?: string;
   fillStatus?: string;
   constructionStage?: string;
-  progressReminder?: string;
   year?: number | string;
   month?: number | string;
+  /** 评估季度（YYYY-Q，三色图列表季度面板筛选值） */
+  quarter?: number | string;
   dispatchNo?: string;
   handleStatus?: string;
   reportOrg?: string;
@@ -1113,6 +1397,7 @@ export function filterSchedules(params: ImplProgressQuery): ScheduleItem[] {
   return SCHEDULES.filter(
     (item) =>
       matchProject(item, params) &&
+      (!params.district || item.district === params.district) &&
       (!params.fillStatus || item.fillStatus === params.fillStatus) &&
       (!params.reportOrg || item.reportOrg === params.reportOrg) &&
       matchPeriod(item.planStartMonth, params),
@@ -1128,6 +1413,36 @@ export function filterMonthlies(params: ImplProgressQuery): MonthlyItem[] {
       (!params.constructionStage || item.constructionStage === params.constructionStage) &&
       matchPeriod(item.reportMonth, params),
   );
+}
+
+/** 年度投资进度百分比数值（资金进度=年度累计完成投资/年度投资计划，四舍五入取整；计划为 0 取 0） */
+export function yearProgressValue(item: { yearAccumulatedInvest?: number; yearPlanInvest?: number }): number {
+  if (!item.yearPlanInvest) return 0;
+  return Math.round(NP.times(NP.divide(item.yearAccumulatedInvest ?? 0, item.yearPlanInvest), 100));
+}
+
+/** 年度投资进度（列表列：年度累计完成投资/年度投资计划，四舍五入取整；计划为 0 显示 —） */
+export function yearProgressPercent(item: { yearAccumulatedInvest?: number; yearPlanInvest?: number }): string {
+  if (!item.yearPlanInvest) return '—';
+  return `${yearProgressValue(item)}%`;
+}
+
+/** 项目进度提醒（派生）：资金进度=年度投资进度、实施进度=实施进度完成百分比；
+ * 资金超前实施 15 个百分点以上=滞后，其余（偏离 ±15 以内、实施超前资金、缺值）=正常 */
+export function progressReminderOf(item: {
+  yearAccumulatedInvest?: number;
+  yearPlanInvest?: number;
+  implementProgress?: number;
+}): '正常' | '滞后' {
+  if (!item.yearPlanInvest || item.implementProgress == null) return '正常';
+  return NP.minus(yearProgressValue(item), item.implementProgress) > 15 ? '滞后' : '正常';
+}
+
+/** 当前进度计划安排（导入倒排工期计划中该项目当月填报的计划内容；无倒排数据为空） */
+export function monthPlanOf(projectCode: string, month?: number | string): string {
+  const index = Number(month ?? 0) - 1;
+  if (!(index >= 0 && index <= 11)) return '';
+  return SCHEDULES.find((item) => item.projectCode === projectCode)?.monthPlans[index] ?? '';
 }
 
 /** 填报端提示/督办行过滤 */
@@ -1159,6 +1474,14 @@ export function filterSupervises(params: ImplProgressQuery): SuperviseItem[] {
   );
 }
 
+/** 评估周期季度匹配（period 为 YYYY-MM；quarter 为季度面板值 YYYY-Q，未传不过滤） */
+function matchQuarter(period: string, params: ImplProgressQuery): boolean {
+  if (params.quarter === undefined || params.quarter === '') return true;
+  const [year, month] = period.split('-');
+  const [filterYear, filterQuarter] = String(params.quarter).split('-');
+  return year === filterYear && Math.ceil(Number(month) / 3) === Number(filterQuarter);
+}
+
 /** 片区三色图过滤 */
 export function filterAreas(params: ImplProgressQuery): AreaTricolorItem[] {
   const areaName = (params.areaName ?? '').trim();
@@ -1169,11 +1492,26 @@ export function filterAreas(params: ImplProgressQuery): AreaTricolorItem[] {
       (!params.renewalAreaBatch || item.renewalAreaBatch === params.renewalAreaBatch) &&
       (!params.triColorStatus || item.triColor === params.triColorStatus) &&
       (!params.evalStatus || (params.evalStatus === '待评估' ? item.triColor === '' : item.triColor !== '')) &&
-      matchPeriod(item.evaluatePeriod, params),
+      matchQuarter(item.evaluatePeriod, params),
   );
 }
 
 // ── 展示辅助 ──────────────────────────────────────────────────────────
+
+/** 片区功能定位代码 → 中英文口径（未知代码原样显示） */
+const ORIENTATION_LABEL: Record<string, string> = {
+  SOD: '以公共服务为导向(SOD)',
+  IOD: '以产业服务为导向(IOD)',
+  COD: '文旅导向（COD）',
+  TOD: '以公共交通为导向(TOD)',
+  HOD: '以医疗健康为导向(HOD)',
+  EOD: '以生态环境为导向(EOD)',
+};
+
+/** 片区功能定位显示（代码 → 中英文） */
+export function orientationLabel(value: string): string {
+  return ORIENTATION_LABEL[value] ?? value;
+}
 
 /** 五改分类列显示（value → 中文） */
 export function fiveReformLabel(value: string): string {
