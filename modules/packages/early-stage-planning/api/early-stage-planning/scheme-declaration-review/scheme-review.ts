@@ -70,12 +70,24 @@ export type EspReviewActions = {
   canEdit: boolean;
 };
 
-/** 审查页详情：填报全字段 + 可见记录 + 轮次 + 按钮可用性 */
+/**
+ * 查看者身份（后端按登录角色/部门计算下发；登录接口不含用户机构信息，
+ * 前端联审视角必须用 officeCode 编码匹配自己的轮次/记录，不能按名称匹配）
+ */
+export type EspReviewViewer = {
+  /** main=主审 / joint=联审部门（fill 含填报与无角色只读口径） */
+  role: 'main' | 'joint' | 'fill';
+  officeCode?: string | null;
+  officeName?: string | null;
+};
+
+/** 审查页详情：填报全字段 + 可见记录 + 轮次 + 按钮可用性 + 查看者身份 */
 export type EspReviewForm = {
   scheme: EspSchemeFill;
   records: EspReviewRecord[];
   rounds: EspJointRound[];
   actions: EspReviewActions;
+  viewer?: EspReviewViewer;
 };
 
 /** 审查列表行（schemeReview/page）：片区行 + 状态三键（联审两态 + 待办标记） */

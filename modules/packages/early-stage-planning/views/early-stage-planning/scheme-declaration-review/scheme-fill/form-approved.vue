@@ -19,8 +19,9 @@
   的 id），失败展示后端 msg 并停留；导出为「打印版式」PDF（export-form-pdf.ts：
   按各区块 exportRows 数据重排紧凑版式——两列字段表+图片网格+地图快照，
   多 tab 内容全量渲染，A4 避让分页图片不跨页）。
-  提交时逐区块必填校验（规则见各区块 schema 的 rules，红星即必填）；校验不过定位到
-  第一个问题区块并 toast。已批准存量片区不参与审批流转（提交只保存，不改状态）。
+  暂存/提交都落库（必填校验同口径），差异只在是否退出：暂存留在页面继续编辑、
+  提交退出回列表（列表刷新）。已批准存量片区不参与审批流转（两种保存都不改状态，
+  submitType 由后端忽略）。
 -->
 <template>
   <div class="flex flex-col gap-16px" :style="{ '--section-scroll-mt': `${sectionScrollMt}px` }">
@@ -43,13 +44,15 @@
           >
         </a-button>
       </Dropdown>
-      <!-- 提交：二次确认后保存（已批准存量片区不参与审批流转，状态不变） -->
+      <!-- 暂存：保存但留在页面继续编辑（存量片区不参与审批流转，保存不改状态） -->
+      <a-button v-if="!isView" :loading="saving" @click="handleSave('draft')">暂存</a-button>
+      <!-- 提交：二次确认后保存并退出回列表（已批准存量片区不参与审批流转，状态不变） -->
       <Popconfirm
         v-if="!isView"
         title="确认提交该片区填报信息？"
         ok-text="确认提交"
         cancel-text="取消"
-        @confirm="handleSave"
+        @confirm="handleSave('submit')"
       >
         <a-button type="primary" :loading="saving">提交</a-button>
       </Popconfirm>
@@ -97,7 +100,8 @@
   /** 进入时的记录快照（列表行：id + isView；新增无 id） */
   const record = { ...(props.record || {}) } as Recordable;
   const isView = !!record.isView;
-  const isNewRecord = record.isNewRecord ?? record.id == null;
+  /** 新增标记（首次暂存落库后置 false，标题转「编辑」；仅极端兜底，存量片区本就有 id） */
+  let isNewRecord = record.isNewRecord ?? record.id == null;
 
   const title = computed(() => (isView ? '查看片区填报' : isNewRecord ? '新增片区填报' : '编辑片区填报'));
   const saving = ref(false);
@@ -184,8 +188,12 @@
     return typeof value === 'string' && value ? value.split(',') : [];
   }
 
-  /** 保存：逐区块校验并收集值（首个未通过的区块滚动定位）→ 全量提交后端 */
-  async function handleSave() {
+  /**
+   * 暂存 / 提交（都逐区块校验并全量提交；存量片区状态不变，两键差异只在是否退出页面）：
+   *  - 暂存（draft）：落库后留在页面继续编辑（回填 id/aUid，避免后续保存按新增重复建）；
+   *  - 提交（submit）：落库后退出回列表（列表刷新）。
+   */
+  async function handleSave(mode: 'draft' | 'submit') {
     const values: Recordable = {};
     let firstErrorId = '';
     for (const sec of SECTIONS) {
@@ -210,11 +218,14 @@
       // projects 行回显带后端生成的 id，保存契约无此键，提交前剥离；
       // funcTypes / projects[].fundSources 为多选 Select，归一为数组（见 toStrList）；
       // 编辑按 aUid 定位（后端契约主条件，id 为兼容兜底），新增不传由后端 PQ 序列取号
+      const wasNewRecord = isNewRecord;
       const aUid = String(record.aUid ?? formData.value?.aUid ?? '') || undefined;
       const payload = {
         ...values,
         ...(aUid ? { aUid } : {}),
         id: record.id ? String(record.id) : '',
+        // 存量片区（isApprove=1）不受状态机约束，后端忽略此键；带上与待审查版口径一致
+        submitType: mode,
         funcTypes: toStrList(values.funcTypes),
         projects: (values.projects ?? []).map(({ id: _projectId, fundSources, ...rest }: Recordable) => ({
           ...rest,
@@ -222,8 +233,16 @@
         })),
       } as EspSchemeFill;
       const saved = await schemeFillSave(payload);
+      // 首次保存即已落库：回填定位键，后续保存按编辑定位
+      record.id = saved.id;
+      record.aUid = saved.aUid;
+      isNewRecord = false;
+      if (mode === 'draft') {
+        showMessage('已暂存，可继续编辑');
+        return; // 暂存不退出页面
+      }
       showMessage('提交成功');
-      emit('success', { ...saved, isNewRecord });
+      emit('success', { ...saved, isNewRecord: wasNewRecord });
     } catch (error) {
       // 后端轻校验（同名片区/字数/时间序）等业务错误：展示 msg 并停留在表单
       showMessage(error instanceof Error ? error.message : '保存失败');

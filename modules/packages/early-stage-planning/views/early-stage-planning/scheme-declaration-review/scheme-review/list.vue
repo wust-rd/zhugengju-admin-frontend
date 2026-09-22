@@ -56,11 +56,12 @@
             </span>
           </span>
         </template>
-        <!-- 状态：主审/无角色/填报 = 五态（reviewStatus）；**联合审查单位 = 单独两态
-             （jointStatus：审核中 / 已审核）** -->
+        <!-- 状态：联合审查单位 = 单独两态（行 jointStatus 仅联审数据范围时返回，据此判定，
+             不依赖本地角色推导——联审角色挂在机构上，用户 roleList 里通常没有）；
+             主审/无角色/填报 = 五态（reviewStatus） -->
         <template #reviewStatus="{ record }">
           <span
-            v-if="identity.role === 'joint'"
+            v-if="record.jointStatus != null"
             class="text-13px font-500"
             :style="{ color: JOINT_SIDE_STATUS[record.jointStatus === 'reviewed' ? 'reviewed' : 'reviewing'].color }"
           >
@@ -143,15 +144,14 @@
 
   /**
    * 是否能进审查页操作：主审在 审核中/联合审查中 可审（**退回修改后流程在填报单位，
-   * 待其修改重提后方可再审**）；联审单位仅「最新轮指派本部门且未提交」（行 myTaskStatus=pending）
-   * 时可审。（进入审查页后按钮可用性以后端 form 接口的 actions 为准，这里只控列表入口）
+   * 待其修改重提后方可再审**）；联审单位以行内 myTaskStatus=pending 判定（行值仅联审
+   * 数据范围返回，不依赖本地角色推导——联审角色挂在机构上，用户 roleList 里通常没有）。
+   * （进入审查页后按钮可用性以后端 form 接口的 actions 为准，这里只控列表入口）
    */
   function canReview(record: Recordable): boolean {
+    if (record.myTaskStatus === 'pending') return true; // 联审：最新轮指派本部门且未提交
     if (identity.value.role === 'main') {
       return ['reviewing', 'jointReviewing'].includes(record.reviewStatus);
-    }
-    if (identity.value.role === 'joint') {
-      return record.myTaskStatus === 'pending';
     }
     return false;
   }

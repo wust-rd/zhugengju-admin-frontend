@@ -5,7 +5,7 @@
    1. **联合审查轮次块**（`kind='round'`）：轮次标题 + **每个联合审查单位一个 tab**，
       tab 上直接标「已审查 / 未审查」（未审查红色，主审单位一眼看到谁没审），
       点击 tab 切换显示该单位的审查意见（未提交则提示尚未提交）；
-      —— 联审单位视角（viewerUnit）不分 tab：只显示自己那一条记录 +
+      —— 联审单位视角（viewerCode）不分 tab：只显示自己那一条记录 +
       **与本轮关联的那一条主审意见**（本轮推送之后、下一轮推送之前的主审意见；
       主审点了通过/退回之后本轮即结束，之后再发起的联合审查与它无关，除非再次被勾选）。
    2. **主审意见卡**（`kind='record'`）：主审单位 / 填报单位视角下，主审历次意见单独成条目。
@@ -16,7 +16,9 @@
   可见范围（props，业务口径）：
     - showJoint / showMain：显示哪类记录（**填报单位只看主审 → showJoint=false**，
       标题变「片区申报审核结果」；主审/联审 = 两类都看 → 标题「审查记录」）；
-    - viewerUnit：联审单位视角 —— 只看自己被指派的轮次、自己那条记录、以及与各轮关联的主审意见。
+    - viewerCode：联审单位视角（部门编码）—— 只看自己被指派的轮次、自己那条记录、
+      以及与各轮关联的主审意见；编码来自 schemeReview/form 下发的 viewer.officeCode
+      （登录接口不含用户机构，按名称匹配会因名称不一致全部过滤，见后端问题清单）。
   数据由调用方传入（后端 schemeReview/form 的 records + rounds，已按查看者角色过滤）。
 -->
 <template>
@@ -38,7 +40,7 @@
         <div v-if="item.kind === 'round'" class="flex flex-col gap-10px">
           <div class="flex flex-wrap items-center gap-8px text-13px text-gray-600">
             <span class="font-500">第{{ roundText(item.round) }}次联合审查单位：</span>
-            <span v-if="viewerUnit" class="text-12px text-gray-400">
+            <span v-if="viewerCode" class="text-12px text-gray-400">
               （贵单位：{{ item.records.length ? '已提交' : '未提交' }}）
             </span>
             <span v-else class="text-12px text-gray-400">（已提交 {{ item.submitted }}/{{ item.total }}）</span>
@@ -46,7 +48,7 @@
           </div>
 
           <!-- 主审/填报单位视角：一个单位一个 tab，tab 上标已审查/未审查 -->
-          <template v-if="!viewerUnit">
+          <template v-if="!viewerCode">
             <div class="flex flex-wrap items-center gap-8px">
               <div
                 v-for="unit in item.units"
@@ -110,10 +112,10 @@
       showJoint?: boolean;
       /** 显示主审意见 */
       showMain?: boolean;
-      /** 联审单位名称：按「只看自己那条 + 轮次关联主审意见」的紧凑形态展示；不传=全量形态 */
-      viewerUnit?: string;
+      /** 联审部门编码：按「只看自己那条 + 轮次关联主审意见」的紧凑形态展示；不传=全量形态 */
+      viewerCode?: string;
     }>(),
-    { records: () => [], rounds: () => [], showJoint: true, showMain: true, viewerUnit: undefined },
+    { records: () => [], rounds: () => [], showJoint: true, showMain: true, viewerCode: undefined },
   );
 
   /** 时间线条目：轮次块 / 主审意见卡 */
@@ -131,10 +133,10 @@
   };
   type TimelineItem = RoundItem | { kind: 'record'; time: string; record: EspReviewRecord };
 
-  /** 联审单位视角：只保留它被指派的轮次；主审/填报单位视角：全部轮次 */
+  /** 联审单位视角：只保留它被指派的轮次（按部门编码匹配）；其余视角全部轮次 */
   const rounds = computed(() => {
-    if (!props.viewerUnit) return props.rounds;
-    return props.rounds.filter((item) => item.units.some((unit) => unit.name === props.viewerUnit));
+    if (!props.viewerCode) return props.rounds;
+    return props.rounds.filter((item) => item.units.some((unit) => unit.code === props.viewerCode));
   });
 
   /** 时间线条目：轮次块 + 主审意见卡，按时间正序（同时间轮次块在前） */
@@ -150,11 +152,11 @@
           (record) =>
             record.role === 'joint' &&
             record.round === round.round &&
-            (!props.viewerUnit || record.unitName === props.viewerUnit),
+            (!props.viewerCode || record.unitCode === props.viewerCode),
         );
         // 本轮关联的主审意见＝本轮推送之后、下一轮推送之前的那一条（联审单位视角才给）
         let mainAfter: EspReviewRecord | undefined;
-        if (props.viewerUnit) {
+        if (props.viewerCode) {
           const roundIndex = allRounds.findIndex((item) => item.round === round.round);
           const nextTime = allRounds[roundIndex + 1]?.pushTime;
           mainAfter = mainsAsc.find(
@@ -174,7 +176,7 @@
       }
     }
     // 联审单位视角：主审意见已并入轮次块，不再单列
-    if (props.showMain && !props.viewerUnit) {
+    if (props.showMain && !props.viewerCode) {
       for (const record of mainsAsc) {
         list.push({ kind: 'record', time: record.reviewTime, record });
       }
@@ -201,9 +203,9 @@
     return (firstSubmitted ?? item.units[0])?.code ?? '';
   }
 
-  /** 某单位在本轮的记录（未提交则 undefined） */
-  function recordOf(item: RoundItem, unit: { name: string }): EspReviewRecord | undefined {
-    return item.records.find((record) => record.unitName === unit.name);
+  /** 某单位在本轮的记录（未提交则 undefined；按单位编码匹配） */
+  function recordOf(item: RoundItem, unit: { code: string }): EspReviewRecord | undefined {
+    return item.records.find((record) => record.unitCode === unit.code);
   }
 
   /** 当前 tab 对应的记录 */

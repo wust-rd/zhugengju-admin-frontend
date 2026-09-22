@@ -104,9 +104,10 @@
   /** 进入时的记录快照（列表行：id + isView；新增无 id） */
   const record = { ...(props.record || {}) } as Recordable;
   const isView = !!record.isView;
-  const isNewRecord = record.isNewRecord ?? record.id == null;
+  /** 新增标记（首次暂存成功后置 false：后续保存按编辑定位，标题转「编辑」） */
+  const isNewRecord = ref<boolean>(record.isNewRecord ?? record.id == null);
 
-  const title = computed(() => (isView ? '查看片区填报' : isNewRecord ? '新增片区填报' : '编辑片区填报'));
+  const title = computed(() => (isView ? '查看片区填报' : isNewRecord.value ? '新增片区填报' : '编辑片区填报'));
   const saving = ref(false);
 
   /**
@@ -192,10 +193,11 @@
   }
 
   /**
-   * 暂存 / 提交（两态，后端 submitType 驱动状态机）：
-   *  - 暂存（draft）：跳过区块必填校验（草稿允许留空）→ 落库 → 状态=未提交，仍可编辑；
+   * 暂存 / 提交（两态，后端 submitType 驱动状态机；两键都落库，差异只在是否退出页面）：
+   *  - 暂存（draft）：跳过区块必填校验（草稿允许留空）→ 落库 → 状态=未提交，**留在页面可继续编辑**
+   *    （首次暂存后回填 id/aUid 并转编辑态，后续保存按编辑定位、不会重复建片区）；
    *  - 提交（submit）：逐区块校验（首个未通过的区块滚动定位）→ 服务端必填校验 → 状态=审核中，
-   *    填报单位转为只读、主审单位在 …/scheme-review/list 可见。
+   *    **退出回列表**（列表刷新，填报单位转为只读、主审单位在 …/scheme-review/list 可见）。
    * 编辑约束：仅「未提交 / 退回修改」可保存（审核中/联审中/通过后端返回 400 展示 msg）。
    */
   async function handleSave(mode: 'draft' | 'submit') {
@@ -239,9 +241,18 @@
           fundSources: toStrList(fundSources),
         })),
       } as EspSchemeFill;
+      const wasNewRecord = isNewRecord.value;
       const saved = await schemeFillSave(payload);
-      showMessage(mode === 'draft' ? '已暂存，状态：未提交' : '提交成功，已提交审核');
-      emit('success', { ...saved, isNewRecord });
+      // 首次暂存即已落库：回填 id/aUid 转编辑态，留在页面继续编辑不会被当成新增重复建片区
+      record.id = saved.id;
+      record.aUid = saved.aUid;
+      isNewRecord.value = false;
+      if (mode === 'draft') {
+        showMessage('已暂存，状态：未提交，可继续编辑');
+        return; // 暂存不退出页面
+      }
+      showMessage('提交成功，已提交审核');
+      emit('success', { ...saved, isNewRecord: wasNewRecord });
     } catch (error) {
       // 后端轻校验（同名片区/字数/时间序）等业务错误：展示 msg 并停留在表单
       showMessage(error instanceof Error ? error.message : '保存失败');

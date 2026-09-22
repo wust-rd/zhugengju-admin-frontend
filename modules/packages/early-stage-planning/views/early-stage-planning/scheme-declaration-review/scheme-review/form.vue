@@ -36,7 +36,7 @@
       <span class="text-16px font-500">{{ title }}</span>
       <!-- 当前角色提示（由登录账号授权角色决定，只读展示） -->
       <span class="rd-4px bg-[#f2f5fa] px-8px py-2px text-12px text-gray-500">
-        {{ ROLE_LABEL[identity.role] }}：{{ identity.name }}
+        {{ ROLE_LABEL[viewerRole] }}：{{ detailViewer?.officeName || identity.name }}
       </span>
       <span class="flex-1"></span>
       <!-- 导出：与填报页同一套（PDF 打印版式 / Word 真文档），含审查记录 -->
@@ -86,7 +86,7 @@
           :rounds="rounds"
           :show-joint="!isFill"
           :show-main="true"
-          :viewer-unit="viewerUnit"
+          :viewer-code="viewerCode"
         />
       </div>
 
@@ -201,6 +201,7 @@
     type EspJointRound,
     type EspReviewActions,
     type EspReviewRecord,
+    type EspReviewViewer,
     type ReviewConclusion,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-review';
   import FormSection from '../scheme-fill/components/form-section.vue';
@@ -221,7 +222,13 @@
   import SectionFundingPlan from '../scheme-fill/components/section-funding-plan.vue';
   import ReviewRecords from '../shared/review-records.vue';
   import JointReviewModal from '../shared/joint-review-modal.vue';
-  import { CONCLUSION_LABEL, ROLE_LABEL, currentIdentity, statusKeyOf } from '../shared/review-constants';
+  import {
+    CONCLUSION_LABEL,
+    ROLE_LABEL,
+    currentIdentity,
+    statusKeyOf,
+    type ReviewerRole,
+  } from '../shared/review-constants';
 
   const props = defineProps<{
     record?: Recordable;
@@ -238,21 +245,35 @@
   /** 列表行快照（id + name + mock：种子假数据无后端详情） */
   const record = { ...(props.record || {}) } as Recordable;
 
-  /** 当前登录者身份（账号授权角色：填报单位 / 联合审查单位 / 主审单位） */
+  /** 当前登录者身份（账号授权角色；联审角色挂在机构上，用户 roleList 里通常没有） */
   const identity = currentIdentity();
+
+  /** 详情下发的查看者身份（后端按登录角色/部门计算——登录接口不含用户机构信息） */
+  const detailViewer = ref<EspReviewViewer>();
+
   /**
-   * 查看者：填报单位入口（填报页「查看」）显式传 fill；
-   * 其余按登录角色推导 —— 主审可审查、联审单位按指派审查、无审查角色只能看。
+   * 查看者角色：填报单位入口（填报页「查看」）显式传 fill 优先（view 视为无角色只读）；
+   * 其余以详情下发的 viewer.role 为准（联审身份=部门在联审字典内，本地推导不出）；
+   * 详情未就绪时回退本地角色推导。
    */
-  const viewerRole = props.viewer ?? identity.role;
-  const isMain = viewerRole === 'main';
-  const isFill = viewerRole === 'fill';
+  const viewerRole = computed<ReviewerRole>(() => {
+    if (props.viewer) return props.viewer === 'view' ? 'none' : props.viewer;
+    return detailViewer.value?.role ?? identity.role;
+  });
+  const isMain = computed(() => viewerRole.value === 'main');
+  const isFill = computed(() => viewerRole.value === 'fill');
 
   /** 查看模式（列表「查看」）：只读，不显示填写区 */
   const isViewMode = props.mode === 'view';
 
-  /** 记录可见范围：联审单位只看自己的（+ 其参与轮次关联的主审意见） */
-  const viewerUnit = computed(() => (viewerRole === 'joint' ? identity.name : undefined));
+  /**
+   * 记录可见范围：联审单位只看自己的（+ 其参与轮次关联的主审意见）。
+   * 本部门编码取详情 viewer.officeCode（按编码匹配轮次/记录；此前按机构名称匹配，
+   * 登录返回无 officeName 导致全部过滤——联审单位看不到自己与主审的意见，已修）。
+   */
+  const viewerCode = computed(() =>
+    viewerRole.value === 'joint' ? (detailViewer.value?.officeCode ?? undefined) : undefined,
+  );
 
   const title = computed(() => `${record.name || '片区'}申报审查`);
 
@@ -261,25 +282,23 @@
 
   /**
    * 是否显示「片区申报审核」填写区：主审=canMainReview / 联审=canJointReview（后端 actions）。
-   * 主审分支额外排除「退回修改」：后端 actions 暂未排除 returned（见《后端待处理问题清单》
-   * 问题 1），前端先按状态兜底，后端修复后两端口径一致、此条件可留可删。
+   * 退回修改后主审不可审由后端 actions 保证（2026-09-20（三）修复，提交 240480d0：
+   * canMainReview/canJointPush 已排除 returned），前端回归纯 actions 驱动。
    */
   const showReviewForm = computed(
-    () =>
-      !isViewMode &&
-      (isMain ? actions.value.canMainReview && reviewStatus.value !== 'returned' : actions.value.canJointReview),
+    () => !isViewMode && (isMain.value ? actions.value.canMainReview : actions.value.canJointReview),
   );
 
   /** 说明条：非本人范围 / 已提交不可修改 / 无审查角色（口径同后端 actions 计算条件） */
   const notice = computed(() => {
-    if (isViewMode || isFill) return '';
-    if (isMain) {
+    if (isViewMode || isFill.value) return '';
+    if (isMain.value) {
       if (reviewStatus.value === 'passed') return '该片区已通过（终态），仅供查看。';
       if (reviewStatus.value === 'unsubmitted') return '该片区尚未提交申报，仅供查看。';
       if (reviewStatus.value === 'returned') return '该片区已退回填报单位修改，待其重新提交后方可再次审查。';
       return '';
     }
-    if (viewerRole !== 'joint') return '当前账号没有审查角色（填报单位 / 联合审查单位 / 主审单位），仅供查看。';
+    if (viewerRole.value !== 'joint') return '当前账号没有审查角色（填报单位 / 联合审查单位 / 主审单位），仅供查看。';
     if (reviewStatus.value !== 'jointReviewing') return '该片区当前不在联合审查阶段，仅供查看。';
     if (!actions.value.canJointReview) return '该片区本轮未指派给贵单位或已提交过意见，仅供查看。';
     return '';
@@ -313,6 +332,7 @@
       records.value = detail.records ?? [];
       rounds.value = detail.rounds ?? [];
       actions.value = detail.actions;
+      detailViewer.value = detail.viewer;
     } catch (error) {
       showMessage(error instanceof Error ? error.message : '加载片区审查数据失败');
       emit('back');
@@ -396,7 +416,7 @@
 
   /** 提交二次确认文案（主审结论会改片区状态；联审单位提交后不可改） */
   const submitConfirmTitle = computed(() =>
-    isMain
+    isMain.value
       ? '确认提交审查结论？提交后片区状态按审核结果更新（通过则流程结束）'
       : '确认提交联合审查意见？提交后不可修改',
   );
@@ -416,7 +436,7 @@
     saving.value = true;
     try {
       const payload = { opinion: review.opinion, files: espFiles() };
-      if (isMain) {
+      if (isMain.value) {
         if (review.conclusion === 'na') {
           showMessage('主审单位只能选择通过或退回修改');
           return;
