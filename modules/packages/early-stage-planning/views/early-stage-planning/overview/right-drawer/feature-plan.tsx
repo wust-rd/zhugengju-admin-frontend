@@ -1,22 +1,35 @@
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, type PropType } from 'vue';
 import { cn } from '@jeesite/core/libs';
+import { XOD_COLOR } from '@jeesite/display/components/corner-panel/xod-row';
 
 import diamond from '@jeesite/assets/images/display/plan/diamond.svg';
 import bottomImg from '@jeesite/assets/images/display/plan/底部.png';
 import arrowImg from '@jeesite/assets/images/display/plan/箭头开关.svg';
-import albumPic1 from '@jeesite/assets/images/display/plan/picture-box.webp';
-import albumPic2 from '@jeesite/assets/images/display/plan/test.webp';
-import albumPic3 from '@jeesite/assets/images/display/plan/area-overview-modal-header.png';
 
 import { CollapsibleSection } from '@jeesite/shared/components/collapsible-section';
-import { AlbumPreviewModal } from './album-preview-modal';
+import type { AreaInfo } from '../area-info';
+import { panelImageIndexes } from '../panel-image-state';
 
-/** 图册占位图（TODO: 替换为真实图册图片） */
-const ALBUM_PLACEHOLDERS = [albumPic1, albumPic2, albumPic3, albumPic1];
+/** 功能定位胶囊兜底色（XOD_COLOR 未覆盖的编码，如 POD） */
+const FUNC_PILL_FALLBACK = '#94a3b8';
 
 /** 功能策划 */
 export const FeaturePlan = defineComponent({
-  setup() {
+  props: {
+    /** 当前片区完整数据（图斑要素 feature + 填报表单 form 含图片直链） */
+    area: { type: Object as PropType<AreaInfo>, required: true },
+  },
+  setup(props) {
+    console.log('[功能策划] 片区完整数据（图斑要素 + 填报表单）', props.area);
+
+    /** 填报字段（section-function-plan：总体目标 / 功能定位编码数组 / 功能策划文本） */
+    const overallGoal = computed(() => props.area.form?.overallGoal?.trim() || '');
+    const funcTypes = computed(() => props.area.form?.funcTypes ?? []);
+    const funcPlan = computed(() => props.area.form?.funcPlan?.trim() || '');
+
+    /** 策划图册（≤5 张）：缩略图行点选驱动左侧面板大图 */
+    const atlasUrls = computed(() => (props.area.form?.atlas ?? []).map((f) => f.url).filter((u): u is string => !!u));
+
     /** 图册预览弹窗可见性 */
     const previewVisible = ref(false);
     /** 打开弹窗时显示第几张图（点击缩略图时记录下标） */
@@ -49,6 +62,20 @@ export const FeaturePlan = defineComponent({
             ),
             body: () => (
               <>
+                {/* 第一块：总体目标（填报「片区功能策划-总体目标」） */}
+                <div class="mt-16px w-full b-1 b-solid b-white/6 bg-white/2 p-12px rd-8px bg-white/6">
+                  <div class="flex items-center h-24px">
+                    <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
+                      <div class="w-4px h-4px bg-white rd-full" />
+                    </div>
+
+                    <div class="text-14px lh-20px text-white/75 font-500 ml-8px">总体目标</div>
+                  </div>
+
+                  <div class="text-white text-14px font-400 lh-24px mt-8px">{overallGoal.value || '暂无数据'}</div>
+                </div>
+
+                {/* 第二块：片区功能定位（胶囊）+ 功能策划（文本） */}
                 <div class="mt-16px w-full b-1 b-solid b-white/6 bg-white/2 p-12px rd-8px bg-white/6">
                   <div class="flex items-center h-24px">
                     <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
@@ -58,78 +85,59 @@ export const FeaturePlan = defineComponent({
                     <div class="text-14px lh-20px text-white/75 font-500 ml-8px">片区功能定位</div>
                   </div>
 
-                  <div class="mt-8px h-20px flex items-center">
-                    <div class="text-black font-600 inline-block px-6px py-2px rd-4px bg-cyan-400 text-10px lh-14px">
-                      IOD
-                    </div>
-                    <div class="text-black font-600 inline-block px-6px py-2px rd-4px bg-#FEA517 text-10px lh-14px ml-4px">
-                      SOD
-                    </div>
-                    <div class="text-white ml-12px text-14px font-400 lh-20px">文旅+公服导向</div>
+                  {/* 功能定位胶囊：编码大写 + XOD_COLOR 配色（POD 等未覆盖编码走兜底色） */}
+                  <div class="mt-8px flex flex-wrap items-center gap-4px">
+                    {funcTypes.value.length ? (
+                      funcTypes.value.map((code) => (
+                        <div
+                          key={code}
+                          class="font-chakra rd-4px h-16px px-6px flex items-center justify-center text-black text-14px font-500"
+                          style={{ background: XOD_COLOR[String(code).toLowerCase()] ?? FUNC_PILL_FALLBACK }}
+                        >
+                          {String(code).toUpperCase()}
+                        </div>
+                      ))
+                    ) : (
+                      <div class="text-14px text-white/40">暂无数据</div>
+                    )}
                   </div>
 
-                  <div class="text-white text-14px font-400 lh-24px mt-8px">
-                    结合汉阳区万载知音之路历史文化主轴打造提升行动方案，万载知音文化之路，实施4大规划策略，以文化支撑、以活动引领、以景观彰显、以慢行串联，谱写一曲汉阳承古启今的韵律之歌。
-                    <br />
-                    显正片位于汉阳历史风貌区核心区域，片区以历史为描点、通过街巷织补、多样拼贴、片区更新、空间弥合等多种方式串联各大文旅资源，以期让片区达到特色提振、新旧融合、全域活化。
-                  </div>
+                  <div class="text-white text-14px font-400 lh-24px mt-8px">{funcPlan.value || '暂无数据'}</div>
                 </div>
 
-                <div class="mt-16px w-full b-1 b-solid b-white/6 bg-white/2 p-12px rd-8px bg-white/6">
-                  <div class="flex items-center h-24px">
-                    <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
-                      <div class="w-4px h-4px bg-white rd-full" />
+                {/* 第三块：策划图册缩略图（单排，超宽横向滑动）：点选驱动左侧面板大图（选中高亮青边） */}
+                {atlasUrls.value.length > 0 && (
+                  <div class="mt-16px w-full b-1 b-solid b-white/6 bg-white/2 p-12px rd-8px bg-white/6">
+                    <div class="flex items-center h-24px">
+                      <div class="size-12px rd-full bg-white/10 flex items-center justify-center">
+                        <div class="w-4px h-4px bg-white rd-full" />
+                      </div>
+
+                      <div class="text-14px lh-20px text-white/75 font-500 ml-8px">策划图册</div>
                     </div>
 
-                    <div class="text-14px lh-20px text-white/75 font-500 ml-8px">片区策划图册</div>
-
-                    {/* 展开按钮（渐变边框：background 双图层 border-box/padding-box 裁剪，兼容圆角） */}
-                    <div
-                      class="size-24px ml-auto flex cursor-pointer items-center justify-center rd-4px"
-                      style={{
-                        border: '1px solid transparent',
-                        background:
-                          'linear-gradient(#163651, #163651) padding-box, linear-gradient(135deg, #5293C0, #193B58) border-box',
-                      }}
-                      onClick={() => {
-                        previewIndex.value = 0;
-                        previewVisible.value = true;
-                      }}
-                    >
-                      <div class="i-ri:expand-diagonal-s-fill size-18px bg-white"></div>
+                    <div class="mt-12px flex gap-8px overflow-x-auto scrollbar-none">
+                      {atlasUrls.value.map((url, i) => (
+                        <img
+                          key={url + i}
+                          src={url}
+                          alt={`图册 ${i + 1}`}
+                          class={cn(
+                            'h-64px w-64px shrink-0 cursor-pointer rd-8px object-cover transition-all duration-150',
+                            i === (panelImageIndexes['功能策划'] ?? 0)
+                              ? 'b-2 b-[#4FD8FF] shadow-[0_0_10px_rgba(79,216,255,0.55)]'
+                              : 'b-1 b-solid b-white/10 hover-b-[#4FD8FF]',
+                          )}
+                          onClick={() => (panelImageIndexes['功能策划'] = i)}
+                        />
+                      ))}
                     </div>
                   </div>
-
-                  {/* 图册：4 张图横向排列（TODO: 换成真实图册图片） */}
-                  <div class="mt-12px flex gap-6px">
-                    {ALBUM_PLACEHOLDERS.map((src, i) => (
-                      <img
-                        key={i}
-                        src={src}
-                        alt={`图册 ${i + 1}`}
-                        class="size-52px cursor-pointer rd-8px object-cover b-2px b-solid b-white/10 bg-white/5 transition-all duration-150 hover:b-white/40"
-                        onClick={() => {
-                          previewIndex.value = i;
-                          previewVisible.value = true;
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                )}
               </>
             ),
           }}
-        >
-          {/* TODO: 填写「功能策划」内容 */}
-        </CollapsibleSection>
-
-        {/* 图册预览弹窗 */}
-        <AlbumPreviewModal
-          visible={previewVisible.value}
-          images={ALBUM_PLACEHOLDERS}
-          initialIndex={previewIndex.value}
-          onUpdate:visible={(v) => (previewVisible.value = v)}
-        />
+        ></CollapsibleSection>
       </div>
     );
   },
