@@ -7,8 +7,25 @@
  */
 import { dateUtil } from '@jeesite/core/utils/dateUtil';
 import { match } from 'ts-pattern';
-import { DISTRICTS, filterProjects } from '../project-library';
+import { DISTRICTS } from '../project-library';
 import { taskYearOptions } from '../task-dispatch';
+
+/**
+ * 工作台项目源（年度计划编制自身假数据；项目库已接口化，不再派生其内存仓库）。
+ * 字段对齐原 project-library 派生行（projectCode/projectName/district/…）。
+ */
+const WORKBENCH_SOURCE = DISTRICTS.slice(0, 12).map((district, i) => ({
+  projectCode: `2026${String(35600 + i)}`,
+  projectName: `${district}城市更新项目（${i + 1}期）`,
+  district,
+  renewalAreaName: '',
+  fiveReformType: ['老旧小区改造', '老旧街区改造', '城中村改造'][i % 3] ?? '老旧小区改造',
+  investEstimate: Number((0.5 + ((i * 37) % 500) / 100).toFixed(2)),
+  fundSourceList: ['地方政府专项债券', '市级及以下预算资金—区级'],
+  projectAffiliation: 'district',
+  inLibraryDate: `2026-0${(i % 9) + 1}-15`,
+  status: '待提交',
+}));
 
 /** 区级目标分解对象与任务年份选项（与任务分解派发同源） */
 export { DISTRICTS, taskYearOptions };
@@ -225,7 +242,7 @@ function makeYearPlanInvest(investEstimate: number, adoptStatus: AdoptStatus): n
 const WORKBENCH_MAP = new Map<string, WorkbenchProject[]>(
   TASK_LIST.map((task) => [
     task.code,
-    filterProjects({}).map((project) => {
+    WORKBENCH_SOURCE.map((project) => {
       const adoptStatus = makeAdoptStatus(project.projectCode);
       return {
         projectCode: project.projectCode,

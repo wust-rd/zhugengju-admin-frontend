@@ -17,17 +17,21 @@ type LooseReviewEntry = {
 
 type LooseResponsibilityEntry = LooseReviewEntry & { conclusion: ResponsibilityConclusion | '' };
 
+/** 「填报人再次发起」记录行（来自流转日志 RESUBMIT 行） */
+type ResubmitLog = { date: string; name: string };
+
 /**
  * ifco —— 在库项目管理 · 审查结果区块（步骤②「策划转储备」/步骤③「储备转实施」末尾 FormGroup 通用）
  *
- * 标题「第一次审查」；下分两个审查主体（标题与切换按钮同行，外包浅灰圆角小容器
- * bg-gray-100 py-2 px-4 rd-2）：
+ * 顶部「填报人再次发起 --- 时间 操作人」记录行（业务口径=表单被重新提交时记录一条，
+ * 数据来自后端流转日志 RESUBMIT 行；无记录不显示）。
+ * 下分两个审查主体（标题与切换按钮同行，外包浅灰圆角小容器 bg-gray-100 py-2 px-4 rd-2）：
  * - 行业主管部门（RadioGroup 按钮组多机构切换）：内容整体 ml-64px，机构切换时左滑/右滑动画——
  *   「审查要点核对」纯文字小节标题下按 sections 清单逐项结论（普通 radio：符合/不符合/不涉及，
  *   再缩进 ml-60px）+「审查意见」（ml-16px，每机构一条）
  *   +「审查附件」（Upload 多文件不限量 / 查看态只读清单）；
  * - 责任部门（市住更局）：各项仅 符合/不符合（无 不涉及）
- *   +「审查结论」select（通过审查/退回修改，位于审查意见上方）
+ *   +「审查结论」select（pass=通过审查 / reject=退回修改，位于审查意见上方；提交后端推进状态）
  *   +「审查意见」+「审查附件」。
  * sections 的 label 与所属步骤的 FormGroup 分区标题一一对应（步骤②=五材料分区、步骤③=实施三分区）。
  * 文字统一 14px。查看态内容只读、机构可切换查看。
@@ -43,6 +47,8 @@ export const ReviewBlock = defineComponent({
     responsibility: { type: Object as PropType<LooseResponsibilityEntry>, required: true },
     /** 机构清单 */
     orgList: { type: Array as PropType<string[]>, required: true },
+    /** 「填报人再次发起」记录行（流转日志 RESUBMIT 行） */
+    resubmitLogs: { type: Array as PropType<ResubmitLog[]>, default: () => [] },
     /** 查看态：结论/意见只读（机构仍可切换查看） */
     disabled: { type: Boolean, default: false },
   },
@@ -72,7 +78,8 @@ export const ReviewBlock = defineComponent({
       label,
       value: label,
     }));
-    const conclusionOptions = RESPONSIBILITY_CONCLUSION_OPTIONS.map((label) => ({ label, value: label }));
+    /** 审查结论（后端 pass/reject 值 + 中文 label；提交后推进状态） */
+    const conclusionOptions = RESPONSIBILITY_CONCLUSION_OPTIONS.map((item) => ({ label: item.label, value: item.value }));
 
     function emptyResults(): Record<string, ReviewResult | ''> {
       return Object.fromEntries(props.sections.map(({ key }) => [key, '']));
@@ -227,11 +234,15 @@ export const ReviewBlock = defineComponent({
 
     return () => (
       <div>
-        {/* 填报人再次发起留下记录 */}
-        <div class="mb-8px flex items-center gap-6px">
-          <span class="i-ant-design:audit-outlined text-16px text-#1677ff"></span>
-          <span class="text-14px font-500 text-gray-800">填报人再次发起 --- 2026-09-21 16:26:00</span>
-        </div>
+        {/* 「填报人再次发起」记录行（流转日志 RESUBMIT 行；无记录不显示） */}
+        {props.resubmitLogs.map((log, index) => (
+          <div key={`${log.date}-${index}`} class="mb-8px flex items-center gap-6px">
+            <span class="i-ant-design:audit-outlined text-16px text-#1677ff"></span>
+            <span class="text-14px font-500 text-gray-800">
+              填报人再次发起 --- {log.date} {log.name}
+            </span>
+          </div>
+        ))}
 
         {/* 轮次标题 */}
         <div class="mb-8px flex items-center gap-6px">
