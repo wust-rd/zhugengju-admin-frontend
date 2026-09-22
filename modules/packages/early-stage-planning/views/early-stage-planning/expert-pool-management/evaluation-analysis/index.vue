@@ -79,6 +79,7 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
+    espDictAreas,
     espEvaluationList,
     espEvaluationRank,
     espEvaluationSave,
@@ -89,6 +90,14 @@
   import HistoryModal from './history-modal.vue';
 
   const { showMessage } = useMessage();
+
+  const areaOptions = ref<{ label: string; value: string }[]>([]);
+  espDictAreas().then((areas) => {
+    areaOptions.value = (areas ?? []).map((a) => ({
+      label: a.areaName || a.key,
+      value: a.areaCode || a.value,
+    }));
+  });
 
   /** 打分维度定义（Modal 行 + 得分换算共用） */
   const RATE_DIMENSIONS = [
@@ -101,8 +110,11 @@
   /** 专家列表（接口 4.2：仅已入选专家，服务端聚合三维度平均分与评价次数）
       注意：BasicTable 的 dataSource 取的是 setup 时快照，接口返回后必须 setTableData 同步（见下方初始加载） */
   const expertRows = ref<EspEvalExpertRow[]>([]);
-  async function reloadExperts(name?: string) {
-    expertRows.value = await espEvaluationList(name);
+  const lastSearch = reactive({ name: undefined as string | undefined, areaUid: undefined as string | undefined });
+  async function reloadExperts(name?: string, areaUid?: string) {
+    lastSearch.name = name;
+    lastSearch.areaUid = areaUid;
+    expertRows.value = await espEvaluationList(name, areaUid);
   }
 
   /** 三张排名卡（接口 4.1：三维度 Top5，无评价专家不参与） */
@@ -144,6 +156,7 @@
     { title: '年龄', dataIndex: 'age', width: 70 },
     { title: '联系电话', dataIndex: 'phone', width: 130 },
     { title: '身份证号', dataIndex: 'idCard', width: 170 },
+    { title: '所属片区', dataIndex: 'areaNames', width: 180, ellipsis: true },
     { title: '评价次数', dataIndex: 'evalCount', width: 90, align: 'center' },
     { title: '活跃度得分（10）', dataIndex: 'avgActivity', width: 140, align: 'center' },
     { title: '专业覆盖度得分（10）', dataIndex: 'avgCoverage', width: 160, align: 'center' },
@@ -173,11 +186,27 @@
     formConfig: {
       baseColProps: { md: 6, lg: 5 },
       labelWidth: 100,
-      schemas: [{ label: '专家姓名', field: 'name', component: 'Input', componentProps: { placeholder: '请输入' } }],
+      schemas: [
+        { label: '专家姓名', field: 'name', component: 'Input', componentProps: { placeholder: '请输入' } },
+        {
+          label: '所属片区',
+          field: 'areaUid',
+          component: 'Select',
+          componentProps: () => ({
+            options: areaOptions.value,
+            allowClear: true,
+            showSearch: true,
+            optionFilterProp: 'label',
+            placeholder: '请选择',
+          }),
+        },
+      ],
     },
-    // 接口 4.2 支持姓名模糊（整包返回，前端仍做本地分页展示）
+    // 接口 4.2 支持姓名模糊、所属片区精确（整包返回，前端仍做本地分页展示）
     handleSearchInfoFn: (params: Recordable) => {
-      reloadExperts(String(params.name ?? '').trim() || undefined).then(() => setTableData(expertRows.value));
+      const name = String(params.name ?? '').trim() || undefined;
+      const areaUid = String(params.areaUid ?? '').trim() || undefined;
+      reloadExperts(name, areaUid).then(() => setTableData(expertRows.value));
       return params;
     },
   });
@@ -234,7 +263,7 @@
 
   /** 重新拉取列表与排名（评价/删除后调用） */
   function refreshTable() {
-    reloadExperts().then(() => setTableData(expertRows.value));
+    reloadExperts(lastSearch.name, lastSearch.areaUid).then(() => setTableData(expertRows.value));
     reloadRank();
   }
 

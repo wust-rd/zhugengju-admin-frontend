@@ -45,6 +45,8 @@ export type EspExpert = {
   orgType: string;
   joinDate: string;
   selected: boolean;
+  areaUids?: string[];
+  areaNames?: string;
   career: string;
   reviewExperience: string;
 };
@@ -60,8 +62,8 @@ export type EspDictOptions = {
   genders: string[];
 };
 
-/** 片区选项（ESP_MAP_AREA：key=area_name，value=a_uid） */
-export type EspArea = { key: string; value: string; areaCode: string; areaName: string };
+/** 片区选项（ESP_MAP_AREA：key=area_name，value=a_uid；dist=行政区） */
+export type EspArea = { key: string; value: string; areaCode: string; areaName: string; dist?: string };
 
 /** 抽取结果（每角色一名专家，候选不足为 null） */
 export type EspDrawResult = {
@@ -240,9 +242,9 @@ export async function espEvaluationRank(): Promise<{
   return unwrap(await defHttp.get({ url: adminPath + '/esp/evaluation/rank' }));
 }
 
-/** 4.2 已入选专家列表（整包返回，含三维度平均分聚合；name 模糊） */
-export async function espEvaluationList(name?: string): Promise<EspEvalExpertRow[]> {
-  return unwrap(await defHttp.get({ url: adminPath + '/esp/evaluation/list', params: { name } }));
+/** 4.2 已入选专家列表（整包返回，含三维度平均分聚合；name 模糊、areaUid 所属片区） */
+export async function espEvaluationList(name?: string, areaUid?: string): Promise<EspEvalExpertRow[]> {
+  return unwrap(await defHttp.get({ url: adminPath + '/esp/evaluation/list', params: { name, areaUid } }));
 }
 
 /** 4.3 历史评价分页 —— BasicTable api 直用 */

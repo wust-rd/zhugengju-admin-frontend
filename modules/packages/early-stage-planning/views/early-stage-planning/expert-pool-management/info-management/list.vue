@@ -62,6 +62,7 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { Icon } from '@jeesite/core/components/Icon';
   import {
+    espDictAreas,
     espExpertDelete,
     espExpertPage,
     espExpertStat,
@@ -69,6 +70,14 @@
   import ExpertForm from './form.vue';
 
   const { showMessage } = useMessage();
+
+  const areaOptions = ref<{ label: string; value: string }[]>([]);
+  espDictAreas().then((areas) => {
+    areaOptions.value = (areas ?? []).map((a) => ({
+      label: a.areaName || a.key,
+      value: a.areaCode || a.value,
+    }));
+  });
 
   /** 统计卡（接口 2.2；增删改后 reloadStat 刷新） */
   const stat = ref({ total: 0, senior: 0, selected: 0 });
@@ -93,6 +102,7 @@
     { title: '职称', dataIndex: 'title', width: 130 },
     { title: '单位名称', dataIndex: 'org', width: 170 },
     { title: '单位性质', dataIndex: 'orgType', width: 100 },
+    { title: '所属片区', dataIndex: 'areaNames', width: 180, ellipsis: true },
     { title: '入库时间', dataIndex: 'joinDate', width: 110 },
     { title: '是否已入选三师', dataIndex: 'selected', width: 120, slot: 'selected' },
   ];
@@ -125,6 +135,18 @@
       schemas: [
         { label: '专家姓名', field: 'name', component: 'Input' },
         { label: '单位名称', field: 'org', component: 'Input' },
+        {
+          label: '所属片区',
+          field: 'areaUid',
+          component: 'Select',
+          componentProps: () => ({
+            options: areaOptions.value,
+            allowClear: true,
+            showSearch: true,
+            optionFilterProp: 'label',
+            placeholder: '请选择',
+          }),
+        },
         {
           label: '是否已入选三师',
           field: 'selected',

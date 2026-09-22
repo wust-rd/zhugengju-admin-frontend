@@ -24,6 +24,7 @@
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import {
     espDictOptions,
+    espDictAreas,
     espExpertForm,
     espExpertSave,
     type EspExpert,
@@ -48,6 +49,14 @@
     orgTypes: ['民营企业', '国有企业', '党政机关', '事业单位', '其他'],
   });
   const toOptions = (list: string[]) => list.map((v) => ({ label: v, value: v }));
+  const areaOptions = ref<{ label: string; value: string }[]>([]);
+  const toAreaUids = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.filter(Boolean).map(String);
+    if (typeof value === 'string' && value.trim()) {
+      return value.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
 
   const inputFormSchemas: FormSchema[] = [
     {
@@ -124,6 +133,21 @@
       rules: [{ required: true, message: '请选择单位性质' }],
     },
     {
+      label: '所属片区',
+      field: 'areaUids',
+      component: 'Select',
+      componentProps: () => ({
+        options: areaOptions.value,
+        mode: 'multiple',
+        allowClear: true,
+        showSearch: true,
+        optionFilterProp: 'label',
+        placeholder: '请选择（可多选）',
+        maxTagCount: 'responsive',
+      }),
+      colProps: { md: 24, lg: 24 },
+    },
+    {
       label: '入库时间',
       field: 'joinDate',
       component: 'DatePicker',
@@ -180,8 +204,13 @@
         record.value = { ...detail, isNewRecord: false, isView: isView.value };
       }
 
-      // 字典接口（1.1）→ 覆盖三处下拉选项
+      // 字典接口（1.1 / 1.2）→ 覆盖下拉选项
       dictOptions.value = await espDictOptions();
+      const areas = await espDictAreas();
+      areaOptions.value = (areas ?? []).map((a) => ({
+        label: a.areaName || a.key,
+        value: a.areaCode || a.value,
+      }));
 
       const r = record.value;
       await setFieldsValue({
@@ -194,6 +223,7 @@
         title: r.title ?? undefined,
         org: r.org ?? '',
         orgType: r.orgType ?? undefined,
+        areaUids: toAreaUids(r.areaUids),
         joinDate: r.joinDate ?? undefined,
         selected: r.selected ?? undefined,
         career: r.career ?? '',
