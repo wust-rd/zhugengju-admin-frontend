@@ -90,11 +90,11 @@
       label: '联系电话',
       field: 'phone',
       component: 'Input',
-      componentProps: { maxlength: 11, placeholder: '11位手机号，将作为登录账号' },
-      helpMessage: '保存后自动开通系统账号，账号为手机号',
+      componentProps: { maxlength: 11, placeholder: '请输入11位手机号' },
+      helpMessage: '保存后自动开通系统账号，登录名为专家姓名',
       rules: [
         { required: true, message: '请输入联系电话' },
-        { pattern: /^1\d{10}$/, message: '须为11位手机号（同时作为登录账号）' },
+        { pattern: /^1\d{10}$/, message: '须为11位手机号' },
       ],
     },
     {
@@ -258,7 +258,7 @@
     const saved = await espExpertSave({ ...data, id: record.value.id ?? '' } as Partial<EspExpert>);
     showMessage(
       saved.accountCreated
-        ? `保存成功，已开通登录账号（账号 ${saved.loginCode || '为手机号'}，初始密码与城市更新专家相同）`
+        ? `保存成功，已开通登录账号（账号 ${saved.loginCode || '为专家姓名'}，初始密码与城市更新专家相同）`
         : record.value.isNewRecord
           ? '新增成功'
           : '保存成功',
