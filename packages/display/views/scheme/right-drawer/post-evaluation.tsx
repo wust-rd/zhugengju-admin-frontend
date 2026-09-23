@@ -23,53 +23,53 @@ type AerialTab = (typeof AERIAL_TABS)[number];
 const RADAR_TABS = ['片区项目进度', '片区更新后直接经济效益', '片区更新后间接经济效益', '片区更新后社会效益'] as const;
 type RadarTab = (typeof RADAR_TABS)[number];
 
-/** 一根轴 = 一个指标项 + 它的「更新前 / 更新后」（表格的「提升」列 = after - before，不另存） */
-type RadarMetric = { label: string; before: number; after: number };
+/** 一根轴 = 一个指标项 + 它的「更新前 / 更新后」（unit 只给图下的数据表用，雷达图不画单位） */
+type RadarMetric = { label: string; before: number; after: number; unit: string };
 
 /**
- * 「成效指标对比」的数据：取自表格的「指标项 / 更新前 / 更新后」三列（共 27 条）
+ * 「成效指标对比」的数据：取自表格的「指标项 / 单位 / 更新前 / 更新后」几列（共 27 条）
  *
  * 两点需要注意（都由代码自适应，不用手工调）：
  * - 各主题指标条数不同（6 / 6 / 9 / 6）→ 轴数、网格都是按当前主题的条数算的；
- * - 单位不统一（% / 亿元 / 家 / 个每平方公里 / 处 / 人 / 个）→ 每根轴各自归一化
+ * - 单位不统一（% / 亿元 / 家 / 个每平方公里 / 处 / 人 / 个）→ 雷达图每根轴各自归一化
  *   （取该指标更新前/更新后的较大值当满格，见 setup 里的 radarSeries），
- *   否则「居住人口增长数 3200→7800」这种会把图形顶出画布。
+ *   否则「居住人口增长数 3200→7800」这种会把图形顶出画布；原始单位只在图下数据表里展示。
  */
 const RADAR_METRICS: Record<RadarTab, RadarMetric[]> = {
   片区项目进度: [
-    { label: '项目完成率', before: 72.5, after: 91.3 },
-    { label: '项目投资比例', before: 68.0, after: 87.6 },
-    { label: '专项资金到位率', before: 75.2, after: 93.8 },
-    { label: '政策承诺事项办结率', before: 70.1, after: 89.4 },
-    { label: '行政审批通过率', before: 82.3, after: 95.7 },
-    { label: '报批/备案事项完成率', before: 76.8, after: 90.2 },
+    { label: '项目完成率', unit: '%', before: 72.5, after: 91.3 },
+    { label: '项目投资比例', unit: '%', before: 68.0, after: 87.6 },
+    { label: '专项资金到位率', unit: '%', before: 75.2, after: 93.8 },
+    { label: '政策承诺事项办结率', unit: '%', before: 70.1, after: 89.4 },
+    { label: '行政审批通过率', unit: '%', before: 82.3, after: 95.7 },
+    { label: '报批/备案事项完成率', unit: '%', before: 76.8, after: 90.2 },
   ],
   片区更新后直接经济效益: [
-    { label: '固定资产投资', before: 45.6, after: 82.3 },
-    { label: '招商引资到位比例', before: 63.4, after: 85.1 },
-    { label: '房地产税收', before: 8.7, after: 15.2 },
-    { label: '年度税收增量', before: 3.2, after: 7.8 },
-    { label: '租金收入', before: 1.5, after: 3.6 },
-    { label: '土地成交情况', before: 22.4, after: 48.9 },
+    { label: '固定资产投资', unit: '亿元', before: 45.6, after: 82.3 },
+    { label: '招商引资到位比例', unit: '%', before: 63.4, after: 85.1 },
+    { label: '房地产税收', unit: '亿元', before: 8.7, after: 15.2 },
+    { label: '年度税收增量', unit: '亿元', before: 3.2, after: 7.8 },
+    { label: '租金收入', unit: '亿元', before: 1.5, after: 3.6 },
+    { label: '土地成交情况', unit: '亿元', before: 22.4, after: 48.9 },
   ],
   片区更新后间接经济效益: [
-    { label: '企业注册量', before: 120.0, after: 285.0 },
-    { label: '新业务占比', before: 28.5, after: 52.3 },
-    { label: '单位企业增量用地产值增长率', before: 6.5, after: 14.2 },
-    { label: '地价租金年增长率', before: 3.8, after: 9.6 },
-    { label: '房价增长率', before: 2.9, after: 7.8 },
-    { label: '商业客流增长率', before: 8.2, after: 18.5 },
-    { label: '流动人口增长率', before: 4.5, after: 11.3 },
-    { label: '客流消费转化率', before: 15.6, after: 28.4 },
-    { label: '夜间经济活跃度', before: 12.0, after: 27.0 },
+    { label: '企业注册量', unit: '家', before: 120.0, after: 285.0 },
+    { label: '新业务占比', unit: '%', before: 28.5, after: 52.3 },
+    { label: '单位企业增量用地产值增长率', unit: '%', before: 6.5, after: 14.2 },
+    { label: '地价租金年增长率', unit: '%', before: 3.8, after: 9.6 },
+    { label: '房价增长率', unit: '%', before: 2.9, after: 7.8 },
+    { label: '商业客流增长率', unit: '%', before: 8.2, after: 18.5 },
+    { label: '流动人口增长率', unit: '%', before: 4.5, after: 11.3 },
+    { label: '客流消费转化率', unit: '%', before: 15.6, after: 28.4 },
+    { label: '夜间经济活跃度', unit: '个/平方公里', before: 12.0, after: 27.0 },
   ],
   片区更新后社会效益: [
-    { label: '公众满意度', before: 76.4, after: 92.1 },
-    { label: '12345热线群众满意率同比增长', before: 5.2, after: 12.8 },
-    { label: '青年人才占比', before: 18.5, after: 32.7 },
-    { label: '历史文化建筑数', before: 8.0, after: 15.0 },
-    { label: '居住人口增长数', before: 3200.0, after: 7800.0 },
-    { label: '就业岗位增加数量', before: 1500.0, after: 4200.0 },
+    { label: '公众满意度', unit: '%', before: 76.4, after: 92.1 },
+    { label: '12345热线群众满意率同比增长', unit: '%', before: 5.2, after: 12.8 },
+    { label: '青年人才占比', unit: '%', before: 18.5, after: 32.7 },
+    { label: '历史文化建筑数', unit: '处', before: 8.0, after: 15.0 },
+    { label: '居住人口增长数', unit: '人', before: 3200.0, after: 7800.0 },
+    { label: '就业岗位增加数量', unit: '个', before: 1500.0, after: 4200.0 },
   ],
 };
 
@@ -142,6 +142,12 @@ const radarLabelLayout = (index: number, count: number, label: string) => {
   const startY = y < RADAR_CY ? y - (lines.length - 1) * RADAR_LABEL_LINE_H : y + RADAR_LABEL_SIZE;
   return { x, lines, ys: lines.map((_, i) => startY + i * RADAR_LABEL_LINE_H) };
 };
+
+/**
+ * 数值展示：保留 1 位小数 + 千分位（和设计稿表格一致：68.0 / 3,200.0）。
+ * 单位不固定，跟着每条指标走（见 RADAR_METRICS 的 unit）。
+ */
+const fmtMetric = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** 卡片标题行：圆点 + 标题（各块通用的小标题样式，与项目情况等 Tab 同款） */
 const CardTitle = ({ title, hint }: { title: string; hint?: string }) => (
@@ -378,7 +384,7 @@ export const PostEvaluation = defineComponent({
                   )}
                 </div>
 
-                {/* ===== 块3：成效指标对比（下拉选主题，雷达图：更新前 / 更新后） ===== */}
+                {/* ===== 块3：成效指标对比（下拉选主题：雷达图「更新前 / 更新后」+ 图下数据表） ===== */}
                 <div class={CARD_CLASS}>
                   <CardTitle title="成效指标对比" />
 
@@ -506,6 +512,31 @@ export const PostEvaluation = defineComponent({
                         <span class="size-10px bg-[#2ED9C4]" />
                         更新后
                       </div>
+                    </div>
+
+                    {/* 图对应的数据表（当前主题）：指标项 / 单位 / 更新前 / 更新后
+                        数值配色沿用图例（更新前蓝、更新后青）；单位随行，因为各指标单位不同 */}
+                    <div class="mt-12px overflow-hidden rd-6px b-1 b-solid b-white/10">
+                      <div class="flex items-center bg-white/6 px-10px py-6px text-12px text-white/60">
+                        <div class="min-w-0 flex-1">指标项</div>
+                        <div class="w-64px shrink-0 text-center">单位</div>
+                        <div class="w-56px shrink-0 text-right">更新前</div>
+                        <div class="w-56px shrink-0 text-right">更新后</div>
+                      </div>
+
+                      {radarSeries.value.metrics.map((m, i) => (
+                        <div
+                          key={m.label}
+                          class={cn('flex items-center px-10px py-5px text-12px leading-18px', {
+                            'bg-white/2': i % 2 === 1, // 隔行底色，长表格好读
+                          })}
+                        >
+                          <div class="min-w-0 flex-1 text-white/85">{m.label}</div>
+                          <div class="w-64px shrink-0 whitespace-nowrap text-center text-white/60">{m.unit}</div>
+                          <div class="w-56px shrink-0 text-right text-[#5FA5F5]">{fmtMetric(m.before)}</div>
+                          <div class="w-56px shrink-0 text-right text-[#7BF2DC]">{fmtMetric(m.after)}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

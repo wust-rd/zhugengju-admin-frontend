@@ -50,4 +50,4 @@ export const FACTORY_BEFORE = `${AREA_OSS}/实施后评估-两厂改造项目-�
 export const FACTORY_AFTER = `${AREA_OSS}/实施后评估-两厂改造项目-改造后.jpg`;
 
 /** 航拍照片（「武汉智眼航拍全景」块，下拉选「航拍照片」时展示） */
-export const AERIAL_IMAGES = [`${AREA_OSS}/实施后评估-航拍-1.jpeg`, `${AREA_OSS}/实施后评估-航拍-2.jpeg`];
+export const AERIAL_IMAGES = [`${AREA_OSS}/实施后评估-航拍-1.webp`, `${AREA_OSS}/实施后评估-航拍-2.webp`];
