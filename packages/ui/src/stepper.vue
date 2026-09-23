@@ -30,8 +30,7 @@
           class="flex h-32px w-32px shrink-0 items-center justify-center rounded-full text-14px font-500 transition-shadow"
           :class="[ICON_CLASS[step.status ?? 'wait'], active === index ? tone.shadow : undefined]"
         >
-          <span v-if="step.status === 'finish'" class="i-ant-design:check-outlined text-14px"></span>
-          <template v-else>{{ index + 1 }}</template>
+          {{ index + 1 }}
         </div>
         <div
           class="rounded-4px px-8px text-center text-13px transition-colors"
@@ -59,15 +58,15 @@
 
   /** 各状态圆形 indicator 的样式 */
   const ICON_CLASS: Record<StepStatus, string> = {
-    finish: 'bg-#d9d9d9 text-white',
-    process: 'bg-#1677ff text-white',
+    finish: 'bg-blue-200 text-white',
+    process: 'bg-blue-500 text-white',
     wait: 'bg-white text-gray-400 b-1 b-solid b-#d9d9d9',
   };
 
   /** 选中态高亮色：blue=在库项目（蓝 shadow + 蓝底胶囊）；gray=已退出等项目，
    *  背景与「已退出」状态 Tag（Tag color=default variant=solid → rgba(0,0,0,0.88)）同色 */
   const TONE_CLASS = {
-    blue: { shadow: 'shadow-[0_0_10px_2px_rgba(22,119,255,0.45)]', pill: 'bg-#1677ff text-white' },
+    blue: { shadow: 'shadow-[0_0_10px_2px_rgba(22,119,255,0.45)]', pill: 'bg-blue-500 text-white' },
     gray: { shadow: 'shadow-[0_0_10px_2px_rgba(0,0,0,0.45)]', pill: 'bg-[rgba(0,0,0,0.88)] text-white' },
   } as const;
 

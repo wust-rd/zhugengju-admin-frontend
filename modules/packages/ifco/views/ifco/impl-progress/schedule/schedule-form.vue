@@ -392,8 +392,8 @@
     urbanConclusion.value = undefined;
     urbanOpinion.value = '';
     record.value = (data || {}) as Partial<ScheduleItem>;
-    // 编辑/审查落步骤②（填报/看计划）；查看落步骤①（基本信息查看）
-    activeStep.value = isView.value ? 0 : 1;
+    // 统一落步骤②（倒排工期计划）；查看/编辑/审查均不例外（09-23 用户定案）
+    activeStep.value = 1;
     // 非激活步骤面板中的表单：已挂载则直接回填，未挂载等注册回调时回填
     if (planFormReady.value) applyPlanFormValues();
     setPlanProps({ disabled: isView.value || isReview.value });

@@ -652,7 +652,8 @@
     urbanConclusion.value = undefined;
     urbanOpinion.value = '';
     record.value = (data || {}) as Partial<MonthlyItem>;
-    activeStep.value = isView.value ? 0 : 1;
+    // 统一落步骤②（进度填报）；查看/编辑/审查均不例外（09-23 用户定案）
+    activeStep.value = 1;
     // 月份页签复位到当月（watch 只管用户切换，这里显式回填；重开抽屉不算切换）
     entries.value = initEntries();
     appliedMonth = 0;

@@ -65,128 +65,133 @@
       <div v-show="activeStep === 1">
         <!-- 资金基本情况 -->
         <div class="bg-white rd-8px px-20px py-16px shadow-sm">
-      <div class="text-15px font-600 text-gray-900">资金基本情况</div>
-      <div class="mt-12px grid grid-cols-1 gap-x-24px gap-y-12px md:grid-cols-2">
-        <div class="flex items-center gap-8px">
-          <div class="w-180px shrink-0 text-right text-14px text-gray-700">本年完成投资总额(亿元)</div>
-          <Input :value="record.yearInvestTotal" disabled class="flex-1" />
-          <span class="shrink-0 text-12px text-#ff4d4f">进度填报时自动带入</span>
-        </div>
-        <div class="flex items-center gap-8px">
-          <div class="w-180px shrink-0 text-right text-14px text-gray-700">投资概算金额(万元)</div>
-          <Input :value="statInvestWan" disabled class="flex-1" />
-        </div>
-        <div class="flex items-center gap-8px">
-          <div class="w-180px shrink-0 text-right text-14px text-gray-700">是否可以作为REITs培育项目</div>
-          <Select
-            v-model:value="formState.reitsProject"
-            :options="yesNoOptions"
-            :disabled="isView"
-            allow-clear
-            class="flex-1"
-            placeholder="请选择"
-          />
-        </div>
-        <div class="flex items-center gap-8px">
-          <div class="w-180px shrink-0 text-right text-14px text-gray-700">项目资金缺口(万元)</div>
-          <InputNumber
-            v-model:value="formState.fundGap"
-            :min="0"
-            :disabled="isView"
-            class="flex-1"
-            placeholder="请输入项目资金缺口"
-          />
-        </div>
-        <div class="flex items-center gap-8px">
-          <div class="w-180px shrink-0 text-right text-14px text-gray-700">缺口资金是否已有资金安排</div>
-          <Select
-            v-model:value="formState.gapArranged"
-            :options="yesNoOptions"
-            :disabled="isView"
-            allow-clear
-            class="flex-1"
-            placeholder="请选择"
-          />
-        </div>
-        <div class="flex items-start gap-8px md:col-span-2">
-          <div class="w-180px shrink-0 pt-4px text-right text-14px text-gray-700">
-            <span v-if="formState.gapArranged === '是'" class="text-#ff4d4f">*</span> 资金安排说明
-          </div>
-          <div class="min-w-0 flex-1">
-            <TextArea
-              v-model:value="formState.gapArrangeDesc"
-              :disabled="isView"
-              :rows="3"
-              :maxlength="300"
-              show-count
-              placeholder="请输入资金安排说明"
-            />
-            <div v-if="formState.gapArranged === '是' && !isView" class="mt-2px text-right text-12px text-#ff4d4f">
-              缺口资金已有资金安排时必填
+          <div class="text-15px font-600 text-gray-900">资金基本情况</div>
+          <div class="mt-12px grid grid-cols-1 gap-x-24px gap-y-12px md:grid-cols-2">
+            <div class="flex items-center gap-8px">
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">本年完成投资总额(亿元)</div>
+              <Input :value="record.yearInvestTotal" disabled class="flex-1" />
+              <span class="shrink-0 text-12px text-#ff4d4f">进度填报时自动带入</span>
+            </div>
+            <div class="flex items-center gap-8px">
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">投资概算金额(万元)</div>
+              <Input :value="statInvestWan" disabled class="flex-1" />
+            </div>
+            <div class="flex items-center gap-8px">
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">是否可以作为REITs培育项目</div>
+              <Select
+                v-model:value="formState.reitsProject"
+                :options="yesNoOptions"
+                :disabled="isView"
+                allow-clear
+                class="flex-1"
+                placeholder="请选择"
+              />
+            </div>
+            <div class="flex items-center gap-8px">
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">项目资金缺口(万元)</div>
+              <InputNumber
+                v-model:value="formState.fundGap"
+                :min="0"
+                :disabled="isView"
+                class="flex-1"
+                placeholder="请输入项目资金缺口"
+              />
+            </div>
+            <div class="flex items-center gap-8px">
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">缺口资金是否已有资金安排</div>
+              <Select
+                v-model:value="formState.gapArranged"
+                :options="yesNoOptions"
+                :disabled="isView"
+                allow-clear
+                class="flex-1"
+                placeholder="请选择"
+              />
+            </div>
+            <div class="flex items-start gap-8px md:col-span-2">
+              <div class="w-180px shrink-0 pt-4px text-right text-14px text-gray-700">
+                <span v-if="formState.gapArranged === '是'" class="text-#ff4d4f">*</span> 资金安排说明
+              </div>
+              <div class="min-w-0 flex-1">
+                <TextArea
+                  v-model:value="formState.gapArrangeDesc"
+                  :disabled="isView"
+                  :rows="3"
+                  :maxlength="300"
+                  show-count
+                  placeholder="请输入资金安排说明"
+                />
+                <div v-if="formState.gapArranged === '是' && !isView" class="mt-2px text-right text-12px text-#ff4d4f">
+                  缺口资金已有资金安排时必填
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
         <!-- 资金到位情况（指标网格：输入行可填，灰色自动行按公式实时求和） -->
-    <div class="mt-16px bg-white rd-8px px-20px py-16px shadow-sm">
-      <div class="text-15px font-600 text-gray-900">资金到位情况</div>
-      <table class="mt-12px w-full text-14px">
-        <thead>
-          <tr class="b-b-1 b-b-solid b-gray-200 bg-gray-50 text-gray-500">
-            <th class="py-8px text-left font-500" style="padding-left: 12px">指标名称</th>
-            <th class="w-80px py-8px font-500">计量单位</th>
-            <th class="w-60px py-8px font-500">代码</th>
-            <th class="w-200px py-8px font-500">本年数</th>
-            <th class="py-8px text-left font-500" style="padding-left: 24px">备注</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in FUND_INDICATORS"
-            :key="row.key"
-            class="b-b-1 b-b-solid b-gray-100"
-            :class="row.autoOf ? 'bg-gray-50 font-600 text-gray-800' : ''"
-          >
-            <td class="py-6px text-left text-gray-800" style="padding-left: 12px">{{ row.name }}</td>
-            <td class="py-6px text-center text-gray-600">{{ row.unit }}</td>
-            <td class="py-6px text-center text-gray-600">{{ row.code || '—' }}</td>
-            <td class="py-6px">
-              <!-- 文字行（其他来源） -->
-              <Input
-                v-if="row.key === 'otherSource'"
-                v-model:value="otherSource"
-                :disabled="isView"
-                :maxlength="100"
-                size="small"
-                placeholder="请输入来源说明"
-                class="w-full"
-              />
-              <!-- 自动行：按公式实时求和（只读） -->
-              <span v-else-if="row.autoOf" class="text-gray-800">{{ formatWan(autoValueOf(row.key, values)) }}</span>
-              <!-- 输入行 -->
-              <InputNumber
-                v-else
-                :value="values[row.key]"
-                :min="0"
-                :disabled="isView"
-                size="small"
-                :controls="false"
-                class="w-full"
-                placeholder="请输入"
-                @change="(value) => handleValueChange(row.key, value)"
-              />
-            </td>
-            <td class="py-6px text-left text-12px text-gray-400" style="padding-left: 24px">{{ row.note || '' }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="mt-8px text-12px text-gray-400">
-        灰色行为自动计算行，无需填写；已填报的周期带入已填报的数据，未填报的周期置灰不可填。
+        <div class="mt-16px bg-white rd-8px px-20px py-16px shadow-sm">
+          <div class="text-15px font-600 text-gray-900">资金到位情况</div>
+          <table class="mt-12px w-full text-14px">
+            <thead>
+              <tr class="b-b-1 b-b-solid b-gray-200 bg-gray-50 text-gray-500">
+                <th class="py-8px text-left font-500" style="padding-left: 12px">指标名称</th>
+                <th class="w-80px py-8px font-500">计量单位</th>
+                <th class="w-60px py-8px font-500">代码</th>
+                <th class="w-200px py-8px font-500">本年数</th>
+                <th class="py-8px text-left font-500" style="padding-left: 24px">备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in FUND_INDICATORS"
+                :key="row.key"
+                class="b-b-1 b-b-solid b-gray-100"
+                :class="row.autoOf ? 'bg-gray-50 font-600 text-gray-800' : ''"
+              >
+                <td class="py-6px text-left text-gray-800" style="padding-left: 12px">{{ row.name }}</td>
+                <td class="py-6px text-center text-gray-600">{{ row.unit }}</td>
+                <td class="py-6px text-center text-gray-600">{{ row.code || '—' }}</td>
+                <td class="py-6px">
+                  <!-- 文字行（其他来源） -->
+                  <Input
+                    v-if="row.key === 'otherSource'"
+                    v-model:value="otherSource"
+                    :disabled="isView"
+                    :maxlength="100"
+                    size="small"
+                    placeholder="请输入来源说明"
+                    class="w-full"
+                  />
+                  <!-- 自动行：按公式实时求和（只读） -->
+                  <span v-else-if="row.autoOf" class="text-gray-800">{{
+                    formatWan(autoValueOf(row.key, values))
+                  }}</span>
+                  <!-- 输入行 -->
+                  <InputNumber
+                    v-else
+                    :value="values[row.key]"
+                    :min="0"
+                    :disabled="isView"
+                    size="small"
+                    :controls="false"
+                    class="w-full"
+                    placeholder="请输入"
+                    @change="(value) => handleValueChange(row.key, value)"
+                  />
+                </td>
+                <td class="py-6px text-left text-12px text-gray-400" style="padding-left: 24px">{{
+                  row.note || ''
+                }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="mt-8px text-12px text-gray-400">
+            灰色行为自动计算行，无需填写；已填报的周期带入已填报的数据，未填报的周期置灰不可填。
+          </div>
+        </div>
       </div>
-      </div>
-    </div>
+    </Transition>
 
     <!-- ③ 确认提交（流程占位页：只表达流程状态，无实际内容） -->
     <Transition :name="slideName">
@@ -289,8 +294,8 @@
     setDrawerProps({ loading: true });
     isView.value = !!data?.isView;
     record.value = (data || {}) as Partial<FundItem>;
-    // 查看落步骤①（基本信息查看）；编辑落步骤②（资金填报）
-    activeStep.value = isView.value ? 0 : 1;
+    // 统一落步骤②（资金填报）；查看/编辑均不例外（09-23 用户定案）
+    activeStep.value = 1;
 
     formState.reitsProject = record.value.reitsProject;
     formState.fundGap = record.value.fundGap;
