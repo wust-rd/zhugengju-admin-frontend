@@ -8,7 +8,7 @@ import arrowImg from '@jeesite/assets/images/display/plan/箭头开关.svg';
 import { CollapsibleSection } from '@jeesite/display/components/collapsible-section';
 import { GlowButton } from '@jeesite/display/components/glow-button';
 import { AreaDetailViewKey, useAreaDetailView } from '../use-area-detail-view';
-import { AERIAL_IMAGES, FACTORY_AFTER, FACTORY_BEFORE, selectableThumbClass } from './shared';
+import { AERIAL_IMAGES, AERIAL_THUMBS, FACTORY_AFTER, FACTORY_BEFORE, selectableThumbClass } from './shared';
 
 /**
  * 「武汉智眼航拍全景」的资料选项（下拉）。仅「航拍照片」有素材，其余待接入。
@@ -226,8 +226,9 @@ export const PostEvaluation = defineComponent({
     // 共享状态（页面 provide）：写入 evalImgView 驱动页面左侧大图（单图 / 前后对比双图）
     const view = inject(AreaDetailViewKey, null) ?? useAreaDetailView();
 
-    /** 块1 按钮选中态（同步写 evalImgView；默认前后对比） */
-    const factoryMode = ref<'before' | 'after' | 'compare'>('compare');
+    /** 块1 按钮选中态（同步写 evalImgView；默认选中第一个按钮「改造前」，
+        与 use-area-detail-view 里 evalImgView 的初始值保持一致） */
+    const factoryMode = ref<'before' | 'after' | 'compare'>('before');
 
     /** 块2 资料选项 + 航拍照片缩略图选中下标 */
     const aerialTab = ref<AerialTab>('航拍照片');
@@ -316,7 +317,7 @@ export const PostEvaluation = defineComponent({
                         key={btn.key}
                         isActive
                         borderGlow={factoryMode.value === btn.key}
-                        glowOpacity={factoryMode.value === btn.key ? 1.5 : 0.25}
+                        glowOpacity={factoryMode.value === btn.key ? 1 : 0.25}
                         width={112}
                         height={32}
                         radius={8}
@@ -332,7 +333,7 @@ export const PostEvaluation = defineComponent({
                   </div>
                 </div>
 
-                {/* ===== 块2：武汉智眼航拍全景（三个资料按钮横排；航拍照片有两张图） ===== */}
+                {/* ===== 块2：武汉智眼航拍全景（三个资料按钮横排；航拍照片有 17 张图） ===== */}
                 <div class={CARD_CLASS}>
                   <CardTitle title="武汉智眼航拍全景" />
 
@@ -347,7 +348,7 @@ export const PostEvaluation = defineComponent({
                         key={t}
                         isActive
                         borderGlow={aerialTab.value === t}
-                        glowOpacity={aerialTab.value === t ? 1.5 : 0.25}
+                        glowOpacity={aerialTab.value === t ? 1 : 0.25}
                         width={112}
                         height={32}
                         radius={8}
@@ -364,18 +365,24 @@ export const PostEvaluation = defineComponent({
 
                   {aerialTab.value === '航拍照片' ? (
                     <>
-                      <div class="mt-12px flex gap-6px">
-                        {AERIAL_IMAGES.map((src, index) => (
+                      {/* 缩略图 17 张：横向滑动查看（抽屉宽度只露出前几张，右侧截断即滚动提示）。
+                          缩略图用本地 120px 小图（见 shared.AERIAL_THUMBS）——OSS 原图是
+                          4032×3024 的大图，直接当缩略图解码是滚动卡顿的根因；点击后
+                          左侧大图才按需加载对应原图 */}
+                      <div class="mt-12px flex gap-6px overflow-x-auto scrollbar-none">
+                        {AERIAL_THUMBS.map((thumb, index) => (
                           <img
-                            key={src}
-                            src={src}
+                            key={thumb}
+                            src={thumb}
                             alt={`航拍照片 ${index + 1}`}
-                            class={selectableThumbClass(aerialImg.value === index)}
+                            loading="lazy"
+                            decoding="async"
+                            class={cn('shrink-0', selectableThumbClass(aerialImg.value === index))}
                             onClick={() => selectAerial(index)}
                           />
                         ))}
                       </div>
-                      <div class="mt-6px text-12px text-white/40">点击缩略图，左侧大图同步显示</div>
+                      <div class="mt-6px text-12px text-white/40">左右滑动查看更多，点击缩略图左侧大图同步显示</div>
                     </>
                   ) : (
                     <div class="mt-12px flex h-80px items-center justify-center rd-8px b-1 b-dashed b-white/15 text-13px text-white/35">

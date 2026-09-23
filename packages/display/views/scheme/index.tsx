@@ -6,6 +6,7 @@ import { computed, defineComponent, ref, shallowRef, watch } from 'vue';
 import { colors } from '@jeesite/core/libs/colors';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
 import areaUrl from '@jeesite/display/data/area_merged_all.geojson?url';
+import projectUrl from '@jeesite/display/data/project_merged_all.geojson?url';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
 import { RouterLink, useRouter } from 'vue-router';
 import { cn } from '@jeesite/core/libs';
@@ -41,15 +42,27 @@ const ZHIYIN_IMG = `${OSS_BASE}/金字塔.webp`;
 // 知音片区点击弹出的片区概况图（OSS 外链）
 const PIANQU_IMG = `${OSS_BASE}/片区概况.webp`;
 
-/** 片区面配色：第一批紫（violet-600）/ 第二批蓝（blue-500）；
- *  边框取同色系加深两档（violet-800 / blue-700），相邻片区面之间才分得清 */
-const AREA_COLORS: Record<'第一批' | '第二批', { fill: string; line: string }> = {
-  第一批: { fill: colors.violet[600], line: colors.violet[800] },
-  第二批: { fill: colors.blue[500], line: colors.blue[700] },
+/** 片区面配色：第一批紫（purple-600）/ 第二批青（cyan-600），与前期谋划 overview 地图一致 */
+const AREA_COLORS: Record<'第一批' | '第二批', string> = {
+  第一批: colors.purple[600],
+  第二批: colors.cyan[600],
 };
 
-/** BATCH 字段取值异常时的兜底色（正常数据只有第一批/第二批，用不到） */
-const AREA_FALLBACK_COLOR = colors.stone[400];
+/** BATCH 字段取值异常时的兜底灰（同前期谋划 overview 的 GRAY） */
+const AREA_FALLBACK_COLOR = '#8B9CB0';
+
+/** 项目图斑自动显示的最小层级（街道/片区尺度，同前期谋划 overview） */
+const PROJECT_MINZOOM = 13;
+
+/** 项目名标注显示层级：比图斑高一级——图斑刚出现时不叠名字，再放大一级才出，
+    避免过渡层级标签过密（同前期谋划 overview） */
+const PROJECT_LABEL_MINZOOM = PROJECT_MINZOOM + 1;
+
+/** 地图 symbol 标注可渲染字符：汉字由引擎本地字形绘制；ASCII/拉丁扩展/常用中英标点等
+    非汉字字符走 web/public/fonts 自托管 PBF（Noto Sans Regular）。其余字符一律剔除——
+    缺 range 的字符会使该瓦片的 symbol 文字整体渲染失败（同前期谋划 overview） */
+const LABEL_UNSAFE_RE =
+  /[^\u0000-\u01FF\u0800-\u08FF\u2000-\u20FF\u2400-\u24FF\u3000-\u30FF\u4E00-\u9FFF\uAC00-\uD7A3\uFF00-\uFFFF]/g;
 
 /** 属性值 → 展示文本（空值统一显示「—」） */
 const text = (v: unknown): string => String(v ?? '').trim() || '—';
@@ -66,6 +79,9 @@ function funcBadges(funcType: unknown): string[] {
 /** 天地图底图：矢量底图 + 中文注记叠加 */
 const tiandituStyle: maplibregl.StyleSpecification = {
   version: 8,
+  // symbol 图层文字的字形来源：web/public/fonts 自托管 PBF（Noto Sans Regular，仅非汉字
+  // 字符用到；汉字由引擎 localIdeographFontFamily 本地渲染）
+  glyphs: `${import.meta.env.BASE_URL}fonts/{fontstack}/{range}.pbf`,
   sources: {
     'tianditu-vec': {
       type: 'raster',
@@ -226,7 +242,7 @@ export default defineComponent({
               if (disposed || map.getSource('area-faces')) return;
               map.addSource('area-faces', { type: 'geojson', data });
 
-              // 面：fill 铺色（半透明，底图路网仍可见）
+              // 面：fill 铺色（半透明 0.35，底图路网仍可见；同前期谋划 overview）
               map.addLayer({
                 id: 'area-fills',
                 type: 'fill',
@@ -236,33 +252,87 @@ export default defineComponent({
                     'match',
                     ['get', 'BATCH'],
                     '第一批',
-                    AREA_COLORS.第一批.fill,
+                    AREA_COLORS.第一批,
                     '第二批',
-                    AREA_COLORS.第二批.fill,
+                    AREA_COLORS.第二批,
                     AREA_FALLBACK_COLOR,
                   ],
-                  'fill-opacity': 0.75,
+                  'fill-opacity': 0.35,
                 },
               });
 
-              // 边框：同源 line 图层，同色系加深色描边（后添加 → 压在上一个 fill 之上）
+              // 边框：统一 stone 色 1px 常显边界线（同前期谋划 overview 的 esp-areas-line，
+              // 后添加 → 压在上一个 fill 之上）
               map.addLayer({
                 id: 'area-outlines',
                 type: 'line',
                 source: 'area-faces',
                 paint: {
-                  'line-color': [
+                  'line-color': colors.stone[400],
+                  'line-width': 1,
+                },
+              });
+            })
+            .catch(() => {});
+
+          // 项目图斑（project_merged_all，529 个项目面）：放大到 PROJECT_MINZOOM（13 级）
+          // 自动显示，按批次着色（同前期谋划 overview 的 esp-projects-fill）；
+          // 项目名标注（symbol 图层）比图斑高一级显示（14 级），汉字本地渲染、
+          // 非汉字走 tiandituStyle.glyphs 自托管 PBF，渲染前先做标注字符净化
+          fetch(projectUrl)
+            .then((res) => res.json())
+            .then((data) => {
+              if (disposed || map.getSource('project-faces')) return;
+              for (const f of data.features ?? []) {
+                if (f.properties?.PJ_NAME) {
+                  f.properties.PJ_NAME = String(f.properties.PJ_NAME).replace(LABEL_UNSAFE_RE, '');
+                }
+              }
+              map.addSource('project-faces', { type: 'geojson', data });
+
+              // 项目面：fill 铺色，批次色与片区面同色板，透明度 0.8（同前期谋划 overview）
+              map.addLayer({
+                id: 'project-fills',
+                type: 'fill',
+                source: 'project-faces',
+                minzoom: PROJECT_MINZOOM,
+                paint: {
+                  'fill-color': [
                     'match',
                     ['get', 'BATCH'],
                     '第一批',
-                    AREA_COLORS.第一批.line,
+                    AREA_COLORS.第一批,
                     '第二批',
-                    AREA_COLORS.第二批.line,
-                    AREA_FALLBACK_COLOR,
+                    AREA_COLORS.第二批,
+                    colors.violet[500],
                   ],
-                  'line-width': 1.5,
+                  'fill-opacity': 0.8,
                 },
               });
+
+              // 项目名标注（symbol）：text-allow-overlap 默认 false，引擎自动碰撞避让；
+              // 光晕描边保证在任何底图/图斑色上可读（同前期谋划 overview）
+              map.addLayer({
+                id: 'project-labels',
+                type: 'symbol',
+                source: 'project-faces',
+                minzoom: PROJECT_LABEL_MINZOOM,
+                layout: {
+                  'text-field': ['get', 'PJ_NAME'],
+                  'text-font': ['Noto Sans Regular'],
+                  // 随层级微放大（14 级 12px → 17 级 14px），长名单换行宽度 7em
+                  'text-size': ['interpolate', ['linear'], ['zoom'], PROJECT_LABEL_MINZOOM, 12, 17, 14],
+                  'text-max-width': 7,
+                },
+                paint: {
+                  'text-color': '#FFFFFF',
+                  'text-halo-color': '#0f2b47',
+                  'text-halo-width': 1.5,
+                },
+              });
+
+              // 项目图层加载晚于知音面时会被压在其上，显式把知音红面挪回顶层
+              if (map.getLayer('zhiyin-fill')) map.moveLayer('zhiyin-fill');
             })
             .catch(() => {});
 
@@ -283,7 +353,7 @@ export default defineComponent({
                 },
               });
               // 两个 geojson 各自异步 fetch，完成顺序不确定；显式置顶，
-              // 保证知音红面始终压在片区面之上（否则会被 0.75 透明度的片区面色盖住）
+              // 保证知音红面始终压在半透明的片区面之上（否则会被片区面色盖住）
               map.moveLayer('zhiyin-fill');
             })
             .catch(() => {});

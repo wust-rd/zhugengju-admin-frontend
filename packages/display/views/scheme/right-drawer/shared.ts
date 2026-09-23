@@ -1,5 +1,25 @@
 import { cn } from '@jeesite/core/libs';
 
+import aerialThumb1 from '@jeesite/assets/images/display/scheme-aerial/aerial-1.webp';
+import aerialThumb2 from '@jeesite/assets/images/display/scheme-aerial/aerial-2.webp';
+import aerialThumb3 from '@jeesite/assets/images/display/scheme-aerial/aerial-3.webp';
+import aerialThumb4 from '@jeesite/assets/images/display/scheme-aerial/aerial-4.webp';
+import aerialThumb5 from '@jeesite/assets/images/display/scheme-aerial/aerial-5.webp';
+import aerialThumb6 from '@jeesite/assets/images/display/scheme-aerial/aerial-6.webp';
+import aerialThumb7 from '@jeesite/assets/images/display/scheme-aerial/aerial-7.webp';
+import aerialThumb8 from '@jeesite/assets/images/display/scheme-aerial/aerial-8.webp';
+import aerialThumb9 from '@jeesite/assets/images/display/scheme-aerial/aerial-9.webp';
+import aerialThumb10 from '@jeesite/assets/images/display/scheme-aerial/aerial-10.webp';
+import aerialThumb11 from '@jeesite/assets/images/display/scheme-aerial/aerial-11.webp';
+import aerialThumb12 from '@jeesite/assets/images/display/scheme-aerial/aerial-12.webp';
+import aerialThumb13 from '@jeesite/assets/images/display/scheme-aerial/aerial-13.webp';
+import aerialThumb14 from '@jeesite/assets/images/display/scheme-aerial/aerial-14.webp';
+import aerialThumb15 from '@jeesite/assets/images/display/scheme-aerial/aerial-15.webp';
+import aerialThumb16 from '@jeesite/assets/images/display/scheme-aerial/aerial-16.webp';
+import aerialThumb17 from '@jeesite/assets/images/display/scheme-aerial/aerial-17.webp';
+import factoryAfterImg from '@jeesite/assets/images/display/scheme-factory/factory-after.jpg';
+import factoryBeforeImg from '@jeesite/assets/images/display/scheme-factory/factory-before.jpg';
+
 /**
  * 可点击的「标题 + 内容」卡片容器样式（抽屉内多个 Tab 共用）
  *
@@ -45,9 +65,36 @@ const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片�
  * 左侧大图的联动状态是 use-area-detail-view 的 evalImgView（单图或前后对比双图）。
  */
 
-/** 皮子街两厂改造项目：改造前 / 改造后 */
-export const FACTORY_BEFORE = `${AREA_OSS}/实施后评估-两厂改造项目-改造前.jpg`;
-export const FACTORY_AFTER = `${AREA_OSS}/实施后评估-两厂改造项目-改造后.jpg`;
+/** 皮子街两厂改造项目：改造前 / 改造后。
+ *  用本地归一化副本（packages/assets/.../scheme-factory/），非 OSS 原图：
+ *  两张 OSS 原图宽高比不同（前 2403×1651 ≈1.455 / 后 2999×2249 ≈1.333），
+ *  object-contain 下渲染大小不一致；「改造后」上下各裁 94px（顶部天空 / 底部广场铺装，
+ *  视觉确认过非主体）统一到 1.455，对比模式两图等大、不拉伸 */
+export const FACTORY_BEFORE = factoryBeforeImg;
+export const FACTORY_AFTER = factoryAfterImg;
 
-/** 航拍照片（「武汉智眼航拍全景」块，下拉选「航拍照片」时展示） */
-export const AERIAL_IMAGES = [`${AREA_OSS}/实施后评估-航拍-1.webp`, `${AREA_OSS}/实施后评估-航拍-2.webp`];
+/** 航拍照片原图（「武汉智眼航拍全景」块，点击缩略图后左侧大图用）：实施后评估-航拍-1~17.webp */
+export const AERIAL_IMAGES = Array.from({ length: 17 }, (_, i) => `${AREA_OSS}/实施后评估-航拍-${i + 1}.webp`);
+
+/** 航拍照片缩略图（本地 120px webp，与原图一一对应）：OSS 原图为 4032×3024 的 1~2MB 大图，
+    且该桶未开通图片处理服务（x-oss-process 参数被忽略），无法服务端缩图——直接拿原图当
+    52px 缩略图会让浏览器解码上亿像素，是抽屉滚动到航拍区卡顿的根因 */
+export const AERIAL_THUMBS = [
+  aerialThumb1,
+  aerialThumb2,
+  aerialThumb3,
+  aerialThumb4,
+  aerialThumb5,
+  aerialThumb6,
+  aerialThumb7,
+  aerialThumb8,
+  aerialThumb9,
+  aerialThumb10,
+  aerialThumb11,
+  aerialThumb12,
+  aerialThumb13,
+  aerialThumb14,
+  aerialThumb15,
+  aerialThumb16,
+  aerialThumb17,
+];

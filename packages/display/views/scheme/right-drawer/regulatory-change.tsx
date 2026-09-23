@@ -81,7 +81,7 @@ export const RegulatoryChange = defineComponent({
                       key={tab}
                       isActive
                       borderGlow={activeTab.value === tab}
-                      glowOpacity={activeTab.value === tab ? 1.5 : 0.25}
+                      glowOpacity={activeTab.value === tab ? 1 : 0.25}
                       width={BTN_WIDTH}
                       height={36}
                       radius={8}

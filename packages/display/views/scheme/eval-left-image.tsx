@@ -5,12 +5,12 @@ import type { EvalImgView } from './use-area-detail-view';
 /**
  * 「更新后评估」左侧大图渲染（片区详情页 / 成果评估页共用）
  *
- * evalImgView 有两种形态（见 use-area-detail-view 的 EvalImgView）：
+ * evalImgView 有两种形态（见 use-area-detail-view）：
  * - single：单图 object-contain，与其他 Tab 的左侧大图行为一致；
  * - compare：改造前后对比 —— 左右分栏两张图并排，各带左上角「改造前 / 改造后」角标。
  *
- * 之所以抽成组件：两个页面（area-detail、evaluation）的左侧大图渲染原本就是
- * 同一行 `<img src={currentImg} />`，compare 分栏逻辑不该在两处各写一份。
+ * 对比模式两图等大不拉伸的保证在数据侧（见 shared.ts 的 FACTORY_BEFORE/AFTER 注释）：
+ * 两张图已归一化为同一宽高比（≈1.455），分栏等宽 + object-contain 下渲染大小完全一致。
  */
 export const EvalLeftImage = defineComponent({
   name: 'EvalLeftImage',

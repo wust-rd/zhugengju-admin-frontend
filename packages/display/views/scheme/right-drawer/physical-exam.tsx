@@ -92,7 +92,7 @@ export const PhysicalExam = defineComponent({
                       key={tab}
                       isActive
                       borderGlow={activeTab.value === tab}
-                      glowOpacity={activeTab.value === tab ? 1.5 : 0.25}
+                      glowOpacity={activeTab.value === tab ? 1 : 0.25}
                       width={120}
                       height={36}
                       radius={8}
@@ -139,8 +139,14 @@ export const PhysicalExam = defineComponent({
                         }}
                       ></CollapsibleSection>
 
-                      {/* 问题清单配图（列表下方一张图） */}
-                      <img src={PROBLEM_LIST_IMG} alt="问题清单" class="mt-12px w-full rd-8px" />
+                      {/* 问题清单配图（列表下方一张图；OSS 大图，滚动到附近才加载） */}
+                      <img
+                        src={PROBLEM_LIST_IMG}
+                        alt="问题清单"
+                        loading="lazy"
+                        decoding="async"
+                        class="mt-12px w-full rd-8px"
+                      />
                     </div>
                   )}
                   {activeTab.value === '资源清单' && (
@@ -149,7 +155,14 @@ export const PhysicalExam = defineComponent({
                       <div class="text-14px lh-24px text-white/85 whitespace-pre-line">{RESOURCE_LIST_TEXT}</div>
 
                       {RESOURCE_LIST_IMGS.map((src, index) => (
-                        <img key={src} src={src} alt={`资源清单${index + 1}`} class="mt-12px w-full rd-8px" />
+                        <img
+                          key={src}
+                          src={src}
+                          alt={`资源清单${index + 1}`}
+                          loading="lazy"
+                          decoding="async"
+                          class="mt-12px w-full rd-8px"
+                        />
                       ))}
                     </div>
                   )}
@@ -159,7 +172,14 @@ export const PhysicalExam = defineComponent({
                       <div class="text-14px lh-24px text-white/85 whitespace-pre-line">{DEMAND_LIST_TEXT}</div>
 
                       {DEMAND_LIST_IMGS.map((src, index) => (
-                        <img key={src} src={src} alt={`需求清单${index + 1}`} class="mt-12px w-full rd-8px" />
+                        <img
+                          key={src}
+                          src={src}
+                          alt={`需求清单${index + 1}`}
+                          loading="lazy"
+                          decoding="async"
+                          class="mt-12px w-full rd-8px"
+                        />
                       ))}
                     </div>
                   )}
