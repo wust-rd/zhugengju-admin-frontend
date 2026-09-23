@@ -258,7 +258,7 @@
     const saved = await espExpertSave({ ...data, id: record.value.id ?? '' } as Partial<EspExpert>);
     showMessage(
       saved.accountCreated
-        ? `保存成功，已开通登录账号（账号 ${saved.loginCode || '为专家姓名'}，初始密码与城市更新专家相同）`
+        ? `保存成功，已开通登录账号（账号 ${saved.loginCode || '为专家姓名'}，初始密码与城市更新专家相同，可在用户管理中按姓名查找）`
         : record.value.isNewRecord
           ? '新增成功'
           : '保存成功',
