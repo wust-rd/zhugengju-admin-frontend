@@ -1,9 +1,11 @@
 <!--
   市住更局 —— 城市更新专家管理 · 个人档案
 
-  专家基础信息的增删改查：顶部三张统计卡 + BasicTable（姓名/单位名称/专业领域搜索表单）；
-  新增/编辑走 Modal，查看跳二级详情页（_id/list，空间更大便于扩展）。
-  数据来自本模块共享 store（urban-renewal-expert-management/expert-store），接口就绪后替换。
+  专家基础信息的增删改查：顶部三张统计卡 + BasicTable（姓名/单位名称搜索表单）；
+  新增/编辑走右侧表单抽屉（form.vue），查看跳二级详情页（_id/list，空间更大便于扩展）。
+  已接后端（modules/esp UreExpertController / UreDictController）：分页/统计/保存/删除走接口层
+  @jeesite/early-stage-planning/api/early-stage-planning/ure-expert。
+  注意：后端分页仅支持 姓名/单位 模糊与是否入选过滤，搜索表单不再按专业领域过滤。
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
@@ -27,101 +29,43 @@
         <span>专家档案</span>
       </template>
       <template #toolbar>
-        <a-button type="primary" @click="openForm({ isNewRecord: true })">
+        <a-button type="primary" @click="handleForm({ isNewRecord: true })">
           <span class="inline-flex items-center gap-4px"> <span class="i-fluent:add-12-filled"></span> 新增专家 </span>
         </a-button>
       </template>
     </BasicTable>
 
-    <!-- 新增 / 编辑 Modal -->
-    <Modal
-      v-model:open="formModal.open"
-      :title="formModal.isNewRecord ? '新增专家' : '编辑专家'"
-      :width="620"
-      centered
-      ok-text="确定"
-      cancel-text="取消"
-      @ok="submitForm"
-    >
-      <div class="grid grid-cols-2 gap-x-16px gap-y-14px py-8px">
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">姓名</span>
-          <Input v-model:value="formModal.form.name" placeholder="请输入姓名" />
-        </div>
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">性别</span>
-          <Select v-model:value="formModal.form.gender" :options="GENDER_OPTIONS" />
-        </div>
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">年龄</span>
-          <InputNumber v-model:value="formModal.form.age" :min="18" :max="80" class="w-full" />
-        </div>
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">联系电话</span>
-          <Input v-model:value="formModal.form.phone" placeholder="请输入联系电话" />
-        </div>
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">专业领域</span>
-          <Select v-model:value="formModal.form.field" :options="FIELD_OPTIONS" />
-        </div>
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">职称</span>
-          <Select v-model:value="formModal.form.title" :options="TITLE_OPTIONS" />
-        </div>
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">单位名称</span>
-          <Input v-model:value="formModal.form.org" placeholder="请输入单位名称" />
-        </div>
-        <div class="flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">单位性质</span>
-          <Select v-model:value="formModal.form.orgType" :options="ORGTYPE_OPTIONS" />
-        </div>
-        <div class="col-span-2 flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">主要经历</span>
-          <Input.TextArea v-model:value="formModal.form.career" :rows="3" placeholder="请输入主要经历" />
-        </div>
-        <div class="col-span-2 flex flex-col gap-4px">
-          <span class="text-13px text-gray-600">过往评审经历</span>
-          <Input.TextArea v-model:value="formModal.form.reviewExperience" :rows="3" placeholder="请输入过往评审经历" />
-        </div>
-      </div>
-    </Modal>
+    <!-- 新增 / 编辑 表单抽屉 -->
+    <ExpertForm @register="registerDrawer" @success="refreshTable" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStageUrbanRenewalExpertProfileList">
-  import { computed, reactive, toRaw } from 'vue';
-  import { Input, InputNumber, Modal, Select } from 'antdv-next';
+  import { computed, ref } from 'vue';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
+  import { useDrawer } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
-  import { useUserStore } from '@jeesite/core/store/modules/user';
-  import type { UrbanExpert } from '../expert-store';
-  import { URBAN_FIELDS, URBAN_ORG_TYPES, URBAN_TITLES, useUrbanExpertStore } from '../expert-store';
+  import {
+    ureExpertDelete,
+    ureExpertPage,
+    ureExpertStat,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
+  import ExpertForm from './form.vue';
 
   const { showMessage } = useMessage();
   const go = useGo();
-  const store = useUrbanExpertStore();
 
-  // 调试：进入个人档案页时，在控制台输出当前登录用户信息
-  const userStore = useUserStore();
-  console.log('【当前登录用户信息】', toRaw(userStore.getUserInfo));
-  console.log('【当前登录用户角色】', toRaw(userStore.getRoleList));
-  console.log('【当前登录用户Token】', userStore.getToken);
-
-  const FIELD_OPTIONS = URBAN_FIELDS.map((f) => ({ label: f, value: f }));
-  const TITLE_OPTIONS = URBAN_TITLES.map((t) => ({ label: t, value: t }));
-  const ORGTYPE_OPTIONS = URBAN_ORG_TYPES.map((o) => ({ label: o, value: o }));
-  const GENDER_OPTIONS = [
-    { label: '男', value: '男' },
-    { label: '女', value: '女' },
-  ];
-
-  /** 统计卡：入库专家总数 / 正高级工程师 / 专业领域数量 */
+  /** 统计卡（接口 2.2：入库专家总数/正高级工程师/专业领域数量；增删改后 reloadStat 刷新） */
+  const stat = ref({ total: 0, senior: 0, fieldCount: 0 });
+  async function reloadStat() {
+    stat.value = await ureExpertStat();
+  }
+  reloadStat().catch(() => {});
   const statCards = computed(() => [
-    { label: '入库专家总数', value: store.urbanStats.total, unit: '人' },
-    { label: '正高级工程师', value: store.urbanStats.senior, unit: '人' },
-    { label: '专业领域数量', value: new Set(store.experts.map((e) => e.field)).size, unit: '个' },
+    { label: '入库专家总数', value: stat.value.total, unit: '人' },
+    { label: '正高级工程师', value: stat.value.senior, unit: '人' },
+    { label: '专业领域数量', value: stat.value.fieldCount, unit: '个' },
   ]);
 
   /** 表格列 */
@@ -142,9 +86,9 @@
     actions: (record: Recordable) => [
       {
         label: '查看',
-        onClick: () => go(`/early-stage-planning/urban-renewal-expert-management/personal-profile/${record.code}`),
+        onClick: () => go(`/early-stage-planning/urban-renewal-expert-management/personal-profile/${record.id}`),
       },
-      { label: '修改', onClick: () => openForm({ ...record }) },
+      { label: '修改', onClick: () => handleForm({ ...record }) },
       {
         label: '删除',
         color: 'error',
@@ -153,10 +97,8 @@
     ],
   };
 
-  const searchKeyword = reactive<{ name?: string; org?: string; field?: string }>({});
-
-  const [registerTable, { setTableData }] = useTable({
-    dataSource: store.experts,
+  const [registerTable, { reload }] = useTable({
+    api: ureExpertPage,
     columns,
     actionColumn,
     showTableSetting: true,
@@ -179,57 +121,31 @@
           component: 'Input',
           componentProps: { allowClear: true, placeholder: '请输入' },
         },
-        {
-          label: '专业领域',
-          field: 'field',
-          component: 'Select',
-          componentProps: { options: FIELD_OPTIONS, allowClear: true, placeholder: '请选择' },
-        },
       ],
     },
-    handleSearchInfoFn: (params: Recordable) => {
-      Object.assign(searchKeyword, params);
-      setTableData(store.queryExperts(params));
-      return params;
-    },
   });
 
-  /** 表单 Modal 状态 */
-  const formModal = reactive({
-    open: false,
-    isNewRecord: false,
-    form: {} as Partial<UrbanExpert>,
-  });
-
-  /** 打开新增/编辑 */
-  function openForm(record: Recordable) {
-    formModal.isNewRecord = !!record.isNewRecord;
-    formModal.form = { ...(record.isNewRecord ? ({} as Partial<UrbanExpert>) : record) };
-    formModal.open = true;
+  /** 当前条件下重新加载表格 + 统计卡（增删改后调用） */
+  function refreshTable() {
+    reload();
+    reloadStat().catch(() => {});
   }
 
-  /** 提交表单（code/入库时间由 store 在新增时自动生成） */
-  function submitForm() {
-    const f = formModal.form;
-    if (!f.name) {
-      showMessage('请输入姓名');
-      return;
-    }
-    if (formModal.isNewRecord) {
-      store.addExpert(f);
-      showMessage('新增成功（本地演示，未持久化）');
-    } else {
-      store.updateExpert(f.id!, f);
-      showMessage('保存成功（本地演示，未持久化）');
-    }
-    formModal.open = false;
-    setTableData(store.queryExperts(searchKeyword));
+  /** 新增/编辑表单抽屉（编辑时 form.vue 内按 id 拉详情回显；showFooter 必须显式开，否则底部无确定/取消按钮） */
+  const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
+  function handleForm(record: Recordable) {
+    setDrawerProps({ showFooter: true });
+    openDrawer(true, record);
   }
 
-  /** 删除 */
-  function handleDelete(record: Recordable) {
-    store.removeExpert(record.id);
-    setTableData(store.queryExperts(searchKeyword));
-    showMessage('删除成功（本地演示，未持久化）');
+  /** 删除（接口 2.5：逻辑删除并级联删除其全部评价记录，登录账号保留） */
+  async function handleDelete(record: Recordable) {
+    try {
+      await ureExpertDelete(record.id);
+      showMessage('删除成功');
+      refreshTable();
+    } catch (error: any) {
+      showMessage(error.message || '删除失败');
+    }
   }
 </script>

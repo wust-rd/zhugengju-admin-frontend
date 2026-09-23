@@ -2,8 +2,9 @@
   市住更局 —— 城市更新专家管理 · 个人档案 详情页（二级页面）
 
   从个人档案列表「查看」跳入，整页展示专家信息（空间比弹窗大，便于后续扩展更多区块）。
+  已接后端：详情走接口层 ure-expert（GET /a/ure/expert/form?id=）。
   规划路由（RESTful，后端隐藏菜单，待注册）：
-   - 链接地址：/early-stage-planning/urban-renewal-expert-management/personal-profile/{id}（{id}=记录编码 code）
+   - 链接地址：/early-stage-planning/urban-renewal-expert-management/personal-profile/{id}（{id}=专家 id）
    - 组件位置：/early-stage-planning/urban-renewal-expert-management/personal-profile/_id/list（与链接地址不一致，菜单里需显式填写）
    - 是否可见：隐藏；上级菜单挂「个人档案」以点亮侧边栏
   页面结构：档案头部卡（头像/姓名/职称/领域/单位）→ 基本信息栅格 → 主要经历 → 预留扩展区。
@@ -104,25 +105,40 @@
       </div>
     </template>
 
+    <div
+      v-else-if="loading"
+      class="flex h-300px items-center justify-center text-14px text-gray-400"
+    >
+      档案加载中...
+    </div>
     <div v-else class="flex h-300px items-center justify-center text-14px text-gray-400"> 未找到该专家档案 </div>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStageUrbanRenewalExpertProfileDetail">
-  import { computed, unref } from 'vue';
+  import { ref, unref } from 'vue';
   import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
-  import { useUrbanExpertStore } from '../../expert-store';
+  import type { UreExpert } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
+  import { ureExpertForm } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
 
-  const store = useUrbanExpertStore();
   const go = useGo();
 
   const { params } = unref(router.currentRoute);
-  // 兼容菜单链接地址占位符写 {id} 或 {code}：路由参数名与占位符一致；{id} 为记录编码 code
-  const expertCode = ((params.id ?? params.code) as string) || '';
+  // 兼容菜单链接地址占位符写 {id} 或 {code}：路由参数名与占位符一致；{id} 为专家 id（后端详情按 id 查询）
+  const expertId = ((params.id ?? params.code) as string) || '';
 
-  /** 按编码反查专家（store 数据响应式：修改后详情同步） */
-  const expert = computed(() => store.experts.find((e) => e.code === expertCode));
+  /** 专家档案（接口 2.3 按id加载；id 缺失/不存在/已删除 → 空态） */
+  const expert = ref<UreExpert | null>(null);
+  const loading = ref(true);
+  ureExpertForm(expertId)
+    .then((row) => {
+      expert.value = row;
+    })
+    .catch(() => {})
+    .finally(() => {
+      loading.value = false;
+    });
 
   function goBack() {
     go('/early-stage-planning/urban-renewal-expert-management/personal-profile/index');
