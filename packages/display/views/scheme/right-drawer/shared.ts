@@ -38,10 +38,16 @@ export const selectableThumbClass = (active: boolean) =>
 const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片区策划-皮子街';
 
 /**
- * 「更新后评估」的两张图
+ * 「更新后评估」素材图（两厂改造项目 + 航拍照片，jpeg）
  *
- * 放在这里共用：Tab 内要用它们渲染缩略图，页面要用选中那张当左侧大图，
- * 两边各写一份地址容易改一处漏一处。**状态本身是下标**（use-area-detail-view 的 evalImgIndex），
- * 页面直接 `EVALUATION_IMAGES[下标]`。
+ * 放在这里共用：Tab 内渲染按钮/缩略图，页面左侧大图取同一份地址，
+ * 两边各写一份容易改一处漏一处。
+ * 左侧大图的联动状态是 use-area-detail-view 的 evalImgView（单图或前后对比双图）。
  */
-export const EVALUATION_IMAGES = [`${AREA_OSS}/更新后评估-1.webp`, `${AREA_OSS}/更新后评估-2.webp`];
+
+/** 皮子街两厂改造项目：改造前 / 改造后 */
+export const FACTORY_BEFORE = `${AREA_OSS}/实施后评估-两厂改造项目-改造前.jpg`;
+export const FACTORY_AFTER = `${AREA_OSS}/实施后评估-两厂改造项目-改造后.jpg`;
+
+/** 航拍照片（「武汉智眼航拍全景」块，下拉选「航拍照片」时展示） */
+export const AERIAL_IMAGES = [`${AREA_OSS}/实施后评估-航拍-1.jpeg`, `${AREA_OSS}/实施后评估-航拍-2.jpeg`];

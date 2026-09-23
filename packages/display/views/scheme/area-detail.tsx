@@ -5,7 +5,7 @@ import type { FeatureCard } from './right-drawer/feature-plan';
 import type { ExamTab } from './right-drawer/physical-exam';
 import type { RegulatoryTab } from './right-drawer/regulatory-change';
 import type { DesignCard } from './right-drawer/urban-design';
-import { EVALUATION_IMAGES } from './right-drawer/shared';
+import { EvalLeftImage } from './eval-left-image';
 import { AreaDetailViewKey, useAreaDetailView } from './use-area-detail-view';
 
 /** 皮子街片区素材 OSS 基础地址（原始链接为 percent-encoding，这里已解码） */
@@ -16,7 +16,7 @@ const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片�
  *
  * 另五个 Tab 的图由各自的二级选择决定，不在这张表里：
  * 「体检情况」看 EXAM_IMG、「规划调整」看 REG_IMG、「功能策划」看 FEATURE_IMG、
- * 「城市设计」看 DESIGN_IMG、「更新后评估」看 shared 的 EVALUATION_IMAGES。
+ * 「城市设计」看 DESIGN_IMG、「更新后评估」看 evalImgView（单图或前后对比双图）。
  * 用 Exclude 把它们排除后，以后再加一个普通 Tab 却忘了配图，这里会直接编译报错。
  */
 type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '规划调整' | '功能策划' | '城市设计' | '更新后评估'>;
@@ -90,15 +90,19 @@ export default defineComponent({
       if (tab === '规划调整') return REG_IMG[view.regulatoryTab.value];
       if (tab === '功能策划') return FEATURE_IMG[view.featureCard.value];
       if (tab === '城市设计') return DESIGN_IMG[view.designCard.value];
-      if (tab === '更新后评估') return EVALUATION_IMAGES[view.evalImgIndex.value];
       return TAB_IMG[tab]; // 此处 tab 已被收窄为 PlainTab
     });
 
     return () => (
       <>
-        {/* 左侧大图：跟随右侧抽屉当前 Tab 切换（object-contain 完整显示，留白与布局深色底一致） */}
+        {/* 左侧大图：跟随右侧抽屉当前 Tab 切换（object-contain 完整显示，留白与布局深色底一致）。
+            「更新后评估」的图由 tab 内按钮/缩略图写入 evalImgView（单图或前后对比双图） */}
         <div class="relative h-full min-w-0 flex-1 overflow-hidden">
-          <img src={currentImg.value} alt={view.primaryTab.value} class="size-full object-contain" />
+          {view.primaryTab.value === '更新后评估' ? (
+            <EvalLeftImage view={view.evalImgView.value} />
+          ) : (
+            <img src={currentImg.value} alt={view.primaryTab.value} class="size-full object-contain" />
+          )}
         </div>
 
         {/* 右侧：真实抽屉组件。RightDrawer 自身是 absolute right-0 top-0 + w-420px，

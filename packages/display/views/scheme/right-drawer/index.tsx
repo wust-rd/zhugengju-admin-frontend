@@ -41,7 +41,18 @@ const TAB_COMPONENTS = {
 
 /* ---------- 交互参数（可调） ---------- */
 
-/** scrollspy 切换提前量：区块顶距视口顶多少 px 内切换高亮 */
+/**
+ * scrollspy 判定线：区块顶进入「内容区顶部 SPY_OFFSET px 以内」即高亮。
+ *
+ * 口径必须和「点击 Tab」一致：点击是把区块顶滚到内容区顶部（对齐 0，见 scrollToTab），
+ * 所以手动滚动的切换点也贴住顶部 —— 下一个区块顶一碰到顶边就切，点谁亮谁、滚到谁亮谁。
+ * 24px 是「容差」而不是「提前量」：平滑滚动可能因亚像素取整停在区块顶上方零点几像素，
+ * 留点余量才不会刚点完又被 scrollspy 判回上一块。
+ *
+ * 历史：曾用「视口中线」（0.5 × 视口高）来兜「大区块内部浏览时 tab 不亮」，但那等于
+ * 让手动滚动比点击早半屏切换，两个方向口径不一致；大区块的问题现在由底部留白
+ * （updateBottomPadding：最后一块也能滚到顶）+ 滚到底高亮最后一块兜住。
+ */
 const SPY_OFFSET = 24;
 
 /** 判定「已滚到底部」的容差（px） */
@@ -57,7 +68,8 @@ const SCROLL_LOCK_MS = 1200;
  *   激活项为独立的「滑动指示器」，高亮切换时平滑滑动过去；
  *   切换后选中的 Tab 会被滚到 Tab 栏中间（首尾受边界限制），避免贴边导致相邻 Tab 点不到
  * - 内容区：6 个 Tab 的内容按顺序排列，点击 Tab 与手动滚动双向联动：
- *   scrollspy 同步高亮 + 程序化滚动锁 + 底部留白（最后一块也能滚到顶）
+ *   点击 = 把目标区块顶滚到内容区顶部；手动滚动 = 区块顶碰到顶部判定线（SPY_OFFSET）就亮，
+ *   两个方向同一口径；再加程序化滚动锁（防平滑滚动期间高亮跳动）与底部留白（最后一块也能滚到顶）
  *
  * 一级 Tab 状态优先用页面 provide 的共享实例（area-detail 页据此换左侧大图），
  * 没有 provider 时退化为组件自己的局部状态，保证本组件仍可独立使用。
@@ -111,8 +123,24 @@ export const RightDrawer = defineComponent({
       updateIndicator();
     };
 
+    /**
+     * 监听最后一个区块的尺寸：它的高度会随内容变（图片/字体、折叠面板开合、雷达图换主题…），
+     * 只在 resize / fonts.ready 时算的留白会过期 —— 留白不够，最后一块就永远滚不到顶部，
+     * 顶部判定线也就越不过去（只剩「滚到底」兜底）。用 ResizeObserver 跟着重算最省心。
+     */
+    let lastSectionObserver: ResizeObserver | undefined;
+
+    const observeLastSection = () => {
+      lastSectionObserver?.disconnect();
+      const last = contentRef.value?.lastElementChild;
+      if (!last || typeof ResizeObserver === 'undefined') return;
+      lastSectionObserver = new ResizeObserver(updateBottomPadding);
+      lastSectionObserver.observe(last);
+    };
+
     onMounted(() => {
       recalcLayout();
+      observeLastSection();
       // 初始也把选中的 Tab 居中，避免一进来就贴边
       scrollActiveTabIntoView();
       // 默认 Tab 被外部改成了非第一个（如 /display/scheme/area-detail?tab=项目情况）时，
@@ -131,7 +159,10 @@ export const RightDrawer = defineComponent({
         })
         .catch(() => {});
     });
-    onUnmounted(() => window.removeEventListener('resize', recalcLayout));
+    onUnmounted(() => {
+      window.removeEventListener('resize', recalcLayout);
+      lastSectionObserver?.disconnect();
+    });
 
     /* ---------- scrollspy：滚动同步高亮 ---------- */
 
@@ -151,11 +182,12 @@ export const RightDrawer = defineComponent({
       if (scrollTop + clientHeight >= scrollHeight - BOTTOM_TOLERANCE) {
         current = DRAWER_TABS[DRAWER_TABS.length - 1];
       } else {
-        // 从前往后找顶部越过视口顶（含 SPY_OFFSET 提前量）的最后一块
+        // 从前往后找最后一个「区块顶已越过顶部判定线」的区块（见 SPY_OFFSET 注释）
+        const line = scrollTop + SPY_OFFSET;
         current = DRAWER_TABS[0];
         for (const tab of DRAWER_TABS) {
           const el = getSectionEl(tab);
-          if (el && el.offsetTop <= scrollTop + SPY_OFFSET) current = tab;
+          if (el && el.offsetTop <= line) current = tab;
         }
       }
 

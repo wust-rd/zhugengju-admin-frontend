@@ -8,7 +8,7 @@ import type { DesignCard } from '../scheme/right-drawer/urban-design';
 import type { ExamTab } from '../scheme/right-drawer/physical-exam';
 import type { FeatureCard } from '../scheme/right-drawer/feature-plan';
 import type { RegulatoryTab } from '../scheme/right-drawer/regulatory-change';
-import { EVALUATION_IMAGES } from '../scheme/right-drawer/shared';
+import { EvalLeftImage } from '../scheme/eval-left-image';
 import { AreaDetailViewKey, useAreaDetailView } from '../scheme/use-area-detail-view';
 
 /** 皮子街片区素材 OSS 基础地址（与片区详情页 views/scheme/area-detail.tsx 同一套） */
@@ -19,7 +19,7 @@ const AREA_OSS = 'https://epile-dev.oss-cn-wulanchabu.aliyuncs.com/guihuaju/片�
  *
  * 只列「一张 Tab 对一张图」的；另外五个 Tab 的图由各自的二级选择决定：
  * 「体检情况」看 EXAM_IMG、「规划调整」看 REG_IMG、「功能策划」看 FEATURE_IMG、
- * 「城市设计」看 DESIGN_IMG、「更新后评估」看 shared 的 EVALUATION_IMAGES。
+ * 「城市设计」看 DESIGN_IMG、「更新后评估」看 evalImgView（单图或前后对比双图）。
  */
 type PlainTab = Exclude<DrawerTabLabel, '体检情况' | '规划调整' | '功能策划' | '城市设计' | '更新后评估'>;
 
@@ -95,7 +95,6 @@ export default defineComponent({
       if (current === '规划调整') return REG_IMG[view.regulatoryTab.value];
       if (current === '功能策划') return FEATURE_IMG[view.featureCard.value];
       if (current === '城市设计') return DESIGN_IMG[view.designCard.value];
-      if (current === '更新后评估') return EVALUATION_IMAGES[view.evalImgIndex.value];
       return TAB_IMG[current]; // 此处 current 已被收窄为 PlainTab
     });
 
@@ -113,9 +112,14 @@ export default defineComponent({
     /** 成果评估自己的内容（左侧大图 + 右侧真实抽屉，默认停在「更新后评估」）—— 默认页 */
     const renderOwnContent = () => (
       <>
-        {/* 左侧大图：跟随右侧抽屉当前 Tab 切换（object-contain 完整显示） */}
+        {/* 左侧大图：跟随右侧抽屉当前 Tab 切换（object-contain 完整显示）。
+            「更新后评估」的图由 tab 内按钮/缩略图写入 evalImgView（单图或前后对比双图） */}
         <div class="relative h-full min-w-0 flex-1 overflow-hidden">
-          <img src={currentImg.value} alt={view.primaryTab.value} class="size-full object-contain" />
+          {view.primaryTab.value === '更新后评估' ? (
+            <EvalLeftImage view={view.evalImgView.value} />
+          ) : (
+            <img src={currentImg.value} alt={view.primaryTab.value} class="size-full object-contain" />
+          )}
         </div>
 
         {/* 右侧：真实抽屉组件。RightDrawer 自身是 absolute right-0 top-0 + w-420px，

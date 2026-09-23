@@ -5,6 +5,14 @@ import type { FeatureCard } from './right-drawer/feature-plan';
 import type { ExamTab } from './right-drawer/physical-exam';
 import type { RegulatoryTab } from './right-drawer/regulatory-change';
 import type { DesignCard } from './right-drawer/urban-design';
+import { FACTORY_AFTER, FACTORY_BEFORE } from './right-drawer/shared';
+
+/**
+ * 「更新后评估」左侧大图的视图描述：
+ * - single：单图（src 为图片地址）
+ * - compare：改造前后对比（两张图并排，页面左侧分栏渲染）
+ */
+export type EvalImgView = { mode: 'single'; src: string } | { mode: 'compare'; before: string; after: string };
 
 /**
  * Hook：片区详情页（/display/scheme/area-detail）的 Tab 状态
@@ -35,10 +43,10 @@ export function useAreaDetailView() {
   const featureCard = ref<FeatureCard>('总体目标');
   /** 「城市设计」内被点中的卡片，默认「产业发展」（即默认显示第一张图） */
   const designCard = ref<DesignCard>('产业发展');
-  /** 「更新后评估」选中的那张图的下标（对应 shared.ts 的 EVALUATION_IMAGES），默认第一张 */
-  const evalImgIndex = ref(0);
+  /** 「更新后评估」左侧大图视图（单图 / 前后对比），默认两厂改造项目的前后对比 */
+  const evalImgView = ref<EvalImgView>({ mode: 'compare', before: FACTORY_BEFORE, after: FACTORY_AFTER });
 
-  return { primaryTab, examTab, regulatoryTab, featureCard, designCard, evalImgIndex };
+  return { primaryTab, examTab, regulatoryTab, featureCard, designCard, evalImgView };
 }
 
 /** InjectionKey 直接取 Hook 返回类型，类型零维护 */
