@@ -54,7 +54,7 @@
     <!-- ① 基本信息查看（共用只读表单，两域显示全部字段；枚举值回填时已转中文） -->
     <Transition :name="slideName">
       <div v-show="activeStep === 0">
-        <BasicInfoForm :record="record" />
+        <ProjectBasicInfoForm :p-uid="record.pUid ?? ''" disabled />
       </div>
     </Transition>
 
@@ -83,7 +83,9 @@
               <!-- xxx区审查（该轮有区级记录或为当前轮即显示） -->
               <div v-if="round.district || round.isCurrent">
                 <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
-                  <span class="w-100px shrink-0 text-14px font-500 text-gray-800">{{ record.district }}审查</span>
+                  <span class="shrink-0 text-14px font-500 text-gray-800"
+                    >{{ record.district }}住更局审查（区级）</span
+                  >
                 </div>
                 <div class="ml-64px">
                   <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
@@ -115,7 +117,7 @@
               <!-- 市级审查（该轮有市级记录，或当前轮已流转到市级） -->
               <div v-if="round.urban || (round.isCurrent && urbanStageReached)" class="mt-16px">
                 <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
-                  <span class="w-100px shrink-0 text-14px font-500 text-gray-800">市级审查</span>
+                  <span class="shrink-0 text-14px font-500 text-gray-800">市级审查（项目推进组）</span>
                 </div>
                 <div class="ml-64px">
                   <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
@@ -175,18 +177,18 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
     MONTH_PLAN_LABELS,
-    SCHEDULES,
+    upsertScheduleWorkflow,
     fillStatusTagProps,
     type ReviewRecord,
     type ScheduleItem,
   } from '@jeesite/ifco/api/ifco/impl-progress';
-  import BasicInfoForm from '../shared/basic-info-form.vue';
+  import ProjectBasicInfoForm from '../../shared/project-basic-info-form.vue';
   import type { StepItem } from '@jeesite/ui';
   import { Stepper } from '@jeesite/ui';
   import { Select, Tag, TextArea } from 'antdv-next';
   import { computed, ref, watch } from 'vue';
 
-  const emit = defineEmits(['success']);
+  const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
   const isView = ref(false);
@@ -402,8 +404,9 @@
    *  提交=待区级审查（记录提交时间）；保存草稿=普通填报转待提交、修改计划保持现状态 */
   function handleSave(action: 'draft' | 'submit') {
     const plans = getPlanFieldsValueOfMonthPlans().map((plan) => plan.trim());
-    const target = SCHEDULES.find((item) => item.projectCode === record.value.projectCode);
-    if (target) {
+    // 列表行来自实施库接口：无内存工作流行时按当前行底稿补建（upsert）
+    const target = upsertScheduleWorkflow(record.value as ScheduleItem);
+    {
       target.monthPlans = plans;
       if (action === 'submit') {
         target.fillStatus = '待区级审查';
@@ -433,15 +436,16 @@
       return;
     }
     const level = role === 'district' ? ('区级' as const) : ('市级' as const);
-    const target = SCHEDULES.find((item) => item.projectCode === record.value.projectCode);
-    if (target) {
+    const target = upsertScheduleWorkflow(record.value as ScheduleItem);
+    {
       // 轮次：每轮提交必先过区级，区级记录条数即轮次（区级审查中=条数+1）
       const round =
         (target.reviewRecords ?? []).filter((rec) => rec.level === '区级').length + (level === '区级' ? 1 : 0);
       (target.reviewRecords ??= []).push({
         round,
         level,
-        reviewOrg: level === '区级' ? `${record.value.district ?? ''}住房和城市更新局` : '市住房和城市更新局',
+        // 区级=项目所在行政区住更局审查；市级=项目推进组审查（2026-09-22 定稿）
+        reviewOrg: level === '区级' ? `${record.value.district ?? ''}住房和城市更新局` : '项目推进组',
         conclusion,
         opinion,
         reviewDate: new Date().toISOString().slice(0, 10),

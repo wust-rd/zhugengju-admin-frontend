@@ -433,7 +433,7 @@
     type YesNo,
   } from '@jeesite/ifco/api/ifco/impl-effect';
 
-  const emit = defineEmits(['success']);
+  const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
   const isView = ref(false);

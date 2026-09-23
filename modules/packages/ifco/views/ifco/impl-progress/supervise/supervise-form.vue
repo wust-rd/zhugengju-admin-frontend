@@ -72,7 +72,7 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { SUPERVISE_ROWS, type SuperviseHandleRow } from '@jeesite/ifco/api/ifco/impl-progress';
 
-  const emit = defineEmits(['success']);
+  const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
   const isView = ref(false);

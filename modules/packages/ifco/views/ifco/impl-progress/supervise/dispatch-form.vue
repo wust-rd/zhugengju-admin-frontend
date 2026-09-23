@@ -41,7 +41,7 @@
     type SuperviseType,
   } from '@jeesite/ifco/api/ifco/impl-progress';
 
-  const emit = defineEmits(['success']);
+  const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
   const isNew = ref(true);

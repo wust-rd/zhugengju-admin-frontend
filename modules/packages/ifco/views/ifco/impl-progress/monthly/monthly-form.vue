@@ -18,7 +18,10 @@
   每季度末月上传形象进度照片不超 9 张）/ 其他=备注；当期填报不随页签切换，
   项目投资估算与年度投资计划见步骤①基本信息）
   → ③确认提交（流程占位页：只表达流程状态，无实际内容）。
-  底部按钮：取消 / 保存草稿（状态转待提交）/ 提交（必填项校验；状态转待区级审查、清退回信息）。
+  底部按钮：取消 / 保存草稿（状态转待提交）/ 提交（必填项校验；状态转待区级审查、清退回信息）；
+  审查模式（区级/市级列表「审查」入口，isReview+reviewRole）：填报表单全只读，
+  步骤②审查结果 FormGroup 两级审查（区级=项目所在行政区住更局、市级=项目推进组，
+  按轮次分组，历史只读本层级当前轮可填），底部=取消/提交审查。
   当前后端尚未介入：保存直接改内存行（api/ifco/impl-progress 的 MONTHLIES，刷新即恢复）。
 -->
 <template>
@@ -26,7 +29,7 @@
     <template #title>
       <span>{{ title }}</span>
       <Tag
-        v-if="record.yearPlanInvest"
+        v-if="record.yearInvest"
         v-bind="progressReminderTagProps(progressReminderOf(record))"
         style="border-radius: 10px"
         class="ml-2"
@@ -55,7 +58,7 @@
     <!-- ① 基本信息查看（共用只读表单；枚举值回填时已转中文） -->
     <Transition :name="slideName">
       <div v-show="activeStep === 0">
-        <BasicInfoForm :record="record" />
+        <ProjectBasicInfoForm :p-uid="record.pUid ?? ''" disabled />
       </div>
     </Transition>
 
@@ -73,9 +76,84 @@
             {{
               yearProgressPercent({
                 yearAccumulatedInvest: Number(model.yearAccumulatedInvest ?? 0),
-                yearPlanInvest: record.yearPlanInvest,
+                yearInvest: record.yearInvest,
               })
             }}
+          </template>
+          <!-- 审查结果（两级：区级=项目所在行政区住更局 / 市级=项目推进组；按轮次分组，
+               历史轮只读，本层级待审查的当前轮可填——与倒排工期计划同款） -->
+          <template #reviewBlock>
+            <template v-for="round in reviewRounds" :key="round.round">
+              <div class="mt-8px mb-8px flex items-center gap-6px">
+                <span class="i-ant-design:audit-outlined text-16px text-#1677ff"></span>
+                <span class="text-14px font-500 text-gray-800">第{{ roundLabel(round.round) }}次审查</span>
+              </div>
+              <!-- 区级审查（该轮有区级记录或为当前轮即显示） -->
+              <div v-if="round.district || round.isCurrent">
+                <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
+                  <span class="shrink-0 text-14px font-500 text-gray-800"
+                    >{{ record.district }}住更局审查（区级）</span
+                  >
+                </div>
+                <div class="ml-64px">
+                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
+                  <div class="ml-16px py-8px">
+                    <Select
+                      :value="conclusionValue(round, 'district')"
+                      :options="CONCLUSION_OPTIONS"
+                      :disabled="!conclusionEditable(round, 'district')"
+                      allow-clear
+                      placeholder="请选择审查结论"
+                      style="width: 240px"
+                      @update:value="(value) => onConclusionUpdate(round, 'district', value)"
+                    />
+                  </div>
+                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查意见</div>
+                  <div class="ml-16px py-8px">
+                    <TextArea
+                      :value="opinionValue(round, 'district')"
+                      :rows="2"
+                      :maxlength="200"
+                      :disabled="!conclusionEditable(round, 'district')"
+                      placeholder="请输入审查意见（退回修改时必填）"
+                      @update:value="(value) => onOpinionUpdate(round, 'district', value)"
+                    />
+                  </div>
+                </div>
+              </div>
+              <!-- 市级审查（该轮有市级记录，或当前轮已流转到市级） -->
+              <div v-if="round.urban || (round.isCurrent && urbanStageReached)" class="mt-16px">
+                <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
+                  <span class="shrink-0 text-14px font-500 text-gray-800">市级审查（项目推进组）</span>
+                </div>
+                <div class="ml-64px">
+                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
+                  <div class="ml-16px py-8px">
+                    <Select
+                      :value="conclusionValue(round, 'urban')"
+                      :options="CONCLUSION_OPTIONS"
+                      :disabled="!conclusionEditable(round, 'urban')"
+                      allow-clear
+                      placeholder="请选择审查结论"
+                      style="width: 240px"
+                      @update:value="(value) => onConclusionUpdate(round, 'urban', value)"
+                    />
+                  </div>
+                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查意见</div>
+                  <div class="ml-16px py-8px">
+                    <TextArea
+                      :value="opinionValue(round, 'urban')"
+                      :rows="2"
+                      :maxlength="200"
+                      :disabled="!conclusionEditable(round, 'urban')"
+                      placeholder="请输入审查意见（退回修改时必填）"
+                      @update:value="(value) => onOpinionUpdate(round, 'urban', value)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div v-if="!reviewRounds.length" class="mt-12px text-14px text-gray-400">暂无审查记录</div>
           </template>
           <!-- 里程碑节点：形象进度照片上传（picture-card，不超 9 张；before-upload 拦截仅演示记录文件名） -->
           <template #milestonePhotos>
@@ -84,7 +162,7 @@
               list-type="picture-card"
               accept="image/*"
               :before-upload="() => false"
-              :disabled="isView"
+              :disabled="isView || isReview"
             >
               <div v-if="milestonePhotoList.length < 9" class="flex h-full items-center justify-center">
                 <span class="i-ant-design:plus-outlined text-20px text-gray-500"></span>
@@ -105,7 +183,8 @@
     <!-- 底部按钮：查看=关闭；编辑=取消/保存草稿/提交 -->
     <template #footer>
       <a-button class="mr-2" @click="closeDrawer"> {{ isView ? '关闭' : '取消' }} </a-button>
-      <template v-if="!isView">
+      <a-button v-if="isReview" type="primary" @click="handleReviewSubmit"> 提交审查 </a-button>
+      <template v-else-if="!isView">
         <a-button class="mr-2" @click="handleSave('待提交')"> 保存草稿 </a-button>
         <a-button type="primary" @click="handleSave('待区级审查')"> 提交 </a-button>
       </template>
@@ -114,7 +193,7 @@
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressFillMonthlyForm">
   import { computed, ref, watch } from 'vue';
-  import { TabPane, Tabs, Tag, Upload } from 'antdv-next';
+  import { Select, TabPane, Tabs, Tag, TextArea, Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import type { FormActionType } from '@jeesite/core/components/Form/src/types/form';
@@ -125,21 +204,25 @@
   import { YES_NO_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
   import {
     CONSTRUCTION_STAGE_OPTIONS,
-    MONTHLIES,
     STATISTICS_CATEGORY_OPTIONS,
     monthPlanOf,
     progressReminderOf,
     progressReminderTagProps,
+    upsertMonthlyWorkflow,
     yearProgressPercent,
     type MonthlyItem,
     type MonthlyProgressEntry,
+    type ReviewRecord,
   } from '@jeesite/ifco/api/ifco/impl-progress';
-  import BasicInfoForm from '../shared/basic-info-form.vue';
+  import ProjectBasicInfoForm from '../../shared/project-basic-info-form.vue';
 
-  const emit = defineEmits(['success']);
+  const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
   const isView = ref(false);
+  /** 审查模式（区级/市级列表「审查」入口）：填报表单只读，审查结果区填本层级结论/意见 */
+  const isReview = ref(false);
+  const reviewRole = ref<'district' | 'urban' | undefined>(undefined);
   const record = ref<Partial<MonthlyItem>>({});
 
   const isReturn = computed(() => record.value.fillStatus === '退回修改');
@@ -165,6 +248,83 @@
             : ('wait' as const),
     })),
   );
+
+  // ── 审查结果区（两级：区级=项目所在行政区住更局，市级=项目推进组；按轮次分组，
+  //    历史只读、本层级待审查的当前轮可填——与倒排工期计划同款交互） ─────────
+  const CONCLUSION_OPTIONS = [
+    { label: '通过审查', value: '通过审查' },
+    { label: '退回修改', value: '退回修改' },
+  ];
+  const districtConclusion = ref<ReviewRecord['conclusion'] | undefined>(undefined);
+  const districtOpinion = ref('');
+  const urbanConclusion = ref<ReviewRecord['conclusion'] | undefined>(undefined);
+  const urbanOpinion = ref('');
+
+  const districtEditable = computed(
+    () => isReview.value && reviewRole.value === 'district' && record.value.fillStatus === '待区级审查',
+  );
+  const urbanEditable = computed(
+    () => isReview.value && reviewRole.value === 'urban' && record.value.fillStatus === '待市级审查',
+  );
+  /** 当前轮已流转到市级（市级小节显示条件之一） */
+  const urbanStageReached = computed(
+    () => record.value.fillStatus === '待市级审查' || record.value.fillStatus === '市级审查通过',
+  );
+
+  /** 轮次视图：1~当前轮逐轮排布；待区级审查=新区级轮（无记录），其余状态=既有最大轮 */
+  type ReviewRound = { round: number; isCurrent: boolean; district?: ReviewRecord; urban?: ReviewRecord };
+  const reviewRounds = computed<ReviewRound[]>(() => {
+    const records = record.value.reviewRecords ?? [];
+    const maxRound = records.reduce((max, rec) => Math.max(max, rec.round), 0);
+    const currentRound = record.value.fillStatus === '待区级审查' ? maxRound + 1 : maxRound;
+    return Array.from({ length: currentRound }, (_, index) => {
+      const round = index + 1;
+      return {
+        round,
+        isCurrent: round === currentRound,
+        district: records.find((rec) => rec.round === round && rec.level === '区级'),
+        urban: records.find((rec) => rec.round === round && rec.level === '市级'),
+      };
+    });
+  });
+
+  /** 轮次序号中文（一~十，超出用数字） */
+  const ROUND_CN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  function roundLabel(round: number): string {
+    return ROUND_CN[round - 1] ?? String(round);
+  }
+
+  function conclusionEditable(round: ReviewRound, level: 'district' | 'urban'): boolean {
+    const editable = level === 'district' ? districtEditable.value : urbanEditable.value;
+    return round.isCurrent && editable;
+  }
+
+  function conclusionValue(round: ReviewRound, level: 'district' | 'urban'): ReviewRecord['conclusion'] | undefined {
+    if (conclusionEditable(round, level)) {
+      return level === 'district' ? districtConclusion.value : urbanConclusion.value;
+    }
+    return round[level]?.conclusion;
+  }
+
+  function opinionValue(round: ReviewRound, level: 'district' | 'urban'): string {
+    if (conclusionEditable(round, level)) {
+      return level === 'district' ? districtOpinion.value : urbanOpinion.value;
+    }
+    return round[level]?.opinion ?? '';
+  }
+
+  function onConclusionUpdate(round: ReviewRound, level: 'district' | 'urban', value: unknown): void {
+    if (!conclusionEditable(round, level)) return;
+    const conclusion = value === '通过审查' || value === '退回修改' ? value : undefined;
+    if (level === 'district') districtConclusion.value = conclusion;
+    else urbanConclusion.value = conclusion;
+  }
+
+  function onOpinionUpdate(round: ReviewRound, level: 'district' | 'urban', value: unknown): void {
+    if (!conclusionEditable(round, level)) return;
+    if (level === 'district') districtOpinion.value = String(value ?? '');
+    else urbanOpinion.value = String(value ?? '');
+  }
 
   // ── ② 进度填报：月份页签 + 月度进度信息 + 投资情况/纳统情况 ────────
   const stageOptions = CONSTRUCTION_STAGE_OPTIONS.map((name) => ({ label: name, value: name }));
@@ -296,7 +456,7 @@
       actualStartDate: entry?.actualStartDate,
       actualCompletionDate: entry?.actualCompletionDate,
     });
-    setProgressProps({ disabled: isView.value || activeMonth.value < currentMonth.value });
+    setProgressProps({ disabled: isView.value || isReview.value || activeMonth.value < currentMonth.value });
   }
 
   /** 切页签前把当前表单值暂存进对应月份（已过月份只读，不暂存） */
@@ -428,6 +588,8 @@
       componentProps: { rows: 2, maxlength: 200, placeholder: '不属于困难统计范围' },
       colProps: { md: 24, lg: 24 },
     },
+    { label: '审查结果', field: 'reviewGroup', component: 'FormGroup', colProps: { md: 24, lg: 24 } },
+    { label: '', field: 'reviewBlock', component: 'Input', slot: 'reviewBlock', colProps: { md: 24, lg: 24 } },
   ];
 
   const [
@@ -483,6 +645,12 @@
     await resetProgressFields();
     await resetReportFields();
     isView.value = !!data?.isView;
+    isReview.value = !!data?.isReview && !isView.value;
+    reviewRole.value = data?.reviewRole;
+    districtConclusion.value = undefined;
+    districtOpinion.value = '';
+    urbanConclusion.value = undefined;
+    urbanOpinion.value = '';
     record.value = (data || {}) as Partial<MonthlyItem>;
     activeStep.value = isView.value ? 0 : 1;
     // 月份页签复位到当月（watch 只管用户切换，这里显式回填；重开抽屉不算切换）
@@ -491,7 +659,7 @@
     activeMonth.value = currentMonth.value;
     if (progressFormReady.value) applyProgressFormValues();
     if (reportFormReady.value) applyReportFormValues();
-    setReportProps({ disabled: isView.value });
+    setReportProps({ disabled: isView.value || isReview.value });
     setDrawerProps({ loading: false });
   });
 
@@ -510,8 +678,9 @@
     }
     stashEntry(activeMonth.value);
     const values = getReportFieldsValue() as Record<string, unknown>;
-    const target = MONTHLIES.find((item) => item.projectCode === record.value.projectCode);
-    if (target) {
+    // 列表行来自实施库接口：无内存工作流行时按当前行底稿补建（upsert）
+    const target = upsertMonthlyWorkflow(record.value as MonthlyItem);
+    {
       target.monthEntries = { ...entries.value };
       const snapshot = entries.value[currentMonth.value];
       if (snapshot) {
@@ -548,6 +717,59 @@
       if (nextStatus === '待区级审查') target.returnInfo = undefined;
     }
     showMessage(nextStatus === '待提交' ? '保存成功（待提交）' : '提交成功，待区级审查');
+    closeDrawer();
+    emit('success', target);
+  }
+
+  /** 提交审查（两级：区级=项目所在行政区住更局，市级=项目推进组）：结论必选、退回必填意见；
+   *  记录只追加逐轮保留；通过→区级转待市级审查、市级转市级审查通过；退回→转退回修改并写退回信息 */
+  function handleReviewSubmit() {
+    const role = reviewRole.value;
+    if (role !== 'district' && role !== 'urban') return;
+    const conclusion = role === 'district' ? districtConclusion.value : urbanConclusion.value;
+    const opinion = (role === 'district' ? districtOpinion.value : urbanOpinion.value).trim();
+    if (!conclusion) {
+      showMessage('请选择审查结论');
+      return;
+    }
+    if (conclusion === '退回修改' && !opinion) {
+      showMessage('退回修改必须填写审查意见');
+      return;
+    }
+    const level = role === 'district' ? ('区级' as const) : ('市级' as const);
+    const reviewOrg = level === '区级' ? `${record.value.district ?? ''}住房和城市更新局` : '项目推进组';
+    const target = upsertMonthlyWorkflow(record.value as MonthlyItem);
+    const round =
+      (target.reviewRecords ?? []).filter((rec) => rec.level === '区级').length + (level === '区级' ? 1 : 0);
+    (target.reviewRecords ??= []).push({
+      round,
+      level,
+      reviewOrg,
+      conclusion,
+      opinion,
+      reviewDate: new Date().toISOString().slice(0, 10),
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    if (conclusion === '通过审查') {
+      target.fillStatus = level === '区级' ? '待市级审查' : '市级审查通过';
+      target.returnInfo = undefined;
+    } else {
+      target.fillStatus = '退回修改';
+      target.returnInfo = {
+        submitDate: target.returnInfo?.submitDate ?? today,
+        returnDate: today,
+        returnOrg: reviewOrg,
+        returnCount: (target.returnInfo?.returnCount ?? 0) + 1,
+        returnOpinion: opinion,
+      };
+    }
+    showMessage(
+      conclusion === '通过审查'
+        ? level === '区级'
+          ? '区级审查通过，已提交市级审查'
+          : '市级审查通过'
+        : '已退回，填报端呈退回修改状态',
+    );
     closeDrawer();
     emit('success', target);
   }

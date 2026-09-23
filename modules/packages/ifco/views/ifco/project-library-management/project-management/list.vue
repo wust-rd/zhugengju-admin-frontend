@@ -4,10 +4,9 @@
   项目库管理 · 四库在库项目查询。策划库→储备库→实施库为项目三段生命周期，
   项目可随时退出，退出的项目归集为已退出（状态显示「已退出」，只能查看）。
   顶部四张统计卡（卡即单选 select——默认选中策划库，点选切换筛选表格，
-  数字经 stats 接口动态加载）+「当前视角」切换条 + BasicTable（分页走 page 接口，
-  行键=后端联查列名小写；项目名称/行政区/片区名称/片区批次/五改类别/入库年份/
-  最新项目状态/项目归属 搜索表单；配置指定填报主体、新增项目、一键提交、
-  下载模板、一键导入、一键导出 工具栏；操作列按钮随 操作视角×项目状态 变化）。
+  数字经 stats 接口动态加载）+ BasicTable（分页走 page 接口，行键=后端联查
+  列名小写；项目名称/行政区/片区名称/片区批次/五改类别/入库年份/
+  最新项目状态/项目归属 搜索表单；新增项目、一键导出 工具栏；操作列按钮随项目状态变化，视角固定为填报主体）。
 
   状态随所在卡片库决定：策划库/储备库共用 待提交(draft)/审核中(reviewing)/
   退回修改(rejected)/审核通过(passed) 四状态流转，实施库=已入库(stored)，
@@ -58,22 +57,12 @@
       </div>
     </div>
 
-    <!-- 操作视角（操作列按钮随视角×状态变化；生产接机构角色，演示阶段页面切换） -->
-    <div class="flex items-center gap-16px bg-white rd-8px px-20px py-10px shadow-sm">
-      <span class="text-14px text-gray-600">当前视角</span>
-      <RadioGroup v-model:value="currentRole" :options="roleOptions" option-type="button" />
-    </div>
-
     <!-- 列表：搜索表单 + 工具栏 + 表格（分页接口） -->
     <BasicTable @register="registerTable">
       <template #toolbar>
-        <a-button @click="openOrgDrawer(true)"> 配置指定填报主体 </a-button>
         <a-button type="primary" @click="handleForm({ isNewRecord: true })">
           <Icon icon="i-fluent:add-12-filled" /> 新增
         </a-button>
-        <a-button @click="handleTodo('一键提交')"> 一键提交 </a-button>
-        <a-button @click="handleTodo('下载模板')"> 下载模板 </a-button>
-        <a-button @click="handleTodo('一键导入')"> 一键导入 </a-button>
         <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
       </template>
       <template #areaName="{ record }">{{ withSlash(record.area_name) }}</template>
@@ -83,11 +72,9 @@
       <template #projectAffiliation="{ record }">
         {{ withSlash(PROJECT_AFFILIATION_LABEL[record.project_affiliation] ?? record.project_affiliation) }}
       </template>
-      <template #industryDeptList="{ record }">
-        {{ withSlash(joinList(splitList(record.industry_dept_list))) }}
-      </template>
-      <template #implementOrgList="{ record }">{{ withSlash(joinList(splitList(record.implement_org_list))) }}</template>
-      <template #coordinateOrgList="{ record }">{{ withSlash(joinList(splitList(record.coordinate_org_list))) }}</template>
+      <template #industryDeptList="{ record }">{{ withSlash(record.industry_dept_list) }}</template>
+      <template #implementOrgList="{ record }">{{ withSlash(record.implement_org_list) }}</template>
+      <template #coordinateOrgList="{ record }">{{ withSlash(record.coordinate_org_list) }}</template>
       <template #reportOrg="{ record }">{{ withSlash(record.report_org) }}</template>
       <template #status="{ record }">
         <Tag v-bind="statusTagProps(record.status as ProjectStatus)" style="border-radius: 10px">
@@ -98,15 +85,12 @@
 
     <!-- 查看/新增/编辑/审核一体表单抽屉 -->
     <ProjectForm @register="registerDrawer" @success="refreshAll" />
-
-    <!-- 配置指定填报主体抽屉（候选机构清单走 reportOrg 接口，重名/空名红字拦截） -->
-    <OrgConfigDrawer @register="registerOrgDrawer" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoProjectLibraryManagementProjectManagementList">
   import { computed, onMounted, ref, watch } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
-  import { Modal, RadioGroup, Tag } from 'antdv-next';
+  import { Modal, Tag } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
@@ -121,7 +105,6 @@
     LIBRARY_CARDS,
     PROJECT_AFFILIATION_LABEL,
     PROJECT_AFFILIATION_OPTIONS,
-    ROLE_OPTIONS,
     RENEWAL_AREA_BATCH_OPTIONS,
     RENEWAL_AREA_NAME_LIST,
     STATUS_OPTIONS,
@@ -138,7 +121,6 @@
     type ProjectStatus,
   } from '@jeesite/ifco/api/ifco/project-library';
   import ProjectForm from './form.vue';
-  import OrgConfigDrawer from './org-config-drawer.vue';
 
   const { showMessage } = useMessage();
   const route = useRoute();
@@ -226,16 +208,15 @@
     { title: '最新项目状态', dataIndex: 'status', width: 120, fixed: 'right', slot: 'status' },
   ];
 
-  /** 当前操作视角（默认填报主体；操作列按钮随视角×状态变化） */
-  const currentRole = ref<ProjectRole>('report-org');
+  /** 操作列固定视角：填报主体（按钮随状态变化；视角切换 UI 已按需求移除，
+   *  行业主管部门/责任部门视角的操作差异由权限侧角色控制，不在页面演示切换） */
+  const ACTION_ROLE: ProjectRole = 'report-org';
 
-  const roleOptions = [...ROLE_OPTIONS];
-
-  /** 操作列：按钮随 视角×状态 变化（查看/编辑/审核走一体表单抽屉，转入下个库/转退出带二次确认） */
+  /** 操作列：按钮随 状态 变化（查看/编辑/审核走一体表单抽屉，转入下个库/转退出带二次确认） */
   const actionColumn: BasicColumn = {
     width: 240,
     actions: (record: Recordable) =>
-      (ACTIONS_BY_STATUS_ROLE[record.status as ProjectStatus]?.[currentRole.value] ?? ['查看']).map(
+      (ACTIONS_BY_STATUS_ROLE[record.status as ProjectStatus]?.[ACTION_ROLE] ?? ['查看']).map(
         (action: ProjectAction) => ({
           label: action,
           onClick: () => handleAction(action, record),
@@ -244,9 +225,6 @@
   };
 
   const [registerDrawer, { openDrawer }] = useDrawer();
-
-  /** 配置指定填报主体抽屉（独立于表单抽屉的第二个 drawer 实例） */
-  const [registerOrgDrawer, { openDrawer: openOrgDrawer }] = useDrawer();
 
   /** 打开表单抽屉：view=只读、edit=编辑（页脚 取消/暂存/申请转库）、review=审核（页脚 取消/保存审查） */
   function handleForm(record: Recordable) {
@@ -313,8 +291,8 @@
         district: rest.district || url.district,
       };
     },
-    // 后端 {total, list} → 框架 {list, totalCount}
-    afterFetch: (data: Recordable) => ({ list: data.list ?? [], totalCount: data.total ?? 0 }),
+    // 框架按 listField 抽行数组（afterFetch 契约=收数组返数组）；后端总数键为 total，此处对齐
+    fetchSetting: { pageField: 'pageNo', sizeField: 'pageSize', listField: 'list', totalField: 'total' },
     columns,
     actionColumn,
     rowSelection: { type: 'checkbox' },
@@ -394,9 +372,6 @@
       reload();
     },
   );
-
-  /** 切换视角：重新加载刷新操作列按钮（数据不变） */
-  watch(currentRole, () => reload());
 
   /** 进入页面：加载统计卡；URL 带了行政区时回填搜索表单（请求参数经 beforeFetch 合入） */
   onMounted(() => {

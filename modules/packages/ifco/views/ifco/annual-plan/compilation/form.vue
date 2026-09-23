@@ -87,7 +87,7 @@
       componentProps: {
         maxlength: 500,
         rows: 3,
-        placeholder: '本年度市级下发的刚性投资目标是3000亿元，现将目标分解到各区',
+        placeholder: '请输入年度刚性目标说明',
       },
       colProps: { md: 24, lg: 24 },
     },

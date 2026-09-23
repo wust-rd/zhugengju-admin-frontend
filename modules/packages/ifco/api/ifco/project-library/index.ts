@@ -11,6 +11,7 @@
 import { defHttp } from '@jeesite/core/utils/http/axios';
 import { useGlobSetting } from '@jeesite/core/hooks/setting';
 import { match } from 'ts-pattern';
+import { unwrap } from '../progress-fill';
 
 const { adminPath } = useGlobSetting();
 const BASE = adminPath + '/ifco/lib';
@@ -268,24 +269,8 @@ export const FUND_SOURCE_OPTIONS = [
   },
 ];
 
-/** 行业主管部门（静态；多选） */
+/** 行业主管部门（静态；联合审查机构页签用——市住更局/市财政局/市水务局/市发改委） */
 export const INDUSTRY_SUPERVISION_DEPT_LIST = ['市住更局', '市财政局', '市水务局', '市发改委'];
-
-/** 责任部门（静态：各区住更局 + 市级行业主管部门） */
-export const RESPONSIBLE_DEPT_LIST = [...DISTRICTS.map((name) => `${name}住更局`), ...INDUSTRY_SUPERVISION_DEPT_LIST];
-
-/** 统筹主体（静态） */
-export const COORDINATE_ORG_LIST = ['市发改委', '市财政局'];
-
-/** 实施主体（静态：各类建工单位） */
-export const IMPLEMENT_ORG_LIST = [
-  '武汉建工集团',
-  '武汉城建集团',
-  '中建三局',
-  '湖北工建集团',
-  '武汉地铁集团',
-  '武汉生态投资集团',
-];
 
 /** 是否选项（是/否） */
 export const YES_NO_OPTIONS = [
@@ -456,8 +441,13 @@ export type TransferLogItem = {
   operateDate?: string;
 };
 
-/** 详情返回（联查列 + reviews + transferLogs + currentRound） */
+/** 详情返回（联查列 + subjects + reviews + transferLogs + currentRound） */
 export type LibDetail = ProjectRow & {
+  subjects?: {
+    industryDepts?: { code: string; name: string }[];
+    responsibleDept?: { code: string; name: string } | null;
+    reportOrg?: { refType: string; code: string; name: string } | null;
+  };
   reviews?: Record<
     string,
     {
@@ -473,7 +463,7 @@ export type LibDetail = ProjectRow & {
 
 /** 四库统计卡：[{library, cnt, invSum}] */
 export function fetchLibStats() {
-  return defHttp.get<{ library: string; cnt: number; invSum: number }[]>({ url: BASE + '/project/stats' });
+  return unwrap<{ library: string; cnt: number; invSum: number }[]>(defHttp.get({ url: BASE + '/project/stats' }));
 }
 
 /** 分页查询参数（字段名与后端 page 接口一致） */
@@ -493,37 +483,39 @@ export type LibPageQuery = {
 
 /** 分页查询：{total, pageNum, pageSize, list} */
 export function fetchLibPage(params: LibPageQuery) {
-  return defHttp.get<{ total: number; pageNum: number; pageSize: number; list: ProjectRow[] }>({
+  return unwrap<{ total: number; pageNum: number; pageSize: number; list: ProjectRow[] }>(defHttp.get({
     url: BASE + '/project/page',
     params,
-  });
+  }));
 }
 
 /** 项目详情 */
 export function fetchLibDetail(pUid: string) {
-  return defHttp.get<LibDetail>({ url: BASE + '/project/detail', params: { pUid } });
+  return unwrap<LibDetail>(defHttp.get({ url: BASE + '/project/detail', params: { pUid } }));
 }
 
 /** 保存（暂存；新建/更新合一）。三组对应表单三步；base/reviewFiles 传 null=不更新该组
- *  （储备库编辑步骤③时只提交 impl 组）；impl 组同步写主表三字段 */
+ *  （储备库编辑步骤③时只提交 impl 组）；impl 组同步写主表三字段。
+ *  base 主体字段口径：industryDepts=[{code,name}]（多选）/responsibleDept={code,name}/
+ *  coordinateOrg、implementOrg=单值字符串/reportOrg={refType,code,name}（refType=office|company） */
 export function saveLibProject(data: {
   pUid: string | null;
   base: Recordable | null;
   reviewFiles: Recordable | null;
   impl: Recordable;
 }) {
-  return defHttp.post<{ pUid: string; library: string; status: string; libProjectCode: string }>({
+  return unwrap<{ pUid: string; library: string; status: string; libProjectCode: string }>(defHttp.post({
     url: BASE + '/project/save',
     data,
-  });
+  }));
 }
 
 /** 申请转库（draft/rejected → reviewing；轮次+1） */
 export function applyLibTransfer(pUid: string) {
-  return defHttp.post<{ pUid: string; status: string; roundNo: number }>({
+  return unwrap<{ pUid: string; status: string; roundNo: number }>(defHttp.post({
     url: BASE + '/project/apply',
     data: { pUid },
-  });
+  }));
 }
 
 /** 保存审查（stage='2'|'3'；联合审查按机构整替；respReview.conclusion 推进状态） */
@@ -538,34 +530,46 @@ export function saveLibReview(data: {
     fileList: string | null;
   };
 }) {
-  return defHttp.post<{ pUid: string; stage: string; status: string }>({
+  return unwrap<{ pUid: string; stage: string; status: string }>(defHttp.post({
     url: BASE + '/project/reviewSave',
     data,
-  });
+  }));
 }
 
 /** 转入下个库（passed 后；planning→reserve 重置 draft，reserve→implementing 置 stored） */
 export function transferLibNext(pUid: string) {
-  return defHttp.post<{ pUid: string; library: string; status: string }>({
+  return unwrap<{ pUid: string; library: string; status: string }>(defHttp.post({
     url: BASE + '/project/transferNext',
     data: { pUid },
-  });
+  }));
 }
 
 /** 转退出（终态） */
 export function transferLibExit(pUid: string, exitReason: string) {
-  return defHttp.post<{ pUid: string; library: string; exitDate: string }>({
+  return unwrap<{ pUid: string; library: string; exitDate: string }>(defHttp.post({
     url: BASE + '/project/transferExit',
     data: { pUid, exitReason },
-  });
+  }));
 }
 
-/** 指定填报主体候选机构清单 */
-export function fetchReportOrgs() {
-  return defHttp.get<string[]>({ url: BASE + '/dict/reportOrg' });
+// ── 主体字段选项与外部公司 ─────────────────────────────────────────
+
+/** 行业主管部门候选机构（行业主管部门/责任部门两字段共用选项） */
+export function fetchIndustryDeptOptions() {
+  return unwrap<{ code: string; name: string }[]>(defHttp.get({ url: BASE + '/dict/industryDeptOptions' }));
 }
 
-/** 整替保存候选机构清单（重名 400） */
-export function saveReportOrgs(orgNames: string[]) {
-  return defHttp.post<void>({ url: BASE + '/dict/reportOrgSave', data: { orgNames } });
+/** 指定填报主体候选（全部机构+全部公司合并；refType 区分机构/公司编码空间） */
+export function fetchReportOrgOptions() {
+  return unwrap<{ refType: 'office' | 'company'; code: string; name: string }[]>(defHttp.get({
+    url: BASE + '/dict/reportOrgOptions',
+  }));
+}
+
+/** 现场新建外部公司（公司编码=中文名；公司表/机构表重名或超 21 字返回 400） */
+export function createReportOrgCompany(name: string) {
+  return unwrap<{ refType: 'company'; code: string; name: string }>(defHttp.post({
+    url: BASE + '/dict/companyCreate',
+    data: { name },
+  }));
 }

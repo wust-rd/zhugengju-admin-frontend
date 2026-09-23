@@ -26,6 +26,7 @@ import {
   FIVE_REFORM_TYPE_LABEL,
   PROJECT_AFFILIATION_LABEL,
   RENEWAL_AREA_BATCH_LABEL,
+  fetchLibPage,
 } from '@jeesite/ifco/api/ifco/project-library';
 
 /** 填报页卡片（点选切换 = 表格筛选维度，经路由 ?card= 持久化） */
@@ -163,6 +164,8 @@ export type ReviewRecord = {
 
 /** 倒排工期计划行 */
 export type ScheduleItem = {
+  /** 项目 p_uid（基本信息共用组件按它自拉项目库详情） */
+  pUid: string;
   projectCode: string;
   projectName: string;
   district: string;
@@ -172,8 +175,8 @@ export type ScheduleItem = {
   projectAffiliation: string;
   /** 项目投资估算（亿元） */
   investEstimate: number;
-  /** 年度投资计划（亿元） */
-  yearPlanInvest: number;
+  /** 本年度计划完成投资/年度投资计划（亿元，主表 year_invest） */
+  yearInvest: number;
   /** 计划开工时间 */
   planStartDate: string;
   /** 计划竣工时间 */
@@ -217,6 +220,8 @@ export type MonthlyProgressEntry = {
 export type MonthlyItem = {
   /** 填报周期（YYYY-MM，搜索表单年/月过滤依据） */
   reportMonth: string;
+  /** 项目 p_uid（基本信息共用组件按它自拉项目库详情） */
+  pUid: string;
   projectCode: string;
   projectName: string;
   district: string;
@@ -229,7 +234,7 @@ export type MonthlyItem = {
   /** 项目投资估算（亿元，只读） */
   investEstimate: number;
   /** 年度投资计划（亿元，只读） */
-  yearPlanInvest: number;
+  yearInvest: number;
   /** 计划开工时间（基本信息展示） */
   planStartDate: string;
   /** 计划竣工时间（基本信息展示） */
@@ -271,6 +276,8 @@ export type MonthlyItem = {
   monthEntries?: Partial<Record<number, MonthlyProgressEntry>>;
   fillStatus: FillStatus;
   returnInfo?: ReturnInfo;
+  /** 审查记录（区级/市级逐轮追加；抽屉审查结果区从记录派生，2026-09-22 起） */
+  reviewRecords?: ReviewRecord[];
 };
 
 /** 提示/督办主记录（市级下发；区级端整单处理、市级端确认处理结果） */
@@ -449,6 +456,7 @@ export const URBAN_CARDS: StatCard<DistrictCardKey>[] = [
 export const SCHEDULES: ScheduleItem[] = [
   {
     projectCode: '20263609',
+    pUid: 'seed-20263609',
     reportOrg: '武汉城建集团',
     projectStatus: '新开工',
     projectName: '三阳设计之都项目（一元路片）',
@@ -458,7 +466,7 @@ export const SCHEDULES: ScheduleItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'city-area',
     investEstimate: 1.8,
-    yearPlanInvest: 0.9,
+    yearInvest: 0.9,
     planStartDate: '2026-03-01',
     planCompletionDate: '2027-12-31',
     inLibraryDate: '2026-09-10',
@@ -493,6 +501,7 @@ export const SCHEDULES: ScheduleItem[] = [
   },
   {
     projectCode: '20263558',
+    pUid: 'seed-20263558',
     reportOrg: '和纵盛地产公司',
     projectStatus: '续建',
     projectName: '西马片房地产新模式试点项目等',
@@ -502,7 +511,7 @@ export const SCHEDULES: ScheduleItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'district-area',
     investEstimate: 2.03,
-    yearPlanInvest: 1.2,
+    yearInvest: 1.2,
     planStartDate: '2026-05-01',
     planCompletionDate: '2027-10-31',
     inLibraryDate: '2026-06-18',
@@ -527,6 +536,7 @@ export const SCHEDULES: ScheduleItem[] = [
   },
   {
     projectCode: '20263559',
+    pUid: 'seed-20263559',
     reportOrg: '江岸区住更局',
     projectStatus: '在建',
     projectName: '佛山街（二辉路-三阳路）道路改造',
@@ -536,7 +546,7 @@ export const SCHEDULES: ScheduleItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'city-area',
     investEstimate: 0.28,
-    yearPlanInvest: 0.15,
+    yearInvest: 0.15,
     planStartDate: '2026-04-01',
     planCompletionDate: '2026-11-30',
     inLibraryDate: '2026-07-03',
@@ -571,6 +581,7 @@ export const SCHEDULES: ScheduleItem[] = [
   },
   {
     projectCode: '20263557',
+    pUid: 'seed-20263557',
     reportOrg: '武汉城建集团',
     projectStatus: '在建',
     projectName: '黑泥湖村城中村改造项目等',
@@ -580,7 +591,7 @@ export const SCHEDULES: ScheduleItem[] = [
     fiveReformType: 'urban-village',
     projectAffiliation: 'city-area',
     investEstimate: 11.6,
-    yearPlanInvest: 4.5,
+    yearInvest: 4.5,
     planStartDate: '2026-02-01',
     planCompletionDate: '2028-06-30',
     inLibraryDate: '2026-03-18',
@@ -623,6 +634,7 @@ export const SCHEDULES: ScheduleItem[] = [
   },
   {
     projectCode: '20263556',
+    pUid: 'seed-20263556',
     reportOrg: '江岸区文旅局',
     projectStatus: '已完工',
     projectName: '大智门火车站旧址修缮等',
@@ -632,7 +644,7 @@ export const SCHEDULES: ScheduleItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'scattered',
     investEstimate: 0.1846,
-    yearPlanInvest: 0.09,
+    yearInvest: 0.09,
     planStartDate: '2026-01-01',
     planCompletionDate: '2026-08-31',
     inLibraryDate: '2026-05-06',
@@ -675,6 +687,7 @@ export const SCHEDULES: ScheduleItem[] = [
   },
   {
     projectCode: '20263550',
+    pUid: 'seed-20263550',
     reportOrg: '武汉建工集团',
     projectStatus: '前期',
     projectName: '二七沿江商务区旧改',
@@ -684,7 +697,7 @@ export const SCHEDULES: ScheduleItem[] = [
     fiveReformType: 'old-street',
     projectAffiliation: 'city-area',
     investEstimate: 6.8,
-    yearPlanInvest: 2.1,
+    yearInvest: 2.1,
     planStartDate: '2026-06-01',
     planCompletionDate: '2028-12-31',
     inLibraryDate: '2026-08-20',
@@ -695,6 +708,7 @@ export const SCHEDULES: ScheduleItem[] = [
   },
   {
     projectCode: '20263601',
+    pUid: 'seed-20263601',
     reportOrg: '江岸区住更局',
     projectStatus: '实施库入库',
     projectName: '新兴街片旧城更新项目',
@@ -704,7 +718,7 @@ export const SCHEDULES: ScheduleItem[] = [
     fiveReformType: 'old-community',
     projectAffiliation: 'city-area',
     investEstimate: 3.2,
-    yearPlanInvest: 1.5,
+    yearInvest: 1.5,
     planStartDate: '2026-10-01',
     planCompletionDate: '2028-03-31',
     inLibraryDate: '2026-09-16',
@@ -720,6 +734,7 @@ export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
     projectCode: '20263558',
+    pUid: 'seed-20263558',
     projectName: '西马片房地产新模式试点项目等',
     district: '江岸区',
     renewalAreaName: '四马片',
@@ -729,7 +744,7 @@ export const MONTHLIES: MonthlyItem[] = [
     currentProgress: '桩基工程施工中',
     investEstimate: 2.03,
     reportOrg: '和纵盛地产公司',
-    yearPlanInvest: 1.2,
+    yearInvest: 1.2,
     planStartDate: '2026-05-01',
     planCompletionDate: '2027-10-31',
     inLibraryDate: '2026-06-18',
@@ -774,6 +789,7 @@ export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
     projectCode: '20263557',
+    pUid: 'seed-20263557',
     projectName: '黑泥湖村城中村改造项目等',
     district: '江岸区',
     renewalAreaName: '黑泥湖片',
@@ -783,7 +799,7 @@ export const MONTHLIES: MonthlyItem[] = [
     currentProgress: '安置房主体结构施工',
     investEstimate: 11.6,
     reportOrg: '武汉城建集团',
-    yearPlanInvest: 4.5,
+    yearInvest: 4.5,
     planStartDate: '2026-02-01',
     planCompletionDate: '2028-06-30',
     inLibraryDate: '2026-03-18',
@@ -826,6 +842,7 @@ export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
     projectCode: '20263559',
+    pUid: 'seed-20263559',
     projectName: '佛山街（二辉路-三阳路）道路改造',
     district: '江岸区',
     renewalAreaName: '一元片',
@@ -835,7 +852,7 @@ export const MONTHLIES: MonthlyItem[] = [
     currentProgress: '路基整形施工',
     investEstimate: 0.28,
     reportOrg: '江岸区住更局',
-    yearPlanInvest: 0.15,
+    yearInvest: 0.15,
     planStartDate: '2026-04-01',
     planCompletionDate: '2026-11-30',
     inLibraryDate: '2026-07-03',
@@ -863,6 +880,7 @@ export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
     projectCode: '20263556',
+    pUid: 'seed-20263556',
     projectName: '大智门火车站旧址修缮等',
     district: '江岸区',
     renewalAreaName: '',
@@ -872,7 +890,7 @@ export const MONTHLIES: MonthlyItem[] = [
     currentProgress: '室内展陈施工',
     investEstimate: 0.1846,
     reportOrg: '江岸区文旅局',
-    yearPlanInvest: 0.09,
+    yearInvest: 0.09,
     planStartDate: '2026-01-01',
     planCompletionDate: '2026-08-31',
     inLibraryDate: '2026-05-06',
@@ -900,6 +918,7 @@ export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
     projectCode: '20263609',
+    pUid: 'seed-20263609',
     projectName: '三阳设计之都项目（一元路片）',
     district: '江岸区',
     renewalAreaName: '一元片',
@@ -909,7 +928,7 @@ export const MONTHLIES: MonthlyItem[] = [
     currentProgress: '设计方案深化',
     investEstimate: 1.8,
     reportOrg: '武汉城建集团',
-    yearPlanInvest: 0.9,
+    yearInvest: 0.9,
     planStartDate: '2026-03-01',
     planCompletionDate: '2027-12-31',
     inLibraryDate: '2026-09-10',
@@ -938,6 +957,7 @@ export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
     projectCode: '20263550',
+    pUid: 'seed-20263550',
     projectName: '二七沿江商务区旧改',
     district: '江岸区',
     renewalAreaName: '二七沿江片',
@@ -947,7 +967,7 @@ export const MONTHLIES: MonthlyItem[] = [
     currentProgress: '方案设计',
     investEstimate: 6.8,
     reportOrg: '武汉建工集团',
-    yearPlanInvest: 2.1,
+    yearInvest: 2.1,
     planStartDate: '2026-06-01',
     planCompletionDate: '2028-12-31',
     inLibraryDate: '2026-08-20',
@@ -969,6 +989,7 @@ export const MONTHLIES: MonthlyItem[] = [
   {
     reportMonth: '2026-09',
     projectCode: '20263601',
+    pUid: 'seed-20263601',
     projectName: '新兴街片旧城更新项目',
     district: '江岸区',
     renewalAreaName: '新兴街片',
@@ -978,7 +999,7 @@ export const MONTHLIES: MonthlyItem[] = [
     currentProgress: '前期摸底',
     investEstimate: 3.2,
     reportOrg: '江岸区住更局',
-    yearPlanInvest: 1.5,
+    yearInvest: 1.5,
     planStartDate: '2026-10-01',
     planCompletionDate: '2028-03-31',
     inLibraryDate: '2026-09-16',
@@ -1393,8 +1414,55 @@ function matchProject(
 }
 
 /** 倒排工期计划过滤 */
-export function filterSchedules(params: ImplProgressQuery): ScheduleItem[] {
-  return SCHEDULES.filter(
+/** 倒排工期列表行 = 实施库项目（项目库 page 接口）合并内存工作流态（按项目编码） */
+export async function fetchScheduleRows(): Promise<ScheduleItem[]> {
+  const page = await fetchLibPage({ library: 'implementing', pageNum: 1, pageSize: 500 });
+  return (page.list ?? []).map((row) => {
+    const wf = SCHEDULES.find((item) => item.projectCode === row.lib_project_code);
+    const inLibraryDate = String(row.in_library_date ?? '').slice(0, 10);
+    const isNewInLibrary =
+      !!inLibraryDate && Date.now() - new Date(inLibraryDate).getTime() < 20 * 24 * 3600 * 1000;
+    return {
+      pUid: row.p_uid ?? '',
+      projectCode: row.lib_project_code ?? '',
+      projectName: row.pj_name ?? '',
+      district: row.dist ?? '',
+      renewalAreaName: row.area_name ?? '',
+      renewalAreaBatch: row.batch ?? '',
+      fiveReformType: row.wg_big ?? '',
+      projectAffiliation: row.project_affiliation ?? '',
+      investEstimate: Number(row.inv_bil ?? 0) || 0,
+      yearInvest: Number(row.year_invest ?? 0) || 0,
+      planStartDate: String(row.start_date ?? '').slice(0, 10),
+      planCompletionDate: String(row.end_date ?? '').slice(0, 10),
+      inLibraryDate,
+      isNewInLibrary,
+      reportOrg: row.report_org ?? '',
+      // 实施库行状态恒为 stored（已入库），映射本域中文枚举
+      projectStatus: '实施库入库' as ProjectStatus,
+      planStartMonth: wf?.planStartMonth ?? '',
+      monthPlans: wf?.monthPlans ?? Array.from({ length: 12 }, () => ''),
+      fillStatus: wf?.fillStatus ?? '待提交',
+      lastSubmitDate: wf?.lastSubmitDate,
+      reviewRecords: wf?.reviewRecords,
+    };
+  });
+}
+
+/** 按项目编码取工作流行（无则以列表行为底并入内存仓库；编辑/审查写回前置） */
+export function upsertScheduleWorkflow(row: ScheduleItem): ScheduleItem {
+  const exist = SCHEDULES.find((item) => item.projectCode === row.projectCode);
+  if (exist) return exist;
+  SCHEDULES.push({
+    ...row,
+    monthPlans: [...row.monthPlans],
+    reviewRecords: [...(row.reviewRecords ?? [])],
+  });
+  return SCHEDULES[SCHEDULES.length - 1]!;
+}
+
+export function filterSchedules(params: ImplProgressQuery, rows: ScheduleItem[] = SCHEDULES): ScheduleItem[] {
+  return rows.filter(
     (item) =>
       matchProject(item, params) &&
       (!params.district || item.district === params.district) &&
@@ -1405,8 +1473,59 @@ export function filterSchedules(params: ImplProgressQuery): ScheduleItem[] {
 }
 
 /** 月度进度填报过滤 */
-export function filterMonthlies(params: ImplProgressQuery): MonthlyItem[] {
-  return MONTHLIES.filter(
+/** 月度列表行 = 实施库项目（项目库 page 接口）合并内存工作流态（按项目编码；当月一行） */
+export async function fetchMonthlyRows(): Promise<MonthlyItem[]> {
+  const page = await fetchLibPage({ library: 'implementing', pageNum: 1, pageSize: 500 });
+  const now = new Date();
+  const reportMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return (page.list ?? []).map((row) => {
+    const wf = MONTHLIES.find((item) => item.projectCode === row.lib_project_code);
+    return {
+      reportMonth: wf?.reportMonth ?? reportMonth,
+      pUid: row.p_uid ?? '',
+      projectCode: row.lib_project_code ?? '',
+      projectName: row.pj_name ?? '',
+      district: row.dist ?? '',
+      renewalAreaName: row.area_name ?? '',
+      renewalAreaBatch: row.batch ?? '',
+      fiveReformType: row.wg_big ?? '',
+      projectAffiliation: row.project_affiliation ?? '',
+      currentProgress: wf?.currentProgress ?? '',
+      investEstimate: Number(row.inv_bil ?? 0) || 0,
+      yearInvest: Number(row.year_invest ?? 0) || 0,
+      planStartDate: String(row.start_date ?? '').slice(0, 10),
+      planCompletionDate: String(row.end_date ?? '').slice(0, 10),
+      inLibraryDate: String(row.in_library_date ?? '').slice(0, 10),
+      yearAccumulatedInvest: wf?.yearAccumulatedInvest ?? 0,
+      monthCompletedInvest: wf?.monthCompletedInvest ?? 0,
+      totalAccumulatedInvest: wf?.totalAccumulatedInvest ?? 0,
+      monthProgressDesc: wf?.monthProgressDesc ?? '',
+      implementProgress: wf?.implementProgress,
+      reportOrg: row.report_org ?? '',
+      constructionStage: wf?.constructionStage ?? '',
+      statisticsIncluded: wf?.statisticsIncluded ?? '否',
+      statisticsCategory: wf?.statisticsCategory,
+      statisticsProjectCode: wf?.statisticsProjectCode,
+      notIncludedReason: wf?.notIncludedReason,
+      difficultyProblem: wf?.difficultyProblem,
+      monthEntries: wf?.monthEntries,
+      fillStatus: wf?.fillStatus ?? '待提交',
+      returnInfo: wf?.returnInfo,
+      reviewRecords: wf?.reviewRecords,
+    };
+  });
+}
+
+/** 按项目编码取月度工作流行（无则以列表行为底并入内存仓库；填报/审查写回前置） */
+export function upsertMonthlyWorkflow(row: MonthlyItem): MonthlyItem {
+  const exist = MONTHLIES.find((item) => item.projectCode === row.projectCode);
+  if (exist) return exist;
+  MONTHLIES.push({ ...row, monthEntries: { ...(row.monthEntries ?? {}) }, reviewRecords: [...(row.reviewRecords ?? [])] });
+  return MONTHLIES[MONTHLIES.length - 1]!;
+}
+
+export function filterMonthlies(params: ImplProgressQuery, rows: MonthlyItem[] = MONTHLIES): MonthlyItem[] {
+  return rows.filter(
     (item) =>
       matchProject(item, params) &&
       (!params.fillStatus || item.fillStatus === params.fillStatus) &&
@@ -1416,14 +1535,14 @@ export function filterMonthlies(params: ImplProgressQuery): MonthlyItem[] {
 }
 
 /** 年度投资进度百分比数值（资金进度=年度累计完成投资/年度投资计划，四舍五入取整；计划为 0 取 0） */
-export function yearProgressValue(item: { yearAccumulatedInvest?: number; yearPlanInvest?: number }): number {
-  if (!item.yearPlanInvest) return 0;
-  return Math.round(NP.times(NP.divide(item.yearAccumulatedInvest ?? 0, item.yearPlanInvest), 100));
+export function yearProgressValue(item: { yearAccumulatedInvest?: number; yearInvest?: number }): number {
+  if (!item.yearInvest) return 0;
+  return Math.round(NP.times(NP.divide(item.yearAccumulatedInvest ?? 0, item.yearInvest), 100));
 }
 
 /** 年度投资进度（列表列：年度累计完成投资/年度投资计划，四舍五入取整；计划为 0 显示 —） */
-export function yearProgressPercent(item: { yearAccumulatedInvest?: number; yearPlanInvest?: number }): string {
-  if (!item.yearPlanInvest) return '—';
+export function yearProgressPercent(item: { yearAccumulatedInvest?: number; yearInvest?: number }): string {
+  if (!item.yearInvest) return '—';
   return `${yearProgressValue(item)}%`;
 }
 
@@ -1431,10 +1550,10 @@ export function yearProgressPercent(item: { yearAccumulatedInvest?: number; year
  * 资金超前实施 15 个百分点以上=滞后，其余（偏离 ±15 以内、实施超前资金、缺值）=正常 */
 export function progressReminderOf(item: {
   yearAccumulatedInvest?: number;
-  yearPlanInvest?: number;
+  yearInvest?: number;
   implementProgress?: number;
 }): '正常' | '滞后' {
-  if (!item.yearPlanInvest || item.implementProgress == null) return '正常';
+  if (!item.yearInvest || item.implementProgress == null) return '正常';
   return NP.minus(yearProgressValue(item), item.implementProgress) > 15 ? '滞后' : '正常';
 }
 

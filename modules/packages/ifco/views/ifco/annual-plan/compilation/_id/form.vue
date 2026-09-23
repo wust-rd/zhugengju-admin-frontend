@@ -4,8 +4,10 @@
   与 ../form.vue（任务级查看/编辑表单抽屉）区分：本抽屉针对单个项目，标题
   「纳入年度计划 · 项目名」。任务下发信息为纯展示项（不走表单控件，对齐
   设计稿：无分组标题条，两列「label：值」文字 + 年度刚性目标说明整行 +
-  各区年度刚性投资目标「区名 数值」一行四个）；只有「确认信息」是表单分区：
-  本年度计划完成投资（亿元）/备注，均非必填、各占一行（备注 textarea）。
+  各区年度刚性投资目标「区名 数值」一行四个）；基本信息走共用只读组件
+  project-basic-info-form（项目基本信息 + 实施条件三字段=主表共享列），
+  其后「确认信息」为可编辑表单分区（采纳的本年度计划完成投资[yearPlanInvest]/
+  备注，各占一行，备注 textarea）。
   查看模式（isView）确认信息同样禁用＝整表只读，底部按钮由打开方经
   showFooter 预隐藏。提交即把该项目置为已采纳并写入这两个值（工作台表格
   「年度投资计划(亿元)」列即 yearPlanInvest），emit success 交工作台写回内存。
@@ -35,7 +37,10 @@
       </div>
     </div>
 
-    <!-- 确认信息（唯一的表单分区） -->
+    <!-- 基本信息（共用只读组件：项目基本信息 + 实施条件三字段） -->
+    <ProjectBasicInfoForm :p-uid="project.pUid" disabled class="mb-16px" />
+
+    <!-- 确认信息 -->
     <BasicForm @register="registerForm" />
   </BasicDrawer>
 </template>
@@ -45,6 +50,7 @@
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { DISTRICTS, type CompilationTask, type WorkbenchProject } from '@jeesite/ifco/api/ifco/compilation';
+  import ProjectBasicInfoForm from '../../../shared/project-basic-info-form.vue';
 
   const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
@@ -78,7 +84,7 @@
     return fmtAmount(task.value.districtTargets?.[name]);
   }
 
-  // ── 确认信息表单 ────────────────────────────────────────────────────
+  // ── 确认信息（采纳编辑；基本信息走共用只读组件） ────────────────────
   const inputFormSchemas: FormSchema[] = [
     {
       label: '确认信息',
@@ -141,6 +147,7 @@
     // TODO: 后端接入后在此调用保存接口
     setTimeout(closeDrawer);
     emit('success', {
+      pUid: project.value.pUid,
       projectCode: project.value.projectCode,
       yearPlanInvest: values.yearPlanInvest,
       remarks: values.remarks ?? '',

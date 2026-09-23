@@ -1,9 +1,10 @@
 <!--
   ifco —— 年度计划编制 · 计划编制管理（/ifco/annual-plan/compilation/list）
 
-  年度计划编制任务列表。结构对齐设计稿：任务年份搜索 + BasicTable（启动编制、
-  下载模板、一键导入 工具栏；无复选框列；投资目标完成率/距离编制结束天数/
-  编制状态列；操作列按编制状态变化：进行中=查看+进入编制工作台、已归档=仅查看）。
+  年度计划编制任务列表。无搜索表单（全量展示）、无工具栏按钮；表头允许换行；
+  列：任务年份/年度刚性投资目标/本年度计划完成投资合计/投资目标完成率/
+  编制开始时间/市级编制结束时间/区级编制结束时间/编制状态；操作列按编制状态
+  变化：进行中=查看+进入编制工作台、已归档=仅查看。
   查看走一体表单抽屉 form.vue（只读）；进入编制工作台跳 RESTful show 子页
   _id/list.vue（record.code 作路由 id）。
   当前后端尚未介入：数据来自 @jeesite/ifco/api/ifco/compilation（内存假数据，
@@ -22,17 +23,7 @@
 
     <!-- 列表：搜索表单 + 工具栏 + 表格（设计稿无复选框列） -->
     <BasicTable @register="registerTable">
-      <template #toolbar>
-        <a-button type="primary" @click="handleTodo('启动编制')">
-          <Icon icon="i-fluent:add-12-filled" /> 启动编制
-        </a-button>
-        <a-button @click="handleTodo('下载模板')"> 下载模板 </a-button>
-        <a-button @click="handleTodo('一键导入')"> 一键导入 </a-button>
-      </template>
       <template #completionRate="{ record }">{{ completionRate(record) }}</template>
-      <template #daysLeft="{ record }">
-        {{ record.status === '进行中' ? daysUntilDeadline(record) : '-' }}
-      </template>
       <template #status="{ record }">
         <Tag v-bind="compileStatusTagProps(record.status)" style="border-radius: 10px">
           {{ record.status }}
@@ -45,24 +36,20 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoAnnualPlanCompilationList">
+  import { onMounted } from 'vue';
   import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
-  import { Icon } from '@jeesite/core/components/Icon';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
     ACTIONS_BY_STATUS,
     compileStatusTagProps,
     completionRate,
-    daysUntilDeadline,
-    filterTasks,
-    saveTask,
-    taskYearOptions,
+    fetchCompileTasks,
     type CompileAction,
     type CompileStatus,
-    type CompilationTask,
   } from '@jeesite/ifco/api/ifco/compilation';
   import TaskForm from './form.vue';
 
@@ -73,11 +60,11 @@
   const columns: BasicColumn[] = [
     { title: '任务年份', dataIndex: 'taskYear', width: 100, fixed: 'left' },
     { title: '年度刚性投资目标（亿元）', dataIndex: 'annualRigidTarget', width: 190, align: 'right' },
-    { title: '年度投资合计（亿元）', dataIndex: 'totalInvest', width: 170, align: 'right' },
+    { title: '本年度计划完成投资合计（亿元）', dataIndex: 'totalInvest', width: 190, align: 'right' },
     { title: '投资目标完成率', dataIndex: 'completionRate', width: 130, slot: 'completionRate' },
     { title: '编制开始时间', dataIndex: 'compileStartDate', width: 120 },
-    { title: '编制结束时间', dataIndex: 'compileEndDate', width: 120 },
-    { title: '距离编制结束天数', dataIndex: 'daysLeft', width: 140, slot: 'daysLeft' },
+    { title: '市级编制结束时间', dataIndex: 'compileEndDate', width: 130 },
+    { title: '区级编制结束时间', dataIndex: 'districtCompileEndDate', width: 130 },
     { title: '编制状态', dataIndex: 'status', width: 110, fixed: 'right', slot: 'status' },
   ];
 
@@ -109,49 +96,32 @@
     handleForm(record);
   }
 
-  /** 表单保存回调：写回内存数据并重铺表格（TODO: 后端接入后改为接口保存+reload） */
-  function handleSuccess(data: Recordable) {
-    saveTask(data as CompilationTask);
-    applyFilter();
-    showMessage('保存成功（本地演示，未持久化）');
+  /** 表单回调（查看抽屉只读，正常不触发；兜底重拉） */
+  async function handleSuccess() {
+    await loadTasks();
   }
 
-  const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterTasks({}),
+  const [registerTable, { setTableData }] = useTable({
+    dataSource: [],
     columns,
     actionColumn,
     showTableSetting: true,
     showIndexColumn: false,
-    useSearchForm: true,
     pagination: { pageSize: 10 },
     canResize: true,
-    formConfig: {
-      baseColProps: { md: 8, lg: 6 },
-      labelWidth: 90,
-      schemas: [
-        {
-          label: '任务年份',
-          field: 'taskYear',
-          component: 'Select',
-          componentProps: { options: taskYearOptions(), allowClear: true, placeholder: '请选择任务年份' },
-        },
-      ],
-    },
-    // 无后端：查询/重置走本地过滤
-    handleSearchInfoFn: (params: Recordable) => {
-      applyFilter(params);
-      return params;
-    },
   });
 
-  /** 按当前搜索条件重铺表格数据 */
-  function applyFilter(formValues?: Recordable) {
-    const values = formValues ?? getForm().getFieldsValue();
-    setTableData(filterTasks(values));
+  /** 拉取编制任务清单重铺表格（全量展示，无筛选） */
+  async function loadTasks() {
+    setTableData((await fetchCompileTasks()) ?? []);
   }
 
-  /** 占位操作（TODO：随启动编制/导入功能接入） */
-  function handleTodo(label: string) {
-    showMessage(`${label}：功能待接入`);
-  }
+  onMounted(loadTasks);
 </script>
+
+<style scoped>
+  /* 长表头（市级/区级编制结束时间等）允许在列宽内换行 */
+  :deep(.ant-table-thead > tr > th) {
+    white-space: normal;
+  }
+</style>

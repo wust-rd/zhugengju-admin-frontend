@@ -42,6 +42,7 @@
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressSchedulePanel">
   import { Tag } from 'antdv-next';
+  import { computed, onMounted, ref } from 'vue';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import type { FormSchema } from '@jeesite/core/components/Form';
   import { useDrawer } from '@jeesite/core/components/Drawer';
@@ -57,13 +58,14 @@
   } from '@jeesite/ifco/api/ifco/project-library';
   import {
     FILL_STATUS_OPTIONS,
-    SCHEDULES,
+    fetchScheduleRows,
     fillStatusTagProps,
     filterSchedules,
     fiveReformLabel,
     projectAffiliationLabel,
     renewalAreaBatchLabel,
     type FillStatus,
+    type ScheduleItem,
   } from '@jeesite/ifco/api/ifco/impl-progress';
   import ScheduleForm from './schedule-form.vue';
 
@@ -84,7 +86,7 @@
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '项目投资估算(亿元)', dataIndex: 'investEstimate', width: 130, align: 'right' },
-    { title: '年度投资计划(亿元)', dataIndex: 'yearPlanInvest', width: 130, align: 'right' },
+    { title: '年度投资计划(亿元)', dataIndex: 'yearInvest', width: 130, align: 'right' },
     { title: '计划开工时间', dataIndex: 'planStartDate', width: 110 },
     { title: '计划竣工时间', dataIndex: 'planCompletionDate', width: 110 },
     { title: '指定填报主体', dataIndex: 'reportOrg', width: 150 },
@@ -143,11 +145,15 @@
   }
 
   const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
-  /** 指定填报主体选项：按行数据去重（与「指定填报主体」列同源） */
-  const reportOrgOptions = [...new Set(SCHEDULES.map((item) => item.reportOrg))].map((name) => ({
-    label: name,
-    value: name,
-  }));
+  /** 实施库行基线（项目库 page 接口 library=implementing 合并内存工作流态） */
+  const baseRows = ref<ScheduleItem[]>([]);
+  /** 指定填报主体选项：按已加载行去重（与「指定填报主体」列同源；函数式取值保响应） */
+  const reportOrgOptions = computed(() =>
+    [...new Set(baseRows.value.map((item) => item.reportOrg).filter(Boolean))].map((name) => ({
+      label: name,
+      value: name,
+    })),
+  );
   const renewalAreaOptions = [
     ...CITY_RENEWAL_AREA_LIST.map((area) => ({ label: area.name, value: area.name })),
     ...DISTRICT_RENEWAL_AREA_LIST.map((name) => ({ label: name, value: name })),
@@ -166,7 +172,7 @@
     label: '指定填报主体',
     field: 'reportOrg',
     component: 'Select',
-    componentProps: { options: reportOrgOptions, allowClear: true },
+    componentProps: () => ({ options: reportOrgOptions.value, allowClear: true }),
   };
   const districtSchema: FormSchema = {
     label: '行政区',
@@ -243,7 +249,7 @@
           ];
 
   const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterSchedules({}),
+    dataSource: [],
     columns,
     actionColumn,
     showTableSetting: true,
@@ -252,20 +258,39 @@
     pagination: { pageSize: 8 },
     canResize: true,
     formConfig: {
-      baseColProps: { md: 8, lg: 6 },
+      baseColProps: { md: 8, lg: 8 },
       labelWidth: props.role === 'main' ? 90 : 120,
       schemas: searchSchemas,
     },
-    // 无后端：查询/重置走本地过滤（月份面板值 YYYY-MM 拆回年+月再过滤）
+    // 查询/重置走本地过滤（月份面板值 YYYY-MM 拆回年+月再过滤）
     handleSearchInfoFn: (params: Recordable) => {
-      setTableData(filterSchedules(parseMonthPicker(params)));
+      applyFilter(parseMonthPicker(params));
       return params;
     },
   });
 
-  /** 表单保存/审查提交回调：重铺数据（假数据为内存变更，刷新即恢复） */
+  /** 拉取实施库行并按当前搜索条件重铺 */
+  async function loadRows() {
+    try {
+      baseRows.value = (await fetchScheduleRows()) ?? [];
+    } catch (e) {
+      showMessage((e as Error)?.message || '实施库项目加载失败');
+      baseRows.value = [];
+    }
+    applyFilter(getForm().getFieldsValue());
+  }
+
+  onMounted(loadRows);
+
+  /** 按当前搜索条件重铺表格 */
+  function applyFilter(values?: Recordable) {
+    const params = parseMonthPicker(values ?? getForm().getFieldsValue());
+    setTableData(filterSchedules(params, baseRows.value));
+  }
+
+  /** 表单保存/审查提交回调：重拉合并（工作流态在内存仓库，基本信息以项目库为准） */
   function handleSuccess() {
-    setTableData(filterSchedules(parseMonthPicker(getForm().getFieldsValue())));
+    loadRows();
   }
 
   /** 选择月份（DatePicker 月份面板，YYYY-MM）→ 过滤用的 year+month 数值 */

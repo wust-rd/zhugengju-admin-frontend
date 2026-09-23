@@ -45,6 +45,7 @@
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressFillMonthlyPanel">
   import { Tag } from 'antdv-next';
+  import { onMounted, ref } from 'vue';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -59,6 +60,7 @@
     CONSTRUCTION_STAGE_OPTIONS,
     FILL_STATUS_OPTIONS,
     MONTH_OPTIONS,
+    fetchMonthlyRows,
     fillStatusTagProps,
     filterMonthlies,
     fiveReformLabel,
@@ -69,6 +71,7 @@
     renewalAreaBatchLabel,
     yearProgressPercent,
     type FillStatus,
+    type MonthlyItem,
   } from '@jeesite/ifco/api/ifco/impl-progress';
   import MonthlyForm from './monthly-form.vue';
 
@@ -85,7 +88,7 @@
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '当前形象进度', dataIndex: 'currentProgress', width: 140 },
     { title: '项目投资估算(亿元)', dataIndex: 'investEstimate', width: 130, align: 'right' },
-    { title: '年度投资计划(亿元)', dataIndex: 'yearPlanInvest', width: 130, align: 'right' },
+    { title: '年度投资计划(亿元)', dataIndex: 'yearInvest', width: 130, align: 'right' },
     { title: '年度累计完成投资(亿元)', dataIndex: 'yearAccumulatedInvest', width: 150, align: 'right' },
     { title: '当月完成投资(亿元)', dataIndex: 'monthCompletedInvest', width: 130, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgress', width: 110, slot: 'yearProgress' },
@@ -141,8 +144,11 @@
     value: item.key,
   }));
 
+  /** 实施库行基线（项目库 page 接口 library=implementing 合并内存工作流态） */
+  const baseRows = ref<MonthlyItem[]>([]);
+
   const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterMonthlies({}),
+    dataSource: [],
     columns,
     actionColumn,
     // 表头换行：表级 ellipsis 默认 true 会给列灌 ant-table-cell-ellipsis 截断表头（如「项目进度…」），关掉；列上显式 ellipsis: true 仍生效
@@ -201,16 +207,29 @@
         },
       ],
     },
-    // 无后端：查询/重置走本地过滤
+    // 查询/重置走本地过滤
     handleSearchInfoFn: (params: Recordable) => {
-      setTableData(filterMonthlies(params));
+      setTableData(filterMonthlies(params, baseRows.value));
       return params;
     },
   });
 
-  /** 表单保存回调：重铺数据（假数据为内存变更，刷新即恢复） */
+  onMounted(loadRows);
+
+  /** 拉取实施库行并按当前搜索条件重铺 */
+  async function loadRows() {
+    try {
+      baseRows.value = (await fetchMonthlyRows()) ?? [];
+    } catch (e) {
+      showMessage((e as Error)?.message || '实施库项目加载失败');
+      baseRows.value = [];
+    }
+    setTableData(filterMonthlies(getForm().getFieldsValue(), baseRows.value));
+  }
+
+  /** 表单保存/审查提交回调：重拉合并（工作流态在内存仓库，基本信息以项目库为准） */
   function handleSuccess() {
-    setTableData(filterMonthlies(getForm().getFieldsValue()));
+    loadRows();
   }
 
   /** 占位操作（TODO：随导出后端接入） */

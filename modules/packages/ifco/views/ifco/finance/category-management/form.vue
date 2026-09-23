@@ -3,7 +3,10 @@
 
   抽屉标题 = 资金分类填报 · 项目名 + 填报状态 Tag；副标题行 = 当前填报周期与截止
   天数；黄色横幅 = 金融政策案例匹配提示 + 投融政策链接（占位）。
-  两个区块：
+  三步步骤条（Stepper 兼页签）：①基本信息查看（共用只读组件 project-basic-info-form，
+  含实施条件三字段；演示行缺项目基础字段显示 /）→ ②资金填报（原两区块）→
+  ③确认提交（流程占位页）。
+  ②内两个区块：
   ①资金基本情况：本年完成投资总额（进度填报自动带入，只读）/ 投资概算金额
     （=本年完成投资总额×10000，计算只读）/ REITs 培育项目 / 项目资金缺口 /
     缺口资金是否已有资金安排 / 资金安排说明（安排=是时提交必填，红字提示）；
@@ -47,8 +50,21 @@
       </div>
     </div>
 
-    <!-- ① 资金基本情况 -->
-    <div class="bg-white rd-8px px-20px py-16px shadow-sm">
+    <!-- 三步步骤条（兼页签）：①基本信息查看（共用只读组件）→ ②资金填报（原始两区块）→ ③确认提交（占位） -->
+    <Stepper v-model:active="activeStep" :steps="stepItems" class="mb-16px" />
+
+    <!-- ① 基本信息查看（共用只读组件：项目基本信息 + 实施条件三字段；演示数据缺字段显示 /） -->
+    <Transition :name="slideName">
+      <div v-show="activeStep === 0">
+        <ProjectBasicInfoForm disabled />
+      </div>
+    </Transition>
+
+    <!-- ② 资金填报（原抽屉内容：资金基本情况 + 资金到位情况指标网格） -->
+    <Transition :name="slideName">
+      <div v-show="activeStep === 1">
+        <!-- 资金基本情况 -->
+        <div class="bg-white rd-8px px-20px py-16px shadow-sm">
       <div class="text-15px font-600 text-gray-900">资金基本情况</div>
       <div class="mt-12px grid grid-cols-1 gap-x-24px gap-y-12px md:grid-cols-2">
         <div class="flex items-center gap-8px">
@@ -113,7 +129,7 @@
       </div>
     </div>
 
-    <!-- ② 资金到位情况（指标网格：输入行可填，灰色自动行按公式实时求和） -->
+        <!-- 资金到位情况（指标网格：输入行可填，灰色自动行按公式实时求和） -->
     <div class="mt-16px bg-white rd-8px px-20px py-16px shadow-sm">
       <div class="text-15px font-600 text-gray-900">资金到位情况</div>
       <table class="mt-12px w-full text-14px">
@@ -169,7 +185,15 @@
       <div class="mt-8px text-12px text-gray-400">
         灰色行为自动计算行，无需填写；已填报的周期带入已填报的数据，未填报的周期置灰不可填。
       </div>
+      </div>
     </div>
+
+    <!-- ③ 确认提交（流程占位页：只表达流程状态，无实际内容） -->
+    <Transition :name="slideName">
+      <div v-show="activeStep === 2" class="bg-white rd-8px px-24px py-20px">
+        <div class="text-14px text-gray-400">【当前页面只表达流程状态，无实际内容】</div>
+      </div>
+    </Transition>
 
     <!-- 底部按钮：查看=关闭；编辑=取消/保存/提交 -->
     <template #footer>
@@ -182,10 +206,13 @@
   </BasicDrawer>
 </template>
 <script lang="ts" setup name="ViewsIfcoFinanceCategoryManagementForm">
-  import { computed, reactive, ref } from 'vue';
+  import { computed, reactive, ref, watch } from 'vue';
   import { Input, InputNumber, Select, Tag, TextArea } from 'antdv-next';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+  import { Stepper } from '@jeesite/ui';
+  import type { StepItem } from '@jeesite/ui';
+  import ProjectBasicInfoForm from '../../shared/project-basic-info-form.vue';
   import {
     FUND_FILL_PERIOD,
     FUND_ITEMS,
@@ -198,11 +225,32 @@
     type YesNo,
   } from '@jeesite/ifco/api/ifco/finance';
 
-  const emit = defineEmits(['success']);
+  const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
   const isView = ref(false);
   const record = ref<Partial<FundItem>>({});
+
+  // ── 三步步骤条（兼页签；v-show 不销毁表单，防丢填写中间态） ──────────
+  const STEP_TITLES = ['基本信息查看', '资金填报', '确认提交'];
+  const activeStep = ref(1);
+  const slideName = ref<'stage-left' | 'stage-right'>('stage-left');
+
+  watch(activeStep, (next, prev) => {
+    slideName.value = next >= prev ? 'stage-left' : 'stage-right';
+  });
+
+  const stepItems = computed<StepItem[]>(() =>
+    STEP_TITLES.map((title, index) => ({
+      title,
+      status:
+        index === activeStep.value
+          ? ('process' as const)
+          : index < activeStep.value
+            ? ('finish' as const)
+            : ('wait' as const),
+    })),
+  );
 
   /** 投资概算金额（万元）= 本年完成投资总额（亿元）× 10000（计算只读展示） */
   const statInvestWan = computed(() =>
@@ -241,6 +289,8 @@
     setDrawerProps({ loading: true });
     isView.value = !!data?.isView;
     record.value = (data || {}) as Partial<FundItem>;
+    // 查看落步骤①（基本信息查看）；编辑落步骤②（资金填报）
+    activeStep.value = isView.value ? 0 : 1;
 
     formState.reitsProject = record.value.reitsProject;
     formState.fundGap = record.value.fundGap;

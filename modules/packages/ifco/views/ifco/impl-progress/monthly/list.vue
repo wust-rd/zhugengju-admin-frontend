@@ -27,7 +27,7 @@
     <!-- 区住更局：审查列表（待区级审查出审查按钮） -->
     <MonthlyConfirmPanel v-show="activeTab === 'district'" role="district" />
     <!-- 项目推进组（市级）：审查列表（待市级审查出审查按钮） -->
-    <MonthlyConfirmPanel v-show="activeTab === 'urban'" role="urban" return-org="市住房和城市更新局" />
+    <MonthlyConfirmPanel v-show="activeTab === 'urban'" role="urban" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressMonthlyList">

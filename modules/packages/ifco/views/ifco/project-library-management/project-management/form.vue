@@ -1,10 +1,11 @@
 <!--
   ifco —— 在库项目管理（查看 / 新增 / 编辑 / 审核 一体表单抽屉）
 
-  打开模式（list 操作列传 mode）：view=只读；edit=编辑（页脚 取消/暂存/申请转库，
-  申请转库=校验+二次确认后 save+apply）；review=审核（页脚 取消/保存审查，
-  审查人员在步骤②③审查块填结论——责任部门「通过审查/退回修改」结论经
-  reviewSave 推进状态，按当前库决定结论落点：策划库=步骤②、储备库=步骤③）。
+  打开模式（list 操作列传 mode）：view=只读；edit=编辑（新增态页脚 取消/暂存/提交，
+  已有策划库项目页脚 取消/暂存/申请转库；提交与申请转库同链路=校验+二次确认后
+  save+apply；新增态步骤②起锁定，暂存/提交落库后重开才开放），review=审核（页脚
+  取消/保存审查，审查人员在步骤②③审查块填结论——责任部门「通过审查/退回修改」
+  结论经 reviewSave 推进状态，按当前库决定结论落点：策划库=步骤②、储备库=步骤③）。
 
   数据走 /a/ifco/lib 接口：打开时 detail 回填（联查列名小写 + reviews +
   transferLogs）；暂存=save（三组：base/reviewFiles/impl，impl 组同步写主表
@@ -23,7 +24,9 @@
 
   值口径与后端一致：status/library 英文枚举（Tag 经 STATUS_LABEL 转中文）；
   五改/批次/功能定位中文值；多选逗号分隔；文件 JSON 数组串 [{name,url,objectKey,size}]。
-  行政区/片区/主管部门/主体选项为前端静态字典；文件真实上传与 shp/dwg 解析
+  主体信息走接口字典：行业主管部门/责任部门选项=行业主管部门角色机构（industryDeptOptions）；
+  指定填报主体=全部机构+全部公司合并（reportOrgOptions，找不到可现场建公司 companyCreate）；
+  统筹主体/实施主体为纯字符串。行政区/片区仍为前端静态字典；文件真实上传与 shp/dwg 解析
   接口暂未接入（上传仅记录文件名，地理数据沿用已存 geo_json）。
 -->
 <template>
@@ -60,21 +63,13 @@
     <!-- 步骤内容（Stepper 兼页签，切换进入方向滑动；v-show 不销毁表单防丢填写中间态） -->
     <Transition :name="stageSlideName">
       <div v-show="activeStage === 0">
-        <BasicForm @register="registerForm">
-          <!-- 系统自动生成字段：只读输入框 + 右侧小字提示 -->
-          <template #projectCode="{ model, field }">
-            <div class="flex w-full items-center gap-8px">
-              <Input :value="model[field]" disabled placeholder="入库后自动生成" class="flex-1" />
-              <span class="shrink-0 text-12px text-gray-400">该字段为系统自动生成</span>
-            </div>
-          </template>
-          <template #inLibraryDate="{ model, field }">
-            <div class="flex w-full items-center gap-8px">
-              <Input :value="model[field]" disabled placeholder="入库后自动生成" class="flex-1" />
-              <span class="shrink-0 text-12px text-gray-400">该字段为系统自动生成</span>
-            </div>
-          </template>
-        </BasicForm>
+        <!-- 步骤① 整体走共用组件（可编辑态；表单定义/选项加载/建公司弹窗都在组件内） -->
+        <ProjectBasicInfoForm
+          ref="basicFormRef"
+          :disabled="mode !== 'edit'"
+          :identity-locked="identityLocked"
+          :show-impl-condition="false"
+        />
       </div>
     </Transition>
     <Transition :name="stageSlideName">
@@ -281,17 +276,21 @@
       <a-button class="mr-2" @click="closeDrawer"> {{ mode === 'view' ? '关闭' : '取消' }} </a-button>
       <template v-if="mode === 'edit'">
         <a-button class="mr-2" @click="handleSaveDraft"> 暂存 </a-button>
-        <a-button type="primary" :loading="submitting" @click="handleApplyTransfer"> 申请转库 </a-button>
+        <!-- 新增态=提交（保存并送审）；已有项目=申请转库；同一动作链路 -->
+        <a-button type="primary" :loading="submitting" @click="handleApplyTransfer">
+          {{ record.isNewRecord ? '提交' : '申请转库' }}
+        </a-button>
       </template>
       <a-button v-else-if="mode === 'review'" type="primary" :loading="submitting" @click="handleSaveReview">
         保存审查
       </a-button>
     </template>
+
   </BasicDrawer>
 </template>
 <script lang="ts" setup name="ViewsIfcoProjectLibraryManagementProjectManagementForm">
   import { computed, ref, watch } from 'vue';
-  import { Input, Modal, Tag, Upload } from 'antdv-next';
+  import { Modal, Tag, Upload } from 'antdv-next';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import type { FormActionType } from '@jeesite/core/components/Form/src/types/form';
   import { Button } from '@jeesite/core/components/Button';
@@ -301,23 +300,10 @@
   import type { StepItem } from '@jeesite/ui';
   import { match } from 'ts-pattern';
   import {
-    CITY_RENEWAL_AREA_LIST,
-    DISTRICTS,
-    DISTRICT_RENEWAL_AREA_LIST,
-    FIVE_REFORM_SUB_TYPE_MAP,
-    FIVE_REFORM_TYPE_OPTIONS,
-    FUND_SOURCE_OPTIONS,
-    FUNCTION_ORIENTATION_OPTIONS,
-    IMPLEMENT_ORG_LIST,
     INDUSTRY_SUPERVISION_DEPT_LIST,
     LIBRARY_LABELS,
-    PROJECT_AFFILIATION_OPTIONS,
-    RENEWAL_AREA_BATCH_OPTIONS,
-    RESPONSIBLE_DEPT_LIST,
-    COORDINATE_ORG_LIST,
     IMPL_REVIEW_SECTIONS,
     REVIEW_SECTIONS,
-    SIX_BRING_TYPE_OPTIONS,
     applyLibTransfer,
     emptyImplReviewResults,
     emptyReviewResults,
@@ -336,7 +322,6 @@
     type ImplReviewEntryMap,
     type LibDetail,
     type LibraryKey,
-    type ProjectAffiliation,
     type ProjectReviewEntryMap,
     type ProjectStatus,
     type ResponsibilityConclusion,
@@ -344,6 +329,7 @@
     type TransferLogItem,
   } from '@jeesite/ifco/api/ifco/project-library';
   import { GeoDataSection } from '@jeesite/shared/components/geo-data-section';
+  import ProjectBasicInfoForm from '../../shared/project-basic-info-form.vue';
   import ReviewBlock from './review-block';
 
   const emit = defineEmits(['success', 'register']);
@@ -370,11 +356,8 @@
   const implEditable = computed(() => mode.value === 'edit');
   const implDisabled = computed(() => mode.value !== 'edit');
 
-  /** 当前项目归属（条件必填/片区联动用；随表单选择实时更新） */
-  const currentAffiliation = ref<ProjectAffiliation | ''>('');
-
-  /** 当前已选实施主体（指定填报主体的选项来源与必填校验；随表单选择实时更新） */
-  const currentImplementOrgList = ref<string[]>([]);
+  /** 步骤① 共用组件引用（回填/取值/校验/选项映射都经它） */
+  const basicFormRef = ref<InstanceType<typeof ProjectBasicInfoForm>>();
 
   // ── 审查文件页签：四个文件清单（名称级，多文件不限量）+ 地理数据 ──
   type UploadFileItem = { uid: string; name: string };
@@ -466,7 +449,10 @@
   });
 
   const stepItems = computed<StepItem[]>(() => {
-    const disabledOf = (index: number) => !accessibleStages.value.includes(index);
+    // 新增态：项目尚未落库，仅步骤①（策划库入库）可进；暂存/提交成功后关抽屉，
+    // 再从列表打开即为策划库项目，按 accessibleStages 开放①②
+    const disabledOf = (index: number) =>
+      record.value.isNewRecord ? index !== 0 : !accessibleStages.value.includes(index);
     // 已退出：整条无强调色（tone=gray），无完成勾，步骤按退出环节开放查看
     if (isExited.value) {
       return STAGE_TITLES.map((title, index) => ({
@@ -483,341 +469,11 @@
     }));
   });
 
-  // ── 表单 ────────────────────────────────────────────────────────────
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
-
-  function toOptions(list: readonly string[]) {
-    return list.map((name) => ({ label: name, value: name }));
-  }
-
+  // ── 表单工具 ──────────────────────────────────────────────────────────
   /** 时间戳字符串 → 日期段（YYYY-MM-DD） */
   function toDateStr(value?: string | null): string {
     return typeof value === 'string' ? value.slice(0, 10) : '';
   }
-
-  /** 片区名称三件套显隐：市级/区级片区内显示，片区外零星隐藏（exhaustive） */
-  function showRenewalAreaFields(affiliation: ProjectAffiliation | ''): boolean {
-    return match(affiliation)
-      .with('market', 'district', () => true)
-      .with('scattered', '', () => false)
-      .exhaustive();
-  }
-
-  /** 片区名称下拉选项：市级=前期规划已入库片区，区级/零星=区级片区清单 */
-  function renewalAreaNameOptions(affiliation: ProjectAffiliation | ''): string[] {
-    return match(affiliation)
-      .with('market', () => CITY_RENEWAL_AREA_LIST.map((area) => area.name))
-      .with('district', 'scattered', '', () => DISTRICT_RENEWAL_AREA_LIST)
-      .exhaustive();
-  }
-
-  /** 市级更新片区内必填（否则不必填）的分情况校验 */
-  function requiredWhenCityArea(message: string) {
-    return {
-      validator: (_rule: unknown, value: unknown) => {
-        const empty = value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length);
-        if (currentAffiliation.value === 'market' && empty) return Promise.reject(message);
-        return Promise.resolve();
-      },
-    };
-  }
-
-  /** 选市级片区后带出 片区批次/功能定位（带出后不可改）；切归属时清空片区三件套 */
-  function handleRenewalAreaChange(value: unknown) {
-    const area = CITY_RENEWAL_AREA_LIST.find((item) => item.name === value);
-    setFieldsValue({
-      renewalAreaBatch: area?.batch ?? '',
-      functionOrientationList: area ? [...area.orientationList] : [],
-    });
-  }
-
-  function handleAffiliationChange(value: unknown) {
-    currentAffiliation.value = (value as ProjectAffiliation) ?? '';
-    setFieldsValue({ renewalAreaName: '', renewalAreaBatch: '', functionOrientationList: [] });
-  }
-
-  /** 实施主体变化：同步选项来源，并把已不在清单内的指定填报主体清掉 */
-  function handleImplementOrgListChange(value: unknown) {
-    currentImplementOrgList.value = (value as string[]) ?? [];
-    if (!currentImplementOrgList.value.length) {
-      setFieldsValue({ reportOrg: '' });
-    }
-  }
-
-  const inputFormSchemas: FormSchema[] = [
-    // ── 项目基本信息 ──────────────────────────────────────────────────
-    {
-      label: '项目基本信息',
-      field: 'basicInfoGroup',
-      component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
-    },
-    {
-      label: '项目编号',
-      field: 'projectCode',
-      component: 'Input',
-      slot: 'projectCode',
-    },
-    {
-      label: '入库时间',
-      field: 'inLibraryDate',
-      component: 'Input',
-      slot: 'inLibraryDate',
-    },
-    {
-      label: '项目名称',
-      field: 'projectName',
-      component: 'Input',
-      componentProps: { maxlength: 50, placeholder: '请输入项目名称' },
-      colProps: { md: 24, lg: 24 },
-      rules: [{ required: true, message: '请输入项目名称' }],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '项目代码',
-      field: 'projectApprovalCode',
-      component: 'Input',
-      componentProps: { maxlength: 50, placeholder: '发改委审核备案后赋码' },
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '行政区',
-      field: 'district',
-      component: 'Select' as const,
-      componentProps: { options: districtOptions, allowClear: true, placeholder: '请选择行政区' },
-      rules: [{ required: true, message: '请选择行政区' }],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '项目归属',
-      field: 'projectAffiliation',
-      component: 'Select' as const,
-      componentProps: {
-        options: [...PROJECT_AFFILIATION_OPTIONS],
-        allowClear: true,
-        placeholder: '请选择项目归属',
-        onChange: handleAffiliationChange,
-      },
-      rules: [{ required: true, message: '请选择项目归属' }],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '片区名称',
-      field: 'renewalAreaName',
-      component: 'Select' as const,
-      componentProps: ({ formModel }) => ({
-        options: toOptions(renewalAreaNameOptions(formModel.projectAffiliation ?? '')),
-        allowClear: true,
-        placeholder: '请选择片区',
-        onChange: handleRenewalAreaChange,
-      }),
-      ifShow: ({ values }) => showRenewalAreaFields(values.projectAffiliation ?? ''),
-      rules: [requiredWhenCityArea('市级更新片区内项目必选片区名称')],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '片区功能定位',
-      field: 'functionOrientationList',
-      component: 'Select' as const,
-      componentProps: {
-        mode: 'multiple',
-        options: [...FUNCTION_ORIENTATION_OPTIONS],
-        placeholder: '选择片区后自动带出',
-      },
-      ifShow: ({ values }) => values.projectAffiliation === 'market',
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '片区批次',
-      field: 'renewalAreaBatch',
-      component: 'Select' as const,
-      componentProps: { options: [...RENEWAL_AREA_BATCH_OPTIONS], placeholder: '选择片区后自动带出' },
-      ifShow: ({ values }) => values.projectAffiliation === 'market',
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '五改类别',
-      field: 'fiveReformType',
-      component: 'Select' as const,
-      componentProps: { options: [...FIVE_REFORM_TYPE_OPTIONS], allowClear: true, placeholder: '请选择五改类别' },
-      rules: [requiredWhenCityArea('市级更新片区内项目必选五改类别')],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '五改细分类别',
-      field: 'fiveReformSubType',
-      component: 'Select' as const,
-      componentProps: ({ formModel }) => ({
-        options: toOptions(FIVE_REFORM_SUB_TYPE_MAP[formModel.fiveReformType ?? ''] ?? []),
-        allowClear: true,
-        placeholder: '请选择五改细分类别',
-      }),
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '六带类型',
-      field: 'sixBringTypeList',
-      component: 'Select' as const,
-      componentProps: {
-        mode: 'multiple',
-        options: toOptions(SIX_BRING_TYPE_OPTIONS),
-        allowClear: true,
-        placeholder: '请选择六带类型',
-      },
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '建设地点',
-      field: 'constructionSite',
-      component: 'Input',
-      componentProps: { maxlength: 50, placeholder: '请输入建设地点' },
-    },
-    {
-      label: '主要建设内容',
-      field: 'mainConstructionContent',
-      component: 'InputTextArea',
-      componentProps: { maxlength: 500, rows: 3, placeholder: '请输入主要建设内容' },
-      colProps: { md: 24, lg: 24 },
-      rules: [{ required: true, message: '请输入主要建设内容' }],
-    },
-    {
-      label: '备注',
-      field: 'remarks',
-      component: 'InputTextArea',
-      componentProps: { maxlength: 500, rows: 2, placeholder: '请输入备注' },
-      colProps: { md: 24, lg: 24 },
-    },
-    // ── 投资与资金 ────────────────────────────────────────────────────
-    {
-      label: '投资与资金',
-      field: 'investFundGroup',
-      component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
-    },
-    {
-      label: '总体投资估算(亿元)',
-      field: 'totalInvestEstimate',
-      component: 'InputNumber',
-      componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '片区项目投资合计，自动计算' },
-      dynamicDisabled: () => true,
-    },
-    {
-      label: '项目投资估算(亿元)',
-      field: 'investEstimate',
-      component: 'InputNumber',
-      componentProps: { precision: 4, min: 0, style: 'width: 100%', placeholder: '请输入项目投资估算' },
-      rules: [{ required: true, message: '请输入项目投资估算' }],
-    },
-    {
-      label: '资金来源',
-      field: 'fundSourceList',
-      component: 'Select' as const,
-      componentProps: {
-        mode: 'multiple',
-        options: FUND_SOURCE_OPTIONS,
-        allowClear: true,
-        placeholder: '请选择资金来源',
-      },
-      rules: [{ required: true, message: '请选择资金来源' }],
-    },
-    {
-      label: '资金情况备注说明',
-      field: 'fundSituationRemark',
-      component: 'InputTextArea',
-      componentProps: { maxlength: 500, rows: 2, placeholder: '请输入资金情况备注说明' },
-      colProps: { md: 24, lg: 24 },
-    },
-    // ── 主体信息 ──────────────────────────────────────────────────────
-    {
-      label: '主体信息',
-      field: 'orgGroup',
-      component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
-    },
-    {
-      label: '行业主管部门',
-      field: 'industrySupervisionDeptList',
-      component: 'Select' as const,
-      componentProps: {
-        mode: 'multiple',
-        options: toOptions(INDUSTRY_SUPERVISION_DEPT_LIST),
-        allowClear: true,
-        placeholder: '请选择行业主管部门',
-      },
-      rules: [{ required: true, message: '请选择行业主管部门' }],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '责任部门',
-      field: 'responsibleDept',
-      component: 'Select' as const,
-      componentProps: { options: toOptions(RESPONSIBLE_DEPT_LIST), allowClear: true, placeholder: '请选择责任部门' },
-      rules: [{ required: true, message: '请选择责任部门' }],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '统筹主体',
-      field: 'coordinateOrgList',
-      component: 'Select' as const,
-      componentProps: {
-        mode: 'multiple',
-        options: toOptions(COORDINATE_ORG_LIST),
-        allowClear: true,
-        placeholder: '请选择统筹主体',
-      },
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '实施主体',
-      field: 'implementOrgList',
-      component: 'Select' as const,
-      componentProps: {
-        mode: 'multiple',
-        options: toOptions(IMPLEMENT_ORG_LIST),
-        allowClear: true,
-        placeholder: '请选择实施主体',
-        onChange: handleImplementOrgListChange,
-      },
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '指定填报主体',
-      field: 'reportOrg',
-      component: 'Select' as const,
-      componentProps: ({ formModel }) => ({
-        options: toOptions((formModel.implementOrgList as string[]) ?? []),
-        allowClear: true,
-        placeholder: '从已选实施主体中指定',
-      }),
-      rules: [
-        {
-          validator: (_rule: unknown, value: unknown) =>
-            currentImplementOrgList.value.length > 0 && !value
-              ? Promise.reject('存在实施主体时必选指定填报主体')
-              : Promise.resolve(),
-        },
-      ],
-      dynamicDisabled: () => identityLocked.value,
-    },
-    {
-      label: '填报人',
-      field: 'reportPerson',
-      component: 'Input',
-      componentProps: { maxlength: 50, placeholder: '请输入填报人' },
-    },
-    {
-      label: '联系方式',
-      field: 'reportPhone',
-      component: 'Input',
-      componentProps: { maxlength: 20, placeholder: '请输入联系方式' },
-    },
-  ];
-
-  const [registerForm, { resetFields, setFieldsValue, validate, getFieldsValue, setProps }] = useForm({
-    labelWidth: 150,
-    schemas: inputFormSchemas,
-    baseColProps: { md: 24, lg: 12 },
-  });
 
   /** 审查文件页签的独立表单（FormGroup 分区 + 插槽承载上传控件） */
   const reviewFormSchemas: FormSchema[] = [
@@ -1143,13 +799,13 @@
 
   const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data: any) => {
     setDrawerProps({ loading: true });
-    await resetFields();
+    basicFormRef.value?.resetFields();
     mode.value = (data?.mode as FormMode) ?? 'edit';
     record.value = data || {};
     record.value.isNewRecord = data?.isNewRecord ?? !data?.p_uid;
     detail.value = null;
 
-    // 已有项目：详情接口回填（联查列 + reviews + transferLogs）
+    // 已有项目：详情接口回填（联查列 + subjects + reviews + transferLogs）
     if (!record.value.isNewRecord) {
       detail.value = await fetchLibDetail(record.value.p_uid);
       record.value = { ...record.value, ...detail.value };
@@ -1157,15 +813,18 @@
     const row = record.value;
     // 转储备库后身份字段锁定（策划库内可编辑；新增视为策划库可编辑）
     identityLocked.value = !record.value.isNewRecord && row.library !== 'planning';
-    currentAffiliation.value = (row.project_affiliation as ProjectAffiliation) ?? '';
-    currentImplementOrgList.value = splitList(row.implement_org_list);
     applyFileRefs(row);
     if (detail.value) applyReviews(detail.value);
     if (reviewFormReady.value) applyReviewFormValues(row);
     if (implFormReady.value) applyImplFormValues(row);
     // 步骤页签固定落步骤①；退出信息在步骤条上方灰条展示，不走表单
     activeStage.value = 0;
-    await setFieldsValue({
+    const subjects = (row.subjects ?? {}) as {
+      industryDepts?: { code: string; name: string }[];
+      responsibleDept?: { code: string; name: string } | null;
+      reportOrg?: { refType: string; code: string; name: string } | null;
+    };
+    await basicFormRef.value?.setFieldsValue({
       projectCode: row.lib_project_code ?? '',
       inLibraryDate: toDateStr(row.in_library_date),
       projectName: row.pj_name ?? '',
@@ -1184,25 +843,35 @@
       investEstimate: row.inv_bil == null || row.inv_bil === '' ? undefined : Number(row.inv_bil),
       fundSourceList: splitList(row.fund_src),
       fundSituationRemark: row.fund_situation_remark ?? '',
-      industrySupervisionDeptList: splitList(row.industry_dept_list),
-      responsibleDept: row.resp_dept ?? '',
-      coordinateOrgList: splitList(row.coordinate_org_list),
-      implementOrgList: splitList(row.implement_org_list),
-      reportOrg: row.report_org ?? '',
+      industrySupervisionDeptList: (subjects.industryDepts ?? []).map((item) => item.code),
+      responsibleDept: subjects.responsibleDept?.code ?? '',
+      coordinateOrg: row.coordinate_org_list ?? '',
+      implementOrg: row.implement_org_list ?? '',
+      reportOrg: subjects.reportOrg ? `${subjects.reportOrg.refType}:${subjects.reportOrg.code}` : '',
       reportPerson: row.report_person ?? '',
       reportPhone: row.report_phone ?? '',
       remarks: row.remarks ?? '',
     });
-    // 步骤①②：非 edit 模式或已转出策划库均只读；步骤③申报字段仅 edit 模式放开（审查块独立控制）
-    await setProps({ disabled: formDisabled.value });
+    // 步骤①只读随组件 props（disabled/identityLocked）；审查块独立控制
     setReviewProps({ disabled: formDisabled.value });
     setImplProps({ disabled: implDisabled.value });
     setDrawerProps({ loading: false });
   });
 
   // ── 组装提交 ───────────────────────────────────────────────────────
-  /** 步骤①表单值 → save.base 组（多选数组 → 逗号/顿号分隔串） */
+  /** 步骤①表单值 → save.base 组（主体字段：行业主管部门/责任部门→{code,name} 数组，
+   *  指定填报主体→{refType,code,name}；统筹/实施主体为单值字符串） */
   function buildBase(values: Recordable): Recordable {
+    const { industryDeptOptionMap, reportOrgOptionMap } = basicFormRef.value?.getOptionMaps() ?? {
+      industryDeptOptionMap: new Map<string, string>(),
+      reportOrgOptionMap: new Map<string, { refType: string; code: string; name: string }>(),
+    };
+    const industryDeptOf = (code: string) => ({
+      code,
+      name: industryDeptOptionMap.get(code) ?? code,
+    });
+    const reportOrgValue = values.reportOrg as string | undefined;
+    const reportOrg = reportOrgValue ? reportOrgOptionMap.get(reportOrgValue) : undefined;
     return {
       projectName: values.projectName,
       projectApprovalCode: values.projectApprovalCode ?? '',
@@ -1220,11 +889,11 @@
       investEstimate: values.investEstimate,
       fundSources: (values.fundSourceList ?? []).join(','),
       fundSituationRemark: values.fundSituationRemark ?? '',
-      industryDepts: (values.industrySupervisionDeptList ?? []).join(','),
-      responsibleDept: values.responsibleDept,
-      coordinateOrgs: (values.coordinateOrgList ?? []).join(','),
-      implementOrgs: (values.implementOrgList ?? []).join(','),
-      reportOrg: values.reportOrg ?? '',
+      industryDepts: (values.industrySupervisionDeptList ?? []).map(industryDeptOf),
+      responsibleDept: values.responsibleDept ? industryDeptOf(values.responsibleDept) : null,
+      coordinateOrg: values.coordinateOrg ?? '',
+      implementOrg: values.implementOrg ?? '',
+      reportOrg: reportOrg ?? null,
       reportPerson: values.reportPerson ?? '',
       reportPhone: values.reportPhone ?? '',
       remarks: values.remarks ?? '',
@@ -1267,7 +936,7 @@
   /** 校验基本信息表单；未通过时提示并返回 undefined */
   async function validateOrNotify(): Promise<Recordable | undefined> {
     try {
-      return await validate();
+      return await basicFormRef.value?.validate();
     } catch (error: any) {
       if (error && error.errorFields) {
         showMessage(error.message || '请完善必填项');
@@ -1302,21 +971,25 @@
     }
   }
 
-  /** 申请转库：先过表单校验，再二次确认；确认后 save + apply（轮次+1 → 审核中） */
+  /** 提交（新增态）/申请转库（已有项目）：先过表单校验，再二次确认；
+   *  确认后 save + apply（轮次+1 → 审核中） */
   async function handleApplyTransfer() {
+    const isNew = record.value.isNewRecord;
     const values = await validateOrNotify();
     if (values === undefined) return;
     Modal.confirm({
-      title: '申请转库',
-      content: '申请后项目将进入「审核中」，由行业主管部门与责任部门审核，确认申请吗？',
-      okText: '确认申请',
+      title: isNew ? '提交' : '申请转库',
+      content: isNew
+        ? '提交后项目将进入「审核中」，由行业主管部门与责任部门审核，确认提交吗？'
+        : '申请后项目将进入「审核中」，由行业主管部门与责任部门审核，确认申请吗？',
+      okText: isNew ? '确认提交' : '确认申请',
       cancelText: '取消',
       onOk: async () => {
         submitting.value = true;
         try {
           const saved = await saveLibProject(buildSaveReq(values));
           await applyLibTransfer(saved.pUid);
-          showMessage('已申请转库，项目进入审核中');
+          showMessage(isNew ? '已提交，项目进入审核中' : '已申请转库，项目进入审核中');
           closeDrawer();
           emit('success', {});
         } finally {

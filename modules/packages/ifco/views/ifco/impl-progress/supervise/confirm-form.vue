@@ -127,7 +127,7 @@
     type SuperviseItem,
   } from '@jeesite/ifco/api/ifco/impl-progress';
 
-  const emit = defineEmits(['success']);
+  const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
 
   const isView = ref(false);
