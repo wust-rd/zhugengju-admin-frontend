@@ -69,107 +69,114 @@
         <Tabs v-model:active-key="activeMonthKey" type="card">
           <TabPane v-for="month in monthTabs" :key="String(month)" :tab="`${month}月`" />
         </Tabs>
-        <BasicForm @register="handleProgressFormRegister" />
-        <BasicForm @register="handleReportFormRegister">
-          <!-- 年度投资进度（派生只读：本年度累计完成投资/年度投资计划，随输入实时联动） -->
-          <template #yearProgressRate="{ model }">
-            {{
-              yearProgressPercent({
-                yearAccumulatedInvest: Number(model.yearAccumulatedInvest ?? 0),
-                yearInvest: record.yearInvest,
-              })
-            }}
-          </template>
-          <!-- 审查结果（两级：区级=项目所在行政区住更局 / 市级=项目推进组；按轮次分组，
+        <!-- 月度进度信息：key=月份，切页签时容器重挂载触发方向性滑入动画
+             （表单值切换前已暂存 entries，重挂载不丢数据） -->
+        <Transition :name="monthSlideName">
+          <div :key="activeMonth">
+            <BasicForm @register="handleProgressFormRegister" />
+
+            <BasicForm @register="handleReportFormRegister">
+              <!-- 年度投资进度（派生只读：本年度累计完成投资/年度投资计划，随输入实时联动） -->
+              <template #yearProgressRate="{ model }">
+                {{
+                  yearProgressPercent({
+                    yearAccumulatedInvest: Number(model.yearAccumulatedInvest ?? 0),
+                    yearInvest: record.yearInvest,
+                  })
+                }}
+              </template>
+              <!-- 审查结果（两级：区级=项目所在行政区住更局 / 市级=项目推进组；按轮次分组，
                历史轮只读，本层级待审查的当前轮可填——与倒排工期计划同款） -->
-          <template #reviewBlock>
-            <template v-for="round in reviewRounds" :key="round.round">
-              <div class="mt-8px mb-8px flex items-center gap-6px">
-                <span class="i-ant-design:audit-outlined text-16px text-#1677ff"></span>
-                <span class="text-14px font-500 text-gray-800">第{{ roundLabel(round.round) }}次审查</span>
-              </div>
-              <!-- 区级审查（该轮有区级记录或为当前轮即显示） -->
-              <div v-if="round.district || round.isCurrent">
-                <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
-                  <span class="shrink-0 text-14px font-500 text-gray-800"
-                    >{{ record.district }}住更局审查（区级）</span
-                  >
-                </div>
-                <div class="ml-64px">
-                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
-                  <div class="ml-16px py-8px">
-                    <Select
-                      :value="conclusionValue(round, 'district')"
-                      :options="CONCLUSION_OPTIONS"
-                      :disabled="!conclusionEditable(round, 'district')"
-                      allow-clear
-                      placeholder="请选择审查结论"
-                      style="width: 240px"
-                      @update:value="(value) => onConclusionUpdate(round, 'district', value)"
-                    />
+              <template #reviewBlock>
+                <template v-for="round in reviewRounds" :key="round.round">
+                  <div class="mt-8px mb-8px flex items-center gap-6px">
+                    <span class="i-ant-design:audit-outlined text-16px text-#1677ff"></span>
+                    <span class="text-14px font-500 text-gray-800">第{{ roundLabel(round.round) }}次审查</span>
                   </div>
-                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查意见</div>
-                  <div class="ml-16px py-8px">
-                    <TextArea
-                      :value="opinionValue(round, 'district')"
-                      :rows="2"
-                      :maxlength="200"
-                      :disabled="!conclusionEditable(round, 'district')"
-                      placeholder="请输入审查意见（退回修改时必填）"
-                      @update:value="(value) => onOpinionUpdate(round, 'district', value)"
-                    />
+                  <!-- 区级审查（该轮有区级记录或为当前轮即显示） -->
+                  <div v-if="round.district || round.isCurrent">
+                    <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
+                      <span class="shrink-0 text-14px font-500 text-gray-800"
+                        >{{ record.district }}住更局审查（区级）</span
+                      >
+                    </div>
+                    <div class="ml-64px">
+                      <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
+                      <div class="ml-16px py-8px">
+                        <Select
+                          :value="conclusionValue(round, 'district')"
+                          :options="CONCLUSION_OPTIONS"
+                          :disabled="!conclusionEditable(round, 'district')"
+                          allow-clear
+                          placeholder="请选择审查结论"
+                          style="width: 240px"
+                          @update:value="(value) => onConclusionUpdate(round, 'district', value)"
+                        />
+                      </div>
+                      <div class="px-8px py-4px text-14px font-500 text-gray-800">审查意见</div>
+                      <div class="ml-16px py-8px">
+                        <TextArea
+                          :value="opinionValue(round, 'district')"
+                          :rows="2"
+                          :maxlength="200"
+                          :disabled="!conclusionEditable(round, 'district')"
+                          placeholder="请输入审查意见（退回修改时必填）"
+                          @update:value="(value) => onOpinionUpdate(round, 'district', value)"
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <!-- 市级审查（该轮有市级记录，或当前轮已流转到市级） -->
-              <div v-if="round.urban || (round.isCurrent && urbanStageReached)" class="mt-16px">
-                <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
-                  <span class="shrink-0 text-14px font-500 text-gray-800">市级审查（项目推进组）</span>
-                </div>
-                <div class="ml-64px">
-                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
-                  <div class="ml-16px py-8px">
-                    <Select
-                      :value="conclusionValue(round, 'urban')"
-                      :options="CONCLUSION_OPTIONS"
-                      :disabled="!conclusionEditable(round, 'urban')"
-                      allow-clear
-                      placeholder="请选择审查结论"
-                      style="width: 240px"
-                      @update:value="(value) => onConclusionUpdate(round, 'urban', value)"
-                    />
+                  <!-- 市级审查（该轮有市级记录，或当前轮已流转到市级） -->
+                  <div v-if="round.urban || (round.isCurrent && urbanStageReached)" class="mt-16px">
+                    <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
+                      <span class="shrink-0 text-14px font-500 text-gray-800">市级审查（项目推进组）</span>
+                    </div>
+                    <div class="ml-64px">
+                      <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
+                      <div class="ml-16px py-8px">
+                        <Select
+                          :value="conclusionValue(round, 'urban')"
+                          :options="CONCLUSION_OPTIONS"
+                          :disabled="!conclusionEditable(round, 'urban')"
+                          allow-clear
+                          placeholder="请选择审查结论"
+                          style="width: 240px"
+                          @update:value="(value) => onConclusionUpdate(round, 'urban', value)"
+                        />
+                      </div>
+                      <div class="px-8px py-4px text-14px font-500 text-gray-800">审查意见</div>
+                      <div class="ml-16px py-8px">
+                        <TextArea
+                          :value="opinionValue(round, 'urban')"
+                          :rows="2"
+                          :maxlength="200"
+                          :disabled="!conclusionEditable(round, 'urban')"
+                          placeholder="请输入审查意见（退回修改时必填）"
+                          @update:value="(value) => onOpinionUpdate(round, 'urban', value)"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div class="px-8px py-4px text-14px font-500 text-gray-800">审查意见</div>
-                  <div class="ml-16px py-8px">
-                    <TextArea
-                      :value="opinionValue(round, 'urban')"
-                      :rows="2"
-                      :maxlength="200"
-                      :disabled="!conclusionEditable(round, 'urban')"
-                      placeholder="请输入审查意见（退回修改时必填）"
-                      @update:value="(value) => onOpinionUpdate(round, 'urban', value)"
-                    />
+                </template>
+                <div v-if="!reviewRounds.length" class="mt-12px text-14px text-gray-400">暂无审查记录</div>
+              </template>
+              <!-- 里程碑节点：形象进度照片上传（picture-card，不超 9 张；before-upload 拦截仅演示记录文件名） -->
+              <template #milestonePhotos>
+                <Upload
+                  v-model:file-list="milestonePhotoList"
+                  list-type="picture-card"
+                  accept="image/*"
+                  :before-upload="() => false"
+                  :disabled="isView || isReview"
+                >
+                  <div v-if="milestonePhotoList.length < 9" class="flex h-full items-center justify-center">
+                    <span class="i-ant-design:plus-outlined text-20px text-gray-500"></span>
                   </div>
-                </div>
-              </div>
-            </template>
-            <div v-if="!reviewRounds.length" class="mt-12px text-14px text-gray-400">暂无审查记录</div>
-          </template>
-          <!-- 里程碑节点：形象进度照片上传（picture-card，不超 9 张；before-upload 拦截仅演示记录文件名） -->
-          <template #milestonePhotos>
-            <Upload
-              v-model:file-list="milestonePhotoList"
-              list-type="picture-card"
-              accept="image/*"
-              :before-upload="() => false"
-              :disabled="isView || isReview"
-            >
-              <div v-if="milestonePhotoList.length < 9" class="flex h-full items-center justify-center">
-                <span class="i-ant-design:plus-outlined text-20px text-gray-500"></span>
-              </div>
-            </Upload>
-          </template>
-        </BasicForm>
+                </Upload>
+              </template>
+            </BasicForm>
+          </div>
+        </Transition>
       </div>
     </Transition>
 
@@ -476,9 +483,13 @@
     };
   }
 
-  // 用户切月份页签：暂存旧月份 → 回填新月份 → 已过月份禁改
-  watch(activeMonth, (next) => {
+  /** 月份切换滑入方向：页签为当月→1月倒序，切到更小月份=往右走（stage-left 自右滑入） */
+  const monthSlideName = ref<'stage-left' | 'stage-right'>('stage-left');
+
+  // 用户切月份页签：暂存旧月份 → 判向 → 回填新月份 → 已过月份禁改
+  watch(activeMonth, (next, prev) => {
     if (appliedMonth && next !== appliedMonth) stashEntry(appliedMonth);
+    monthSlideName.value = prev == null || next < prev ? 'stage-left' : 'stage-right';
     appliedMonth = next;
     if (progressFormReady.value) applyProgressFormValues();
   });
@@ -775,3 +786,23 @@
     emit('success', target);
   }
 </script>
+
+<style>
+  /* 月份切换/步骤切换滑入（与 schedule-form 同款；本文件自带避免依赖其它组件的全局样式） */
+  .stage-left-enter-active,
+  .stage-right-enter-active {
+    transition:
+      transform 0.24s ease,
+      opacity 0.24s ease;
+  }
+
+  .stage-left-enter-from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+
+  .stage-right-enter-from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+</style>

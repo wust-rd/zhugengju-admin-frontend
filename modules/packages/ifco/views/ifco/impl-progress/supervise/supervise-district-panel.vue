@@ -2,9 +2,12 @@
   ifco —— 区级实施进度管理 · 提示/督办列表面板
 
   搜索表单（选择年份/选择月份/下发编号/处理状态）+ 工具栏（一键导出）+ 表格
-  （下发编号 维度整单行）。操作列按处理状态变化：待处理/处理中=查看+去处理，
-  已处理=仅查看。去处理走 handle-form.vue 处理抽屉（下发信息只读 +
-  涉及片区和项目的处理情况 + 区级处理情况）。
+  （仅市级已下发的单据：下发编号/类型/行政区/巡查月份/下发状态/处理截止日期/
+  处理完成日期/处理状态）。操作列按处理状态变化：待处理/处理中=查看+去处理；
+  待确认（已提交市级）/已处理/已确认=仅查看。去处理/查看走 dispatch-form.vue
+  处理模式抽屉（与市级新增同构：下发信息+下发对象整表只读，处理结果组全部
+  可编辑——处理完成时间/处理情况说明/上传处理照片（仅图片）/上传处理附件
+  （必填拦截），提交后处理状态转待确认，回到市级确认）。
 -->
 <template>
   <div>
@@ -12,9 +15,9 @@
       <template #toolbar>
         <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
       </template>
-      <template #superviseType="{ record }">
-        <Tag :color="record.superviseType === '督办' ? 'orange' : 'blue'" style="border-radius: 10px">
-          {{ record.superviseType }}
+      <template #dispatchStatus="{ record }">
+        <Tag v-bind="dispatchStatusTagProps(record.dispatchStatus)" style="border-radius: 10px">
+          {{ record.dispatchStatus }}
         </Tag>
       </template>
       <template #handleStatus="{ record }">
@@ -24,8 +27,8 @@
       </template>
     </BasicTable>
 
-    <!-- 查看/去处理一体处理抽屉 -->
-    <HandleForm @register="registerDrawer" @success="handleSuccess" />
+    <!-- 查看/去处理一体处理抽屉（dispatch-form 区级处理模式） -->
+    <DispatchForm @register="registerDrawer" @success="handleSuccess" />
   </div>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressDistrictSupervisePanel">
@@ -38,32 +41,36 @@
   import {
     HANDLE_STATUS_OPTIONS,
     MONTH_OPTIONS,
+    dispatchStatusTagProps,
     filterSupervises,
     handleStatusTagProps,
     type HandleStatus,
   } from '@jeesite/ifco/api/ifco/impl-progress';
-  import HandleForm from './handle-form.vue';
+  import DispatchForm from './dispatch-form.vue';
 
   const { showMessage } = useMessage();
 
-  /** 下发编号固定左侧，处理状态固定右侧（与操作列同翼） */
+  /** 下发编号固定左侧，处理状态/操作列固定右侧；只展示已下发单据（待下发不进区级视野） */
   const columns: BasicColumn[] = [
     { title: '下发编号', dataIndex: 'dispatchNo', width: 180, fixed: 'left' },
-    { title: '类型', dataIndex: 'superviseType', width: 90, slot: 'superviseType' },
-    { title: '处理状态', dataIndex: 'districtHandleStatus', width: 100, fixed: 'right', slot: 'handleStatus' },
-    { title: '下发部门', dataIndex: 'dispatchOrg', width: 110 },
-    { title: '下发时间', dataIndex: 'dispatchDate', width: 110 },
+    { title: '类型', dataIndex: 'superviseType', width: 90 },
+    { title: '行政区', dataIndex: 'district', width: 110 },
+    { title: '巡查月份', dataIndex: 'inspectMonth', width: 100 },
+    { title: '下发状态', dataIndex: 'dispatchStatus', width: 100, slot: 'dispatchStatus' },
     { title: '处理截止日期', dataIndex: 'deadline', width: 110 },
-    { title: '具体问题', dataIndex: 'problem', width: 260, ellipsis: true },
+    { title: '处理完成日期', dataIndex: 'districtHandleDate', width: 110 },
+    { title: '处理状态', dataIndex: 'districtHandleStatus', width: 100, fixed: 'right', slot: 'handleStatus' },
   ];
 
   type SuperviseAction = '查看' | '去处理';
 
-  /** 操作列按钮按处理状态变化（exhaustive：新增状态漏配时编译报错） */
+  /** 操作列按钮按处理状态变化（exhaustive：新增状态漏配时编译报错）：
+   * 待处理/处理中=查看+去处理；待确认（已提交市级）/已处理/已确认=仅查看；
+   * 待下发不进区级视野，分支仅为穷尽性兜底 */
   function actionsByStatus(status: HandleStatus): SuperviseAction[] {
     return match(status)
-      .with('待处理', '处理中', () => ['查看', '去处理'] as SuperviseAction[])
-      .with('已处理', '已确认', () => ['查看'] as SuperviseAction[])
+      .with('待下发', '待处理', '处理中', () => ['查看', '去处理'] as SuperviseAction[])
+      .with('待确认', '已处理', '已确认', () => ['查看'] as SuperviseAction[])
       .exhaustive();
   }
 
@@ -79,10 +86,10 @@
 
   const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
 
-  /** 打开处理抽屉：查看=表单禁用且无底部按钮（showFooter 打开前预设，硬性规则） */
+  /** 打开处理抽屉（mode=districtHandle：下发内容只读+处理结果组；查看=整表只读仅关闭） */
   function handleForm(record: Recordable) {
     setDrawerProps({ showFooter: !record.isView });
-    openDrawer(true, record);
+    openDrawer(true, { ...record, mode: 'districtHandle' });
   }
 
   function handleAction(action: SuperviseAction, record: Recordable) {
@@ -99,7 +106,7 @@
   }));
 
   const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterSupervises({}),
+    dataSource: filterSupervises({ dispatchStatus: '已下发' }),
     columns,
     actionColumn,
     rowSelection: { type: 'checkbox' },
@@ -138,16 +145,16 @@
         },
       ],
     },
-    // 无后端：查询/重置走本地过滤
+    // 无后端：查询/重置走本地过滤（基线=仅已下发）
     handleSearchInfoFn: (params: Recordable) => {
-      setTableData(filterSupervises(params));
+      setTableData(filterSupervises({ dispatchStatus: '已下发', ...params }));
       return params;
     },
   });
 
   /** 处理抽屉保存回调：重铺数据（假数据为内存变更，刷新即恢复） */
   function handleSuccess() {
-    setTableData(filterSupervises(getForm().getFieldsValue()));
+    setTableData(filterSupervises({ dispatchStatus: '已下发', ...getForm().getFieldsValue() }));
   }
 
   /** 占位操作（TODO：随导出后端接入） */

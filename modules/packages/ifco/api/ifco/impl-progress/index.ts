@@ -40,10 +40,11 @@ export type FillStatus = '待提交' | '待区级审查' | '待市级审查' | '
 
 export const FILL_STATUS_OPTIONS: FillStatus[] = ['待提交', '待区级审查', '待市级审查', '市级审查通过', '退回修改'];
 
-/** 提示/督办处理状态（已处理 = 区级/填报端已处理；已确认 = 市级已确认处理结果） */
-export type HandleStatus = '待处理' | '处理中' | '已处理' | '已确认';
+/** 提示/督办处理状态（待下发 = 市级提交后尚未下发；待确认 = 区级已提交待市级确认；
+ * 已处理 = 区级/填报端已处理；已确认 = 市级已确认处理结果，流程办结） */
+export type HandleStatus = '待下发' | '待处理' | '处理中' | '待确认' | '已处理' | '已确认';
 
-export const HANDLE_STATUS_OPTIONS: HandleStatus[] = ['待处理', '处理中', '已处理', '已确认'];
+export const HANDLE_STATUS_OPTIONS: HandleStatus[] = ['待处理', '处理中', '待确认', '已处理', '已确认'];
 
 /** 下发状态（市级端：新增的提示/督办先暂存为待下发，下发后进入处理流程） */
 export type DispatchStatus = '待下发' | '已下发';
@@ -100,11 +101,12 @@ export function fillStatusTagProps(status: FillStatus): { color: string; variant
     .exhaustive();
 }
 
-/** 处理状态 → Tag 配色口径：待办橙、进行蓝、完成绿、市级已确认蓝实心 */
+/** 处理状态 → Tag 配色口径：待下发/待处理橙、进行蓝、待确认紫、完成绿、市级已确认蓝实心 */
 export function handleStatusTagProps(status: HandleStatus): { color: string; variant: 'solid' | 'outlined' } {
   return match(status)
-    .with('待处理', () => ({ color: 'orange', variant: 'outlined' }) as const)
+    .with('待下发', '待处理', () => ({ color: 'orange', variant: 'outlined' }) as const)
     .with('处理中', () => ({ color: 'blue', variant: 'outlined' }) as const)
+    .with('待确认', () => ({ color: 'purple', variant: 'outlined' }) as const)
     .with('已处理', () => ({ color: 'green', variant: 'solid' }) as const)
     .with('已确认', () => ({ color: 'blue', variant: 'solid' }) as const)
     .exhaustive();
@@ -282,14 +284,14 @@ export type MonthlyItem = {
 
 /** 提示/督办主记录（市级下发；区级端整单处理、市级端确认处理结果） */
 export type SuperviseItem = {
-  /** 下发编号（如 项目督办〔2026〕001号） */
+  /** 下发编号（如 项目督办〔2026〕002号） */
   dispatchNo: string;
   superviseType: SuperviseType;
-  /** 对应行政区（下发指向的区） */
+  /** 行政区（下发指向的区） */
   district: string;
   /** 下发状态（市级端：待下发=暂存，已下发=进入处理流程） */
   dispatchStatus: DispatchStatus;
-  /** 督查月份（YYYY-MM） */
+  /** 巡查月份（YYYY-MM） */
   inspectMonth: string;
   dispatchDate: string;
   deadline: string;
@@ -306,6 +308,10 @@ export type SuperviseItem = {
   districtHandleDate: string;
   districtHandleDesc: string;
   districtHandleFileList: string[];
+  /** 区级处理照片（不限数量、仅图片格式） */
+  districtHandlePhotoList?: string[];
+  /** 市级确认结果（同意处理结果/不同意处理结果；待确认转已确认时落值） */
+  urbanConfirmResult?: string;
   /** 涉及片区和项目的处理情况 */
   areaItems: { area: string; projects: { projectName: string; problem: string; foundProblem: string }[] }[];
 };
@@ -1022,7 +1028,7 @@ export const MONTHLIES: MonthlyItem[] = [
 /** 提示/督办主记录（区级端整单；市住更局下发） */
 export const SUPERVISES: SuperviseItem[] = [
   {
-    dispatchNo: '项目督办〔2026〕001号',
+    dispatchNo: '项目督办〔2026〕002号',
     superviseType: '督办',
     district: '江岸区',
     dispatchStatus: '已下发',
@@ -1034,10 +1040,11 @@ export const SUPERVISES: SuperviseItem[] = [
     dispatchFile: '督办单.pdf',
     contactPerson: '张三',
     contactPhone: '027-12345678',
-    districtHandleStatus: '处理中',
-    districtHandleDate: '',
-    districtHandleDesc: '',
-    districtHandleFileList: [],
+    districtHandleStatus: '待确认',
+    districtHandleDate: '2026-10-20',
+    districtHandleDesc: '已约谈实施主体，加密施工组织，追加作业班组，进度已恢复正常。',
+    districtHandleFileList: ['处理情况报告.pdf'],
+    districtHandlePhotoList: ['现场复核照片-1.jpg'],
     areaItems: [
       {
         area: '一元片',
@@ -1085,7 +1092,7 @@ export const SUPERVISES: SuperviseItem[] = [
     ],
   },
   {
-    dispatchNo: '项目督办〔2026〕099号',
+    dispatchNo: '项目督办〔2026〕003号',
     superviseType: '督办',
     district: '江岸区',
     dispatchStatus: '已下发',
@@ -1101,6 +1108,7 @@ export const SUPERVISES: SuperviseItem[] = [
     districtHandleDate: '2026-09-20',
     districtHandleDesc: '已约谈实施主体，加密施工组织，追加作业班组，进度已恢复正常。',
     districtHandleFileList: ['处理情况报告.pdf'],
+    districtHandlePhotoList: ['现场核查照片-1.jpg', '现场核查照片-2.jpg'],
     areaItems: [
       {
         area: '黑泥湖片',
@@ -1115,8 +1123,8 @@ export const SUPERVISES: SuperviseItem[] = [
     ],
   },
   {
-    // 市级端「新增督办」暂存的样例（待下发：只在市级列表出现，不进填报端/区级端处理流程）
-    dispatchNo: '项目督办〔2026〕100号',
+    // 市级端「新增督办」提交的样例（待下发：只在市级列表出现，可无限编辑，不进填报端/区级端处理流程）
+    dispatchNo: '项目督办〔2026〕004号',
     superviseType: '督办',
     district: '硚口区',
     dispatchStatus: '待下发',
@@ -1126,7 +1134,7 @@ export const SUPERVISES: SuperviseItem[] = [
     dispatchOrg: '市住更局',
     problem: '月度进度填报连续两月滞后，需专项整改。',
     dispatchFile: '督办单.pdf',
-    districtHandleStatus: '待处理',
+    districtHandleStatus: '待下发',
     districtHandleDate: '',
     districtHandleDesc: '',
     districtHandleFileList: [],
@@ -1158,17 +1166,17 @@ export const SUPERVISE_ROWS: SuperviseHandleRow[] = SUPERVISES.filter(
         currentProgress: monthly?.currentProgress ?? '',
         reportOrg: monthly ? `${monthly.district}住更局` : '江岸区住更局',
         handleStatus:
-          supervise.dispatchNo === '项目督办〔2026〕001号' && project.foundProblem === '是'
+          supervise.dispatchNo === '项目督办〔2026〕002号' && project.foundProblem === '是'
             ? '处理中'
             : supervise.districtHandleStatus === '已处理' || supervise.districtHandleStatus === '已确认'
               ? supervise.districtHandleStatus
               : '待处理',
         handleDate:
-          supervise.dispatchNo === '项目督办〔2026〕001号' && project.projectName.includes('西马片')
+          supervise.dispatchNo === '项目督办〔2026〕002号' && project.projectName.includes('西马片')
             ? '2026-10-20'
             : '',
         handleDesc:
-          supervise.dispatchNo === '项目督办〔2026〕001号' && project.projectName.includes('西马片')
+          supervise.dispatchNo === '项目督办〔2026〕002号' && project.projectName.includes('西马片')
             ? '已加密施工组织，增加作业班组，追赶滞后进度；同步更新倒排工期计划。'
             : '',
         handleFileList: [],
@@ -1342,10 +1350,11 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [
   },
 ];
 
-/** 生成下一个下发编号（同类型既有最大序号 + 1，如 工作提示〔2026〕016号） */
+/** 生成下一个下发编号（同前缀既有最大序号 + 1：督办=项目督办〔2026〕、提示=项目提示〔2026〕；
+ * 按编号前缀计数，旧「工作提示〔2026〕」系列不占新序号，首个提示单从 001 起） */
 export function nextDispatchNo(type: SuperviseType): string {
-  const prefix = type === '督办' ? '项目督办〔2026〕' : '工作提示〔2026〕';
-  const numbers = SUPERVISES.filter((item) => item.superviseType === type).map((item) => {
+  const prefix = type === '督办' ? '项目督办〔2026〕' : '项目提示〔2026〕';
+  const numbers = SUPERVISES.filter((item) => item.dispatchNo.startsWith(prefix)).map((item) => {
     const matched = item.dispatchNo.match(/(\d+)号/);
     return matched ? Number(matched[1]) : 0;
   });
@@ -1371,7 +1380,7 @@ export type ImplProgressQuery = {
   dispatchNo?: string;
   handleStatus?: string;
   reportOrg?: string;
-  /** 行政区（市级督办列表「对应行政区」、三色图列表筛选项） */
+  /** 行政区（市级督办列表「行政区」、三色图列表筛选项） */
   district?: string;
   /** 下发状态（市级督办列表筛选项） */
   dispatchStatus?: string;
@@ -1420,8 +1429,7 @@ export async function fetchScheduleRows(): Promise<ScheduleItem[]> {
   return (page.list ?? []).map((row) => {
     const wf = SCHEDULES.find((item) => item.projectCode === row.lib_project_code);
     const inLibraryDate = String(row.in_library_date ?? '').slice(0, 10);
-    const isNewInLibrary =
-      !!inLibraryDate && Date.now() - new Date(inLibraryDate).getTime() < 20 * 24 * 3600 * 1000;
+    const isNewInLibrary = !!inLibraryDate && Date.now() - new Date(inLibraryDate).getTime() < 20 * 24 * 3600 * 1000;
     return {
       pUid: row.p_uid ?? '',
       projectCode: row.lib_project_code ?? '',
@@ -1520,7 +1528,11 @@ export async function fetchMonthlyRows(): Promise<MonthlyItem[]> {
 export function upsertMonthlyWorkflow(row: MonthlyItem): MonthlyItem {
   const exist = MONTHLIES.find((item) => item.projectCode === row.projectCode);
   if (exist) return exist;
-  MONTHLIES.push({ ...row, monthEntries: { ...(row.monthEntries ?? {}) }, reviewRecords: [...(row.reviewRecords ?? [])] });
+  MONTHLIES.push({
+    ...row,
+    monthEntries: { ...(row.monthEntries ?? {}) },
+    reviewRecords: [...(row.reviewRecords ?? [])],
+  });
   return MONTHLIES[MONTHLIES.length - 1]!;
 }
 
