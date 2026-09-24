@@ -35,6 +35,11 @@
         <span>专家库</span>
       </template>
       <template #toolbar>
+        <a-button @click="handleDownloadTemplate">
+          <span class="inline-flex items-center gap-4px">
+            <span class="i-ant-design:download-outlined"></span> 模板下载
+          </span>
+        </a-button>
         <a-button @click="handleImport">
           <span class="inline-flex items-center gap-4px">
             <span class="i-ant-design:upload-outlined"></span> 批量导入
@@ -51,6 +56,7 @@
 
     <!-- 查看 / 新增 / 编辑 表单抽屉 -->
     <ExpertForm @register="registerDrawer" @success="handleSuccess" />
+    <ExpertImport @register="registerImportModal" @success="handleSuccess" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningExpertPoolInfoManagementList">
@@ -59,15 +65,19 @@
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
+  import { useModal } from '@jeesite/core/components/Modal';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { Icon } from '@jeesite/core/components/Icon';
+  import { saveAs } from 'file-saver';
   import {
     espDictAreas,
     espExpertDelete,
+    espExpertImportTemplate,
+    espExpertImportTemplateFile,
     espExpertPage,
     espExpertStat,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/expert-pool';
   import ExpertForm from './form.vue';
+  import ExpertImport from './form-import.vue';
 
   const { showMessage } = useMessage();
 
@@ -170,6 +180,7 @@
   }
 
   const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
+  const [registerImportModal, { openModal: openImportModal }] = useModal();
 
   /** 新增/查看/修改（先预设底部按钮显隐：查看隐藏，再 openDrawer —— 打开动画期间翻转 showFooter 会打断渲染） */
   function handleForm(record: Recordable) {
@@ -189,8 +200,15 @@
     showMessage('删除成功');
   }
 
-  /** 批量导入（TODO: 接入 Excel 上传解析） */
+  /** 模板下载（MinIO 文件经后端转发后 saveAs） */
+  async function handleDownloadTemplate() {
+    const info = await espExpertImportTemplate();
+    const blob = await espExpertImportTemplateFile();
+    saveAs(blob, info.fileName || '三师库批量导入模版.xlsx');
+  }
+
+  /** 批量导入 */
   function handleImport() {
-    showMessage('批量导入：待接入 Excel 上传解析');
+    openImportModal(true);
   }
 </script>

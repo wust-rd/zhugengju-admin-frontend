@@ -177,6 +177,37 @@ export async function espExpertDelete(id: string): Promise<{ id: string; name: s
   return unwrap(await defHttp.post({ url: adminPath + '/esp/expert/delete', params: { id } }));
 }
 
+/** 2.6 导入模版地址（MinIO 直链 + 文件名） */
+export async function espExpertImportTemplate(): Promise<{ url: string; fileName: string; objectKey: string }> {
+  return unwrap(await defHttp.get({ url: adminPath + '/esp/expert/importTemplate' }));
+}
+
+/** 2.7 导入模版文件流（后端从 MinIO 转发） */
+export async function espExpertImportTemplateFile(): Promise<Blob> {
+  return (await defHttp.get(
+    { url: adminPath + '/esp/expert/importTemplateFile', responseType: 'blob' },
+    { isTransformResponse: false },
+  )) as Blob;
+}
+
+export type EspExpertImportError = { row: number; name: string; msg: string };
+export type EspExpertImportResult = {
+  success: number;
+  fail: number;
+  skip: number;
+  errors: EspExpertImportError[];
+};
+
+/** 2.8 批量导入专家（multipart 字段名 file） */
+export async function espExpertImportData(file: File): Promise<EspExpertImportResult> {
+  const res: any = await defHttp.uploadFile(
+    { url: adminPath + '/esp/expert/importData' },
+    { file, name: 'file', filename: file.name },
+  );
+  const body = res && typeof res === 'object' && Reflect.has(res, 'data') ? res.data : res;
+  return unwrap(body);
+}
+
 // ---------------- 3. 随机分配三师 ----------------
 
 /** 3.1 随机抽取（服务端随机，不落库；按 规划师→建筑师→评估师 各取一名） */

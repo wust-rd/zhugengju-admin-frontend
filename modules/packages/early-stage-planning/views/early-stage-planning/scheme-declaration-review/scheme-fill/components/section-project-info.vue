@@ -5,10 +5,9 @@
   每个 tab 渲染一个 section-project-item.vue 实例。实现要点：
    - 项目列表 projects = [{ _uid, stock, name, data }]，tab 以 _uid 为 key（增删不打乱已挂载表单）；
    - tab 标题显示项目名称（item 输入经 nameChange 实时回传），未填时回退「项目N」；
-   - 存量导入行（后端回显 fillFlag=0，排在填报行前）：与填报行一样可编辑可删除，
-     tab 带「存量」徽标仅作来源标识；保存值带回 pUid/fillFlag 供后端按 pUid
-     更新/删除（后端配套改造前，其保存逻辑仍跳过 fillFlag=0 行——存量行的编辑/
-     删除暂不落库，但也不会产生重复行；见变更说明 §10）；
+   - 存量导入行（后端回显 fillFlag=0，排在填报行前）：与填报行一样可编辑，
+     tab 带「存量」徽标仅作来源标识；保存值带回 pUid/fillFlag，后端按 pUid 原位更新
+     （含主要建设内容），不走填报行的全删全插；
    - 面板用 v-show（全部保持挂载），切 tab / 保存校验时表单值不丢、注册不失效；
    - validate 逐项目校验，失败时自动切到第一个有问题的 tab 再抛出（由 form.vue 滚动定位）；
    - getFieldsValue 汇总为 { projects: [...] }；exportRows 按项目分组平铺。
@@ -132,9 +131,7 @@
       }
     },
     /**
-     * 保存值含全部项目行（存量 + 填报）：存量行带回回显的 pUid/fillFlag，供后端
-     * 按 pUid 原位更新；被删除的存量行不在数组中，后端按缺席删除（后端配套改造
-     * 见变更说明 §10 —— 未实现前 fillFlag=0 行仍被跳过，编辑/删除暂不落库）
+     * 保存值含全部项目行（存量 + 填报）：存量行带回回显的 pUid/fillFlag，供后端按 pUid 原位更新
      */
     getFieldsValue: () => ({
       projects: projects.value.map((p) => {

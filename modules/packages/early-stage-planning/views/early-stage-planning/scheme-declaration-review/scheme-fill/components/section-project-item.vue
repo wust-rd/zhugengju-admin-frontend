@@ -81,6 +81,19 @@
         </div>
       </div>
     </template>
+    <!-- 主要建设内容：独立 v-model。BasicForm 的 InputTextArea 在中文输入未结束时
+         表单模型仍是空的，校验会误报必填，提交出去的 content 也是空。 -->
+    <template #content>
+      <TextArea
+        v-model:value="contentText"
+        :maxlength="500"
+        :rows="4"
+        show-count
+        :change-on-composing="true"
+        :disabled="disabled"
+        placeholder="请输入主要建设内容"
+      />
+    </template>
     <!-- 项目矢量图斑：GeoField（上传解析/地图绘制，TopoJSON 存储；查看态只读） -->
     <template #mapSpot>
       <GeoField v-model:value="mapSpot" :disabled="disabled" />
@@ -89,7 +102,7 @@
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeFillSectionProjectItem">
   import { ref, watch } from 'vue';
-  import { Upload } from 'antdv-next';
+  import { TextArea, Upload } from 'antdv-next';
   import { BasicForm, FormSchema } from '@jeesite/core/components/Form';
   import GeoField from './geo-field.vue';
   import { fileColor, canPreview, fileSizeText, downloadEspFile } from './file-display';
@@ -179,8 +192,8 @@
       label: '主要建设内容',
       field: 'content',
       component: 'InputTextArea',
+      slot: 'content',
       colProps: FULL_COL,
-      componentProps: { maxlength: 500, rows: 4, showCount: true, placeholder: '请输入主要建设内容' },
       rules: [{ required: true, message: '请输入主要建设内容' }],
     },
     {
@@ -220,19 +233,32 @@
   /** 上传列表任何变化（antd 入列/上传回填/自绘移除）→ 文件对象数组同步进表单字段 planFiles */
   watch(planFileList, () => exposed.setFieldsValueSilently({ planFiles: planFiles() }), { deep: true });
 
+  /** 主要建设内容：slot 自持，提交/校验前写回 formModel，避免文本框有字但模型为空 */
+  const contentText = ref(String(props.value?.content ?? ''));
+  watch(contentText, (value) => exposed.setFieldsValueSilently({ content: value }));
+
   /** 项目矢量图斑：自包含 TopoJSON 字符串（GeoField 维护，保存时经下方取值并入） */
   const mapSpot = ref<string | null | undefined>(props.value?.mapSpot as string | null | undefined);
 
   /** 矢量图斑不在 schema 内（slot 渲染 GeoField），覆写取值并入；导出不落原始 TopoJSON（过长），以已绘制标识 */
   defineExpose({
     ...exposed,
+    validate: async () => {
+      await exposed.setFieldsValueSilently({ content: contentText.value, planFiles: planFiles() });
+      return exposed.validate();
+    },
     getFieldsValue: () => ({
       ...exposed.getFieldsValue(),
+      content: contentText.value,
       mapSpot: mapSpot.value,
     }),
     exportRows: (): [string, string][] =>
       exposed
         .exportRows()
-        .map(([label, value]) => (label === '项目矢量图斑' ? [label, mapSpot.value ? '已绘制' : ''] : [label, value])),
+        .map(([label, value]): [string, string] => {
+          if (label === '主要建设内容') return [label, contentText.value];
+          if (label === '项目矢量图斑') return [label, mapSpot.value ? '已绘制' : ''];
+          return [label, value];
+        }),
   });
 </script>

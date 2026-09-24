@@ -68,7 +68,7 @@
   </div>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeFillApprovedForm">
-  import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+  import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
   import { Dropdown, Popconfirm } from 'antdv-next';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
@@ -192,6 +192,12 @@
    *  - 提交（submit）：落库后退出回列表（列表刷新）。
    */
   async function handleSave(mode: 'draft' | 'submit') {
+    // 中文输入未结束时点提交，文本框里已有字但表单模型还是空的；先失焦把输入法结果写入再校验
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
+    }
+    await nextTick();
     const values: Recordable = {};
     let firstErrorId = '';
     for (const sec of SECTIONS) {

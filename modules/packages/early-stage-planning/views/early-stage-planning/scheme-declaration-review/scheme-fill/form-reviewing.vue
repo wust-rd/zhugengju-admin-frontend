@@ -74,7 +74,7 @@
   </div>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningSchemeDeclarationSchemeFillReviewingForm">
-  import { computed, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+  import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
   import { Dropdown, Popconfirm } from 'antdv-next';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
@@ -201,6 +201,12 @@
    * 编辑约束：仅「未提交 / 退回修改」可保存（审核中/联审中/通过后端返回 400 展示 msg）。
    */
   async function handleSave(mode: 'draft' | 'submit') {
+    // 中文输入未结束时点提交，文本框里已有字但表单模型还是空的；先失焦把输入法结果写入再校验
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
+    }
+    await nextTick();
     const values: Recordable = {};
     let firstErrorId = '';
     for (const sec of SECTIONS) {
