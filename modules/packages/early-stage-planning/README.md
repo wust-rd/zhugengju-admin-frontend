@@ -96,6 +96,38 @@ modules/packages/early-stage-planning/
   静态 prop 传 mode；历史/收藏/订阅存 localStorage（key 与原型一致：`kb_policy_match_history`/
   `kb_policy_search_history`/`kb_policy_favs`/`kb_policy_subs`，收藏与订阅两页共享）。
 
+## 片区更新后评估（已接后端）
+
+对**已批准片区**按年度做实施后评估（成效指标对比 + 满意度分析）。
+
+- 路径 `/early-stage-planning/area-post-evaluation/index`，目录
+  `views/early-stage-planning/area-post-evaluation/`，**页内三步切换**（不新增路由，做法同
+  review-management 的整页表单；列表初始为空，记录只能由「新增评估片区」产生）：
+  1. `index.vue` 列表：搜索（评估年份 / 片区名称 / 行政区 / 片区批次）+「新增评估片区」+
+     评估片区列表（评估年份 / 片区名称（可点进只读评估页）/ 行政区 / 片区批次 / 片区规模（公顷）/
+     功能定位 / 填报单位 / 操作：查看 · 编辑 · 删除 · 生成评估报告〈导出暂不做，占位〉），分页 10 条/页；
+  2. `area-picker.vue` 新增第一步：顶部选**评估年份**，下方列**已批准片区**（可按名称/行政区/批次搜索），
+     行内「选择」→「下一步」进评估页；该年度已评估的行显示「已评估」并禁用（后端保存时再拦一次）；
+  3. `evaluate.vue` 评估页：两个 tab，表格右上角都有「暂存 / 保存」（提交内容一致，保存后回列表、暂存留在本页）：
+     - **成效指标对比**：上块两张雷达图（左固定「项目进度」，右下拉切换直接/间接经济效益、社会效益），
+       下块 28 行指标表（一级/二级维度合并单元格，只填**更新前/更新后**，「提升」= 两者相减现算、不入库）
+       + 评估结论（≤500 字）+ 更新后效果图上传；
+     - **满意度分析**：上块左「一级维度提升成效」柱状图（分组均值）+ 右「二级维度提升成效」雷达图
+       （下拉按一级维度筛选，默认全部），下块 13 行满意度表（更新前/更新后满意度 %，提升现算）；
+  - `indicator-table.vue` / `satisfaction-table.vue`：可编辑表格（`Table` + `render`/`onCell`，
+    沿用 ifco 进展填报的写法），合并单元格跨度由 `shared.ts` 的 `buildSpans` 现算；
+  - `components/post-eval-radar.tsx` / `post-eval-bar.tsx`：echarts 雷达图 / 分组柱状图（`useECharts`），
+    数值直接来自表格行，改表即改图；
+  - `shared.ts`：年份/行政区/批次选项、提升与展示口径、合并跨度、分组均值等共用工具。
+- 接口层 `api/early-stage-planning/post-evaluation.ts`（`/a/esp/postEval/*`：page / areaPage / catalog /
+  detail / save / delete），后端模块 `modules/esp`（表 `ESP_POST_EVAL` + `ESP_POST_EVAL_INDICATOR` +
+  `ESP_POST_EVAL_SATISFACTION`，清单在 `ESP_DICT`）；SQL 见后端 `modules/esp/db/dm/esp_post_eval.sql`，
+  接口与表设计见后端 `modules/esp/docs/接口文档-片区更新后评估.md`；
+- 菜单注册走后台菜单管理（BACK 模式），**链接地址 = 组件位置 = `/early-stage-planning/area-post-evaluation/index`**，
+  权限标识 `esp:postEval:view`（查询）/ `esp:postEval:edit`（保存、删除）；
+- 未挂前端声明路由（`packages/core/router/routes/modules/early-stage-planning.ts` 只服务大屏片区详情页），
+  避免后端菜单同路径重复注册。
+
 ## 后端接口（kd_server）
 
 - 三页数据均来自 kd_server（FastAPI），dev 下经 vite proxy 以 **`/policy_api`** 前缀代理到

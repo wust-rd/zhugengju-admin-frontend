@@ -94,7 +94,9 @@
       <!-- 过往评审经历 -->
       <div class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
         <div class="text-16px font-600 text-gray-800">过往评审经历</div>
-        <p class="mt-12px whitespace-pre-wrap text-14px leading-26px text-gray-700">{{ expert.reviewExperience || '—' }}</p>
+        <p class="mt-12px whitespace-pre-wrap text-14px leading-26px text-gray-700">{{
+          expert.reviewExperience || '—'
+        }}</p>
       </div>
 
       <!-- 预留扩展区：后续可在此追加 参与项目 / 评价记录 等内容 -->
@@ -105,10 +107,7 @@
       </div>
     </template>
 
-    <div
-      v-else-if="loading"
-      class="flex h-300px items-center justify-center text-14px text-gray-400"
-    >
+    <div v-else-if="loading" class="flex h-300px items-center justify-center text-14px text-gray-400">
       档案加载中...
     </div>
     <div v-else class="flex h-300px items-center justify-center text-14px text-gray-400"> 未找到该专家档案 </div>
