@@ -22,9 +22,9 @@
   结果（下拉：同意处理结果/不同意处理结果，必填）。提交后处理状态转已确认，
   流程办结。
 
-  查看态（isView）= 整表只读仅关闭。当前后端尚未介入：保存直接改内存
-  （api/ifco/impl-progress 的 SUPERVISES，刷新即恢复）；片区项目候选=实施库
-  项目（接口失败回退内存假数据）。
+  查看态（isView）= 整表只读仅关闭。已接后端 /a/ifco/supervise/*（保存 save/
+  下发后列表行触发 dispatch/区级 districtSubmit/市级 urbanConfirm，编号 nextNo
+  后端生成）；片区项目候选=实施库项目（接口失败回退内存假数据）。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" force-render width="50%" @register="registerDrawer">
@@ -144,9 +144,11 @@
   import { DISTRICTS } from '@jeesite/ifco/api/ifco/project-library';
   import {
     SCHEDULES,
-    SUPERVISES,
+    districtSubmitSupervise,
     fetchScheduleRows,
-    nextDispatchNo,
+    fetchSuperviseNextNo,
+    saveSupervise,
+    urbanConfirmSupervise,
     type ScheduleItem,
     type SuperviseItem,
     type SuperviseType,
@@ -411,8 +413,11 @@
       uid: `${index}-${name}`,
       name,
     }));
+    const dispatchNo = isNew.value
+      ? (await fetchSuperviseNextNo(presetType.value)).dispatchNo
+      : (record.value.dispatchNo ?? '');
     await setFieldsValue({
-      dispatchNo: isNew.value ? nextDispatchNo(presetType.value) : (record.value.dispatchNo ?? ''),
+      dispatchNo,
       inspectMonth: record.value.inspectMonth ?? undefined,
       deadline: record.value.deadline ?? undefined,
       contactPerson: record.value.contactPerson ?? '',
@@ -437,9 +442,9 @@
     return [...grouped.entries()].map(([area, names]) => ({
       area,
       projects: names.map((name) => ({
+        pUid: candidateRows.value.find((row) => row.projectName === name)?.pUid,
         projectName: name,
         problem: problemInputs.value[name] ?? '',
-        foundProblem: '',
       })),
     }));
   }
@@ -467,35 +472,19 @@
       return;
     }
     const type: SuperviseType = isNew.value ? presetType.value : (record.value.superviseType ?? '督办');
-    const item: SuperviseItem = {
-      dispatchNo: isNew.value ? nextDispatchNo(type) : (record.value.dispatchNo as string),
+    await saveSupervise({
+      id: isNew.value ? undefined : record.value.id,
       superviseType: type,
       district: district.value,
-      dispatchStatus: '待下发',
       inspectMonth: String(values.inspectMonth ?? ''),
-      dispatchDate: '',
       deadline: String(values.deadline ?? ''),
-      dispatchOrg: '市住更局',
-      problem: '',
-      dispatchFile: type === '督办' ? '督办单.pdf' : '工作提示函.pdf',
       contactPerson: String(values.contactPerson ?? ''),
       contactPhone: String(values.contactPhone ?? ''),
-      districtHandleStatus: '待下发',
-      districtHandleDate: '',
-      districtHandleDesc: '',
-      districtHandleFileList: [],
-      districtHandlePhotoList: [],
       areaItems: buildAreaItems(),
-    };
-    if (isNew.value) {
-      SUPERVISES.push(item);
-    } else {
-      const index = SUPERVISES.findIndex((row) => row.dispatchNo === record.value.dispatchNo);
-      if (index >= 0) SUPERVISES[index] = item;
-    }
+    });
     showMessage('提交成功（待下发）');
     closeDrawer();
-    emit('success', item);
+    emit('success');
   }
 
   /** 区级提交处理结果：原位更新内存行，处理状态转待确认（回到市级确认；附件必填经校验器拦截） */
@@ -509,17 +498,16 @@
       }
       return;
     }
-    const target = SUPERVISES.find((item) => item.dispatchNo === record.value.dispatchNo);
-    if (target) {
-      target.districtHandleStatus = '待确认';
-      target.districtHandleDate = String(values.districtHandleDate ?? '');
-      target.districtHandleDesc = String(values.districtHandleDesc ?? '');
-      target.districtHandleFileList = attachFiles.value.map((file) => file.name);
-      target.districtHandlePhotoList = photoFiles.value.map((file) => file.name);
-    }
+    await districtSubmitSupervise({
+      id: String(record.value.id ?? ''),
+      districtHandleDate: String(values.districtHandleDate ?? ''),
+      districtHandleDesc: String(values.districtHandleDesc ?? ''),
+      fileList: attachFiles.value.map((file) => file.name),
+      photoList: photoFiles.value.map((file) => file.name),
+    });
     showMessage('提交成功，已进入市级确认流程');
     closeDrawer();
-    emit('success', target);
+    emit('success');
   }
 
   /** 市级确认：确认结果必填，提交后处理状态转已确认，流程办结 */
@@ -533,13 +521,12 @@
       }
       return;
     }
-    const target = SUPERVISES.find((item) => item.dispatchNo === record.value.dispatchNo);
-    if (target) {
-      target.districtHandleStatus = '已确认';
-      target.urbanConfirmResult = String(values.urbanConfirmResult ?? '');
-    }
+    await urbanConfirmSupervise({
+      id: String(record.value.id ?? ''),
+      urbanConfirmResult: String(values.urbanConfirmResult ?? ''),
+    });
     showMessage('确认完成，流程已办结');
     closeDrawer();
-    emit('success', target);
+    emit('success');
   }
 </script>

@@ -32,6 +32,7 @@
   </div>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressDistrictSupervisePanel">
+  import { onMounted, ref } from 'vue';
   import { Tag } from 'antdv-next';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
@@ -42,10 +43,13 @@
     HANDLE_STATUS_OPTIONS,
     MONTH_OPTIONS,
     dispatchStatusTagProps,
+    fetchSuperviseList,
     filterSupervises,
     handleStatusTagProps,
     type HandleStatus,
+    type SuperviseItem,
   } from '@jeesite/ifco/api/ifco/impl-progress';
+  import { useUserStore } from '@jeesite/core/store/modules/user';
   import DispatchForm from './dispatch-form.vue';
 
   const { showMessage } = useMessage();
@@ -105,8 +109,22 @@
     value: item.key,
   }));
 
+  /** 已下发单据全集（接口拉取；区级只看本区——登录机构=行政区时过滤，市级看全部） */
+  const userOfficeName = useUserStore().getUserInfo?.officeName ?? '';
+  const superviseRows = ref<SuperviseItem[]>([]);
+
+  async function loadRows() {
+    const all = (await fetchSuperviseList()) ?? [];
+    superviseRows.value = all.filter(
+      (item) => item.dispatchStatus === '已下发' && (!userOfficeName || item.district === userOfficeName),
+    );
+    setTableData(filterSupervises(getForm().getFieldsValue(), superviseRows.value));
+  }
+
+  onMounted(loadRows);
+
   const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterSupervises({ dispatchStatus: '已下发' }),
+    dataSource: [],
     columns,
     actionColumn,
     rowSelection: { type: 'checkbox' },
@@ -145,17 +163,15 @@
         },
       ],
     },
-    // 无后端：查询/重置走本地过滤（基线=仅已下发）
+    // 查询/重置走本地过滤（行集=已下发且本区）
     handleSearchInfoFn: (params: Recordable) => {
-      setTableData(filterSupervises({ dispatchStatus: '已下发', ...params }));
+      setTableData(filterSupervises(params, superviseRows.value));
       return params;
     },
   });
 
-  /** 处理抽屉保存回调：重铺数据（假数据为内存变更，刷新即恢复） */
-  function handleSuccess() {
-    setTableData(filterSupervises({ dispatchStatus: '已下发', ...getForm().getFieldsValue() }));
-  }
+  /** 处理抽屉保存回调：重拉数据（区级提交后处理状态转待确认） */
+  const handleSuccess = loadRows;
 
   /** 占位操作（TODO：随导出后端接入） */
   function handleTodo(label: string) {

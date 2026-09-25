@@ -36,6 +36,7 @@
   </div>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressUrbanSupervisePanel">
+  import { onMounted, ref } from 'vue';
   import { Tag } from 'antdv-next';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
@@ -47,8 +48,9 @@
     DISPATCH_STATUS_OPTIONS,
     HANDLE_STATUS_OPTIONS,
     MONTH_OPTIONS,
-    SUPERVISES,
     dispatchStatusTagProps,
+    dispatchSupervise,
+    fetchSuperviseList,
     filterSupervises,
     handleStatusTagProps,
     type DispatchStatus,
@@ -132,15 +134,10 @@
   }
 
   /** 下发（行按钮二次确认）：下发状态=已下发、处理状态=待处理，记录下发时间 */
-  function confirmDispatch(record: Recordable) {
-    const target = SUPERVISES.find((item) => item.dispatchNo === record.dispatchNo);
-    if (target) {
-      target.dispatchStatus = '已下发';
-      target.districtHandleStatus = '待处理';
-      target.dispatchDate = new Date().toISOString().slice(0, 10);
-    }
+  async function confirmDispatch(record: Recordable) {
+    await dispatchSupervise(String(record.id));
     showMessage('下发成功，已进入区级处理流程');
-    refresh();
+    await refresh();
   }
 
   const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
@@ -152,8 +149,18 @@
     value: item.key,
   }));
 
+  /** 单据全集（接口拉取；搜索/重置走本地过滤） */
+  const superviseRows = ref<SuperviseItem[]>([]);
+
+  async function loadRows() {
+    superviseRows.value = (await fetchSuperviseList()) ?? [];
+    setTableData(filterSupervises(getForm().getFieldsValue(), superviseRows.value));
+  }
+
+  onMounted(loadRows);
+
   const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterSupervises({}),
+    dataSource: [],
     columns,
     actionColumn,
     rowSelection: { type: 'checkbox' },
@@ -204,17 +211,15 @@
         },
       ],
     },
-    // 无后端：查询/重置走本地过滤
+    // 查询/重置走本地过滤（全集接口拉取）
     handleSearchInfoFn: (params: Recordable) => {
-      setTableData(filterSupervises(params));
+      setTableData(filterSupervises(params, superviseRows.value));
       return params;
     },
   });
 
-  /** 下发/编辑后按当前条件重铺数据（假数据为内存变更，刷新即恢复） */
-  function refresh() {
-    setTableData(filterSupervises(getForm().getFieldsValue()));
-  }
+  /** 下发/编辑/确认后重铺数据 */
+  const refresh = loadRows;
 
   /** 占位操作（TODO：随导出后端接入） */
   function handleTodo(label: string) {

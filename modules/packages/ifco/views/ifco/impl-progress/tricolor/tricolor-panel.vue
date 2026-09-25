@@ -80,12 +80,15 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { BasicDrawer, useDrawer } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+  import { onMounted } from 'vue';
   import {
     AREAS_TRICOLOR,
     TRICOLOR_STATUS_OPTIONS,
+    fetchTricolorAreas,
     filterAreas,
     orientationLabel,
     renewalAreaBatchLabel,
+    saveTricolorArea,
     triColorTagProps,
     type AreaTricolorItem,
     type TriColorStatus,
@@ -107,11 +110,11 @@
     { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
     { title: '行政区', dataIndex: 'district', width: 110 },
     { title: '片区功能定位', dataIndex: 'orientationList', width: 220, slot: 'orientationList' },
-    { title: '总体投资估算(亿元)', dataIndex: 'totalInvestEstimate', width: 130, align: 'right' },
-    { title: '累计已完成投资(亿元)', dataIndex: 'accumulatedInvest', width: 140, align: 'right' },
-    { title: '年度总投资计划(亿元)', dataIndex: 'yearTotalPlanInvest', width: 150, align: 'right' },
-    { title: '季度完成投资(亿元)', dataIndex: 'quarterInvest', width: 130, align: 'right' },
-    { title: '年度已完成投资(亿元)', dataIndex: 'yearCompletedInvest', width: 140, align: 'right' },
+    { title: '总体投资估算（亿元）', dataIndex: 'totalInvestEstimate', width: 130, align: 'right' },
+    { title: '累计已完成投资（亿元）', dataIndex: 'accumulatedInvest', width: 140, align: 'right' },
+    { title: '年度总投资计划（亿元）', dataIndex: 'yearTotalPlanInvest', width: 150, align: 'right' },
+    { title: '季度完成投资（亿元）', dataIndex: 'quarterInvest', width: 130, align: 'right' },
+    { title: '年度已完成投资（亿元）', dataIndex: 'yearCompletedInvest', width: 140, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgress', width: 150, slot: 'yearProgress' },
     { title: '三色图状态', dataIndex: 'triColor', width: 100, fixed: 'right', slot: 'triColor' },
   ];
@@ -129,16 +132,18 @@
   }
 
   /** 提交评估结果：红/黄/绿必选，写回片区本周期三色图状态 */
-  function handleEvaluateOk() {
+  async function handleEvaluateOk() {
     if (!evaluateValue.value) {
       showMessage('请选择三色图进展');
       return;
     }
     const target = AREAS_TRICOLOR.find((item) => item.areaCode === evaluateTarget.value?.areaCode);
-    if (target) target.triColor = evaluateValue.value;
+    if (target) {
+      await saveTricolorArea({ ...target, triColor: evaluateValue.value });
+    }
     closeDrawer();
     showMessage('评估成功');
-    refresh();
+    await refresh();
   }
 
   /** 市级操作列：查看=历史抽屉；编辑=抽屉选择三色图进展 */
@@ -189,7 +194,7 @@
   const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
 
   const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterAreas({}),
+    dataSource: [],
     columns,
     actionColumn,
     rowSelection: { type: 'checkbox' },
@@ -241,15 +246,18 @@
         },
       ],
     },
-    // 无后端：查询/重置走本地过滤（季度面板值 YYYY-Q 由 filterAreas 换算周期匹配）
+    // 查询/重置走本地过滤（季度面板值 YYYY-Q 由 filterAreas 换算周期匹配）
     handleSearchInfoFn: (params: Recordable) => {
       setTableData(filterAreas(params));
       return params;
     },
   });
 
-  /** 评估后按当前条件重铺数据（假数据为内存变更，刷新即恢复） */
-  function refresh() {
+  onMounted(refresh);
+
+  /** 行集重拉（后端 /tricolor/rows 回填缓存）后按当前条件重铺 */
+  async function refresh() {
+    await fetchTricolorAreas();
     setTableData(filterAreas(getForm().getFieldsValue()));
   }
 

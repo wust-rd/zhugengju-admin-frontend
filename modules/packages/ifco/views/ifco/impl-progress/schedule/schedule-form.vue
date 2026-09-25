@@ -16,7 +16,8 @@
   历史审查记录逐轮保留展示（reviewRecords 只追加）。
   底部按钮：填报=取消/保存草稿（状态转待提交）/ 提交（转待区级审查）；
   审查=取消/提交审查；查看=关闭。
-  当前后端尚未介入：保存直接改内存行（api/ifco/impl-progress 的 SCHEDULES，刷新即恢复）。
+  已接后端 /a/ifco/schedule/*：行集 rows（实施库项目左连工作流行）、保存 save
+  （整行 upsert，状态编排在前端）；SCHEDULES 为行集本地缓存（monthPlanOf 直读）。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer">
@@ -83,9 +84,7 @@
               <!-- xxx区审查（该轮有区级记录或为当前轮即显示） -->
               <div v-if="round.district || round.isCurrent">
                 <div class="mb-1 flex flex-wrap items-center gap-24px bg-gray-100 py-2 px-4 rd-2">
-                  <span class="shrink-0 text-14px font-500 text-gray-800"
-                    >{{ record.district }}住更局审查（区级）</span
-                  >
+                  <span class="shrink-0 text-14px font-500 text-gray-800">{{ record.district }}住更局审查（区级）</span>
                 </div>
                 <div class="ml-64px">
                   <div class="px-8px py-4px text-14px font-500 text-gray-800">审查结论</div>
@@ -177,6 +176,7 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import {
     MONTH_PLAN_LABELS,
+    saveScheduleWorkflow,
     upsertScheduleWorkflow,
     fillStatusTagProps,
     type ReviewRecord,
@@ -402,7 +402,7 @@
 
   /** 保存草稿 / 提交：收拢月份计划写回内存行（月份计划均可留空，无必填校验）。
    *  提交=待区级审查（记录提交时间）；保存草稿=普通填报转待提交、修改计划保持现状态 */
-  function handleSave(action: 'draft' | 'submit') {
+  async function handleSave(action: 'draft' | 'submit') {
     const plans = getPlanFieldsValueOfMonthPlans().map((plan) => plan.trim());
     // 列表行来自实施库接口：无内存工作流行时按当前行底稿补建（upsert）
     const target = upsertScheduleWorkflow(record.value as ScheduleItem);
@@ -415,6 +415,7 @@
         target.fillStatus = isRevise.value ? target.fillStatus : '待提交';
       }
     }
+    await saveScheduleWorkflow(target);
     showMessage(action === 'submit' ? '提交成功，待区级审查' : isRevise.value ? '保存成功' : '保存成功（待提交）');
     closeDrawer();
     emit('success', target);
@@ -422,7 +423,7 @@
 
   /** 提交审查：结论必选、退回必填意见；记录只追加（轮次=区级审查条数推算），历史全保留。
    *  通过→区级转待市级审查、市级转市级审查通过；退回→转退回修改 */
-  function handleReviewSubmit() {
+  async function handleReviewSubmit() {
     const role = reviewRole.value;
     if (role !== 'district' && role !== 'urban') return;
     const conclusion = role === 'district' ? districtConclusion.value : urbanConclusion.value;
@@ -452,6 +453,7 @@
       });
       target.fillStatus = conclusion === '通过审查' ? (level === '区级' ? '待市级审查' : '市级审查通过') : '退回修改';
     }
+    await saveScheduleWorkflow(target);
     showMessage(
       conclusion === '通过审查'
         ? level === '区级'

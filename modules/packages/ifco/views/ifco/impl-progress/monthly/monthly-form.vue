@@ -16,13 +16,14 @@
   + 项目纳统情况（入库纳统情况 / 纳统分类 / 统计局纳统项目编码（纳统=是时显示）/
   未纳统原因（纳统=否时必填）；困难问题 / 里程碑节点（三种情况必填，转建设中、转已完工、
   每季度末月上传形象进度照片不超 9 张）/ 其他=备注；当期填报不随页签切换，
-  项目投资估算与年度投资计划见步骤①基本信息）
+  项目投资估算与本年度计划完成投资见步骤①基本信息）
   → ③确认提交（流程占位页：只表达流程状态，无实际内容）。
   底部按钮：取消 / 保存草稿（状态转待提交）/ 提交（必填项校验；状态转待区级审查、清退回信息）；
   审查模式（区级/市级列表「审查」入口，isReview+reviewRole）：填报表单全只读，
   步骤②审查结果 FormGroup 两级审查（区级=项目所在行政区住更局、市级=项目推进组，
   按轮次分组，历史只读本层级当前轮可填），底部=取消/提交审查。
-  当前后端尚未介入：保存直接改内存行（api/ifco/impl-progress 的 MONTHLIES，刷新即恢复）。
+  已接后端 /a/ifco/monthly/*：行集 rows（实施库项目左连工作流行）、保存 save
+  （整行 upsert，状态编排在前端）；MONTHLIES 为行集本地缓存。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer">
@@ -76,7 +77,7 @@
             <BasicForm @register="handleProgressFormRegister" />
 
             <BasicForm @register="handleReportFormRegister">
-              <!-- 年度投资进度（派生只读：本年度累计完成投资/年度投资计划，随输入实时联动） -->
+              <!-- 年度投资进度（派生只读：本年度累计完成投资/本年度计划完成投资，随输入实时联动） -->
               <template #yearProgressRate="{ model }">
                 {{
                   yearProgressPercent({
@@ -215,6 +216,7 @@
     monthPlanOf,
     progressReminderOf,
     progressReminderTagProps,
+    saveMonthlyWorkflow,
     upsertMonthlyWorkflow,
     yearProgressPercent,
     type MonthlyItem,
@@ -728,6 +730,7 @@
       target.fillStatus = nextStatus;
       if (nextStatus === '待区级审查') target.returnInfo = undefined;
     }
+    await saveMonthlyWorkflow(target);
     showMessage(nextStatus === '待提交' ? '保存成功（待提交）' : '提交成功，待区级审查');
     closeDrawer();
     emit('success', target);
@@ -735,7 +738,7 @@
 
   /** 提交审查（两级：区级=项目所在行政区住更局，市级=项目推进组）：结论必选、退回必填意见；
    *  记录只追加逐轮保留；通过→区级转待市级审查、市级转市级审查通过；退回→转退回修改并写退回信息 */
-  function handleReviewSubmit() {
+  async function handleReviewSubmit() {
     const role = reviewRole.value;
     if (role !== 'district' && role !== 'urban') return;
     const conclusion = role === 'district' ? districtConclusion.value : urbanConclusion.value;
@@ -775,6 +778,7 @@
         returnOpinion: opinion,
       };
     }
+    await saveMonthlyWorkflow(target);
     showMessage(
       conclusion === '通过审查'
         ? level === '区级'

@@ -4,7 +4,7 @@
 
   搜索表单（项目名称/五改类型/片区批次/项目归属/当前建设阶段/流程状态/选择年份/
   选择月份）+ 工具栏（一键导出）+ 表格（表头换行显示；金额四列=项目投资估算/
-  年度投资计划/年度累计完成投资/当月完成投资，均亿元右对齐；年度投资进度=
+  本年度计划完成投资/年度累计完成投资/当月完成投资，均亿元右对齐；年度投资进度=
   累计/计划派生百分比；两描述列+实施进度完成百分比+指定填报主体+入库纳统情况）。
   操作列按流程状态变化（填报主体任何状态恒有查看）：待提交/退回修改=查看+编辑，
   待区级审查/待市级审查/市级审查通过=仅查看。查看/编辑走
@@ -87,10 +87,10 @@
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '当前形象进度', dataIndex: 'currentProgress', width: 140 },
-    { title: '项目投资估算(亿元)', dataIndex: 'investEstimate', width: 130, align: 'right' },
-    { title: '年度投资计划(亿元)', dataIndex: 'yearInvest', width: 130, align: 'right' },
-    { title: '年度累计完成投资(亿元)', dataIndex: 'yearAccumulatedInvest', width: 150, align: 'right' },
-    { title: '当月完成投资(亿元)', dataIndex: 'monthCompletedInvest', width: 130, align: 'right' },
+    { title: '项目投资估算（亿元）', dataIndex: 'investEstimate', width: 130, align: 'right' },
+    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearInvest', width: 130, align: 'right' },
+    { title: '年度累计完成投资（亿元）', dataIndex: 'yearAccumulatedInvest', width: 150, align: 'right' },
+    { title: '当月完成投资（亿元）', dataIndex: 'monthCompletedInvest', width: 130, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgress', width: 110, slot: 'yearProgress' },
     { title: '当月进度计划安排（分项简要描述）', dataIndex: 'monthPlan', width: 220, slot: 'monthPlan' },
     { title: '完成进度计划情况', dataIndex: 'monthProgressDesc', width: 220 },
@@ -238,7 +238,7 @@
   }
 </script>
 <style scoped>
-  /* 表头换行显示（长列名两行，如「年度累计完成投资(亿元)」） */
+  /* 表头换行显示（长列名两行，如「年度累计完成投资（亿元）」） */
   .monthly-fill-table :deep(.ant-table-thead > tr > th) {
     white-space: normal;
   }

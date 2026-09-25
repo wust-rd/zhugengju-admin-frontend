@@ -3,7 +3,7 @@
 
   搜索表单（项目名称/片区名称/片区批次/五改类型/项目归属/流程状态/选择年份/
   选择月份）+ 工具栏（一键导出）+ 表格（与填报端月度列表同数据、同列不分角色：
-  表头换行显示，金额四列=项目投资估算/年度投资计划/年度累计完成投资/当月完成
+  表头换行显示，金额四列=项目投资估算/本年度计划完成投资/年度累计完成投资/当月完成
   投资；年度投资进度=累计/计划派生百分比；两描述列+实施进度完成百分比+指定
   填报主体+入库纳统情况，仅操作列按视角区分）。
   操作列按视角+流程状态变化：本视角审查环节（区级=待区级审查，市级=待市级审查）
@@ -41,7 +41,6 @@
 
     <!-- 查看/审查走填报端同款表单抽屉（查看=只读无底部；审查=审查结果区填本层级结论） -->
     <MonthlyForm @register="registerDrawer" @success="handleSuccess" />
-
   </div>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressSharedMonthlyConfirmPanel">
@@ -95,10 +94,10 @@
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '当前形象进度', dataIndex: 'currentProgress', width: 140, ellipsis: true },
-    { title: '项目投资估算(亿元)', dataIndex: 'investEstimate', width: 130, align: 'right' },
-    { title: '年度投资计划(亿元)', dataIndex: 'yearInvest', width: 130, align: 'right' },
-    { title: '年度累计完成投资(亿元)', dataIndex: 'yearAccumulatedInvest', width: 150, align: 'right' },
-    { title: '当月完成投资(亿元)', dataIndex: 'monthCompletedInvest', width: 130, align: 'right' },
+    { title: '项目投资估算（亿元）', dataIndex: 'investEstimate', width: 130, align: 'right' },
+    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearInvest', width: 130, align: 'right' },
+    { title: '年度累计完成投资（亿元）', dataIndex: 'yearAccumulatedInvest', width: 150, align: 'right' },
+    { title: '当月完成投资（亿元）', dataIndex: 'monthCompletedInvest', width: 130, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgress', width: 110, slot: 'yearProgress' },
     { title: '当月进度计划安排（分项简要描述）', dataIndex: 'monthPlan', width: 220, slot: 'monthPlan' },
     { title: '完成进度计划情况', dataIndex: 'monthProgressDesc', width: 220, ellipsis: true },

@@ -15,18 +15,28 @@
  * - 提示/督办：市住更局按月下发工作提示与督办；填报端按项目逐行处理，区级端按
  *   下发编号整单处理（含涉及片区和项目的处理情况）。
  *
- * 当前后端尚未介入：选项清单与行数据为静态假数据（刷新即恢复）；行政区 / 五改类别 /
+ * 已接后端：提示/督办 /a/ifco/supervise/*、倒排工期 /a/ifco/schedule/*、月度进度
+ * /a/ifco/monthly/*、三色图 /a/ifco/tricolor/*（行集拉取后 SCHEDULES/MONTHLIES/
+ * AREAS_TRICOLOR 作为本地缓存回填）；行政区 / 五改类别 /
  * 片区 / 项目归属复用项目库口径（@jeesite/ifco/api/ifco/project-library）。
  */
 
 import NP from 'number-precision';
 import { match } from 'ts-pattern';
+import { defHttp } from '@jeesite/core/utils/http/axios';
+import { useGlobSetting } from '@jeesite/core/hooks/setting';
+import { unwrap } from '../progress-fill';
+
+const { adminPath } = useGlobSetting();
+const SUPERVISE_BASE = adminPath + '/ifco/supervise';
+const SCHEDULE_BASE = adminPath + '/ifco/schedule';
+const MONTHLY_BASE = adminPath + '/ifco/monthly';
+const TRICOLOR_BASE = adminPath + '/ifco/tricolor';
 import {
   DISTRICTS,
   FIVE_REFORM_TYPE_LABEL,
   PROJECT_AFFILIATION_LABEL,
   RENEWAL_AREA_BATCH_LABEL,
-  fetchLibPage,
 } from '@jeesite/ifco/api/ifco/project-library';
 
 /** 填报页卡片（点选切换 = 表格筛选维度，经路由 ?card= 持久化） */
@@ -177,7 +187,7 @@ export type ScheduleItem = {
   projectAffiliation: string;
   /** 项目投资估算（亿元） */
   investEstimate: number;
-  /** 本年度计划完成投资/年度投资计划（亿元，主表 year_invest） */
+  /** 本年度计划完成投资（亿元，主表 year_invest） */
   yearInvest: number;
   /** 计划开工时间 */
   planStartDate: string;
@@ -235,7 +245,7 @@ export type MonthlyItem = {
   currentProgress: string;
   /** 项目投资估算（亿元，只读） */
   investEstimate: number;
-  /** 年度投资计划（亿元，只读） */
+  /** 本年度计划完成投资（亿元，只读） */
   yearInvest: number;
   /** 计划开工时间（基本信息展示） */
   planStartDate: string;
@@ -282,8 +292,10 @@ export type MonthlyItem = {
   reviewRecords?: ReviewRecord[];
 };
 
-/** 提示/督办主记录（市级下发；区级端整单处理、市级端确认处理结果） */
+/** 提示/督办主记录（市级发起：待下发→已下发；区级提交处理结果、市级确认办结） */
 export type SuperviseItem = {
+  /** 主表 id */
+  id: string;
   /** 下发编号（如 项目督办〔2026〕002号） */
   dispatchNo: string;
   superviseType: SuperviseType;
@@ -312,33 +324,54 @@ export type SuperviseItem = {
   districtHandlePhotoList?: string[];
   /** 市级确认结果（同意处理结果/不同意处理结果；待确认转已确认时落值） */
   urbanConfirmResult?: string;
-  /** 涉及片区和项目的处理情况 */
-  areaItems: { area: string; projects: { projectName: string; problem: string; foundProblem: string }[] }[];
+  /** 下发对象（片区×项目；保存随单整替） */
+  areaItems: { area: string; projects: { pUid?: string; projectName: string; problem: string }[] }[];
 };
 
-/** 提示/督办填报端行（督办 × 关联项目 扁平行，每行独立处理） */
-export type SuperviseHandleRow = {
-  dispatchNo: string;
+/** 保存提示/督办单（市级新增/编辑待下发行；提交后 待下发/待下发） */
+export function saveSupervise(payload: {
+  id?: string;
   superviseType: SuperviseType;
-  inspectMonth: string;
-  dispatchDate: string;
-  deadline: string;
-  dispatchOrg: string;
-  problem: string;
-  dispatchFile: string;
-  projectCode: string;
-  projectName: string;
   district: string;
-  renewalAreaName: string;
-  fiveReformType: string;
-  currentProgress: string;
-  /** 指定填报主体 */
-  reportOrg: string;
-  handleStatus: HandleStatus;
-  handleDate: string;
-  handleDesc: string;
-  handleFileList: string[];
-};
+  inspectMonth: string;
+  deadline: string;
+  contactPerson?: string;
+  contactPhone?: string;
+  areaItems: { area: string; projects: { pUid?: string; projectName: string; problem: string }[] }[];
+}) {
+  return unwrap<SuperviseItem>(defHttp.postJson({ url: SUPERVISE_BASE + '/save', data: payload }));
+}
+
+/** 单据清单（市级全量；区级按本区可见性由页面按登录机构过滤） */
+export function fetchSuperviseList() {
+  return unwrap<SuperviseItem[]>(defHttp.get({ url: SUPERVISE_BASE + '/list' }));
+}
+
+/** 下一编号（新增抽屉展示：督办=项目督办〔yyyy〕、提示=项目提示〔yyyy〕） */
+export function fetchSuperviseNextNo(type: SuperviseType) {
+  return unwrap<{ dispatchNo: string }>(defHttp.get({ url: SUPERVISE_BASE + '/nextNo', params: { type } }));
+}
+
+/** 下发（待下发→已下发/待处理，记录下发时间） */
+export function dispatchSupervise(id: string) {
+  return unwrap<SuperviseItem>(defHttp.post({ url: SUPERVISE_BASE + '/dispatch', params: { id } }));
+}
+
+/** 区级提交处理结果（→待确认；附件清单必填由前后端双拦截） */
+export function districtSubmitSupervise(payload: {
+  id: string;
+  districtHandleDate?: string;
+  districtHandleDesc?: string;
+  fileList: string[];
+  photoList: string[];
+}) {
+  return unwrap<SuperviseItem>(defHttp.postJson({ url: SUPERVISE_BASE + '/districtSubmit', data: payload }));
+}
+
+/** 市级确认（→已确认，流程办结；确认结果=同意处理结果/不同意处理结果） */
+export function urbanConfirmSupervise(payload: { id: string; urbanConfirmResult: string }) {
+  return unwrap<SuperviseItem>(defHttp.postJson({ url: SUPERVISE_BASE + '/urbanConfirm', data: payload }));
+}
 
 // ── 统计卡 ────────────────────────────────────────────────────────────
 
@@ -458,732 +491,11 @@ export const URBAN_CARDS: StatCard<DistrictCardKey>[] = [
 
 // ── 假数据 ────────────────────────────────────────────────────────────
 
-/** 倒排工期计划（7 行：待填报 1 / 待提交 1 / 待审查 2 / 通过审查 2 / 退回修改 1） */
-export const SCHEDULES: ScheduleItem[] = [
-  {
-    projectCode: '20263609',
-    pUid: 'seed-20263609',
-    reportOrg: '武汉城建集团',
-    projectStatus: '新开工',
-    projectName: '三阳设计之都项目（一元路片）',
-    district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'city-area',
-    investEstimate: 1.8,
-    yearInvest: 0.9,
-    planStartDate: '2026-03-01',
-    planCompletionDate: '2027-12-31',
-    inLibraryDate: '2026-09-10',
-    isNewInLibrary: true,
-    planStartMonth: '2026-03',
-    monthPlans: [
-      '完成片区前期摸底与入户调查。',
-      '启动危旧房安全性鉴定。',
-      '完成设计方案初步成果。',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '深化设计方案，同步开展入户调查摸底。',
-      '',
-      '',
-      '',
-    ],
-    fillStatus: '退回修改',
-    lastSubmitDate: '2026-09-12',
-    reviewRecords: [
-      {
-        round: 1,
-        level: '区级',
-        reviewOrg: '江岸区住房和城市更新局',
-        conclusion: '退回修改',
-        opinion: '请补充完善6-8月计划内容。',
-        reviewDate: '2026-09-14',
-      },
-    ],
-  },
-  {
-    projectCode: '20263558',
-    pUid: 'seed-20263558',
-    reportOrg: '和纵盛地产公司',
-    projectStatus: '续建',
-    projectName: '西马片房地产新模式试点项目等',
-    district: '江岸区',
-    renewalAreaName: '四马片',
-    renewalAreaBatch: 'second',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'district-area',
-    investEstimate: 2.03,
-    yearInvest: 1.2,
-    planStartDate: '2026-05-01',
-    planCompletionDate: '2027-10-31',
-    inLibraryDate: '2026-06-18',
-    isNewInLibrary: false,
-    planStartMonth: '2026-05',
-    monthPlans: [
-      '完成项目公司组建与资金方案审批。',
-      '取得建设工程规划许可证。',
-      '完成施工总承包招标。',
-      '桩基工程进场施工。',
-      '完成土方开挖 30%。',
-      '基坑支护完成。',
-      '',
-      '',
-      '按协议落实征地补偿费用，完成桩基工程施工图审查。',
-      '',
-      '',
-      '',
-    ],
-    fillStatus: '待区级审查',
-    lastSubmitDate: '2026-09-18',
-  },
-  {
-    projectCode: '20263559',
-    pUid: 'seed-20263559',
-    reportOrg: '江岸区住更局',
-    projectStatus: '在建',
-    projectName: '佛山街（二辉路-三阳路）道路改造',
-    district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'city-area',
-    investEstimate: 0.28,
-    yearInvest: 0.15,
-    planStartDate: '2026-04-01',
-    planCompletionDate: '2026-11-30',
-    inLibraryDate: '2026-07-03',
-    isNewInLibrary: false,
-    planStartMonth: '2026-04',
-    monthPlans: [
-      '完成施工围挡与交通疏解方案备案。',
-      '雨污水管道开挖施工。',
-      '完成路基整形 50%。',
-      '水稳层摊铺。',
-      '沥青面层施工。',
-      '人行道铺装与照明安装。',
-      '竣工清理与验收准备。',
-      '',
-      '完成雨污水管道开挖与路基整形。',
-      '',
-      '',
-      '',
-    ],
-    fillStatus: '待市级审查',
-    lastSubmitDate: '2026-09-12',
-    reviewRecords: [
-      {
-        round: 1,
-        level: '区级',
-        reviewOrg: '江岸区住房和城市更新局',
-        conclusion: '通过审查',
-        opinion: '计划内容完整，同意通过。',
-        reviewDate: '2026-09-15',
-      },
-    ],
-  },
-  {
-    projectCode: '20263557',
-    pUid: 'seed-20263557',
-    reportOrg: '武汉城建集团',
-    projectStatus: '在建',
-    projectName: '黑泥湖村城中村改造项目等',
-    district: '江岸区',
-    renewalAreaName: '黑泥湖片',
-    renewalAreaBatch: 'second',
-    fiveReformType: 'urban-village',
-    projectAffiliation: 'city-area',
-    investEstimate: 11.6,
-    yearInvest: 4.5,
-    planStartDate: '2026-02-01',
-    planCompletionDate: '2028-06-30',
-    inLibraryDate: '2026-03-18',
-    isNewInLibrary: false,
-    planStartMonth: '2026-02',
-    monthPlans: [
-      '安置房地块征拆扫尾。',
-      '完成安置房基坑围护结构施工。',
-      '安置房桩基工程完成 60%。',
-      '市政配套道路开工。',
-      '安置房主体结构出正负零。',
-      '商业地块挂牌前期准备。',
-      '主体结构施工至 5 层。',
-      '',
-      '安置房主体结构施工至5层，商业地块完成挂牌准备。',
-      '',
-      '',
-      '',
-    ],
-    fillStatus: '市级审查通过',
-    lastSubmitDate: '2026-08-28',
-    reviewRecords: [
-      {
-        round: 1,
-        level: '区级',
-        reviewOrg: '江岸区住房和城市更新局',
-        conclusion: '通过审查',
-        opinion: '同意该倒排工期计划。',
-        reviewDate: '2026-08-30',
-      },
-      {
-        round: 1,
-        level: '市级',
-        reviewOrg: '市住房和城市更新局',
-        conclusion: '通过审查',
-        opinion: '同意。',
-        reviewDate: '2026-09-06',
-      },
-    ],
-  },
-  {
-    projectCode: '20263556',
-    pUid: 'seed-20263556',
-    reportOrg: '江岸区文旅局',
-    projectStatus: '已完工',
-    projectName: '大智门火车站旧址修缮等',
-    district: '江岸区',
-    renewalAreaName: '',
-    renewalAreaBatch: '',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'scattered',
-    investEstimate: 0.1846,
-    yearInvest: 0.09,
-    planStartDate: '2026-01-01',
-    planCompletionDate: '2026-08-31',
-    inLibraryDate: '2026-05-06',
-    isNewInLibrary: false,
-    planStartMonth: '2026-01',
-    monthPlans: [
-      '完成历史建筑勘察与修缮方案评审。',
-      '屋面揭瓦修缮。',
-      '木构件修补与防腐处理。',
-      '外墙清水墙修复。',
-      '室内展陈施工。',
-      '竣工验收并移交。',
-      '',
-      '',
-      '完成室内展陈施工收尾与竣工验收准备。',
-      '',
-      '',
-      '',
-    ],
-    fillStatus: '市级审查通过',
-    lastSubmitDate: '2026-09-05',
-    reviewRecords: [
-      {
-        round: 1,
-        level: '区级',
-        reviewOrg: '江岸区住房和城市更新局',
-        conclusion: '通过审查',
-        opinion: '同意该倒排工期计划。',
-        reviewDate: '2026-09-08',
-      },
-      {
-        round: 1,
-        level: '市级',
-        reviewOrg: '市住房和城市更新局',
-        conclusion: '通过审查',
-        opinion: '同意。',
-        reviewDate: '2026-09-16',
-      },
-    ],
-  },
-  {
-    projectCode: '20263550',
-    pUid: 'seed-20263550',
-    reportOrg: '武汉建工集团',
-    projectStatus: '前期',
-    projectName: '二七沿江商务区旧改',
-    district: '江岸区',
-    renewalAreaName: '二七沿江片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'city-area',
-    investEstimate: 6.8,
-    yearInvest: 2.1,
-    planStartDate: '2026-06-01',
-    planCompletionDate: '2028-12-31',
-    inLibraryDate: '2026-08-20',
-    isNewInLibrary: false,
-    planStartMonth: '2026-06',
-    monthPlans: ['', '', '', '', '', '地块摘牌与方案设计。', '', '', '完成地块摘牌与方案设计招标。', '', '', ''],
-    fillStatus: '待提交',
-  },
-  {
-    projectCode: '20263601',
-    pUid: 'seed-20263601',
-    reportOrg: '江岸区住更局',
-    projectStatus: '实施库入库',
-    projectName: '新兴街片旧城更新项目',
-    district: '江岸区',
-    renewalAreaName: '新兴街片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-community',
-    projectAffiliation: 'city-area',
-    investEstimate: 3.2,
-    yearInvest: 1.5,
-    planStartDate: '2026-10-01',
-    planCompletionDate: '2028-03-31',
-    inLibraryDate: '2026-09-16',
-    isNewInLibrary: true,
-    planStartMonth: '2026-10',
-    monthPlans: ['', '', '', '', '', '', '', '', '', '', '', ''],
-    fillStatus: '待提交',
-  },
-];
+/** 倒排工期工作流本地缓存（fetchScheduleRows 接口拉取后回填；monthPlanOf 等直读） */
+export const SCHEDULES: ScheduleItem[] = [];
 
-/** 月度进度填报（7 行 = 应填报 7；待区级审查 1 / 待市级审查 1 / 市级审查通过 2 / 退回修改 1 / 待提交 2） */
-export const MONTHLIES: MonthlyItem[] = [
-  {
-    reportMonth: '2026-09',
-    projectCode: '20263558',
-    pUid: 'seed-20263558',
-    projectName: '西马片房地产新模式试点项目等',
-    district: '江岸区',
-    renewalAreaName: '四马片',
-    renewalAreaBatch: 'second',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'district-area',
-    currentProgress: '桩基工程施工中',
-    investEstimate: 2.03,
-    reportOrg: '和纵盛地产公司',
-    yearInvest: 1.2,
-    planStartDate: '2026-05-01',
-    planCompletionDate: '2027-10-31',
-    inLibraryDate: '2026-06-18',
-    yearAccumulatedInvest: 0.52,
-    monthCompletedInvest: 0.18,
-    totalAccumulatedInvest: 0.52,
-    yearRangeAccumulatedInvest: 0.3,
-    carryOverAccumulatedInvest: 0,
-    monthProgressDesc: '项目基坑开挖完成，桩基工程完成50%。',
-    implementProgress: 50,
-    constructionStage: '建设中',
-    statisticsIncluded: '是',
-    statisticsCategory: '房地产开发项目',
-    statisticsProjectCode: '42010320260012',
-    difficultyProblem: '桩基施工涉及军用光缆迁改，需市级领导调度。',
-    milestonePhotos: ['桩基施工-1.jpg', '桩基施工-2.jpg', '基坑全景.jpg'],
-    monthEntries: {
-      7: {
-        constructionStage: '建设中',
-        currentProgress: '基坑支护完成',
-        implementProgress: 30,
-        progressDesc: '土方开挖完成30%，基坑支护完成。',
-        actualStartDate: '2026-03-15',
-      },
-      8: {
-        constructionStage: '建设中',
-        currentProgress: '桩基工程施工中',
-        implementProgress: 40,
-        progressDesc: '桩基工程完成40%。',
-        actualStartDate: '2026-03-15',
-      },
-      9: {
-        constructionStage: '建设中',
-        currentProgress: '桩基工程施工中',
-        implementProgress: 50,
-        progressDesc: '项目基坑开挖完成，桩基工程完成50%。',
-        actualStartDate: '2026-03-15',
-      },
-    },
-    fillStatus: '待区级审查',
-  },
-  {
-    reportMonth: '2026-09',
-    projectCode: '20263557',
-    pUid: 'seed-20263557',
-    projectName: '黑泥湖村城中村改造项目等',
-    district: '江岸区',
-    renewalAreaName: '黑泥湖片',
-    renewalAreaBatch: 'second',
-    fiveReformType: 'urban-village',
-    projectAffiliation: 'city-area',
-    currentProgress: '安置房主体结构施工',
-    investEstimate: 11.6,
-    reportOrg: '武汉城建集团',
-    yearInvest: 4.5,
-    planStartDate: '2026-02-01',
-    planCompletionDate: '2028-06-30',
-    inLibraryDate: '2026-03-18',
-    yearAccumulatedInvest: 3.86,
-    monthCompletedInvest: 0.65,
-    totalAccumulatedInvest: 8.16,
-    yearRangeAccumulatedInvest: 2.5,
-    carryOverAccumulatedInvest: 4.3,
-    monthProgressDesc: '安置房主体结构施工至5层，市政配套道路雨污管网同步施工。',
-    implementProgress: 60,
-    constructionStage: '建设中',
-    statisticsIncluded: '是',
-    statisticsCategory: '房地产开发项目',
-    statisticsProjectCode: '42010320260008',
-    monthEntries: {
-      7: {
-        constructionStage: '建设中',
-        currentProgress: '安置房主体结构施工',
-        implementProgress: 45,
-        progressDesc: '安置房主体结构施工至5层。',
-        actualStartDate: '2026-02-20',
-      },
-      8: {
-        constructionStage: '建设中',
-        currentProgress: '安置房主体结构施工',
-        implementProgress: 52,
-        progressDesc: '主体结构施工至6层，市政配套道路雨污管网同步施工。',
-        actualStartDate: '2026-02-20',
-      },
-      9: {
-        constructionStage: '建设中',
-        currentProgress: '安置房主体结构施工',
-        implementProgress: 60,
-        progressDesc: '安置房主体结构施工至5层，市政配套道路雨污管网同步施工。',
-        actualStartDate: '2026-02-20',
-      },
-    },
-    fillStatus: '待市级审查',
-  },
-  {
-    reportMonth: '2026-09',
-    projectCode: '20263559',
-    pUid: 'seed-20263559',
-    projectName: '佛山街（二辉路-三阳路）道路改造',
-    district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'city-area',
-    currentProgress: '路基整形施工',
-    investEstimate: 0.28,
-    reportOrg: '江岸区住更局',
-    yearInvest: 0.15,
-    planStartDate: '2026-04-01',
-    planCompletionDate: '2026-11-30',
-    inLibraryDate: '2026-07-03',
-    yearAccumulatedInvest: 0.11,
-    monthCompletedInvest: 0.04,
-    totalAccumulatedInvest: 0.11,
-    yearRangeAccumulatedInvest: 0.06,
-    carryOverAccumulatedInvest: 0,
-    monthProgressDesc: '雨污水管道开挖完成，路基整形完成50%。',
-    implementProgress: 45,
-    constructionStage: '建设中',
-    statisticsIncluded: '否',
-    notIncludedReason: '市政道路项目暂未达到纳统标准',
-    monthEntries: {
-      9: {
-        constructionStage: '建设中',
-        currentProgress: '路基整形施工',
-        implementProgress: 45,
-        progressDesc: '雨污水管道开挖完成，路基整形完成50%。',
-        actualStartDate: '2026-04-10',
-      },
-    },
-    fillStatus: '市级审查通过',
-  },
-  {
-    reportMonth: '2026-09',
-    projectCode: '20263556',
-    pUid: 'seed-20263556',
-    projectName: '大智门火车站旧址修缮等',
-    district: '江岸区',
-    renewalAreaName: '',
-    renewalAreaBatch: '',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'scattered',
-    currentProgress: '室内展陈施工',
-    investEstimate: 0.1846,
-    reportOrg: '江岸区文旅局',
-    yearInvest: 0.09,
-    planStartDate: '2026-01-01',
-    planCompletionDate: '2026-08-31',
-    inLibraryDate: '2026-05-06',
-    yearAccumulatedInvest: 0.078,
-    monthCompletedInvest: 0.012,
-    totalAccumulatedInvest: 0.078,
-    yearRangeAccumulatedInvest: 0.05,
-    carryOverAccumulatedInvest: 0,
-    monthProgressDesc: '外墙清水墙修复完成，室内展陈施工完成60%。',
-    implementProgress: 80,
-    constructionStage: '建设中',
-    statisticsIncluded: '否',
-    notIncludedReason: '文物保护修缮项目不在固定资产投资纳统范围',
-    monthEntries: {
-      9: {
-        constructionStage: '建设中',
-        currentProgress: '室内展陈施工',
-        implementProgress: 80,
-        progressDesc: '外墙清水墙修复完成，室内展陈施工完成60%。',
-        actualStartDate: '2026-05-06',
-      },
-    },
-    fillStatus: '市级审查通过',
-  },
-  {
-    reportMonth: '2026-09',
-    projectCode: '20263609',
-    pUid: 'seed-20263609',
-    projectName: '三阳设计之都项目（一元路片）',
-    district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'city-area',
-    currentProgress: '设计方案深化',
-    investEstimate: 1.8,
-    reportOrg: '武汉城建集团',
-    yearInvest: 0.9,
-    planStartDate: '2026-03-01',
-    planCompletionDate: '2027-12-31',
-    inLibraryDate: '2026-09-10',
-    yearAccumulatedInvest: 0,
-    monthCompletedInvest: 0,
-    totalAccumulatedInvest: 0,
-    yearRangeAccumulatedInvest: 0,
-    carryOverAccumulatedInvest: 0,
-    monthProgressDesc: '',
-    implementProgress: 10,
-    constructionStage: '前期手续',
-    statisticsIncluded: '否',
-    notIncludedReason: '项目处于前期手续阶段，未形成有效投资',
-    monthEntries: {
-      9: { constructionStage: '前期手续', currentProgress: '设计方案深化', implementProgress: 10, progressDesc: '' },
-    },
-    fillStatus: '退回修改',
-    returnInfo: {
-      submitDate: '2026-09-12',
-      returnDate: '2026-09-14',
-      returnOrg: '江岸区住房和城市更新局',
-      returnCount: 1,
-      returnOpinion: '当月形象进度描述与投资完成情况不实，请核实后重新填报。',
-    },
-  },
-  {
-    reportMonth: '2026-09',
-    projectCode: '20263550',
-    pUid: 'seed-20263550',
-    projectName: '二七沿江商务区旧改',
-    district: '江岸区',
-    renewalAreaName: '二七沿江片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-street',
-    projectAffiliation: 'city-area',
-    currentProgress: '方案设计',
-    investEstimate: 6.8,
-    reportOrg: '武汉建工集团',
-    yearInvest: 2.1,
-    planStartDate: '2026-06-01',
-    planCompletionDate: '2028-12-31',
-    inLibraryDate: '2026-08-20',
-    yearAccumulatedInvest: 0.15,
-    monthCompletedInvest: 0.08,
-    totalAccumulatedInvest: 0.15,
-    yearRangeAccumulatedInvest: 0.07,
-    carryOverAccumulatedInvest: 0,
-    monthProgressDesc: '',
-    implementProgress: 5,
-    constructionStage: '前期手续',
-    statisticsIncluded: '否',
-    notIncludedReason: '前期准备阶段，未开工不计投资',
-    monthEntries: {
-      9: { constructionStage: '前期手续', currentProgress: '方案设计', implementProgress: 5, progressDesc: '' },
-    },
-    fillStatus: '待提交',
-  },
-  {
-    reportMonth: '2026-09',
-    projectCode: '20263601',
-    pUid: 'seed-20263601',
-    projectName: '新兴街片旧城更新项目',
-    district: '江岸区',
-    renewalAreaName: '新兴街片',
-    renewalAreaBatch: 'first',
-    fiveReformType: 'old-community',
-    projectAffiliation: 'city-area',
-    currentProgress: '前期摸底',
-    investEstimate: 3.2,
-    reportOrg: '江岸区住更局',
-    yearInvest: 1.5,
-    planStartDate: '2026-10-01',
-    planCompletionDate: '2028-03-31',
-    inLibraryDate: '2026-09-16',
-    yearAccumulatedInvest: 0,
-    monthCompletedInvest: 0,
-    totalAccumulatedInvest: 0,
-    yearRangeAccumulatedInvest: 0,
-    carryOverAccumulatedInvest: 0,
-    monthProgressDesc: '',
-    constructionStage: '前期手续',
-    statisticsIncluded: '否',
-    notIncludedReason: '前期摸底调查阶段，尚未开工',
-    monthEntries: {
-      9: { constructionStage: '前期手续', currentProgress: '前期摸底', progressDesc: '' },
-    },
-    fillStatus: '待提交',
-  },
-];
-
-/** 提示/督办主记录（区级端整单；市住更局下发） */
-export const SUPERVISES: SuperviseItem[] = [
-  {
-    dispatchNo: '项目督办〔2026〕002号',
-    superviseType: '督办',
-    district: '江岸区',
-    dispatchStatus: '已下发',
-    inspectMonth: '2026-10',
-    dispatchDate: '2026-10-11',
-    deadline: '2026-10-25',
-    dispatchOrg: '市住更局',
-    problem: '项目实际进度滞后于倒排工期计划。',
-    dispatchFile: '督办单.pdf',
-    contactPerson: '张三',
-    contactPhone: '027-12345678',
-    districtHandleStatus: '待确认',
-    districtHandleDate: '2026-10-20',
-    districtHandleDesc: '已约谈实施主体，加密施工组织，追加作业班组，进度已恢复正常。',
-    districtHandleFileList: ['处理情况报告.pdf'],
-    districtHandlePhotoList: ['现场复核照片-1.jpg'],
-    areaItems: [
-      {
-        area: '一元片',
-        projects: [
-          {
-            projectName: '三阳设计之都项目（一元路片）',
-            problem: '倒排工期计划未按期填报。',
-            foundProblem: '是',
-          },
-          { projectName: '佛山街（二辉路-三阳路）道路改造', problem: '进度滞后', foundProblem: '未发现问题' },
-        ],
-      },
-      {
-        area: '四马片',
-        projects: [
-          {
-            projectName: '西马片房地产新模式试点项目等',
-            problem: '项目实际进度滞后于倒排工期计划。',
-            foundProblem: '是',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    dispatchNo: '工作提示〔2026〕015号',
-    superviseType: '工作提示',
-    district: '江岸区',
-    dispatchStatus: '已下发',
-    inspectMonth: '2026-10',
-    dispatchDate: '2026-10-09',
-    deadline: '2026-10-20',
-    dispatchOrg: '市住更局',
-    problem: '月度进度填报不及时，请按每月25日前完成填报。',
-    dispatchFile: '工作提示函.pdf',
-    districtHandleStatus: '待处理',
-    districtHandleDate: '',
-    districtHandleDesc: '',
-    districtHandleFileList: [],
-    areaItems: [
-      {
-        area: '二七沿江片',
-        projects: [{ projectName: '二七沿江商务区旧改', problem: '月度进度未按期填报', foundProblem: '是' }],
-      },
-    ],
-  },
-  {
-    dispatchNo: '项目督办〔2026〕003号',
-    superviseType: '督办',
-    district: '江岸区',
-    dispatchStatus: '已下发',
-    inspectMonth: '2026-09',
-    dispatchDate: '2026-09-08',
-    deadline: '2026-09-22',
-    dispatchOrg: '市住更局',
-    problem: '安置房建设进度滞后，需加快施工组织。',
-    dispatchFile: '督办单.pdf',
-    contactPerson: '张三',
-    contactPhone: '027-12345678',
-    districtHandleStatus: '已确认',
-    districtHandleDate: '2026-09-20',
-    districtHandleDesc: '已约谈实施主体，加密施工组织，追加作业班组，进度已恢复正常。',
-    districtHandleFileList: ['处理情况报告.pdf'],
-    districtHandlePhotoList: ['现场核查照片-1.jpg', '现场核查照片-2.jpg'],
-    areaItems: [
-      {
-        area: '黑泥湖片',
-        projects: [
-          {
-            projectName: '黑泥湖村城中村改造项目等',
-            problem: '安置房建设进度滞后',
-            foundProblem: '是',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    // 市级端「新增督办」提交的样例（待下发：只在市级列表出现，可无限编辑，不进填报端/区级端处理流程）
-    dispatchNo: '项目督办〔2026〕004号',
-    superviseType: '督办',
-    district: '硚口区',
-    dispatchStatus: '待下发',
-    inspectMonth: '2026-10',
-    dispatchDate: '',
-    deadline: '2026-11-05',
-    dispatchOrg: '市住更局',
-    problem: '月度进度填报连续两月滞后，需专项整改。',
-    dispatchFile: '督办单.pdf',
-    districtHandleStatus: '待下发',
-    districtHandleDate: '',
-    districtHandleDesc: '',
-    districtHandleFileList: [],
-    areaItems: [],
-  },
-];
-
-/** 填报端行（督办 × 关联项目 扁平展开；每行独立处理；仅已下发的进入处理流程） */
-export const SUPERVISE_ROWS: SuperviseHandleRow[] = SUPERVISES.filter(
-  (supervise) => supervise.dispatchStatus === '已下发',
-).flatMap((supervise) =>
-  supervise.areaItems.flatMap((area) =>
-    area.projects.map((project): SuperviseHandleRow => {
-      const monthly = MONTHLIES.find((item) => item.projectName === project.projectName);
-      return {
-        dispatchNo: supervise.dispatchNo,
-        superviseType: supervise.superviseType,
-        inspectMonth: supervise.inspectMonth,
-        dispatchDate: supervise.dispatchDate,
-        deadline: supervise.deadline,
-        dispatchOrg: supervise.dispatchOrg,
-        problem: project.problem,
-        dispatchFile: supervise.dispatchFile,
-        projectCode: monthly?.projectCode ?? '',
-        projectName: project.projectName,
-        district: monthly?.district ?? DISTRICTS[0],
-        renewalAreaName: area.area,
-        fiveReformType: monthly?.fiveReformType ?? 'old-street',
-        currentProgress: monthly?.currentProgress ?? '',
-        reportOrg: monthly ? `${monthly.district}住更局` : '江岸区住更局',
-        handleStatus:
-          supervise.dispatchNo === '项目督办〔2026〕002号' && project.foundProblem === '是'
-            ? '处理中'
-            : supervise.districtHandleStatus === '已处理' || supervise.districtHandleStatus === '已确认'
-              ? supervise.districtHandleStatus
-              : '待处理',
-        handleDate:
-          supervise.dispatchNo === '项目督办〔2026〕002号' && project.projectName.includes('西马片')
-            ? '2026-10-20'
-            : '',
-        handleDesc:
-          supervise.dispatchNo === '项目督办〔2026〕002号' && project.projectName.includes('西马片')
-            ? '已加密施工组织，增加作业班组，追赶滞后进度；同步更新倒排工期计划。'
-            : '',
-        handleFileList: [],
-      };
-    }),
-  ),
-);
+/** 月度进度工作流本地缓存（fetchMonthlyRows 接口拉取后回填） */
+export const MONTHLIES: MonthlyItem[] = [];
 
 // ── 片区三色图（市级/区级端按季度评估；红=滞后、黄=预警、绿=进展良好） ──
 
@@ -1216,153 +528,8 @@ export type AreaTricolorItem = {
   history?: { quarter: string; status: TriColorStatus }[];
 };
 
-/** 片区三色图进展（7 行：绿 2 / 黄 2 / 红 1 / 未评估 2；统计卡 待评估 2 / 应评估 7） */
-export const AREAS_TRICOLOR: AreaTricolorItem[] = [
-  {
-    evaluatePeriod: '2026-09',
-    areaCode: 'PQ001',
-    district: '江岸区',
-    areaName: '一元片',
-    renewalAreaBatch: 'first',
-    orientationList: ['SOD', 'IOD', 'COD'],
-    totalInvestEstimate: 2.8,
-    accumulatedInvest: 0.66,
-    yearTotalPlanInvest: 0.9,
-    quarterInvest: 0.11,
-    yearCompletedInvest: 0.66,
-    yearProgress: 73,
-    triColor: '绿色',
-    history: [
-      { quarter: '2026-2', status: '绿色' },
-      { quarter: '2026-1', status: '绿色' },
-    ],
-  },
-  {
-    evaluatePeriod: '2026-09',
-    areaCode: 'PQ002',
-    district: '江岸区',
-    areaName: '二七沿江片',
-    renewalAreaBatch: 'first',
-    orientationList: ['TOD', 'HOD'],
-    totalInvestEstimate: 15.6,
-    accumulatedInvest: 7.56,
-    yearTotalPlanInvest: 2.1,
-    quarterInvest: 0.38,
-    yearCompletedInvest: 1.2,
-    yearProgress: 57,
-    triColor: '黄色',
-    history: [
-      { quarter: '2026-2', status: '黄色' },
-      { quarter: '2026-1', status: '绿色' },
-    ],
-  },
-  {
-    evaluatePeriod: '2026-09',
-    areaCode: 'PQ003',
-    district: '江岸区',
-    areaName: '四马片',
-    renewalAreaBatch: 'second',
-    orientationList: ['COD'],
-    totalInvestEstimate: 4.2,
-    accumulatedInvest: 2.94,
-    yearTotalPlanInvest: 1.5,
-    quarterInvest: 0.33,
-    yearCompletedInvest: 1.05,
-    yearProgress: 70,
-    triColor: '绿色',
-    history: [
-      { quarter: '2026-2', status: '黄色' },
-      { quarter: '2026-1', status: '绿色' },
-    ],
-  },
-  {
-    evaluatePeriod: '2026-09',
-    areaCode: 'PQ004',
-    district: '江岸区',
-    areaName: '黑泥湖片',
-    renewalAreaBatch: 'second',
-    orientationList: ['IOD'],
-    totalInvestEstimate: 14.6,
-    accumulatedInvest: 7.3,
-    yearTotalPlanInvest: 4.5,
-    quarterInvest: 0.45,
-    yearCompletedInvest: 2.5,
-    yearProgress: 56,
-    triColor: '黄色',
-    history: [
-      { quarter: '2026-2', status: '黄色' },
-      { quarter: '2026-1', status: '黄色' },
-    ],
-  },
-  {
-    evaluatePeriod: '2026-09',
-    areaCode: 'PQ005',
-    district: '汉阳区',
-    areaName: '龟北片',
-    renewalAreaBatch: 'first',
-    orientationList: ['COD'],
-    totalInvestEstimate: 6.5,
-    accumulatedInvest: 3.25,
-    yearTotalPlanInvest: 2.0,
-    quarterInvest: 0.2,
-    yearCompletedInvest: 1.1,
-    yearProgress: 55,
-    triColor: '黄色',
-    history: [
-      { quarter: '2026-2', status: '绿色' },
-      { quarter: '2026-1', status: '黄色' },
-    ],
-  },
-  {
-    evaluatePeriod: '2026-09',
-    areaCode: 'PQ006',
-    district: '江岸区',
-    areaName: '新兴街片',
-    renewalAreaBatch: 'first',
-    orientationList: ['SOD', 'TOD'],
-    totalInvestEstimate: 3.2,
-    accumulatedInvest: 1.28,
-    yearTotalPlanInvest: 1.5,
-    quarterInvest: 0.1,
-    yearCompletedInvest: 0.75,
-    yearProgress: 50,
-    triColor: '红色',
-    history: [
-      { quarter: '2026-2', status: '黄色' },
-      { quarter: '2026-1', status: '绿色' },
-    ],
-  },
-  {
-    evaluatePeriod: '2026-09',
-    areaCode: 'PQ007',
-    district: '青山区',
-    areaName: '红钢城片',
-    renewalAreaBatch: '',
-    orientationList: ['COD', 'SOD'],
-    totalInvestEstimate: 8.0,
-    accumulatedInvest: 0,
-    yearTotalPlanInvest: 1.2,
-    quarterInvest: 0,
-    yearCompletedInvest: 0,
-    yearProgress: 0,
-    triColor: '',
-    history: [{ quarter: '2026-2', status: '黄色' }],
-  },
-];
-
-/** 生成下一个下发编号（同前缀既有最大序号 + 1：督办=项目督办〔2026〕、提示=项目提示〔2026〕；
- * 按编号前缀计数，旧「工作提示〔2026〕」系列不占新序号，首个提示单从 001 起） */
-export function nextDispatchNo(type: SuperviseType): string {
-  const prefix = type === '督办' ? '项目督办〔2026〕' : '项目提示〔2026〕';
-  const numbers = SUPERVISES.filter((item) => item.dispatchNo.startsWith(prefix)).map((item) => {
-    const matched = item.dispatchNo.match(/(\d+)号/);
-    return matched ? Number(matched[1]) : 0;
-  });
-  const next = (numbers.length ? Math.max(...numbers) : 0) + 1;
-  return `${prefix}${String(next).padStart(3, '0')}号`;
-}
-
-// ── 本地过滤 ──────────────────────────────────────────────────────────
+/** 片区三色图本地缓存（fetchTricolorAreas 接口拉取后回填） */
+export const AREAS_TRICOLOR: AreaTricolorItem[] = [];
 
 /** 通用查询条件（各列表搜索表单字段并集，未传的字段不过滤） */
 export type ImplProgressQuery = {
@@ -1423,38 +590,30 @@ function matchProject(
 }
 
 /** 倒排工期计划过滤 */
-/** 倒排工期列表行 = 实施库项目（项目库 page 接口）合并内存工作流态（按项目编码） */
-export async function fetchScheduleRows(): Promise<ScheduleItem[]> {
-  const page = await fetchLibPage({ library: 'implementing', pageNum: 1, pageSize: 500 });
-  return (page.list ?? []).map((row) => {
-    const wf = SCHEDULES.find((item) => item.projectCode === row.lib_project_code);
-    const inLibraryDate = String(row.in_library_date ?? '').slice(0, 10);
-    const isNewInLibrary = !!inLibraryDate && Date.now() - new Date(inLibraryDate).getTime() < 20 * 24 * 3600 * 1000;
-    return {
-      pUid: row.p_uid ?? '',
-      projectCode: row.lib_project_code ?? '',
-      projectName: row.pj_name ?? '',
-      district: row.dist ?? '',
-      renewalAreaName: row.area_name ?? '',
-      renewalAreaBatch: row.batch ?? '',
-      fiveReformType: row.wg_big ?? '',
-      projectAffiliation: row.project_affiliation ?? '',
-      investEstimate: Number(row.inv_bil ?? 0) || 0,
-      yearInvest: Number(row.year_invest ?? 0) || 0,
-      planStartDate: String(row.start_date ?? '').slice(0, 10),
-      planCompletionDate: String(row.end_date ?? '').slice(0, 10),
-      inLibraryDate,
-      isNewInLibrary,
-      reportOrg: row.report_org ?? '',
-      // 实施库行状态恒为 stored（已入库），映射本域中文枚举
-      projectStatus: '实施库入库' as ProjectStatus,
-      planStartMonth: wf?.planStartMonth ?? '',
-      monthPlans: wf?.monthPlans ?? Array.from({ length: 12 }, () => ''),
-      fillStatus: wf?.fillStatus ?? '待提交',
-      lastSubmitDate: wf?.lastSubmitDate,
-      reviewRecords: wf?.reviewRecords,
-    };
-  });
+/** 倒排工期行集（后端 /schedule/rows：实施库项目左连工作流行；会话内缓存一次，
+ * 保存后失效促重拉；SCHEDULES 缓存同步回填供 monthPlanOf 直读） */
+let scheduleRowsPromise: Promise<ScheduleItem[]> | null = null;
+
+export function fetchScheduleRows(): Promise<ScheduleItem[]> {
+  scheduleRowsPromise ??= unwrap<ScheduleItem[]>(defHttp.get({ url: SCHEDULE_BASE + '/rows' })).then(
+    (rows) => {
+      SCHEDULES.splice(0, SCHEDULES.length, ...(rows ?? []));
+      return SCHEDULES;
+    },
+    () => SCHEDULES,
+  );
+  return scheduleRowsPromise;
+}
+
+/** 保存倒排工作流行（后端按项目编号 upsert + 本地缓存更新并失效重拉） */
+export async function saveScheduleWorkflow(row: ScheduleItem) {
+  await unwrap<Recordable>(
+    defHttp.postJson({ url: SCHEDULE_BASE + '/save', data: { projectCode: row.projectCode, row } }),
+  );
+  const index = SCHEDULES.findIndex((item) => item.projectCode === row.projectCode);
+  if (index >= 0) SCHEDULES[index] = row;
+  else SCHEDULES.push(row);
+  scheduleRowsPromise = null;
 }
 
 /** 按项目编码取工作流行（无则以列表行为底并入内存仓库；编辑/审查写回前置） */
@@ -1481,47 +640,23 @@ export function filterSchedules(params: ImplProgressQuery, rows: ScheduleItem[] 
 }
 
 /** 月度进度填报过滤 */
-/** 月度列表行 = 实施库项目（项目库 page 接口）合并内存工作流态（按项目编码；当月一行） */
+/** 月度行集（后端 /monthly/rows：实施库项目左连工作流行；拉取前温热倒排缓存
+ * ——monthPlanOf 当前进度计划安排依赖倒排数据；MONTHLIES 缓存同步回填） */
 export async function fetchMonthlyRows(): Promise<MonthlyItem[]> {
-  const page = await fetchLibPage({ library: 'implementing', pageNum: 1, pageSize: 500 });
-  const now = new Date();
-  const reportMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  return (page.list ?? []).map((row) => {
-    const wf = MONTHLIES.find((item) => item.projectCode === row.lib_project_code);
-    return {
-      reportMonth: wf?.reportMonth ?? reportMonth,
-      pUid: row.p_uid ?? '',
-      projectCode: row.lib_project_code ?? '',
-      projectName: row.pj_name ?? '',
-      district: row.dist ?? '',
-      renewalAreaName: row.area_name ?? '',
-      renewalAreaBatch: row.batch ?? '',
-      fiveReformType: row.wg_big ?? '',
-      projectAffiliation: row.project_affiliation ?? '',
-      currentProgress: wf?.currentProgress ?? '',
-      investEstimate: Number(row.inv_bil ?? 0) || 0,
-      yearInvest: Number(row.year_invest ?? 0) || 0,
-      planStartDate: String(row.start_date ?? '').slice(0, 10),
-      planCompletionDate: String(row.end_date ?? '').slice(0, 10),
-      inLibraryDate: String(row.in_library_date ?? '').slice(0, 10),
-      yearAccumulatedInvest: wf?.yearAccumulatedInvest ?? 0,
-      monthCompletedInvest: wf?.monthCompletedInvest ?? 0,
-      totalAccumulatedInvest: wf?.totalAccumulatedInvest ?? 0,
-      monthProgressDesc: wf?.monthProgressDesc ?? '',
-      implementProgress: wf?.implementProgress,
-      reportOrg: row.report_org ?? '',
-      constructionStage: wf?.constructionStage ?? '',
-      statisticsIncluded: wf?.statisticsIncluded ?? '否',
-      statisticsCategory: wf?.statisticsCategory,
-      statisticsProjectCode: wf?.statisticsProjectCode,
-      notIncludedReason: wf?.notIncludedReason,
-      difficultyProblem: wf?.difficultyProblem,
-      monthEntries: wf?.monthEntries,
-      fillStatus: wf?.fillStatus ?? '待提交',
-      returnInfo: wf?.returnInfo,
-      reviewRecords: wf?.reviewRecords,
-    };
-  });
+  await fetchScheduleRows();
+  const rows = await unwrap<MonthlyItem[]>(defHttp.get({ url: MONTHLY_BASE + '/rows' }));
+  MONTHLIES.splice(0, MONTHLIES.length, ...(rows ?? []));
+  return MONTHLIES;
+}
+
+/** 保存月度工作流行（后端按项目编号 upsert + 本地缓存更新） */
+export async function saveMonthlyWorkflow(row: MonthlyItem) {
+  await unwrap<Recordable>(
+    defHttp.postJson({ url: MONTHLY_BASE + '/save', data: { projectCode: row.projectCode, row } }),
+  );
+  const index = MONTHLIES.findIndex((item) => item.projectCode === row.projectCode);
+  if (index >= 0) MONTHLIES[index] = row;
+  else MONTHLIES.push(row);
 }
 
 /** 按项目编码取月度工作流行（无则以列表行为底并入内存仓库；填报/审查写回前置） */
@@ -1546,13 +681,13 @@ export function filterMonthlies(params: ImplProgressQuery, rows: MonthlyItem[] =
   );
 }
 
-/** 年度投资进度百分比数值（资金进度=年度累计完成投资/年度投资计划，四舍五入取整；计划为 0 取 0） */
+/** 年度投资进度百分比数值（资金进度=年度累计完成投资/本年度计划完成投资，四舍五入取整；计划为 0 取 0） */
 export function yearProgressValue(item: { yearAccumulatedInvest?: number; yearInvest?: number }): number {
   if (!item.yearInvest) return 0;
   return Math.round(NP.times(NP.divide(item.yearAccumulatedInvest ?? 0, item.yearInvest), 100));
 }
 
-/** 年度投资进度（列表列：年度累计完成投资/年度投资计划，四舍五入取整；计划为 0 显示 —） */
+/** 年度投资进度（列表列：年度累计完成投资/本年度计划完成投资，四舍五入取整；计划为 0 显示 —） */
 export function yearProgressPercent(item: { yearAccumulatedInvest?: number; yearInvest?: number }): string {
   if (!item.yearInvest) return '—';
   return `${yearProgressValue(item)}%`;
@@ -1576,26 +711,10 @@ export function monthPlanOf(projectCode: string, month?: number | string): strin
   return SCHEDULES.find((item) => item.projectCode === projectCode)?.monthPlans[index] ?? '';
 }
 
-/** 填报端提示/督办行过滤 */
-export function filterSuperviseRows(params: ImplProgressQuery): SuperviseHandleRow[] {
-  const keyword = (params.projectName ?? '').trim();
+/** 提示/督办清单本地过滤（数据源=接口拉取；搜索表单条件，空值=全部） */
+export function filterSupervises(params: ImplProgressQuery, rows: SuperviseItem[]): SuperviseItem[] {
   const dispatchNo = (params.dispatchNo ?? '').trim();
-  return SUPERVISE_ROWS.filter(
-    (item) =>
-      (!keyword || item.projectName.includes(keyword)) &&
-      (!dispatchNo || item.dispatchNo.includes(dispatchNo)) &&
-      (!params.fiveReformType || item.fiveReformType === params.fiveReformType) &&
-      (!params.renewalAreaName || item.renewalAreaName === params.renewalAreaName) &&
-      (!params.constructionStage || item.currentProgress === params.constructionStage) &&
-      (!params.handleStatus || item.handleStatus === params.handleStatus) &&
-      matchPeriod(item.inspectMonth, params),
-  );
-}
-
-/** 区级端提示/督办过滤 */
-export function filterSupervises(params: ImplProgressQuery): SuperviseItem[] {
-  const dispatchNo = (params.dispatchNo ?? '').trim();
-  return SUPERVISES.filter(
+  return rows.filter(
     (item) =>
       (!dispatchNo || item.dispatchNo.includes(dispatchNo)) &&
       (!params.district || item.district === params.district) &&
@@ -1603,6 +722,21 @@ export function filterSupervises(params: ImplProgressQuery): SuperviseItem[] {
       (!params.handleStatus || item.districtHandleStatus === params.handleStatus) &&
       matchPeriod(item.inspectMonth, params),
   );
+}
+
+/** 片区三色图行集（后端 /tricolor/rows；AREAS_TRICOLOR 缓存同步回填） */
+export async function fetchTricolorAreas(): Promise<AreaTricolorItem[]> {
+  const rows = await unwrap<AreaTricolorItem[]>(defHttp.get({ url: TRICOLOR_BASE + '/rows' }));
+  AREAS_TRICOLOR.splice(0, AREAS_TRICOLOR.length, ...(rows ?? []));
+  return AREAS_TRICOLOR;
+}
+
+/** 保存片区行（评估后整行 upsert + 本地缓存更新） */
+export async function saveTricolorArea(row: AreaTricolorItem) {
+  await unwrap<Recordable>(defHttp.postJson({ url: TRICOLOR_BASE + '/save', data: { areaCode: row.areaCode, row } }));
+  const index = AREAS_TRICOLOR.findIndex((item) => item.areaCode === row.areaCode);
+  if (index >= 0) AREAS_TRICOLOR[index] = row;
+  else AREAS_TRICOLOR.push(row);
 }
 
 /** 评估周期季度匹配（period 为 YYYY-MM；quarter 为季度面板值 YYYY-Q，未传不过滤） */
