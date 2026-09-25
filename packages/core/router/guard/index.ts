@@ -9,12 +9,16 @@ import { unref } from 'vue';
 import { setRouteChange } from '@jeesite/core/logics/mitt/routeChange';
 import { createPermissionGuard } from './permissionGuard';
 import { createStateGuard } from './stateGuard';
+import { createExternalEntryGuard } from './externalEntryGuard';
 // import nProgress from 'nprogress';
 import projectSetting from '@jeesite/core/settings/projectSetting';
 // import { createParamMenuGuard } from './paramMenuGuard';
 
 // Don't change the order of creation
 export function setupRouterGuard(router: Router) {
+  // 先于 permissionGuard：外链参数（__full__ 续传 / returnUrl 记录）处理完后，
+  // 未登录跳转的 redirect 才会带上 __full__
+  createExternalEntryGuard(router);
   createPageGuard(router);
   createPageLoadingGuard(router);
   createHttpGuard(router);
