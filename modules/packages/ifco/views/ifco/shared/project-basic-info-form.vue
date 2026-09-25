@@ -69,7 +69,12 @@
       <div class="mb-8px text-14px text-gray-600">
         输入公司中文名称（建入公司表，编码=名称，最多 21 个字；创建后自动选中）
       </div>
-      <Input v-model:value="companyName" :maxlength="21" placeholder="请输入公司名称" @press-enter="handleCompanyCreate" />
+      <Input
+        v-model:value="companyName"
+        :maxlength="21"
+        placeholder="请输入公司名称"
+        @press-enter="handleCompanyCreate"
+      />
       <div v-if="companyError" class="mt-8px text-14px text-red-500">{{ companyError }}</div>
       <div class="mt-12px rd-4px bg-#f5f8ff px-12px py-10px text-13px leading-22px text-#1677ff">
         创建成功后，该公司可使用登录账号「公司名称」、初始密码 123456 登录系统进行填报（首次登录需修改密码）。
@@ -130,9 +135,7 @@
 
   /** 提交组装 {code,name} 用的映射（宿主经 getOptionMaps 取用） */
   const industryDeptOptionMap = computed(() => new Map(industryDeptOptions.value.map((i) => [i.code, i.name])));
-  const reportOrgOptionMap = computed(
-    () => new Map(reportOrgOptions.value.map((i) => [`${i.refType}:${i.code}`, i])),
-  );
+  const reportOrgOptionMap = computed(() => new Map(reportOrgOptions.value.map((i) => [`${i.refType}:${i.code}`, i])));
 
   async function loadOptions() {
     const [industryDepts, reportOrgs] = await Promise.all([fetchIndustryDeptOptions(), fetchReportOrgOptions()]);
@@ -194,8 +197,7 @@
   function requiredWhenCityArea(message: string) {
     return {
       validator: (_rule: unknown, value: unknown) => {
-        const empty =
-          value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length);
+        const empty = value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length);
         if (currentAffiliation.value === 'market' && empty) return Promise.reject(message);
         return Promise.resolve();
       },
@@ -353,14 +355,14 @@
     // ── 投资与资金 ────────────────────────────────────────────────────
     { label: '投资与资金', field: 'investFundGroup', component: 'FormGroup', colProps: { md: 24, lg: 24 } },
     {
-      label: '总体投资估算(亿元)',
+      label: '总体投资估算（亿元）',
       field: 'totalInvestEstimate',
       component: 'InputNumber',
       componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '片区项目投资合计，自动计算' },
       dynamicDisabled: () => true,
     },
     {
-      label: '项目投资估算(亿元)',
+      label: '项目投资估算（亿元）',
       field: 'investEstimate',
       component: 'InputNumber',
       componentProps: { precision: 4, min: 0, style: 'width: 100%', placeholder: '请输入项目投资估算' },
@@ -478,10 +480,14 @@
     if (props.disabled && props.pUid) fillFromDetail();
   }
 
-  // 整表禁用随 disabled prop（身份字段锁定由各字段 dynamicDisabled 单独叠加）
+  // 整表禁用随 disabled prop（身份字段锁定由各字段 dynamicDisabled 单独叠加）。
+  // immediate 首跑早于表单注册会抛"form instance has not been obtained"：
+  // 注册前跳过，由 handleRegister 补发初值；此后 prop 变化即时生效
   watch(
     () => props.disabled,
-    (value) => formActions?.setProps({ disabled: value }),
+    (value) => {
+      if (formReady) formActions?.setProps({ disabled: value });
+    },
     { immediate: true },
   );
 
@@ -515,8 +521,7 @@
         constructionSite: detail.construction_site || '/',
         mainConstructionContent: detail.content || '/',
         totalInvestEstimate: undefined,
-        investEstimate:
-          detail.inv_bil == null || detail.inv_bil === '' ? '/' : Number(detail.inv_bil as string),
+        investEstimate: detail.inv_bil == null || detail.inv_bil === '' ? '/' : Number(detail.inv_bil as string),
         fundSourceList: splitList(detail.fund_src as string),
         fundSituationRemark: detail.fund_situation_remark || '/',
         industrySupervisionDeptList: (subjects.industryDepts ?? []).map((item) => item.name),
@@ -530,9 +535,7 @@
         ...(props.showImplCondition
           ? {
               yearInvest:
-                detail.year_invest == null || detail.year_invest === ''
-                  ? '/'
-                  : Number(detail.year_invest as string),
+                detail.year_invest == null || detail.year_invest === '' ? '/' : Number(detail.year_invest as string),
               planStartDate: toDateStr(detail.start_date as string) || '/',
               planCompletionDate: toDateStr(detail.end_date as string) || '/',
             }
