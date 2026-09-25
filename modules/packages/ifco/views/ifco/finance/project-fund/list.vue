@@ -8,10 +8,10 @@
   - 区划：行政区/在库项目数量/总投资/年度计划投资/统计周期内累计完成投资/
     年度投资进度(进度条)/统计周期内累计已到位资金/资金到位率(进度条)；末行全市合计；
   - 片区：片区编号/行政区/片区名称/片区批次/片区功能定位/项目数量/片区总体投资
-    估算/累计已完成投资/年度投资计划/统计周期内累计完成投资/年度投资进度/累计
+    估算/累计已完成投资/本年度计划完成投资/统计周期内累计完成投资/年度投资进度/累计
     已到位资金/资金到位率；
   - 项目：复选框/项目编号/项目名称/行政区/片区名称/片区批次/五改分类/项目归属/
-    片区总体投资估算/项目投资估算/年度投资计划/累计完成投资/年度投资进度/
+    片区总体投资估算/项目投资估算/本年度计划完成投资/累计完成投资/年度投资进度/
     累计到位资金/资金到位率。
   三表共用 时间轴（开始/结束月份 MonthPicker，暂未参与过滤）+ 一键导出（占位）；
   行政区/片区名称/项目名称/项目归属/片区批次/五改分类为本地过滤。
@@ -166,11 +166,11 @@
   const districtColumns: BasicColumn[] = [
     { title: '行政区', dataIndex: 'district', width: 120, fixed: 'left', slot: 'district' },
     { title: '在库项目数量(个)', dataIndex: 'projectCount', width: 130, align: 'right' },
-    { title: '总投资(亿元)', dataIndex: 'totalInvest', width: 120, align: 'right' },
-    { title: '年度计划投资(亿元)', dataIndex: 'yearPlanInvest', width: 150, align: 'right' },
-    { title: '统计周期内累计完成投资(亿元)', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
+    { title: '总投资（亿元）', dataIndex: 'totalInvest', width: 120, align: 'right' },
+    { title: '年度计划投资（亿元）', dataIndex: 'yearPlanInvest', width: 150, align: 'right' },
+    { title: '统计周期内累计完成投资（亿元）', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 140, slot: 'yearProgressRate' },
-    { title: '统计周期内累计已到位资金(亿元)', dataIndex: 'periodArrivedFunds', width: 200, align: 'right' },
+    { title: '统计周期内累计已到位资金（亿元）', dataIndex: 'periodArrivedFunds', width: 200, align: 'right' },
     { title: '资金到位率', dataIndex: 'arrivalRate', width: 130, fixed: 'right', slot: 'arrivalRate' },
   ];
 
@@ -227,12 +227,12 @@
     { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
     { title: '片区功能定位', dataIndex: 'orientation', width: 110 },
     { title: '项目数量(个)', dataIndex: 'projectCount', width: 100, align: 'right' },
-    { title: '片区总体投资估算(亿元)', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
-    { title: '累计已完成投资(亿元)', dataIndex: 'accumulatedCompletedInvest', width: 150, align: 'right' },
-    { title: '年度投资计划(亿元)', dataIndex: 'yearInvestPlan', width: 140, align: 'right' },
-    { title: '统计周期内累计完成投资(亿元)', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
+    { title: '片区总体投资估算（亿元）', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
+    { title: '累计已完成投资（亿元）', dataIndex: 'accumulatedCompletedInvest', width: 150, align: 'right' },
+    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearInvestPlan', width: 140, align: 'right' },
+    { title: '统计周期内累计完成投资（亿元）', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 130, slot: 'yearProgressRate' },
-    { title: '统计周期内累计已到位资金(亿元)', dataIndex: 'periodArrivedFunds', width: 200, align: 'right' },
+    { title: '统计周期内累计已到位资金（亿元）', dataIndex: 'periodArrivedFunds', width: 200, align: 'right' },
     { title: '资金到位率', dataIndex: 'arrivalRate', width: 120, fixed: 'right', slot: 'arrivalRate' },
   ];
 
@@ -290,12 +290,12 @@
     { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
-    { title: '片区总体投资估算(亿元)', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
-    { title: '项目投资估算(亿元)', dataIndex: 'projectInvestEstimate', width: 140, align: 'right' },
-    { title: '年度投资计划(亿元)', dataIndex: 'yearInvestPlan', width: 140, align: 'right' },
-    { title: '统计周期内累计完成投资(亿元)', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
+    { title: '片区总体投资估算（亿元）', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
+    { title: '项目投资估算（亿元）', dataIndex: 'projectInvestEstimate', width: 140, align: 'right' },
+    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearInvestPlan', width: 140, align: 'right' },
+    { title: '统计周期内累计完成投资（亿元）', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 130, slot: 'yearProgressRate' },
-    { title: '统计周期内累计到位资金(亿元)', dataIndex: 'periodArrivedFunds', width: 190, align: 'right' },
+    { title: '统计周期内累计到位资金（亿元）', dataIndex: 'periodArrivedFunds', width: 190, align: 'right' },
     { title: '资金到位率', dataIndex: 'arrivalRate', width: 120, fixed: 'right', slot: 'arrivalRate' },
   ];
 

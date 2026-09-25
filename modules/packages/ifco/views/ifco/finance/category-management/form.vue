@@ -68,7 +68,7 @@
           <div class="text-15px font-600 text-gray-900">资金基本情况</div>
           <div class="mt-12px grid grid-cols-1 gap-x-24px gap-y-12px md:grid-cols-2">
             <div class="flex items-center gap-8px">
-              <div class="w-180px shrink-0 text-right text-14px text-gray-700">本年完成投资总额(亿元)</div>
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">本年完成投资总额（亿元）</div>
               <Input :value="record.yearInvestTotal" disabled class="flex-1" />
               <span class="shrink-0 text-12px text-#ff4d4f">进度填报时自动带入</span>
             </div>

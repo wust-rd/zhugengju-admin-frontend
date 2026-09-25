@@ -367,7 +367,7 @@
 
         <div class="mt-16px grid grid-cols-1 gap-x-24px gap-y-12px md:grid-cols-3">
           <div>
-            <div class="mb-4px text-right text-14px text-gray-700">本年完成投资额(亿元)</div>
+            <div class="mb-4px text-right text-14px text-gray-700">本年完成投资额（亿元）</div>
             <Input :value="record.yearInvest" disabled />
             <div class="mt-2px text-right text-12px text-#ff4d4f">进度填报时自动带入</div>
           </div>
