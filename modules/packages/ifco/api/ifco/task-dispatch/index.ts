@@ -38,6 +38,10 @@ export type TaskDispatchItem = {
   cityCompileEndDate: string;
   /** 区级编制结束时间（YYYY-MM-DD，须早于市级） */
   districtCompileEndDate: string;
+  /** 提交状态（未提交/已提交；已提交后任务与采纳内容锁定不可改） */
+  submitStatus: string;
+  /** 提交日期（YYYY-MM-DD） */
+  submitDate: string;
   /** 年度刚性目标说明 */
   rigidTargetRemark: string;
   /** 各区年度刚性投资目标（亿元）：区名 → 目标值 */
@@ -80,7 +84,10 @@ export function fetchAnnualTasks() {
 
 /** 保存任务（新建/更新合一；撞年返回 400；区级目标随任务整替） */
 export function saveAnnualTask(data: Partial<TaskDispatchItem>) {
-  return unwrap<{ id: string; taskYear: number; status: TaskStatus }>(
-    defHttp.post({ url: BASE + '/save', data }),
-  );
+  return unwrap<{ id: string; taskYear: number; status: TaskStatus }>(defHttp.postJson({ url: BASE + '/save', data }));
+}
+
+/** 提交年度计划（提交后任务与采纳内容锁定不可改） */
+export function submitAnnualTask(id: string) {
+  return unwrap<TaskDispatchItem>(defHttp.post({ url: BASE + '/submit', params: { id } }));
 }

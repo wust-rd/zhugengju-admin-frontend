@@ -188,6 +188,8 @@
       adoptDate: values.adoptDate ?? '',
       rigidTargetRemark: values.rigidTargetRemark ?? '',
       districtTargets,
+      submitStatus: record.value.submitStatus || '未提交',
+      submitDate: record.value.submitDate ?? '',
       status: record.value.status ?? '进行中',
     };
     // TODO: 后端接入后在此调用保存接口

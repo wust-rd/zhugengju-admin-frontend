@@ -35,7 +35,12 @@
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { DISTRICTS, saveAnnualTask, taskYearOptions, type TaskDispatchItem } from '@jeesite/ifco/api/ifco/task-dispatch';
+  import {
+    DISTRICTS,
+    saveAnnualTask,
+    taskYearOptions,
+    type TaskDispatchItem,
+  } from '@jeesite/ifco/api/ifco/task-dispatch';
 
   const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();

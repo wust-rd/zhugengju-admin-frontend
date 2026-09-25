@@ -11,7 +11,13 @@ import { defHttp } from '@jeesite/core/utils/http/axios';
 import { useGlobSetting } from '@jeesite/core/hooks/setting';
 import { match } from 'ts-pattern';
 import { unwrap } from '../progress-fill';
-import { DISTRICTS, fetchAnnualTasks, taskYearOptions, type TaskDispatchItem } from '../task-dispatch';
+import {
+  DISTRICTS,
+  fetchAnnualTasks,
+  submitAnnualTask,
+  taskYearOptions,
+  type TaskDispatchItem,
+} from '../task-dispatch';
 import { dateUtil } from '@jeesite/core/utils/dateUtil';
 
 const { adminPath } = useGlobSetting();
@@ -19,7 +25,7 @@ const TASK_BASE = adminPath + '/ifco/annual/task';
 const PLAN_BASE = adminPath + '/ifco/annual/plan';
 
 /** 区级目标分解对象与任务年份选项（与任务分解派发同源） */
-export { DISTRICTS, taskYearOptions };
+export { DISTRICTS, submitAnnualTask, taskYearOptions };
 
 /** 编制状态：编制期内为进行中，期结束归档（后端已结束 → 已归档） */
 export type CompileStatus = '进行中' | '已归档';
@@ -51,6 +57,10 @@ export type CompilationTask = {
   rigidTargetRemark: string;
   /** 各区年度刚性投资目标（亿元）：区名 → 目标值 */
   districtTargets: Record<string, number>;
+  /** 提交状态（未提交/已提交；已提交后采纳锁定） */
+  submitStatus: string;
+  /** 提交日期（YYYY-MM-DD） */
+  submitDate: string;
   status: CompileStatus;
 };
 
@@ -64,20 +74,24 @@ export type WorkbenchProject = {
   fiveReformType: string;
   /** 投资估算（亿元） */
   investEstimate?: number;
-  /** 年度投资计划/本年度计划完成投资（亿元；不采纳项目为空，采纳编辑可填） */
+  /** 本年度计划完成投资（亿元；不采纳项目为空，采纳时可填） */
   yearPlanInvest?: number;
   /** 备注（纳入年度计划确认信息，可空） */
   remarks?: string;
   fundSourceList: string[];
   projectAffiliation: string;
-  /** 计划开工时间（YYYY-MM-DD，主表 start_date） */
+  /** 计划开工时间（YYYY-MM-DD；采纳行值优先，无采纳值=主表 start_date） */
   planStartDate: string;
-  /** 计划完工时间（YYYY-MM-DD，主表 end_date） */
+  /** 计划完工时间（YYYY-MM-DD；采纳行值优先，无采纳值=主表 end_date） */
   planCompletionDate: string;
   /** 本年度计划完成投资（主表 year_invest，项目库步骤③共享字段；区别于采纳的 yearPlanInvest） */
   yearInvest?: number;
   /** 入库年份（搜索用） */
   inLibraryYear: string;
+  /** 实施库入库时间（YYYY-MM-DD） */
+  inLibraryDate?: string;
+  /** 当前建设阶段（取月度工作流行快照，未填报为空） */
+  constructionStage?: string;
   /** 当前项目状态（项目库状态原文） */
   status: string;
   adoptStatus: AdoptStatus;
@@ -96,6 +110,8 @@ function toCompileTask(row: TaskDispatchItem): CompilationTask {
     adoptDate: '',
     rigidTargetRemark: row.rigidTargetRemark ?? '',
     districtTargets: row.districtTargets ?? {},
+    submitStatus: row.submitStatus || '未提交',
+    submitDate: row.submitDate ?? '',
     status: row.status === '已结束' ? '已归档' : '进行中',
   };
 }
@@ -128,11 +144,11 @@ export const ACTIONS_BY_STATUS: Record<CompileStatus, CompileAction[]> = {
   已归档: ['查看'],
 };
 
-/** 各采纳状态可用操作：已采纳仅可查看，待采纳/不采纳可采纳编辑（改判） */
+/** 各采纳状态可用操作：已采纳仅可查看，待采纳/不采纳可编辑（改判） */
 export const ACTIONS_BY_ADOPT: Record<AdoptStatus, string[]> = {
   已采纳: ['查看'],
-  待采纳: ['查看', '采纳编辑'],
-  不采纳: ['查看', '采纳编辑'],
+  待采纳: ['查看', '编辑'],
+  不采纳: ['查看', '编辑'],
 };
 
 /** 采纳状态搜索选项 */
@@ -194,20 +210,24 @@ export function filterWorkbenchRows(rows: WorkbenchProject[], query: WorkbenchQu
   );
 }
 
-/** 采纳编辑保存（任务×项目一行 upsert；支持已采纳/不采纳改判） */
+/** 采纳决定保存（任务×项目一行 upsert；支持已采纳/不采纳改判） */
 export function adoptAnnualPlan(data: {
   taskId: string;
   pUid: string;
   adoptStatus: AdoptStatus;
   yearPlanInvest?: number;
+  /** 计划开工时间（YYYY-MM-DD；空=沿用项目主表 start_date） */
+  planStartDate?: string;
+  /** 计划完工时间（YYYY-MM-DD；空=沿用项目主表 end_date） */
+  planCompletionDate?: string;
   remarks?: string;
 }) {
   return unwrap<{ taskId: string; pUid: string; adoptStatus: AdoptStatus }>(
-    defHttp.post({ url: PLAN_BASE + '/adopt', data }),
+    defHttp.postJson({ url: PLAN_BASE + '/adopt', data }),
   );
 }
 
 /** 一键采纳（勾选项目批量置为已采纳；年度投资=投资估算×35% 演示口径） */
 export function adoptAnnualPlanAll(taskId: string, pUids: string[]) {
-  return unwrap<{ count: number }>(defHttp.post({ url: PLAN_BASE + '/adoptAll', data: { taskId, pUids } }));
+  return unwrap<{ count: number }>(defHttp.postJson({ url: PLAN_BASE + '/adoptAll', data: { taskId, pUids } }));
 }

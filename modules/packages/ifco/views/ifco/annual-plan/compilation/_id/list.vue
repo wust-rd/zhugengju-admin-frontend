@@ -11,13 +11,15 @@
   标题行（计划编制工作台 · NNNN 年度计划编制 + 返回）→ 计划提交周期提示条
   （提交周期/距离截止剩余天数+进度/本年度计划完成投资合计÷刚性目标/提交年度计划）→
   BasicTable（七字段搜索：采纳状态/项目名称/行政区/五改类型/入库年份/最新项目
-  状态/项目归属 + 一键采纳、一键导出工具栏 + 复选框 + 项目 13 列（表头换行显示）；
+  状态/项目归属 + 一键采纳、一键导出工具栏 + 复选框 + 项目 14 列（含实施库入库时间/当前建设阶段）；
   操作列按
-  采纳状态：待采纳/不采纳=查看+采纳编辑、已采纳=仅查看）。查看/采纳编辑均走
-  项目级「纳入年度计划」抽屉 ./form.vue（任务信息只读回显；采纳编辑＝确认信息
-  可编辑、查看＝整表只读底部隐藏，先回填后掀开），保存即把该项目置为已采纳
-  并写入本年度计划完成投资/备注（本地演示）。
-  已接后端 /a/ifco/annual/*：任务 get、工作台行集 rows、采纳 adopt/adoptAll；提交年度计划/一键导出仍为占位。
+  采纳状态：待采纳/不采纳=查看+编辑、已采纳=仅查看）。查看/编辑均走
+  项目级「纳入年度计划」抽屉 ./form.vue（基本信息只读回显；编辑＝采纳决定
+  四字段可编辑[本年度计划完成投资/计划开工时间/计划完工时间/备注]、查看＝
+  整表只读底部隐藏，先回填后掀开），保存即把该项目置为已采纳并写入四字段
+  （投资另回写项目主表 year_invest）。
+  已接后端 /a/ifco/annual/*：任务 get、工作台行集 rows、采纳 adopt/adoptAll、提交 submit
+（提交后任务与采纳内容锁定：一键采纳禁用、操作列仅查看；一键导出仍为占位）。
   视角过滤：登录机构为 16 区之一 → 区级，仅看本区（行政区=机构对应区）的项目；
   其余机构（市级）看全部。
 -->
@@ -49,14 +51,18 @@
         本年度计划完成投资合计 <span class="font-600 text-gray-900">{{ task.totalInvest.toFixed(2) }}</span> 亿 /
         刚性目标 <span class="font-600 text-gray-900">{{ task.annualRigidTarget.toFixed(2) }}</span> 亿
       </span>
-      <a-button type="primary" class="ml-auto" @click="handleTodo('提交年度计划')"> 提交年度计划 </a-button>
+      <span v-if="task.submitStatus === '已提交'" class="ml-auto flex items-center gap-6px text-gray-500">
+        <Icon icon="i-ant-design:check-circle-filled" class="text-16px text-#52c41a" />
+        年度计划已提交{{ task.submitDate ? `（${task.submitDate}）` : '' }}，内容锁定
+      </span>
+      <a-button v-else type="primary" class="ml-auto" @click="handleSubmitPlan"> 提交年度计划 </a-button>
     </div>
 
     <!-- 项目表：搜索表单（采纳状态在最前）+ 工具栏 + 表格（表头换行显示） -->
     <div class="workbench-table">
       <BasicTable @register="registerTable">
         <template #toolbar>
-          <a-button type="primary" @click="handleAdoptAll"> 一键采纳 </a-button>
+          <a-button type="primary" :disabled="planLocked" @click="handleAdoptAll"> 一键采纳 </a-button>
           <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
         </template>
         <template #renewalAreaName="{ record }">{{ record.renewalAreaName || '/' }}</template>
@@ -70,9 +76,6 @@
         <template #projectAffiliation="{ record }">
           {{ record.projectAffiliation ? PROJECT_AFFILIATION_LABEL[record.projectAffiliation] : '/' }}
         </template>
-        <template #status="{ record }">
-          <Tag color="blue" variant="outlined" style="border-radius: 10px">{{ record.status }}</Tag>
-        </template>
         <template #adoptStatus="{ record }">
           <Tag v-bind="adoptStatusTagProps(record.adoptStatus)" style="border-radius: 10px">
             {{ record.adoptStatus }}
@@ -81,13 +84,13 @@
       </BasicTable>
     </div>
 
-    <!-- 采纳编辑表单抽屉（先回填后掀开） -->
+    <!-- 编辑（采纳决定）抽屉（先回填后掀开） -->
     <TaskForm @register="registerDrawer" @success="handleSuccess" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoAnnualPlanCompilationIdList">
   import { computed, onMounted, ref, unref } from 'vue';
-  import { Progress, Tag } from 'antdv-next';
+  import { Modal, Progress, Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
@@ -107,6 +110,7 @@
     daysUntilDeadline,
     fetchCompileTask,
     fetchWorkbenchRows,
+    submitAnnualTask,
     filterWorkbenchRows,
     type AdoptStatus,
     type CompilationTask,
@@ -128,6 +132,9 @@
 
   /** 任务（接口拉取；下钻路由约定 {id}=任务 id） */
   const task = ref<CompilationTask | undefined>(undefined);
+
+  /** 计划锁定（已提交或已归档后不能再采纳） */
+  const planLocked = computed(() => task.value?.submitStatus === '已提交' || task.value?.status === '已归档');
 
   /** 工作台全量行（接口拉取；视角过滤与搜索过滤在其上做） */
   const baseRows = ref<WorkbenchProject[]>([]);
@@ -168,14 +175,14 @@
     return Math.min(100, Math.round(((task.value?.totalInvest ?? 0) / target) * 1000) / 10);
   });
 
-  /** 更新片区/五改分类/年度投资计划/资金来源/项目归属/项目状态/采纳状态用插槽渲染 */
+  /** 更新片区/五改分类/本年度计划完成投资/资金来源/项目归属/项目状态/采纳状态用插槽渲染 */
   const columns: BasicColumn[] = [
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
     { title: '项目名称', dataIndex: 'projectName', width: 220, fixed: 'left', ellipsis: true },
     { title: '行政区', dataIndex: 'district', width: 90 },
     { title: '更新片区', dataIndex: 'renewalAreaName', width: 110, slot: 'renewalAreaName' },
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
-    { title: '投资估算(亿元)', dataIndex: 'investEstimate', width: 120, align: 'right' },
+    { title: '投资估算（亿元）', dataIndex: 'investEstimate', width: 120, align: 'right' },
     {
       title: '本年度计划完成投资（亿元）',
       dataIndex: 'yearPlanInvest',
@@ -186,18 +193,21 @@
     { title: '资金来源', dataIndex: 'fundSourceList', width: 180, slot: 'fundSourceList' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '计划开工时间', dataIndex: 'planStartDate', width: 110 },
-    { title: '当前项目状态', dataIndex: 'status', width: 110, fixed: 'right', slot: 'status' },
+    { title: '实施库入库时间', dataIndex: 'inLibraryDate', width: 110 },
+    { title: '当前建设阶段', dataIndex: 'constructionStage', width: 100 },
     { title: '采纳状态', dataIndex: 'adoptStatus', width: 100, fixed: 'right', slot: 'adoptStatus' },
   ];
 
-  /** 操作列：按钮随采纳状态变化（已采纳仅查看，待采纳/不采纳可采纳编辑改判） */
+  /** 操作列：按钮随采纳状态变化（已采纳仅查看，待采纳/不采纳可编辑改判） */
   const actionColumn: BasicColumn = {
     width: 160,
     actions: (record: Recordable) =>
-      (ACTIONS_BY_ADOPT[record.adoptStatus as AdoptStatus] ?? ['查看']).map((action: string) => ({
-        label: action,
-        onClick: () => handleAction(action, record),
-      })),
+      (planLocked.value ? ['查看'] : (ACTIONS_BY_ADOPT[record.adoptStatus as AdoptStatus] ?? ['查看'])).map(
+        (action: string) => ({
+          label: action,
+          onClick: () => handleAction(action, record),
+        }),
+      ),
   };
 
   const adoptStatusOptions = ADOPT_STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
@@ -281,18 +291,16 @@
   /** 按当前搜索条件重铺表格数据（视角过滤 × 搜索过滤） */
   function applyFilter(formValues?: Recordable) {
     const values = formValues ?? getForm().getFieldsValue();
-    const scoped = myDistrict
-      ? baseRows.value.filter((row) => row.district === myDistrict)
-      : baseRows.value;
+    const scoped = myDistrict ? baseRows.value.filter((row) => row.district === myDistrict) : baseRows.value;
     setTableData(filterWorkbenchRows(scoped, values));
   }
 
   const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
 
-  /** 查看/采纳编辑均走项目级「纳入年度计划」抽屉（./form.vue）：查看＝整表
-   *  只读（底部按钮隐藏），采纳编辑＝确认信息可编辑 */
+  /** 查看/编辑均走项目级「纳入年度计划」抽屉（./form.vue）：查看＝整表
+   *  只读（底部按钮隐藏），编辑＝采纳决定（采纳/不采纳）可交互 */
   function handleAction(action: string, record: Recordable) {
-    if (action !== '查看' && action !== '采纳编辑') return;
+    if (action !== '查看' && action !== '编辑') return;
     if (!task.value) return;
     // openDrawer 传 open=false：回填就绪后由 form.vue 掀开（防闪烁）；
     // showFooter 按只读与否预设（硬性规则：打开动画期间翻转会首击不弹）
@@ -308,8 +316,10 @@
       await adoptAnnualPlan({
         taskId: task.value.code,
         pUid: data.pUid,
-        adoptStatus: '已采纳',
+        adoptStatus: data.adoptStatus === '不采纳' ? '不采纳' : '已采纳',
         yearPlanInvest: data.yearPlanInvest,
+        planStartDate: data.planStartDate,
+        planCompletionDate: data.planCompletionDate,
         remarks: data.remarks,
       });
     } catch (e) {
@@ -317,7 +327,21 @@
       return;
     }
     await loadAll();
-    showMessage('已纳入年度计划');
+    showMessage(data.adoptStatus === '不采纳' ? '已记录不采纳' : '已纳入年度计划');
+  }
+
+  /** 提交年度计划：二次确认后提交，已提交内容锁定不可再改 */
+  async function handleSubmitPlan() {
+    if (!task.value || planLocked.value) return;
+    Modal.confirm({
+      title: '提交年度计划',
+      content: '提交后本年度计划内容将锁定，不能再修改。确认提交？',
+      onOk: async () => {
+        await submitAnnualTask(task.value!.code);
+        showMessage('提交成功，年度计划内容已锁定');
+        await loadAll();
+      },
+    });
   }
 
   /** 一键采纳：勾选项目批量置为已采纳（年度投资=投资估算×35%，后端演示口径） */
@@ -352,7 +376,7 @@
   }
 </script>
 <style scoped>
-  /* 表头换行显示（窄列长列名自动折行，如「本年度计划完成投资(亿元)」；antd th 默认 nowrap） */
+  /* 表头换行显示（窄列长列名自动折行，如「本年度计划完成投资（亿元）」；antd th 默认 nowrap） */
   .workbench-table :deep(.ant-table-thead > tr > th) {
     white-space: normal;
   }
