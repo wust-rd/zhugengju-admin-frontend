@@ -50,7 +50,7 @@ export const STATUS_LABEL: Record<ProjectStatus, string> = {
   reviewing: '审核中',
   rejected: '退回修改',
   passed: '审核通过',
-  stored: '已入库',
+  stored: '已入实施库',
   exited: '已退出',
 };
 
@@ -69,37 +69,41 @@ export const ROLE_OPTIONS = [
   { label: '责任部门', value: 'responsibility-dept' },
 ] as const;
 
-/** 操作列动作（审核=编辑态打开表单抽屉填审查结论；转入下个库/转退出带二次确认） */
+/** 操作列动作（审核=编辑态打开表单抽屉填审查结论；转入下个库带二次确认、转退出开转退出抽屉） */
 export type ProjectAction = '查看' | '编辑' | '审核' | '转入下个库' | '转退出';
+
+/** 退出类型（转退出抽屉下拉；与 ESP_PROJECT_EXTRA.exit_type 存值一致） */
+export const EXIT_TYPE_OPTIONS = ['自愿退出', '项目无法继续实施', '违反法律法规'] as const;
 
 /**
  * 各状态×各视角的可用操作（Record 按 ProjectStatus×ProjectRole 双层穷尽：
- * 新增状态/视角漏配时编译报错）。业务定稿口径（2026-09-21/22）。
+ * 新增状态/视角漏配时编译报错）。业务定稿口径（2026-09-21/22）；
+ * 转退出暂不区分角色（2026-09-24），非已退出状态各视角均可操作。
  */
 export const ACTIONS_BY_STATUS_ROLE: Record<ProjectStatus, Record<ProjectRole, ProjectAction[]>> = {
   draft: {
-    'report-org': ['查看', '编辑'],
-    'industry-dept': ['查看'],
+    'report-org': ['查看', '编辑', '转退出'],
+    'industry-dept': ['查看', '转退出'],
     'responsibility-dept': ['查看', '编辑', '转退出'],
   },
   reviewing: {
-    'report-org': ['查看'],
-    'industry-dept': ['查看', '审核'],
+    'report-org': ['查看', '转退出'],
+    'industry-dept': ['查看', '审核', '转退出'],
     'responsibility-dept': ['查看', '审核', '转退出'],
   },
   rejected: {
-    'report-org': ['查看', '编辑'],
-    'industry-dept': ['查看'],
+    'report-org': ['查看', '编辑', '转退出'],
+    'industry-dept': ['查看', '转退出'],
     'responsibility-dept': ['查看', '编辑', '转退出'],
   },
   passed: {
-    'report-org': ['查看', '转入下个库'],
-    'industry-dept': ['查看'],
+    'report-org': ['查看', '转入下个库', '转退出'],
+    'industry-dept': ['查看', '转退出'],
     'responsibility-dept': ['查看', '转退出'],
   },
   stored: {
-    'report-org': ['查看'],
-    'industry-dept': ['查看'],
+    'report-org': ['查看', '转退出'],
+    'industry-dept': ['查看', '转退出'],
     'responsibility-dept': ['查看', '转退出'],
   },
   exited: {
@@ -356,10 +360,7 @@ export type ImplResponsibilityReviewEntry = {
 
 /** 全空的材料区块结论（fromEntries 只能给宽索引签名，键来源 REVIEW_SECTIONS 完备，断言安全） */
 export function emptyReviewResults(): Record<ReviewSectionKey, ReviewResult | ''> {
-  return Object.fromEntries(REVIEW_SECTIONS.map(({ key }) => [key, ''])) as Record<
-    ReviewSectionKey,
-    ReviewResult | ''
-  >;
+  return Object.fromEntries(REVIEW_SECTIONS.map(({ key }) => [key, ''])) as Record<ReviewSectionKey, ReviewResult | ''>;
 }
 
 /** 全空的储备转实施区块结论 */
@@ -483,10 +484,12 @@ export type LibPageQuery = {
 
 /** 分页查询：{total, pageNum, pageSize, list} */
 export function fetchLibPage(params: LibPageQuery) {
-  return unwrap<{ total: number; pageNum: number; pageSize: number; list: ProjectRow[] }>(defHttp.get({
-    url: BASE + '/project/page',
-    params,
-  }));
+  return unwrap<{ total: number; pageNum: number; pageSize: number; list: ProjectRow[] }>(
+    defHttp.get({
+      url: BASE + '/project/page',
+      params,
+    }),
+  );
 }
 
 /** 项目详情 */
@@ -504,18 +507,22 @@ export function saveLibProject(data: {
   reviewFiles: Recordable | null;
   impl: Recordable;
 }) {
-  return unwrap<{ pUid: string; library: string; status: string; libProjectCode: string }>(defHttp.post({
-    url: BASE + '/project/save',
-    data,
-  }));
+  return unwrap<{ pUid: string; library: string; status: string; libProjectCode: string }>(
+    defHttp.post({
+      url: BASE + '/project/save',
+      data,
+    }),
+  );
 }
 
 /** 申请转库（draft/rejected → reviewing；轮次+1） */
 export function applyLibTransfer(pUid: string) {
-  return unwrap<{ pUid: string; status: string; roundNo: number }>(defHttp.post({
-    url: BASE + '/project/apply',
-    data: { pUid },
-  }));
+  return unwrap<{ pUid: string; status: string; roundNo: number }>(
+    defHttp.post({
+      url: BASE + '/project/apply',
+      data: { pUid },
+    }),
+  );
 }
 
 /** 保存审查（stage='2'|'3'；联合审查按机构整替；respReview.conclusion 推进状态） */
@@ -530,26 +537,32 @@ export function saveLibReview(data: {
     fileList: string | null;
   };
 }) {
-  return unwrap<{ pUid: string; stage: string; status: string }>(defHttp.post({
-    url: BASE + '/project/reviewSave',
-    data,
-  }));
+  return unwrap<{ pUid: string; stage: string; status: string }>(
+    defHttp.post({
+      url: BASE + '/project/reviewSave',
+      data,
+    }),
+  );
 }
 
 /** 转入下个库（passed 后；planning→reserve 重置 draft，reserve→implementing 置 stored） */
 export function transferLibNext(pUid: string) {
-  return unwrap<{ pUid: string; library: string; status: string }>(defHttp.post({
-    url: BASE + '/project/transferNext',
-    data: { pUid },
-  }));
+  return unwrap<{ pUid: string; library: string; status: string }>(
+    defHttp.post({
+      url: BASE + '/project/transferNext',
+      data: { pUid },
+    }),
+  );
 }
 
-/** 转退出（终态） */
-export function transferLibExit(pUid: string, exitReason: string) {
-  return unwrap<{ pUid: string; library: string; exitDate: string }>(defHttp.post({
-    url: BASE + '/project/transferExit',
-    data: { pUid, exitReason },
-  }));
+/** 转退出（终态；提交即生效，抽屉收集 退出类型/附件/原因说明） */
+export function transferLibExit(pUid: string, data: { exitType: string; exitReason: string; exitFiles?: string[] }) {
+  return unwrap<{ pUid: string; library: string; exitDate: string }>(
+    defHttp.post({
+      url: BASE + '/project/transferExit',
+      data: { pUid, ...data },
+    }),
+  );
 }
 
 // ── 主体字段选项与外部公司 ─────────────────────────────────────────
@@ -561,15 +574,19 @@ export function fetchIndustryDeptOptions() {
 
 /** 指定填报主体候选（全部机构+全部公司合并；refType 区分机构/公司编码空间） */
 export function fetchReportOrgOptions() {
-  return unwrap<{ refType: 'office' | 'company'; code: string; name: string }[]>(defHttp.get({
-    url: BASE + '/dict/reportOrgOptions',
-  }));
+  return unwrap<{ refType: 'office' | 'company'; code: string; name: string }[]>(
+    defHttp.get({
+      url: BASE + '/dict/reportOrgOptions',
+    }),
+  );
 }
 
 /** 现场新建外部公司（公司编码=中文名；公司表/机构表重名或超 21 字返回 400） */
 export function createReportOrgCompany(name: string) {
-  return unwrap<{ refType: 'company'; code: string; name: string }>(defHttp.post({
-    url: BASE + '/dict/companyCreate',
-    data: { name },
-  }));
+  return unwrap<{ refType: 'company'; code: string; name: string }>(
+    defHttp.post({
+      url: BASE + '/dict/companyCreate',
+      data: { name },
+    }),
+  );
 }

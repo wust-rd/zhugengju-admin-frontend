@@ -33,7 +33,12 @@
   <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer">
     <template #title>
       <span>{{ getTitle }}</span>
-      <Tag v-if="record.status" v-bind="statusTagProps(record.status as ProjectStatus)" style="border-radius: 10px" class="ml-2">
+      <Tag
+        v-if="record.status"
+        v-bind="statusTagProps(record.status as ProjectStatus)"
+        style="border-radius: 10px"
+        class="ml-2"
+      >
         {{ statusLabel(record.status) }}
       </Tag>
     </template>
@@ -48,12 +53,20 @@
         <span class="ml-4px text-gray-800">{{ exitedFromLabel || '/' }}</span>
       </span>
       <span>
+        <span class="text-gray-500">退出类型：</span>
+        <span class="ml-4px text-gray-800">{{ record.exit_type || '/' }}</span>
+      </span>
+      <span>
         <span class="text-gray-500">退出时间：</span>
         <span class="ml-4px text-gray-800">{{ toDateStr(record.exit_date) || '/' }}</span>
       </span>
       <span>
         <span class="text-gray-500">退出原因：</span>
         <span class="ml-4px text-gray-800">{{ record.exit_reason || '/' }}</span>
+      </span>
+      <span>
+        <span class="text-gray-500">退出附件：</span>
+        <span class="ml-4px text-gray-800">{{ exitFileNames || '/' }}</span>
       </span>
     </div>
 
@@ -285,7 +298,6 @@
         保存审查
       </a-button>
     </template>
-
   </BasicDrawer>
 </template>
 <script lang="ts" setup name="ViewsIfcoProjectLibraryManagementProjectManagementForm">
@@ -404,8 +416,20 @@
 
   /** 退出环节中文名（退出信息灰条展示用） */
   const exitedFromLabel = computed(() =>
-    record.value.exited_from ? (LIBRARY_LABELS[record.value.exited_from as LibraryKey] ?? record.value.exited_from) : '',
+    record.value.exited_from
+      ? (LIBRARY_LABELS[record.value.exited_from as LibraryKey] ?? record.value.exited_from)
+      : '',
   );
+
+  /** 退出附件文件名（exit_files JSON 数组 → 顿号拼接；退出信息灰条展示用） */
+  const exitFileNames = computed(() => {
+    try {
+      const files = record.value.exit_files ? (JSON.parse(record.value.exit_files) as string[]) : [];
+      return files.filter(Boolean).join('、');
+    } catch {
+      return '';
+    }
+  });
 
   /** 「填报人再次发起」记录行（transferLogs 的 RESUBMIT 行；业务口径=表单被重新提交时记录一条） */
   const resubmitLogs = computed(() =>
@@ -431,8 +455,7 @@
    * 映射；新增视为策划库
    */
   const accessibleStages = computed<number[]>(() => {
-    const library =
-      (record.value.library === 'exited' ? record.value.exited_from : record.value.library) ?? 'planning';
+    const library = (record.value.library === 'exited' ? record.value.exited_from : record.value.library) ?? 'planning';
     const last = STAGE_ORDER.indexOf(library as LibraryKey);
     const end = (last >= 0 ? last : 0) + 2;
     return Array.from({ length: end }, (_, index) => index);
@@ -585,13 +608,15 @@
     },
   ];
 
-  const [registerReviewForm, { setFieldsValue: setReviewFieldsValue, getFieldsValue: getReviewFieldsValue, setProps: setReviewProps }] =
-    useForm({
-      labelWidth: 180,
-      schemas: reviewFormSchemas,
-      baseColProps: { md: 24, lg: 24 },
-      showActionButtonGroup: false,
-    });
+  const [
+    registerReviewForm,
+    { setFieldsValue: setReviewFieldsValue, getFieldsValue: getReviewFieldsValue, setProps: setReviewProps },
+  ] = useForm({
+    labelWidth: 180,
+    schemas: reviewFormSchemas,
+    baseColProps: { md: 24, lg: 24 },
+    showActionButtonGroup: false,
+  });
 
   /** 审查表单是否已挂载（非激活页签懒挂载，首次切到页签才注册） */
   const reviewFormReady = ref(false);
@@ -618,7 +643,7 @@
       colProps: { md: 24, lg: 12 },
     },
     {
-      label: '本年度计划完成投资(亿元)',
+      label: '本年度计划完成投资（亿元）',
       field: 'implYearPlanInvest',
       component: 'InputNumber',
       componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '请输入本年度计划完成投资' },
@@ -700,13 +725,15 @@
     },
   ];
 
-  const [registerImplForm, { setFieldsValue: setImplFieldsValue, getFieldsValue: getImplFieldsValue, setProps: setImplProps }] =
-    useForm({
-      labelWidth: 180,
-      schemas: implFormSchemas,
-      baseColProps: { md: 24, lg: 12 },
-      showActionButtonGroup: false,
-    });
+  const [
+    registerImplForm,
+    { setFieldsValue: setImplFieldsValue, getFieldsValue: getImplFieldsValue, setProps: setImplProps },
+  ] = useForm({
+    labelWidth: 180,
+    schemas: implFormSchemas,
+    baseColProps: { md: 24, lg: 12 },
+    showActionButtonGroup: false,
+  });
 
   /** 储备转实施表单是否已挂载（v-show 面板常驻，注册时序与审查表单同款处理） */
   const implFormReady = ref(false);

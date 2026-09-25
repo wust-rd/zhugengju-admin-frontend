@@ -9,7 +9,7 @@
   最新项目状态/项目归属 搜索表单；新增项目、一键导出 工具栏；操作列按钮随项目状态变化，视角固定为填报主体）。
 
   状态随所在卡片库决定：策划库/储备库共用 待提交(draft)/审核中(reviewing)/
-  退回修改(rejected)/审核通过(passed) 四状态流转，实施库=已入库(stored)，
+  退回修改(rejected)/审核通过(passed) 四状态流转，实施库=已入实施库(stored)，
   已退出(exited)终态只读（后端英文枚举，展示经 STATUS_LABEL 转中文）。
 
   路由参数（与列表页 URL 绑定，可分享/收藏/前进后退）：
@@ -17,9 +17,10 @@
   - ?district= 行政区（搜索表单提交/重置时同步进 URL，请求参数经 beforeFetch 合入）。
 
   查看/编辑/新增/审核走一体表单抽屉 form.vue（详情经 detail 接口回填；
-  页脚=取消/暂存/申请转库，审核模式=取消/保存审查）；转入下个库/转退出为
-  操作列按钮（二次确认后调 transferNext/transferExit 接口，成功刷新列表与统计卡）。
-  一键提交等批量操作与导入导出仍为占位待接入。
+  页脚=取消/暂存/申请转库，审核模式=取消/保存审查）；转入下个库为操作列按钮
+  （二次确认后调 transferNext 接口）；转退出开 exit-form.vue 转退出抽屉
+  （警示文案+退出类型/附件/原因说明，提交调 transferExit 即生效）。成功均
+  刷新列表与统计卡。一键提交等批量操作与导入导出仍为占位待接入。
 
   菜单注册（菜单名称「在库项目管理」，js_sys_menu=ifco_lib_project）：
    - 链接地址：/ifco/project-library-management/project-management/list
@@ -85,6 +86,9 @@
 
     <!-- 查看/新增/编辑/审核一体表单抽屉 -->
     <ProjectForm @register="registerDrawer" @success="refreshAll" />
+
+    <!-- 转退出抽屉（退出类型/附件/原因说明；提交即生效） -->
+    <ExitForm @register="registerExitDrawer" @success="refreshAll" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoProjectLibraryManagementProjectManagementList">
@@ -113,7 +117,6 @@
     splitList,
     statusLabel,
     statusTagProps,
-    transferLibExit,
     transferLibNext,
     type LibraryKey,
     type ProjectAction,
@@ -121,6 +124,7 @@
     type ProjectStatus,
   } from '@jeesite/ifco/api/ifco/project-library';
   import ProjectForm from './form.vue';
+  import ExitForm from './exit-form.vue';
 
   const { showMessage } = useMessage();
   const route = useRoute();
@@ -209,10 +213,11 @@
   ];
 
   /** 操作列固定视角：填报主体（按钮随状态变化；视角切换 UI 已按需求移除，
-   *  行业主管部门/责任部门视角的操作差异由权限侧角色控制，不在页面演示切换） */
+   *  行业主管部门/责任部门视角的操作差异由权限侧角色控制；转退出暂不区分
+   *  角色——非已退出状态各视角均配了「转退出」，见 ACTIONS_BY_STATUS_ROLE） */
   const ACTION_ROLE: ProjectRole = 'report-org';
 
-  /** 操作列：按钮随 状态 变化（查看/编辑/审核走一体表单抽屉，转入下个库/转退出带二次确认） */
+  /** 操作列：按钮随 状态 变化（查看/编辑/审核走一体表单抽屉，转入下个库带二次确认，转退出开转退出抽屉） */
   const actionColumn: BasicColumn = {
     width: 240,
     actions: (record: Recordable) =>
@@ -225,6 +230,7 @@
   };
 
   const [registerDrawer, { openDrawer }] = useDrawer();
+  const [registerExitDrawer, { openDrawer: openExitDrawer }] = useDrawer();
 
   /** 打开表单抽屉：view=只读、edit=编辑（页脚 取消/暂存/申请转库）、review=审核（页脚 取消/保存审查） */
   function handleForm(record: Recordable) {
@@ -232,7 +238,7 @@
   }
 
   /** 查看走只读表单；编辑/审核走可写表单（审核=审查人员在步骤②③填审查结论并保存）；
-   *  转入下个库/转退出带二次确认（exhaustive：漏分支编译报错） */
+   *  转入下个库带二次确认；转退出开转退出抽屉（open=false 先回填后掀开，防闪烁） */
   function handleAction(action: ProjectAction, record: Recordable) {
     match(action)
       .with('查看', () => handleForm({ ...record, mode: 'view' }))
@@ -251,19 +257,7 @@
           },
         }),
       )
-      .with('转退出', () =>
-        Modal.confirm({
-          title: '转退出',
-          content: `确定将「${record.pj_name}」移入已退出库吗？退出后项目只读。`,
-          okText: '确定退出',
-          cancelText: '取消',
-          onOk: async () => {
-            await transferLibExit(record.p_uid, '责任部门转退出');
-            showMessage('已转退出');
-            refreshAll();
-          },
-        }),
-      )
+      .with('转退出', () => openExitDrawer(false, { project: record }))
       .exhaustive();
   }
 
