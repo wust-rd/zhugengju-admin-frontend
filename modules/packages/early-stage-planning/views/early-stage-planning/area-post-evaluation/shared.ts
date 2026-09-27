@@ -163,6 +163,77 @@ export function indicatorsOfLv1(rows: EspPostEvalIndicatorValue[], lv1: string):
   return rows.filter((row) => row.lv1 === lv1);
 }
 
+// ── 生成评估报告：模板正文（数据来自用户填报，缺数据显示 XX）──────────
+
+/** 报告里数据缺失的占位 */
+export const REPORT_XX = 'XX';
+
+/** 报告数值文案：未填显示 XX，最多 2 位小数 */
+export function reportNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return REPORT_XX;
+  return String(Math.round(value * 100) / 100);
+}
+
+/** 报告提升值文案：未填显示 XX，正数带 + 号 */
+export function reportDelta(value: number | null): string {
+  if (value === null || value === undefined) return REPORT_XX;
+  return value > 0 ? `+${value}` : String(value);
+}
+
+/** 取某指标项（按清单里的指标名）的更新后值 */
+function afterOfName(rows: EspPostEvalIndicatorValue[], name: string): string {
+  const row = rows.find((item) => item.name === name);
+  return reportNumber(row?.afterValue ?? null);
+}
+
+/**
+ * 报告「二、成效指标对比」段落：模板固定，数值取用户填报（缺数据显示 XX）
+ *
+ * 指标条数、覆盖的维度列表都从清单数据现算，清单调整后文案自动跟随。
+ */
+export function buildIndicatorText(rows: EspPostEvalIndicatorValue[], evalYear: string): string {
+  const dims = uniqDim(rows.map((row) => row.lv2));
+  return (
+    `依据《${evalYear}年武汉市城市体检工作方案》，以城市更新项目综合效益分析为导向，` +
+    `设置${rows.length}项指标，覆盖${dims.join('、')}等维度。` +
+    `片区更新后完成率为${afterOfName(rows, '项目完成率')}%、` +
+    `投资比例为${afterOfName(rows, '项目投资比例')}%、` +
+    `改造意愿征询通过率为${afterOfName(rows, '改造意愿征询通过率')}%。` +
+    `片区更新后带动了产业、经济、消费，产生了显著的社会效益和经济效益。`
+  );
+}
+
+/** 一组满意度行的提升均值（两项都填的行参与；无有效值返回 null） */
+export function satisfactionGroupDelta(rows: EspPostEvalSatisfactionValue[]): number | null {
+  return groupAverage(rows.map((row) => deltaOf(row.beforeScore, row.afterScore)));
+}
+
+/**
+ * 报告「三、片区更新后评估满意度分析」段落：模板固定，数值取用户填报（缺数据显示 XX）
+ *
+ * 结构 = 四个一级维度各自提升值 + 每个一级维度下各二级维度的提升值，全部按清单数据现算。
+ */
+export function buildSatisfactionText(rows: EspPostEvalSatisfactionValue[]): string {
+  const groups = uniqDim(rows.map((row) => row.lv1)).map((lv1) => {
+    const groupRows = rows.filter((row) => row.lv1 === lv1);
+    return {
+      lv1,
+      delta: reportDelta(satisfactionGroupDelta(groupRows)),
+      lv2Text: groupRows.map((row) => row.lv2).join('、'),
+      deltas: groupRows.map((row) => reportDelta(deltaOf(row.beforeScore, row.afterScore))),
+    };
+  });
+  if (!groups.length) {
+    return '片区更新后，居民满意度提升情况待填报。';
+  }
+  const lv1Text = groups.map((group) => group.lv1).join('、');
+  const headText = groups.map((group) => group.delta).join('%、');
+  const detailText = groups
+    .map((group) => `其中${group.lv1}维度的${group.lv2Text}分别提升了${group.deltas.join('%、')}%`)
+    .join('；');
+  return `片区更新后，${lv1Text}居民满意度分别提升了${headText}%，${detailText}。`;
+}
+
 /** 取某一级维度下的满意度行；lv1 传 SATISFACTION_ALL 返回全部（保持清单顺序） */
 export function satisfactionsOfLv1(rows: EspPostEvalSatisfactionValue[], lv1: string): EspPostEvalSatisfactionValue[] {
   if (lv1 === SATISFACTION_ALL) return rows;

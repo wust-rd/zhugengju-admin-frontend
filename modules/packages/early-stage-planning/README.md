@@ -98,30 +98,46 @@ modules/packages/early-stage-planning/
 
 ## 片区更新后评估（已接后端）
 
-对**已批准片区**按年度做实施后评估（成效指标对比 + 满意度分析）。
+对**已批准片区**按年度做实施后评估（成效指标对比 + 满意度分析 + 生成评估报告）。
 
 - 路径 `/early-stage-planning/area-post-evaluation/index`，目录
-  `views/early-stage-planning/area-post-evaluation/`，**页内三步切换**（不新增路由，做法同
+  `views/early-stage-planning/area-post-evaluation/`，**页内四步切换**（不新增路由，做法同
   review-management 的整页表单；列表初始为空，记录只能由「新增评估片区」产生）：
   1. `index.vue` 列表：搜索（评估年份 / 片区名称 / 行政区 / 片区批次）+「新增评估片区」+
      评估片区列表（评估年份 / 片区名称（可点进只读评估页）/ 行政区 / 片区批次 / 片区规模（公顷）/
-     功能定位 / 填报单位 / 操作：查看 · 编辑 · 删除 · 生成评估报告〈导出暂不做，占位〉），分页 10 条/页；
+     功能定位 / 填报单位 / 操作：查看 · 编辑 · 删除 · 生成评估报告），分页 10 条/页；
   2. `area-picker.vue` 新增第一步：顶部选**评估年份**，下方列**已批准片区**（可按名称/行政区/批次搜索），
      行内「选择」→「下一步」进评估页；该年度已评估的行显示「已评估」并禁用（后端保存时再拦一次）；
   3. `evaluate.vue` 评估页：两个 tab，表格右上角都有「暂存 / 保存」（提交内容一致，保存后回列表、暂存留在本页）：
      - **成效指标对比**：上块两张雷达图（左固定「项目进度」，右下拉切换直接/间接经济效益、社会效益），
-       下块 28 行指标表（一级/二级维度合并单元格，只填**更新前/更新后**，「提升」= 两者相减现算、不入库）
+       下块 28 行指标表（一级/二级维度合并单元格，「提升」= 更新后 − 更新前现算、不入库）
        + 评估结论（≤500 字）+ 更新后效果图上传；
      - **满意度分析**：上块左「一级维度提升成效」柱状图（分组均值）+ 右「二级维度提升成效」雷达图
        （下拉按一级维度筛选，默认全部），下块 13 行满意度表（更新前/更新后满意度 %，提升现算）；
+  4. `report.vue` 生成评估报告页（列表行「生成评估报告」进入）：**一次性**——每次进入都按最新数据现生成，
+     **四段正文可编辑（模板/数据只是初始值），但编辑不保存**，只用于本次导出（**因此该功能不需要任何后端改动/建表**）；
+     顶部「编辑文字 / 完成编辑」切换编辑态、「下载 PDF」「导出 Word」两种导出
+     （`export-report.ts`：jsPDF + html2canvas-pro → file-saver，同评审管理报告导出；
+     `export-word.ts`：报告 DOM → HTML(.doc)，图表 canvas 内联成 PNG、栅格改写成两列表格，文字 Word 里可继续编辑）。
+     四段 = 一、片区更新概况（取片区档案「片区概况」，经既有 `schemeFillPage` + `schemeFillForm` 拿到，取不到则留空）；
+     二、成效指标对比（模板 + 填报数据，缺数据 `XX`）+ 图1~图4 + 表1；三、满意度分析（模板 + 数据，缺数据 `XX`）
+     + 图5、图6 + 表2；四、更新后评估结论（取评估页填的结论）。报告数据全部来自既有 `postEvalDetail`；
+     **版式**：版心固定 1200px（PDF 等比缩到 A4 宽，1px≈0.44pt）→ 主标题 36px(≈三号)、章节标题 32px(四号)、
+     正文/图注 27px(小四)、元信息 22px、表格 24px(五号)；统计图一排两个铺满版心；元信息「功能定位」显示
+     **编码**（COD/TOD，取片区档案 `funcTypes`，取不到回退中文名）；报告内表格传 `auto-width` 让列宽随内容自适应；
   - `indicator-table.vue` / `satisfaction-table.vue`：可编辑表格（`Table` + `render`/`onCell`，
-    沿用 ifco 进展填报的写法），合并单元格跨度由 `shared.ts` 的 `buildSpans` 现算；
+    沿用 ifco 进展填报的写法），合并单元格跨度由 `shared.ts` 的 `buildSpans` 现算；表格上方有
+    **一级/二级维度联动筛选**（报告页传 `:show-filter="false"` 隐藏）；
   - `components/post-eval-radar.tsx` / `post-eval-bar.tsx`：echarts 雷达图 / 分组柱状图（`useECharts`），
-    数值直接来自表格行，改表即改图；
-  - `shared.ts`：年份/行政区/批次选项、提升与展示口径、合并跨度、分组均值等共用工具。
+    数值直接来自表格行，改表即改图；锁定维度传 `hide-before` 只画「更新后」一个系列；
+  - `shared.ts`：年份/行政区/批次选项、提升与展示口径、合并跨度、分组均值、报告模板文本
+    （`buildIndicatorText` / `buildSatisfactionText`，缺数据占位 `XX`）等共用工具。
+- **填写口径（业务确认）**：项目进度 + 直接经济效益（序号 1~12）的**「更新前」不填** → 该列只读显示 `/`
+  且这两行不展示「提升」、对应雷达图只画「更新后」；**`/` 只表示不可填，没数据一律留空**（`LOCKED_TEXT`）；
 - 接口层 `api/early-stage-planning/post-evaluation.ts`（`/a/esp/postEval/*`：page / areaPage / catalog /
-  detail / save / delete），后端模块 `modules/esp`（表 `ESP_POST_EVAL` + `ESP_POST_EVAL_INDICATOR` +
-  `ESP_POST_EVAL_SATISFACTION`，清单在 `ESP_DICT`）；SQL 见后端 `modules/esp/db/dm/esp_post_eval.sql`，
+  detail / save / delete；**生成评估报告不占接口**，报告页只用 `detail` + 既有方案填报接口），
+  后端模块 `modules/esp`（表 `ESP_POST_EVAL` + `ESP_POST_EVAL_INDICATOR` + `ESP_POST_EVAL_SATISFACTION`，
+  清单在 `ESP_DICT`）；SQL 见后端 `modules/esp/db/dm/esp_post_eval.sql`（生成评估报告**不含任何表/列改动**），
   接口与表设计见后端 `modules/esp/docs/接口文档-片区更新后评估.md`；
 - 菜单注册走后台菜单管理（BACK 模式），**链接地址 = 组件位置 = `/early-stage-planning/area-post-evaluation/index`**，
   权限标识 `esp:postEval:view`（查询）/ `esp:postEval:edit`（保存、删除）；

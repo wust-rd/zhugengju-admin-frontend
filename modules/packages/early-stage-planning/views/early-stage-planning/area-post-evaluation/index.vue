@@ -1,12 +1,13 @@
 <!--
   市住更局 —— 片区更新后评估（列表页，模块唯一路由）
 
-  流程（页内三步切换，不新增路由，做法同 review-management 的整页表单）：
-    列表 → 新增评估片区（第一步：选已批准片区 + 评估年份）→ 评估页（成效指标对比 / 满意度分析）。
+  流程（页内切换，不新增路由，做法同 review-management 的整页表单）：
+    列表 → 新增评估片区（第一步：选已批准片区 + 评估年份）→ 评估页（成效指标对比 / 满意度分析）
+         → 生成评估报告（四段正文 + 图1~图6 + 表1/表2，可编辑、可下载 PDF）。
   列表初始为空（没有评估记录就是空表），记录只能由「新增评估片区」产生。
 
   列表列：评估年份 / 片区名称（可点，进只读评估页）/ 行政区 / 片区批次 / 片区规模（公顷）/
-         功能定位 / 填报单位 / 操作（查看 · 编辑 · 删除 · 生成评估报告——导出功能暂不做，先占位）。
+         功能定位 / 填报单位 / 操作（查看 · 编辑 · 删除 · 生成评估报告）。
 
   接口（详见 /a/esp/postEval/*）：
     GET  page      列表分页（评估年份/片区名称/行政区/批次）
@@ -15,6 +16,8 @@
     GET  catalog   清单（新增时构造空白表格）
     POST save      暂存 / 保存（同一接口）
     POST delete    删除（物理删除主表与明细）
+    GET  report    生成评估报告：报告数据（明细 + 三段报告正文）
+    POST reportSave 生成评估报告：保存四段正文
 
   菜单注册（后台菜单管理，名称按需）：
    - 链接地址：/early-stage-planning/area-post-evaluation/index
@@ -50,6 +53,9 @@
       @back="handleBack"
       @saved="handleSaved"
     />
+
+    <!-- 生成评估报告 -->
+    <ReportPage v-else-if="view === 'report'" :record="current" @back="handleBack" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStagePlanningAreaPostEvaluationIndex">
@@ -60,6 +66,7 @@
   import { postEvalDelete, postEvalPage } from '@jeesite/early-stage-planning/api/early-stage-planning/post-evaluation';
   import AreaPicker from './area-picker.vue';
   import EvaluatePage from './evaluate.vue';
+  import ReportPage from './report.vue';
   import { BATCH_OPTIONS, buildYearOptions, type PostEvalTarget } from './shared';
   // 行政区下拉复用方案填报的字典接口（/a/esp/schemeFill/dictOptions，权限只要求登录）
   import { useSchemeDict } from '../scheme-declaration-review/shared/use-scheme-dict';
@@ -69,7 +76,7 @@
   const { districtOptions } = useSchemeDict();
 
   /** 页内视图：列表 / 新增（选片区）/ 评估页 */
-  const view = ref<'list' | 'create' | 'evaluate'>('list');
+  const view = ref<'list' | 'create' | 'evaluate' | 'report'>('list');
   /** 查看模式（列表「查看」进入时只读） */
   const readonly = ref(false);
   /** 当前评估对象（编辑/查看带 id，新增只有片区 + 年份） */
@@ -85,7 +92,7 @@
     { title: '填报单位', dataIndex: 'reportOrg', width: 180, align: 'center' },
   ];
 
-  /** 操作列：查看 / 编辑 / 删除（不可恢复，二次确认）/ 生成评估报告（占位） */
+  /** 操作列：查看 / 编辑 / 删除（不可恢复，二次确认）/ 生成评估报告（进报告页） */
   const actionColumn: BasicColumn = {
     width: 250,
     actions: (record: Recordable) => [
@@ -99,7 +106,7 @@
           confirm: () => handleDelete(record),
         },
       },
-      { label: '生成评估报告', onClick: () => handleReport() },
+      { label: '生成评估报告', onClick: () => handleReport(record) },
     ],
   };
 
@@ -208,8 +215,14 @@
     }
   }
 
-  /** 生成评估报告：导出功能暂不做，先占位 */
-  function handleReport() {
-    showMessage('生成评估报告：待接入（导出功能暂不做）');
+  /** 生成评估报告：进入报告页（四段正文 + 图1~图6 + 表1/表2，可编辑、可下载 PDF） */
+  function handleReport(record: Recordable) {
+    current.value = {
+      id: record.id,
+      aUid: record.aUid,
+      areaName: record.areaName,
+      evalYear: record.evalYear,
+    };
+    view.value = 'report';
   }
 </script>

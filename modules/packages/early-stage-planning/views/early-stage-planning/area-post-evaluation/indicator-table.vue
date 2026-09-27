@@ -16,7 +16,7 @@
   行对象由父级（evaluate.vue）持有并直接修改，因此表格改动会同步驱动上方雷达图。
 -->
 <template>
-  <div class="mb-12px flex flex-wrap items-center gap-8px">
+  <div v-if="showFilter" class="mb-12px flex flex-wrap items-center gap-8px">
     <span class="text-14px text-gray-800">一级维度：</span>
     <Select v-model:value="lv1Filter" :options="lv1Options" class="w-150px" @change="handleLv1Change" />
     <span class="ml-8px text-14px text-gray-800">二级维度：</span>
@@ -26,7 +26,7 @@
     :columns="columns"
     :data-source="visibleRows"
     :pagination="false"
-    :scroll="{ x: 1080 }"
+    :scroll="autoWidth ? undefined : { x: 1080 }"
     bordered
     size="small"
     row-key="code"
@@ -48,12 +48,19 @@
     uniqDim,
   } from './shared';
 
-  const props = defineProps<{
-    /** 指标行（父级持有，含更新前/更新后填写值） */
-    rows: EspPostEvalIndicatorValue[];
-    /** 查看模式：只读文本，不渲染输入框 */
-    readonly?: boolean;
-  }>();
+  const props = withDefaults(
+    defineProps<{
+      /** 指标行（父级持有，含更新前/更新后填写值） */
+      rows: EspPostEvalIndicatorValue[];
+      /** 查看模式：只读文本，不渲染输入框 */
+      readonly?: boolean;
+      /** 是否显示上方的维度筛选（报告页传 false） */
+      showFilter?: boolean;
+      /** 列宽随内容自适应（报告页传 true：字号放大后不写死列宽，避免单元格频繁换行） */
+      autoWidth?: boolean;
+    }>(),
+    { showFilter: true, autoWidth: false },
+  );
 
   /** 维度筛选（只影响表格展示） */
   const lv1Filter = ref<string>(FILTER_ALL);
