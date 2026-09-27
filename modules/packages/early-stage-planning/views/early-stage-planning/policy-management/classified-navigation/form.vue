@@ -9,12 +9,17 @@
    - 编辑/查看打开时拉取详情 /api/v1/policies/{id}(含版本变更记录);
    - 保存时先上传文件(POST /api/v1/files)再 POST/PUT /api/v1/policies。
   抽屉体在表单下方另有「上传文件」与「版本变更记录」只读表(对齐原型 policy.html 表单)。
+  底部「确认」旁另有「提交」按钮:新增 = 先确认(保存)再提交;编辑 = 直接提交已保存的政策
+  (不保存本次表单改动,语义对齐列表行「提交」)。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer" @ok="handleSubmit">
     <template #title>
       <Icon :icon="getTitle.icon" class="m-1 pr-1" />
       <span> {{ getTitle.value }} </span>
+    </template>
+    <template #appendFooter>
+      <a-button v-if="!isView" :loading="submitLoading" @click="handleSubmitPolicy"> 提交 </a-button>
     </template>
     <BasicForm @register="registerForm" />
 
@@ -63,6 +68,7 @@
     fetchDicts,
     policyInfo,
     policySave,
+    policySubmit,
     splitTags,
     uploadPolicyFile,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/policy-management/policy';
@@ -251,42 +257,83 @@
     return false;
   }
 
+  /** 表单 + 文件校验:通过返回表单数据,不通过提示并返回 null */
+  async function validateForm(): Promise<Recordable | null> {
+    if (!fileName.value) {
+      showMessage('请上传文件');
+      return null;
+    }
+    try {
+      return await validate();
+    } catch (error: any) {
+      if (error && error.errorFields) {
+        showMessage(error.message || '请完善必填项');
+      }
+      return null;
+    }
+  }
+
+  /** 上传新文件(如有)并保存,返回政策编码(新增时取保存响应的 policy_id) */
+  async function savePolicy(data: Recordable): Promise<string> {
+    let fileId = record.value.fileId;
+    let fileUrl = record.value.fileUrl;
+    if (selectedFile.value) {
+      const uploaded = await uploadPolicyFile(selectedFile.value);
+      fileId = uploaded.fileId;
+      fileUrl = uploaded.fileUrl;
+    }
+    // 多选字段合并回后端单字段（逗号分隔）
+    const res = await policySave(
+      { ...data, policyType: joinMulti(data.policyType), businessArea: joinMulti(data.businessArea), fileId, fileUrl },
+      record.value.code,
+    );
+    return (res as Recordable)?.policy_id || record.value.code || '';
+  }
+
   async function handleSubmit() {
     if (isView.value) {
       closeDrawer();
       return;
     }
-    if (!fileName.value) {
-      showMessage('请上传文件');
-      return;
-    }
-    let data: any;
-    try {
-      data = await validate();
-    } catch (error: any) {
-      if (error && error.errorFields) {
-        showMessage(error.message || '请完善必填项');
-      }
-      return;
-    }
+    const data = await validateForm();
+    if (!data) return;
     setDrawerProps({ loading: true, showFooter: true });
     try {
-      let fileId = record.value.fileId;
-      let fileUrl = record.value.fileUrl;
-      if (selectedFile.value) {
-        const uploaded = await uploadPolicyFile(selectedFile.value);
-        fileId = uploaded.fileId;
-        fileUrl = uploaded.fileUrl;
-      }
-      // 多选字段合并回后端单字段（逗号分隔）
-      await policySave(
-        { ...data, policyType: joinMulti(data.policyType), businessArea: joinMulti(data.businessArea), fileId, fileUrl },
-        record.value.code,
-      );
+      await savePolicy(data);
       showMessage('已保存（待提交的政策需点列表「提交」后才会进入知识库）');
       setTimeout(closeDrawer);
       emit('success');
     } finally {
+      setDrawerProps({ loading: false });
+    }
+  }
+
+  /** 底部「提交」按钮:新增 = 先「确认」保存再提交;编辑 = 直接提交已保存的政策(不保存本次表单改动) */
+  const submitLoading = ref(false);
+
+  async function handleSubmitPolicy() {
+    if (isView.value || submitLoading.value) return;
+    let policyId = record.value.code as string;
+    let data: Recordable | null = null;
+    if (record.value.isNewRecord) {
+      data = await validateForm();
+      if (!data) return;
+    }
+    submitLoading.value = true;
+    setDrawerProps({ loading: true, showFooter: true });
+    try {
+      if (data) {
+        policyId = await savePolicy(data);
+        // 保存成功后落位编码:若提交失败后重试,走更新而不是重复新增
+        record.value.code = policyId;
+        record.value.isNewRecord = false;
+      }
+      await policySubmit(policyId);
+      showMessage('已提交，正在解析入库');
+      setTimeout(closeDrawer);
+      emit('success');
+    } finally {
+      submitLoading.value = false;
       setDrawerProps({ loading: false });
     }
   }
