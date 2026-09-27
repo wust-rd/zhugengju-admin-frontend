@@ -1,5 +1,10 @@
 # 城市更新专家管理（urban-renewal-expert-management）后端接口设计文档
 
+> ⚠️ **本文档已过时（2026-09-27）**：仅作历史业务规格参考。
+> 后端实际接口以 `zhugengju-admin-backend/modules/esp/docs/接口文档-城市更新专家管理.md`（v2）为准，
+> 前端接口层见 `api/early-stage-planning/ure-{expert,draw,project,eval}.ts`。
+> 评估流程已升级：个人评估（每人一条）+ 组长综合评估，详见后端 v2 文档与 `db/dm/ure_project_eval_upgrade.sql`。
+
 > 面向对象：后端开发（含 AI 辅助编码）。
 > 前端已完成全模块 UI（当前为本地假数据），本文档描述后端需要提供的接口、数据结构与业务规则。
 > 前端代码位置：`modules/packages/early-stage-planning/views/early-stage-planning/urban-renewal-expert-management/`，
