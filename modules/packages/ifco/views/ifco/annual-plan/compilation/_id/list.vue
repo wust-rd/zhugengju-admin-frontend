@@ -9,7 +9,8 @@
 
   页面结构（对齐设计稿，上下区块）：
   标题行（计划编制工作台 · NNNN 年度计划编制 + 返回）→ 计划提交周期提示条
-  （提交周期/距离截止剩余天数+进度/本年度计划完成投资合计÷刚性目标/提交年度计划）→
+  （提交周期按角色取截止：市级=市级编制结束时间/区级=区级编制结束时间；本年度计划完成
+  投资合计=表格已采纳项目求和（区级只算本区）/提交年度计划）→
   BasicTable（七字段搜索：采纳状态/项目名称/行政区/五改类型/入库年份/最新项目
   状态/项目归属 + 一键采纳、一键导出工具栏 + 复选框 + 项目 14 列（含实施库入库时间/当前建设阶段）；
   操作列按
@@ -39,17 +40,15 @@
       <span class="flex items-center gap-6px">
         <Icon icon="i-ant-design:clock-circle-outlined" class="text-16px text-#faad14" />
         <span class="text-gray-700">
-          年度计划提交周期：{{ task.taskYear }} 年 · {{ task.compileStartDate }} 至 {{ task.compileEndDate }}
+          年度计划提交周期：{{ task.taskYear }} 年 · {{ task.compileStartDate }} 至
+          {{ myDistrict ? task.districtCompileEndDate : task.compileEndDate }}
         </span>
       </span>
-      <span v-if="task.status === '进行中'" class="flex items-center gap-8px text-gray-700">
-        距离截止时间剩余 {{ daysUntilDeadline(task) }} 天
-        <Progress class="w-160px" :percent="completionPercent" :show-info="false" size="small" />
-      </span>
-      <span v-else class="text-gray-500">编制已结束（已归档）</span>
+      <span v-if="task.status !== '进行中'" class="text-gray-500">编制已结束（已归档）</span>
       <span class="text-gray-700">
-        本年度计划完成投资合计 <span class="font-600 text-gray-900">{{ task.totalInvest.toFixed(2) }}</span> 亿 /
-        刚性目标 <span class="font-600 text-gray-900">{{ task.annualRigidTarget.toFixed(2) }}</span> 亿
+        本年度计划完成投资合计
+        <span class="font-600 text-gray-900">{{ adoptedInvestTotal.toFixed(2) }}</span> 亿 / 刚性目标
+        <span class="font-600 text-gray-900">{{ task.annualRigidTarget.toFixed(2) }}</span> 亿
       </span>
       <span v-if="task.submitStatus === '已提交'" class="ml-auto flex items-center gap-6px text-gray-500">
         <Icon icon="i-ant-design:check-circle-filled" class="text-16px text-#52c41a" />
@@ -90,7 +89,7 @@
 </template>
 <script lang="ts" setup name="ViewsIfcoAnnualPlanCompilationIdList">
   import { computed, onMounted, ref, unref } from 'vue';
-  import { Modal, Progress, Tag } from 'antdv-next';
+  import { Modal, Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
@@ -107,7 +106,6 @@
     adoptAnnualPlan,
     adoptAnnualPlanAll,
     adoptStatusTagProps,
-    daysUntilDeadline,
     fetchCompileTask,
     fetchWorkbenchRows,
     submitAnnualTask,
@@ -168,11 +166,12 @@
 
   onMounted(loadAll);
 
-  /** 投资目标完成率（数值，驱动进度条；展示值同列表页 completionRate） */
-  const completionPercent = computed(() => {
-    const target = task.value?.annualRigidTarget ?? 0;
-    if (!target) return 0;
-    return Math.min(100, Math.round(((task.value?.totalInvest ?? 0) / target) * 1000) / 10);
+  /** 本年度计划完成投资合计 = 视角内（区级只算本区）已采纳项目的本年度计划完成投资求和 */
+  const adoptedInvestTotal = computed(() => {
+    const rows = myDistrict.value ? baseRows.value.filter((row) => row.district === myDistrict.value) : baseRows.value;
+    return rows
+      .filter((row) => row.adoptStatus === '已采纳')
+      .reduce((sum, row) => sum + (Number(row.yearPlanInvest) || 0), 0);
   });
 
   /** 更新片区/五改分类/本年度计划完成投资/资金来源/项目归属/项目状态/采纳状态用插槽渲染 */
@@ -223,7 +222,8 @@
   /** 视角过滤：登录机构为 16 区之一 → 区级，仅看本区（行政区=机构对应区）的项目；
    *  其余机构（市级）看全部项目（生产接机构角色时按角色显隐） */
   const userOfficeName = useUserStore().getUserInfo?.officeName ?? '';
-  const myDistrict = DISTRICTS.find((name) => name === userOfficeName);
+  /** 区级视角：登录机构命中 16 区 → 本区（起止时间用区级编制结束时间、合计只算本区） */
+  const myDistrict = computed(() => DISTRICTS.find((name) => name === userOfficeName));
 
   const [registerTable, { setTableData, getForm, getSelectRows }] = useTable({
     dataSource: [],
@@ -291,7 +291,9 @@
   /** 按当前搜索条件重铺表格数据（视角过滤 × 搜索过滤） */
   function applyFilter(formValues?: Recordable) {
     const values = formValues ?? getForm().getFieldsValue();
-    const scoped = myDistrict ? baseRows.value.filter((row) => row.district === myDistrict) : baseRows.value;
+    const scoped = myDistrict.value
+      ? baseRows.value.filter((row) => row.district === myDistrict.value)
+      : baseRows.value;
     setTableData(filterWorkbenchRows(scoped, values));
   }
 
@@ -336,6 +338,8 @@
     Modal.confirm({
       title: '提交年度计划',
       content: '提交后本年度计划内容将锁定，不能再修改。确认提交？',
+      okText: '确定',
+      cancelText: '取消',
       onOk: async () => {
         await submitAnnualTask(task.value!.code);
         showMessage('提交成功，年度计划内容已锁定');
