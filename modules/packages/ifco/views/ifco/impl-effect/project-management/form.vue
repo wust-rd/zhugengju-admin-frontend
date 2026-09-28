@@ -1,8 +1,9 @@
 <!--
-  ifco —— 实施成效评估表单（查看 / 去评估 一体抽屉）
+  ifco —— 实施成效评估表单（查看 / 去评估 一体抽屉，走后端 /a/ifco/impl-eval）
 
+  打开按 p_uid 拉详情（project=只读横幅；evaluate 未评估给空默认）。
   抽屉标题 = 实施成效评估 · 项目名；顶部只读信息横幅两行（项目编号/行政区 片区
-  五改分类 项目归属/责任主体 + 投资估算/实际完成投资/实际完工时间 + 更新对比按钮）。
+  五改分类 项目归属/责任主体 + 投资估算/实际完工时间；实际投资暂无主数据来源）。
   三个 FormGroup 分区（主色竖条 + 分隔线标题，与其他表单页一致）：
    ①实施后评估信息填报：评估日期* / 运营主体 / 实施成效说明 / 上传改造前后对比照片
      （按组动态新增/删除，每组改造前/改造后，可无限新增、可不传）；
@@ -11,32 +12,31 @@
      选择好房子品质升级类型（安全耐久·功能完善·绿色智能·其他 四组复选）+ 添加土
      地证、施工许可等佐证材料（多文件上传）+ 添加位置信息（Modal 内嵌 GeoData-
      Section：上传 shp/dwg 解析占位 + 编辑地图）；好小区=达标数量 + 明细表（空表
-     起步无演示数据；添加/编辑走弹窗、删除本地维护、空间位置图层=GeoDataSection
-     弹窗、佐证附件=行内多文件上传，均随保存写回行数据；导出为占位）；好社区=
-     3×3 字段填报（组成部分/所属社区/设施类型/增加达标数/覆盖半
-     径·人口/15分钟可达）；好城区=2×3 字段填报（组成部分/所属城区/增加达标数），
-     好社区·好城区不再有明细表；添加社区/城区信息为占位。
-  底部按钮：查看=关闭；去评估=取消/暂存（状态留待评估）/ 提交（校验必填，状态转已完成）。
-  当前后端尚未介入：保存直接改内存行（api/ifco/impl-effect 的 EFFECT_ITEMS，刷新即恢复）。
+     起步；添加/编辑走弹窗、删除本地维护、空间位置图层=GeoDataSection 弹窗、佐证
+     附件=行内多文件上传，均随保存写回；导出为占位）；好社区=3×3 字段填报（组成
+     部分/所属社区/设施类型/增加达标数/覆盖半径·人口/15分钟可达）；好城区=2×3
+     字段填报（组成部分/所属城区/增加达标数），无明细表；添加社区/城区信息为占位。
+  底部按钮：查看=关闭；去评估=取消/暂存（状态留待评估）/ 提交（前后端双重校验必
+  填，状态转已完成）。保存走 /save（submit 派生状态），好小区明细行按评估整替。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" width="90%" @register="registerDrawer">
     <template #title>
-      <span>实施成效评估 · {{ record.projectName }}</span>
+      <span>实施成效评估 · {{ project?.project_name }}</span>
     </template>
 
-    <!-- 只读信息横幅（两行 + 更新对比） -->
+    <!-- 只读信息横幅（两行；实际投资暂无主数据来源，不展示） -->
     <div class="mb-16px rd-4px bg-#e8ecf5 px-16px py-12px text-14px">
       <div class="grid grid-cols-3 text-gray-800">
-        <span><span class="text-gray-500">项目编号：</span>{{ record.projectCode }}</span>
+        <span><span class="text-gray-500">项目编号：</span>{{ project?.project_code }}</span>
         <span>
-          {{ record.district }} {{ record.renewalAreaName }} {{ fiveReformLabel(record.fiveReformType ?? '') }}
-          {{ projectAffiliationLabel(record.projectAffiliation ?? '') }}
+          {{ project?.district }} {{ project?.renewal_area_name }}
+          {{ fiveReformLabel(project?.five_reform_type ?? '') }}
+          {{ projectAffiliationLabel(project?.project_affiliation ?? '') }}
         </span>
-        <span><span class="text-gray-500">责任主体：</span>{{ record.responsibleOrg }}</span>
-        <span><span class="text-gray-500">投资估算（亿元）：</span>{{ record.investEstimate }}</span>
-        <span><span class="text-gray-500">实际完成投资（亿元）：</span>{{ record.actualInvest }}</span>
-        <span><span class="text-gray-500">实际完工时间：</span>{{ record.completionDate || '/' }}</span>
+        <span><span class="text-gray-500">责任主体：</span>{{ project?.responsible_org }}</span>
+        <span><span class="text-gray-500">投资估算（亿元）：</span>{{ project?.invest_estimate ?? '/' }}</span>
+        <span><span class="text-gray-500">实际完工时间：</span>{{ project?.completion_date || '/' }}</span>
       </div>
     </div>
 
@@ -635,7 +635,7 @@
         :geometry-types="['polygon']"
         :disabled="isView"
         @update:geo-json="(geoJson) => communityGeoRow && (communityGeoRow.geoLayerJson = geoJson)"
-        @update:file-name="(name) => (communityGeoFileName = name)"
+        @update:file-name="onCommunityGeoFileName"
       />
     </Modal>
 
@@ -672,18 +672,20 @@
   import {
     BELONG_CITY_DISTRICT_OPTIONS,
     BELONG_COMMUNITY_OPTIONS,
-    EFFECT_ITEMS,
     FACILITY_TYPE_OPTIONS,
     HOUSE_USE_OPTIONS,
     QUALITY_UPGRADE_OPTIONS,
     YES_NO_OPTIONS,
+    fetchImplEvalDetail,
     fiveReformLabel,
     parseGeoFile,
     projectAffiliationLabel,
-    type EffectItem,
+    saveImplEval,
     type FourGoodGoal,
     type FourGoodUnitRow,
     type HouseUse,
+    type ImplEvalDetail,
+    type ImplEvalFileItem,
     type YesNo,
   } from '@jeesite/ifco/api/ifco/impl-effect';
 
@@ -691,7 +693,10 @@
   const { showMessage } = useMessage();
 
   const isView = ref(false);
-  const record = ref<Partial<EffectItem>>({});
+  /** 项目图斑唯一号（打开时取自行数据） */
+  const pUid = ref('');
+  /** 只读横幅（详情 project；加载前为 null） */
+  const project = ref<ImplEvalDetail['project'] | null>(null);
 
   // ── 表单状态（抽屉打开时按行数据整体重建） ──────────────────────────
   const formState = reactive({
@@ -741,7 +746,7 @@
     }
   }
 
-  /** 对比照片缩略图（假数据文件名给灰底占位） */
+  /** 对比照片回显缩略图（灰底占位；真实图片地址接 OSS 后替换） */
   const PHOTO_THUMB =
     'data:image/svg+xml;utf8,' +
     encodeURIComponent(
@@ -755,12 +760,13 @@
   /** 绩效评估材料（多文件，本地演示不上传服务器） */
   const materialFiles = ref<UploadFile[]>([]);
 
-  function toFileList(names: string[], side: string, groupIndex: number): UploadFile[] {
-    return names.map((name, index) => ({
-      uid: `g${groupIndex}-${side}-${index}`,
-      name,
+  /** 文件项 → UploadFile 回显（照片组带占位缩略图；材料走默认图标） */
+  function toUploadFiles(files: ImplEvalFileItem[], key: string, asThumb = false): UploadFile[] {
+    return files.map((file, index) => ({
+      uid: `${key}-${index}-${file.name}`,
+      name: file.name,
       status: 'done',
-      thumbUrl: PHOTO_THUMB,
+      thumbUrl: asThumb ? PHOTO_THUMB : undefined,
     }));
   }
 
@@ -857,7 +863,7 @@
 
   /** 行内佐证附件上传（多文件，本地收集文件名；before-upload 返回 false 阻止自动上传） */
   function handleAttachmentUpload(row: FourGoodUnitRow, file: File) {
-    row.attachmentFiles = [...(row.attachmentFiles ?? []), file.name];
+    row.attachmentFiles = [...(row.attachmentFiles ?? []), { name: file.name }];
     return false;
   }
 
@@ -868,8 +874,16 @@
 
   function openCommunityGeo(row: FourGoodUnitRow) {
     communityGeoRow.value = row;
-    communityGeoFileName.value = undefined;
+    communityGeoFileName.value = row.geoFileName;
     communityGeoModalOpen.value = true;
+  }
+
+  /** 小区图层弹窗：源文件名写回弹窗态与行数据（随保存持久化） */
+  function onCommunityGeoFileName(name: string) {
+    communityGeoFileName.value = name;
+    if (communityGeoRow.value) {
+      communityGeoRow.value.geoFileName = name;
+    }
   }
 
   /** 明细行删除（仅本地） */
@@ -888,53 +902,79 @@
   const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data: any) => {
     setDrawerProps({ loading: true });
     isView.value = !!data?.isView;
-    record.value = (data || {}) as Partial<EffectItem>;
+    pUid.value = data?.p_uid ?? '';
 
-    formState.evaluateDate = record.value.evaluateDate ?? '';
-    formState.operatingOrg = record.value.operatingOrg ?? '';
-    formState.effectDescription = record.value.effectDescription ?? '';
-    formState.performanceResult = record.value.performanceResult ?? '';
-    formState.selectedGoals = [...(record.value.selectedGoals ?? [])];
-    formState.goodHouseCount = record.value.goodHouseCount;
-    formState.houseUse = record.value.houseUse;
-    formState.qualityUpgrades = [...(record.value.qualityUpgrades ?? [])];
-    formState.goodCommunityCount = record.value.goodCommunityCount;
-    formState.communityPart = record.value.communityPart;
-    formState.belongCommunity = record.value.belongCommunity;
-    formState.facilityTypes = [...(record.value.facilityTypes ?? [])];
-    formState.blockAddHouseCount = record.value.blockAddHouseCount;
-    formState.blockAddCommunityCount = record.value.blockAddCommunityCount;
-    formState.facilityRadius = record.value.facilityRadius;
-    formState.facilityPopulation = record.value.facilityPopulation;
-    formState.reachable15Min = record.value.reachable15Min;
-    formState.cityPart = record.value.cityPart;
-    formState.belongCityDistrict = record.value.belongCityDistrict;
-    formState.cityAddHouseCount = record.value.cityAddHouseCount;
-    formState.cityAddCommunityCount = record.value.cityAddCommunityCount;
-    formState.cityAddBlockCount = record.value.cityAddBlockCount;
+    try {
+      const detail = await fetchImplEvalDetail(pUid.value);
+      project.value = detail.project;
+      const evaluate = detail.evaluate;
+      /** 逗号串 → 数组（多选字段存储口径） */
+      const split = (value: string | null) => (value ?? '').split(',').filter(Boolean);
+      /** null → undefined（数字/选择字段回显口径） */
+      const num = (value: number | null | undefined) => value ?? undefined;
 
-    // 只回显有照片的分组（待评估行的空分组不占位），用户可随时新增一组
-    photoGroups.value = (record.value.comparePhotos ?? [])
-      .filter((group) => group.before.length > 0 || group.after.length > 0)
-      .map((group, index) => ({
-        id: ++photoGroupSeq,
-        before: toFileList(group.before, 'before', index),
-        after: toFileList(group.after, 'after', index),
+      formState.evaluateDate = evaluate.evaluateDate ?? '';
+      formState.operatingOrg = evaluate.operatingOrg ?? '';
+      formState.effectDescription = evaluate.effectDescription ?? '';
+      formState.performanceResult = evaluate.performanceResult ?? '';
+      formState.selectedGoals = split(evaluate.selectedGoals) as FourGoodGoal[];
+      formState.goodHouseCount = num(evaluate.goodHouseCount);
+      formState.houseUse = evaluate.houseUse ?? undefined;
+      formState.qualityUpgrades = split(evaluate.qualityUpgrades);
+      formState.goodCommunityCount = num(evaluate.goodCommunityCount);
+      formState.communityPart = evaluate.communityPart ?? undefined;
+      formState.belongCommunity = evaluate.belongCommunity ?? undefined;
+      formState.facilityTypes = split(evaluate.facilityTypes);
+      formState.blockAddHouseCount = num(evaluate.blockAddHouseCount);
+      formState.blockAddCommunityCount = num(evaluate.blockAddCommunityCount);
+      formState.facilityRadius = num(evaluate.facilityRadius);
+      formState.facilityPopulation = num(evaluate.facilityPopulation);
+      formState.reachable15Min = evaluate.reachable15min ?? undefined;
+      formState.cityPart = evaluate.cityPart ?? undefined;
+      formState.belongCityDistrict = evaluate.belongCityDistrict ?? undefined;
+      formState.cityAddHouseCount = num(evaluate.cityAddHouseCount);
+      formState.cityAddCommunityCount = num(evaluate.cityAddCommunityCount);
+      formState.cityAddBlockCount = num(evaluate.cityAddBlockCount);
+
+      // 只回显有照片的分组（全空分组不占位），用户可随时新增一组
+      photoGroups.value = evaluate.comparePhotoGroups
+        .filter((group) => group.before.length > 0 || group.after.length > 0)
+        .map((group, index) => ({
+          id: ++photoGroupSeq,
+          before: toUploadFiles(group.before, `g${index}-before`, true),
+          after: toUploadFiles(group.after, `g${index}-after`, true),
+        }));
+      materialFiles.value = toUploadFiles(evaluate.performanceFiles, 'material');
+      houseEvidenceFiles.value = toUploadFiles(evaluate.houseEvidenceFiles, 'evidence');
+      houseLocationGeoJson.value = evaluate.houseGeoJson;
+      houseLocationFileName.value = evaluate.houseGeoFileName;
+      locationModalOpen.value = false;
+      selectedCommunityKeys.value = [];
+
+      communityRows.value = detail.communityRows.map((row) => ({
+        name: row.communityName,
+        address: row.address,
+        buildingCount: num(row.buildingCount),
+        householdCount: num(row.householdCount),
+        buildingArea: num(row.buildingArea),
+        propertyCompany: row.propertyCompany,
+        ownersCommittee: row.ownersCommittee,
+        propertyFee: num(row.propertyFee),
+        facilityCoverage: num(row.facilityCoverage),
+        safetyIndex: num(row.safetyIndex),
+        geoLayerJson: row.geoLayerJson ?? undefined,
+        geoFileName: row.geoFileName ?? undefined,
+        attachmentFiles: row.attachmentFiles,
       }));
-    materialFiles.value = toFileList(record.value.performanceMaterials ?? [], 'material', 0);
-    houseEvidenceFiles.value = toFileList(record.value.houseEvidenceFiles ?? [], 'evidence', 0);
-    houseLocationGeoJson.value = record.value.houseLocationGeoJson;
-    houseLocationFileName.value = undefined;
-    locationModalOpen.value = false;
-    selectedCommunityKeys.value = [];
-
-    communityRows.value = (record.value.communityRows ?? []).map((row) => ({ ...row }));
-
-    setDrawerProps({ loading: false });
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : '加载评估详情失败');
+    } finally {
+      setDrawerProps({ loading: false });
+    }
   });
 
-  /** 暂存 / 提交：提交校验必填（评估日期/四好目标；对比照片与材料可不传），暂存不校验 */
-  function handleSave(mode: '暂存' | '提交') {
+  /** 暂存 / 提交：提交前端校验必填（评估日期/四好目标；后端兜底再校验），暂存不校验 */
+  async function handleSave(mode: '暂存' | '提交') {
     if (mode === '提交') {
       if (!formState.evaluateDate) {
         showMessage('请选择评估日期');
@@ -945,43 +985,65 @@
         return;
       }
     }
-    const target = EFFECT_ITEMS.find((item) => item.projectCode === record.value.projectCode);
-    if (target) {
-      target.evaluateDate = formState.evaluateDate;
-      target.operatingOrg = formState.operatingOrg;
-      target.effectDescription = formState.effectDescription;
-      target.performanceResult = formState.performanceResult;
-      target.selectedGoals = [...formState.selectedGoals];
-      target.goodHouseCount = formState.goodHouseCount;
-      target.houseUse = formState.houseUse;
-      target.qualityUpgrades = [...formState.qualityUpgrades];
-      target.houseEvidenceFiles = houseEvidenceFiles.value.map((file) => file.name);
-      target.houseLocationGeoJson = houseLocationGeoJson.value;
-      target.goodCommunityCount = formState.goodCommunityCount;
-      target.communityRows = communityRows.value.map((row) => ({ ...row }));
-      target.communityPart = formState.communityPart;
-      target.belongCommunity = formState.belongCommunity;
-      target.facilityTypes = [...formState.facilityTypes];
-      target.blockAddHouseCount = formState.blockAddHouseCount;
-      target.blockAddCommunityCount = formState.blockAddCommunityCount;
-      target.facilityRadius = formState.facilityRadius;
-      target.facilityPopulation = formState.facilityPopulation;
-      target.reachable15Min = formState.reachable15Min;
-      target.cityPart = formState.cityPart;
-      target.belongCityDistrict = formState.belongCityDistrict;
-      target.cityAddHouseCount = formState.cityAddHouseCount;
-      target.cityAddCommunityCount = formState.cityAddCommunityCount;
-      target.cityAddBlockCount = formState.cityAddBlockCount;
-      target.comparePhotos = photoGroups.value.map((group) => ({
-        before: group.before.map((file) => file.name),
-        after: group.after.map((file) => file.name),
-      }));
-      target.performanceMaterials = materialFiles.value.map((file) => file.name);
-      target.evaluateStatus = mode === '提交' ? '已完成' : '待评估';
+    setDrawerProps({ loading: true });
+    try {
+      await saveImplEval({
+        pUid: pUid.value,
+        submit: mode === '提交',
+        evaluateDate: formState.evaluateDate,
+        operatingOrg: formState.operatingOrg,
+        effectDescription: formState.effectDescription,
+        performanceResult: formState.performanceResult,
+        performanceFiles: materialFiles.value.map((file) => ({ name: file.name })),
+        comparePhotoGroups: photoGroups.value.map((group) => ({
+          before: group.before.map((file) => ({ name: file.name })),
+          after: group.after.map((file) => ({ name: file.name })),
+        })),
+        selectedGoals: formState.selectedGoals.join(','),
+        goodHouseCount: formState.goodHouseCount,
+        houseUse: formState.houseUse,
+        qualityUpgrades: formState.qualityUpgrades.join(','),
+        houseEvidenceFiles: houseEvidenceFiles.value.map((file) => ({ name: file.name })),
+        houseGeoJson: houseLocationGeoJson.value,
+        houseGeoFileName: houseLocationFileName.value,
+        goodCommunityCount: formState.goodCommunityCount,
+        communityPart: formState.communityPart,
+        belongCommunity: formState.belongCommunity,
+        facilityTypes: formState.facilityTypes.join(','),
+        blockAddHouseCount: formState.blockAddHouseCount,
+        blockAddCommunityCount: formState.blockAddCommunityCount,
+        facilityRadius: formState.facilityRadius,
+        facilityPopulation: formState.facilityPopulation,
+        reachable15min: formState.reachable15Min,
+        cityPart: formState.cityPart,
+        belongCityDistrict: formState.belongCityDistrict,
+        cityAddHouseCount: formState.cityAddHouseCount,
+        cityAddCommunityCount: formState.cityAddCommunityCount,
+        cityAddBlockCount: formState.cityAddBlockCount,
+        communityRows: communityRows.value.map((row) => ({
+          communityName: row.name,
+          address: row.address,
+          buildingCount: row.buildingCount,
+          householdCount: row.householdCount,
+          buildingArea: row.buildingArea,
+          propertyCompany: row.propertyCompany,
+          ownersCommittee: row.ownersCommittee,
+          propertyFee: row.propertyFee,
+          facilityCoverage: row.facilityCoverage,
+          safetyIndex: row.safetyIndex,
+          geoLayerJson: row.geoLayerJson,
+          geoFileName: row.geoFileName,
+          attachmentFiles: row.attachmentFiles ?? [],
+        })),
+      });
+      showMessage(mode === '暂存' ? '暂存成功（状态保持待评估）' : '提交成功，成效评估已完成');
+      closeDrawer();
+      emit('success');
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      setDrawerProps({ loading: false });
     }
-    showMessage(mode === '暂存' ? '暂存成功（状态保持待评估）' : '提交成功，成效评估已完成');
-    closeDrawer();
-    emit('success', target);
   }
 
   /** 占位操作（TODO：随材料上传/图层/导出后端接入） */
