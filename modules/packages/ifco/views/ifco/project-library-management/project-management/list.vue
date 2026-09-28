@@ -230,7 +230,7 @@
   };
 
   const [registerDrawer, { openDrawer }] = useDrawer();
-  const [registerExitDrawer, { openDrawer: openExitDrawer }] = useDrawer();
+  const [registerExitDrawer, { openDrawer: openExitDrawer, setDrawerProps: setExitDrawerProps }] = useDrawer();
 
   /** 打开表单抽屉：view=只读、edit=编辑（页脚 取消/暂存/申请转库）、review=审核（页脚 取消/保存审查） */
   function handleForm(record: Recordable) {
@@ -257,7 +257,11 @@
           },
         }),
       )
-      .with('转退出', () => openExitDrawer(false, { project: record }))
+      .with('转退出', () => {
+        // 页脚（提交/取消）显式预设：showFooter 默认关，打开前设置防首击失灵（硬性规则）
+        setExitDrawerProps({ showFooter: true });
+        openExitDrawer(false, { project: record });
+      })
       .exhaustive();
   }
 

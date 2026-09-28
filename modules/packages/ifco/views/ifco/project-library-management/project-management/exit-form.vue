@@ -13,16 +13,16 @@
   <BasicDrawer
     v-bind="$attrs"
     force-render
-    width="30%"
+    width="50%"
     :title="`转退出 · ${project.pj_name ?? ''}`"
-    okText="确定退出"
+    okText="提交"
     @register="registerDrawer"
     @ok="handleSubmit"
   >
     <!-- 警示文案（退出不可恢复） -->
-    <Alert type="warning" show-icon class="mb-16px">
-      退出后项目档案转为只读且不可恢复；如需重新启动，须重新录入策划库走完整入库流程。
-    </Alert>
+    <div class="mb-16px text-red-500 text-14px"
+      >提示:退出后项目档案转为只读且不可恢复；如需重新启动，须重新录入策划库走完整入库流程。
+    </div>
 
     <div class="flex flex-col gap-16px">
       <!-- 退出类型（必选） -->
@@ -33,6 +33,7 @@
           placeholder="请选择退出类型"
           :options="exitTypeOptions"
           @change="exitTypeError = ''"
+          class="w-400px"
         />
         <div v-if="exitTypeError" class="mt-4px text-13px text-red-500">{{ exitTypeError }}</div>
       </div>
