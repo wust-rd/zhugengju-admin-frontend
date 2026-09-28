@@ -4,12 +4,15 @@
  * 菜单两级：项目实施成效管理（评估表单抽屉）+ 六带效果评估（独立页面）。
  * 数据来自本模块内存行（EFFECT_ITEMS，刷新即恢复）；行政区/五改类别/项目归属
  * 枚举复用 project-library 口径。
+ * 收录口径：仅「实施库 + 已完工（竣工日期非空）」的项目可进入实施成效评估，
+ * 规则收口在 filterEffects（后端接入后改为项目库查询条件）。
  */
 import {
   DISTRICTS,
   FIVE_REFORM_TYPE_OPTIONS,
   PROJECT_AFFILIATION_LABEL,
   RENEWAL_AREA_BATCH_LABEL,
+  type LibraryKey,
 } from '@jeesite/ifco/api/ifco/project-library';
 
 /** 成效评估状态：待评估（可去评估）→ 已完成（提交评估后） */
@@ -27,13 +30,14 @@ export type HouseUse = '住宅' | '商业' | '办公' | '商住混合' | '公共
 
 export const HOUSE_USE_OPTIONS: HouseUse[] = ['住宅', '商业', '办公', '商住混合', '公共服务配套'];
 
-/** 品质升级类型（好房子基本信息，三组复选） */
-export type QualityUpgradeGroup = '安全耐久' | '功能完善' | '绿色智能';
+/** 品质升级类型（好房子基本信息，四组复选） */
+export type QualityUpgradeGroup = '安全耐久' | '功能完善' | '绿色智能' | '其他';
 
 export const QUALITY_UPGRADE_OPTIONS: Record<QualityUpgradeGroup, string[]> = {
-  安全耐久: ['结构安全', '燃气安全', '楼道安全', '维护安全'],
+  安全耐久: ['结构安全改造', '燃气安全改造', '楼道安全改造', '维护安全改造'],
   功能完善: ['管道破损改造', '适老化改造', '加装电梯'],
   绿色智能: ['节能改造', '数字化改造'],
+  其他: ['原拆原建', '其他'],
 };
 
 /** 是否可以作为 REITs 培育项目（基本情况 · 资金填报） */
@@ -41,21 +45,25 @@ export type YesNo = '是' | '否';
 
 export const YES_NO_OPTIONS: YesNo[] = ['是', '否'];
 
-/** 改造前后对比照片（4 组，文件名演示） */
+/** 改造前后对比照片（按组动态增删，文件名演示） */
 export type ComparePhotoGroup = { before: string[]; after: string[] };
 
-/** 好小区/好社区/好城区明细行（三表同构） */
+/** 好小区明细行（好社区/好城区改为表单字段填报，不再有明细表；数字字段可留空） */
 export type FourGoodUnitRow = {
   name: string;
   address: string;
-  buildingCount: number;
-  householdCount: number;
-  buildingArea: number;
+  buildingCount?: number;
+  householdCount?: number;
+  buildingArea?: number;
   propertyCompany: string;
   ownersCommittee: string;
-  propertyFee: number;
-  facilityCoverage: number;
-  safetyIndex: number;
+  propertyFee?: number;
+  facilityCoverage?: number;
+  safetyIndex?: number;
+  /** 空间位置图层（GeoJSON 字符串；行内上传/编辑地图产生） */
+  geoLayerJson?: string;
+  /** 佐证附件（文件名演示，行内上传收集） */
+  attachmentFiles?: string[];
 };
 
 /** 项目实施成效管理行（列表 + 评估表单一体） */
@@ -67,6 +75,8 @@ export type EffectItem = {
   renewalAreaBatch: string;
   fiveReformType: string;
   projectAffiliation: string;
+  /** 来源项目库（收录口径：仅实施库项目可进入实施成效评估） */
+  library: LibraryKey;
   /** 主四好目标（列表「四好目标」列单值展示） */
   fourGoodGoal: FourGoodGoal;
   investEstimate: number;
@@ -81,21 +91,54 @@ export type EffectItem = {
   evaluateDate: string;
   /** 实施成效说明 */
   effectDescription: string;
-  /** 改造前后对比照片（4 组，第 1 组必填） */
+  /** 改造前后对比照片（按组动态新增/删除，可无限新增、可不传） */
   comparePhotos: ComparePhotoGroup[];
   /** 绩效评估结果 */
   performanceResult: string;
+  /** 绩效评估材料（多文件，文件名演示，可不传） */
+  performanceMaterials?: string[];
   /** 选择的四好目标（多选；提交时必填） */
   selectedGoals: FourGoodGoal[];
   // 好房子
   goodHouseCount?: number;
   houseUse?: HouseUse;
   qualityUpgrades?: string[];
+  /** 好房子佐证材料（土地证、施工许可等，文件名演示） */
+  houseEvidenceFiles?: string[];
+  /** 好房子位置信息（GeoJSON 字符串；上传解析/编辑地图产生） */
+  houseLocationGeoJson?: string;
   // 好小区
   goodCommunityCount?: number;
-  // 好社区
-  isPartOfCommunity?: boolean;
-  goodBlockCount?: number;
+  /** 好小区明细行（空表起步，添加/编辑/删除/行内上传本地维护，随保存写回） */
+  communityRows?: FourGoodUnitRow[];
+  // 好社区（字段填报，无明细表）
+  /** 项目成效是否为好社区的组成部分 */
+  communityPart?: YesNo;
+  /** 所属社区 */
+  belongCommunity?: string;
+  /** 达标设施类型（多选） */
+  facilityTypes?: string[];
+  /** 增加好房子达标套数（套） */
+  blockAddHouseCount?: number;
+  /** 增加好小区达标数量（个） */
+  blockAddCommunityCount?: number;
+  /** 达标设施覆盖半径（m） */
+  facilityRadius?: number;
+  /** 达标设施覆盖人口（人） */
+  facilityPopulation?: number;
+  /** 是否15分钟可达 */
+  reachable15Min?: YesNo;
+  // 好城区（字段填报，无明细表）
+  /** 项目成效是否为好城区的组成部分 */
+  cityPart?: YesNo;
+  /** 所属城区 */
+  belongCityDistrict?: string;
+  /** 增加好房子达标数（套） */
+  cityAddHouseCount?: number;
+  /** 增加好小区达标数量（个） */
+  cityAddCommunityCount?: number;
+  /** 增加好社区达标数量（个） */
+  cityAddBlockCount?: number;
   // ── 基本情况 · 资金填报 ──
   /** 本年完成投资额（亿元，进度填报自动带入，只读） */
   yearInvest: number;
@@ -103,87 +146,19 @@ export type EffectItem = {
   reitsProject?: YesNo;
 };
 
-/** 好小区/好社区/好城区明细演示行（添加/编辑/导出均为占位） */
-export const FOUR_GOOD_UNIT_ROWS: Record<'好小区' | '好社区' | '好城区', FourGoodUnitRow[]> = {
-  好小区: [
-    {
-      name: '联合村小区',
-      address: '江岸区联合村 18 号',
-      buildingCount: 12,
-      householdCount: 856,
-      buildingArea: 7.2,
-      propertyCompany: '武汉众治社区服务公司',
-      ownersCommittee: '已成立',
-      propertyFee: 1.2,
-      facilityCoverage: 92,
-      safetyIndex: 96,
-    },
-    {
-      name: '同兴里小区',
-      address: '江岸区同兴里 21 号',
-      buildingCount: 8,
-      householdCount: 512,
-      buildingArea: 4.6,
-      propertyCompany: '武汉众治社区服务公司',
-      ownersCommittee: '已成立',
-      propertyFee: 1.0,
-      facilityCoverage: 88,
-      safetyIndex: 94,
-    },
-  ],
-  好社区: [
-    {
-      name: '三阳社区',
-      address: '江岸区三阳路 13 号',
-      buildingCount: 26,
-      householdCount: 2180,
-      buildingArea: 18.5,
-      propertyCompany: '武汉城更社区运营公司',
-      ownersCommittee: '已成立',
-      propertyFee: 1.5,
-      facilityCoverage: 95,
-      safetyIndex: 97,
-    },
-    {
-      name: '一元社区',
-      address: '江岸区一元路 6 号',
-      buildingCount: 19,
-      householdCount: 1460,
-      buildingArea: 12.3,
-      propertyCompany: '武汉城更社区运营公司',
-      ownersCommittee: '筹备中',
-      propertyFee: 1.3,
-      facilityCoverage: 90,
-      safetyIndex: 93,
-    },
-  ],
-  好城区: [
-    {
-      name: '一元片历史城区',
-      address: '江岸区沿江大道片区',
-      buildingCount: 64,
-      householdCount: 8620,
-      buildingArea: 56.8,
-      propertyCompany: '—',
-      ownersCommittee: '—',
-      propertyFee: 0,
-      facilityCoverage: 96,
-      safetyIndex: 98,
-    },
-    {
-      name: '西马片活力城区',
-      address: '江岸区西马街道片区',
-      buildingCount: 48,
-      householdCount: 6340,
-      buildingArea: 42.1,
-      propertyCompany: '—',
-      ownersCommittee: '—',
-      propertyFee: 0,
-      facilityCoverage: 94,
-      safetyIndex: 95,
-    },
-  ],
-};
+/** 好社区 · 达标设施类型 */
+export const FACILITY_TYPE_OPTIONS: string[] = ['养老', '医疗', '教育', '文体', '地下管网'];
+
+/** 好社区 · 所属社区（演示选项） */
+export const BELONG_COMMUNITY_OPTIONS: string[] = ['三阳社区', '一元社区', '联合村社区', '岳飞社区', '同福社区'];
+
+/** 好城区 · 所属城区（演示选项） */
+export const BELONG_CITY_DISTRICT_OPTIONS: string[] = ['一元片历史城区', '西马片活力城区', '中山大道片', '汉正街片'];
+
+/** 模拟后端解析：上传 shp/dwg → 后端解析返回 GeoJSON（接口就绪后替换） */
+export function parseGeoFile(_file: File): Promise<string> {
+  return Promise.reject(new Error('shp/dwg 解析接口暂未接入'));
+}
 
 /** 状态标签配色：待评估=蓝描边、已完成=绿实心 */
 export function evaluateStatusTagProps(status: EvaluateStatus): {
@@ -210,7 +185,7 @@ export function actionsByEvaluateStatus(status: EvaluateStatus): EffectAction[] 
   }
 }
 
-/** 行数据（前 3 行照设计稿抄录，其余补齐 7 行：3 待评估 + 4 已完成） */
+/** 行数据（前 3 行照设计稿抄录，共 7 行：3 待评估 + 4 已完成；均为实施库已完工项目） */
 export const EFFECT_ITEMS: EffectItem[] = [
   {
     projectCode: '20263600',
@@ -227,6 +202,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     responsibleOrg: '江岸区住更局',
     operatingOrg: '武汉城更建设投资公司',
     evaluateStatus: '待评估',
+    library: 'implementing',
     evaluateDate: '',
     effectDescription: '',
     comparePhotos: [
@@ -254,6 +230,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     responsibleOrg: '江岸区住更局',
     operatingOrg: '江岸区市政设施维护中心',
     evaluateStatus: '待评估',
+    library: 'implementing',
     evaluateDate: '',
     effectDescription: '',
     comparePhotos: [
@@ -281,6 +258,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     responsibleOrg: '江岸区住更局',
     operatingOrg: '武汉城更房地产开发公司',
     evaluateStatus: '待评估',
+    library: 'implementing',
     evaluateDate: '',
     effectDescription: '',
     comparePhotos: [
@@ -308,6 +286,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     responsibleOrg: '江岸区住更局',
     operatingOrg: '武汉众治社区服务公司',
     evaluateStatus: '已完成',
+    library: 'implementing',
     evaluateDate: '2026-07-15',
     effectDescription: '12 个老旧小区完成改造，配套设施覆盖率提升至 92%，居民满意度调查达 94 分。',
     comparePhotos: [
@@ -320,7 +299,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     selectedGoals: ['好房子', '好小区'],
     goodHouseCount: 3012,
     houseUse: '住宅',
-    qualityUpgrades: ['结构安全', '燃气安全', '适老化改造', '加装电梯'],
+    qualityUpgrades: ['结构安全改造', '燃气安全改造', '适老化改造', '加装电梯'],
     goodCommunityCount: 12,
     yearInvest: 0.62,
     reitsProject: '是',
@@ -340,6 +319,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     responsibleOrg: '青山区住更局',
     operatingOrg: '武汉青山区城更公司',
     evaluateStatus: '已完成',
+    library: 'implementing',
     evaluateDate: '2026-06-10',
     effectDescription: '3 处工业遗产建筑完成修缮活化，引入文创企业 18 家，片区活力显著提升。',
     comparePhotos: [
@@ -352,7 +332,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     selectedGoals: ['好房子', '好城区'],
     goodHouseCount: 86,
     houseUse: '商住混合',
-    qualityUpgrades: ['结构安全', '节能改造'],
+    qualityUpgrades: ['结构安全改造', '节能改造'],
     yearInvest: 1.1,
     reitsProject: '否',
   },
@@ -371,6 +351,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     responsibleOrg: '洪山区住更局',
     operatingOrg: '武汉洪山区城更公司',
     evaluateStatus: '已完成',
+    library: 'implementing',
     evaluateDate: '2026-05-18',
     effectDescription: '环大学创新带初具规模，改造楼宇 9 栋，新增创业空间 4.2 万㎡。',
     comparePhotos: [
@@ -381,8 +362,18 @@ export const EFFECT_ITEMS: EffectItem[] = [
     ],
     performanceResult: '绩效评估优秀：投资完成率 95%，孵化初创企业 42 家。',
     selectedGoals: ['好社区', '好城区'],
-    isPartOfCommunity: true,
-    goodBlockCount: 3,
+    communityPart: '是',
+    belongCommunity: '三阳社区',
+    facilityTypes: ['养老', '文体'],
+    blockAddHouseCount: 15,
+    blockAddCommunityCount: 3,
+    facilityRadius: 800,
+    facilityPopulation: 12000,
+    reachable15Min: '是',
+    cityPart: '否',
+    cityAddHouseCount: 30,
+    cityAddCommunityCount: 5,
+    cityAddBlockCount: 2,
     yearInvest: 0.96,
     reitsProject: '是',
   },
@@ -401,6 +392,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     responsibleOrg: '东西湖区住更局',
     operatingOrg: '武汉东西湖城更公司',
     evaluateStatus: '已完成',
+    library: 'implementing',
     evaluateDate: '2026-04-12',
     effectDescription: '老旧厂区转型为智能制造产业园，入驻企业 26 家，产值贡献初显。',
     comparePhotos: [
@@ -413,7 +405,7 @@ export const EFFECT_ITEMS: EffectItem[] = [
     selectedGoals: ['好房子', '好小区'],
     goodHouseCount: 460,
     houseUse: '办公',
-    qualityUpgrades: ['结构安全', '数字化改造'],
+    qualityUpgrades: ['结构安全改造', '数字化改造'],
     goodCommunityCount: 5,
     yearInvest: 0.58,
     reitsProject: '否',
@@ -436,6 +428,9 @@ function matchText(actual: string, query?: string) {
 export function filterEffects(params: EffectQuery): EffectItem[] {
   return EFFECT_ITEMS.filter(
     (item) =>
+      // 收录口径：仅实施库且已完工（竣工日期非空）的项目进入实施成效评估
+      item.library === 'implementing' &&
+      !!item.completionDate &&
       (!params.evaluateStatus || item.evaluateStatus === params.evaluateStatus) &&
       matchText(item.projectName, params.projectName) &&
       (!params.fiveReformType || item.fiveReformType === params.fiveReformType) &&

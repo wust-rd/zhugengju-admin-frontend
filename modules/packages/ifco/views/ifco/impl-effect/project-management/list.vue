@@ -1,11 +1,13 @@
 <!--
   ifco —— 项目实施成效管理（/ifco/impl-effect/project-management/index）
 
-  实施成效评估 · 项目实施成效管理。顶部状态页签（全部/已完成/待评估，带数量，
-  页签即成效评估状态筛选）+ BasicTable（项目名称/五改类型/四好目标 搜索表单；
-  一键导出 工具栏）。操作列按评估状态变化：待评估=查看+去评估，已完成=仅查看
-  （exhaustive 分支）。查看/去评估走一体评估表单抽屉 form.vue（查看=只读+底部
-  仅关闭；去评估可填报，暂存/提交区别在是否转已完成）。
+  实施成效评估 · 项目实施成效管理。BasicTable（项目名称/五改类型/四好目标/成效
+  评估状态 搜索表单，状态筛选即「成效评估状态」下拉；一键导出 工具栏）。成效评
+  估状态列用彩色 Tag（待评估=蓝描边、已完成=绿实心）。操作列按评估状态变化：待评估=查看+去评估，
+  已完成=仅查看（exhaustive 分支）。查看/去评估走一体评估表单抽屉 form.vue
+  （查看=只读+底部仅关闭；去评估可填报，暂存/提交区别在是否转已完成）。
+  收录口径：仅「实施库 + 已完工（竣工日期非空）」的项目可进入本页（收口在 api
+  的 filterEffects，后端接入后改为项目库查询条件）。
   当前后端尚未介入：数据来自 @jeesite/ifco/api/ifco/impl-effect（内存假数据，
   前 3 行照设计稿抄录共 7 行；刷新即恢复）。
 
@@ -16,11 +18,6 @@
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
-    <!-- 状态页签（全部/已完成/待评估，页签即评估状态筛选） -->
-    <div class="bg-white rd-8px px-8px py-4px shadow-sm">
-      <Tabs v-model:active-key="activeStatus" :items="tabItems" @change="handleTabChange" />
-    </div>
-
     <!-- 列表：搜索表单 + 工具栏 + 表格 -->
     <BasicTable @register="registerTable">
       <template #toolbar>
@@ -39,15 +36,13 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplEffectProjectManagementIndex">
-  import { computed, ref } from 'vue';
-  import { Tabs, Tag } from 'antdv-next';
+  import { Tag } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { FIVE_REFORM_TYPE_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
   import {
-    EFFECT_ITEMS,
     FOUR_GOOD_GOAL_OPTIONS,
     actionsByEvaluateStatus,
     evaluateStatusTagProps,
@@ -60,23 +55,6 @@
   import EffectForm from './form.vue';
 
   const { showMessage } = useMessage();
-
-  // ── 状态页签 ─────────────────────────────────────────────────────────
-  const activeStatus = ref<EvaluateStatus | ''>('');
-
-  /** 页签数量按全量数据统计（不随搜索条件变化） */
-  const tabItems = computed(() => [
-    { key: '', label: `全部(${EFFECT_ITEMS.length})` },
-    ...([['已完成'], ['待评估']] as const).map(([status]) => ({
-      key: status,
-      label: `${status}(${EFFECT_ITEMS.filter((item) => item.evaluateStatus === status).length})`,
-    })),
-  ]);
-
-  /** 页签切换 → 按当前搜索条件 + 页签状态重铺数据 */
-  function handleTabChange() {
-    setTableData(filterEffects({ ...getForm().getFieldsValue(), evaluateStatus: activeStatus.value }));
-  }
 
   // ── 表格 ────────────────────────────────────────────────────────────
   /** 项目编号/项目名称固定左侧，成效评估状态/操作固定右侧；金额右对齐 */
@@ -116,6 +94,11 @@
 
   const fiveReformOptions = [...FIVE_REFORM_TYPE_OPTIONS];
   const fourGoodGoalOptions = FOUR_GOOD_GOAL_OPTIONS.map((name) => ({ label: name, value: name }));
+  /** 状态下拉选项（JeeSiteSelect 需要 label/value 对象，纯字符串会渲染报错） */
+  const evaluateStatusOptions = (['待评估', '已完成'] as const).map((status) => ({
+    label: status,
+    value: status,
+  }));
 
   const [registerTable, { setTableData, getForm }] = useTable({
     dataSource: filterEffects({}),
@@ -144,18 +127,24 @@
           component: 'Select',
           componentProps: { options: fourGoodGoalOptions, allowClear: true },
         },
+        {
+          label: '成效评估状态',
+          field: 'evaluateStatus',
+          component: 'Select',
+          componentProps: { options: evaluateStatusOptions, allowClear: true },
+        },
       ],
     },
-    // 无后端：查询/重置走本地过滤（页签状态合并进过滤条件）
+    // 无后端：查询/重置走本地过滤（含成效评估状态下拉）
     handleSearchInfoFn: (params: Recordable) => {
-      setTableData(filterEffects({ ...params, evaluateStatus: activeStatus.value }));
+      setTableData(filterEffects(params));
       return params;
     },
   });
 
   /** 保存/提交后按当前条件重铺数据（假数据为内存变更，刷新即恢复） */
   function refresh() {
-    setTableData(filterEffects({ ...getForm().getFieldsValue(), evaluateStatus: activeStatus.value }));
+    setTableData(filterEffects(getForm().getFieldsValue()));
   }
 
   /** 占位操作（TODO：随导出后端接入） */
