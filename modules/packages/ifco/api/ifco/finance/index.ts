@@ -1,9 +1,11 @@
 /**
- * ifco —— 投融资管理（内存假数据）
+ * ifco —— 投融资管理（接口层）
  *
  * 菜单三级：资金分类管理（列表+填报抽屉）/ 项目资金管理（区划·片区·项目三形态汇总）/
- * 资金统计分析（七图表）。数据来自本模块内存行（刷新即恢复）；行政区/五改类别/
- * 片区批次/项目归属枚举复用 project-library 口径；金额累加走 number-precision。
+ * 资金统计分析（七图表）。资金分类行集 = 实施库项目 ∪ 最新年度任务已采纳项目
+ * （拼装自 project-library/compilation 接口，会话缓存一次）；填报保存走会话内存
+ * 登记（资金后端未接入，刷新即恢复）；行政区/五改类别/片区批次/项目归属枚举复用
+ * project-library 口径；金额累加走 number-precision。
  */
 import NP from 'number-precision';
 import {
@@ -12,7 +14,10 @@ import {
   FIVE_REFORM_TYPE_OPTIONS,
   PROJECT_AFFILIATION_LABEL,
   RENEWAL_AREA_BATCH_LABEL,
+  fetchLibPage,
+  type ProjectRow,
 } from '@jeesite/ifco/api/ifco/project-library';
+import { fetchCompileTasks, fetchWorkbenchRows, type WorkbenchProject } from '@jeesite/ifco/api/ifco/compilation';
 
 // ══════════════════════ 资金分类管理 ══════════════════════
 
@@ -37,12 +42,14 @@ export const CONSTRUCTION_STAGE_OPTIONS = ['前期准备', '报建报批', '施�
 export const FUND_FILL_PERIOD = { year: 2026, month: 9, deadlineDays: 3 };
 
 /**
- * 资金到位情况指标行（转置网格的行定义；口径参考项目进展填报：
- * 输入行手填、灰色自动行按子项求和实时计算）
+ * 资金到位情况指标行（口径照 impl-progress/monthly/table.csv：输入行手填、
+ * 灰色自动行按子项按列求和；indent=名称前缀的全角空格数，控制层级缩进）
  */
 export type FundIndicatorRow = {
   key: string;
   name: string;
+  /** 层级缩进（名称前缀的全角空格数，默认 0） */
+  indent?: number;
   unit: string;
   code: string;
   /** 自动行：求和的子行 key（无则输入行） */
@@ -62,7 +69,8 @@ export const FUND_INDICATORS: FundIndicatorRow[] = [
   },
   {
     key: 'r105',
-    name: '　合计中：1.国家预算资金',
+    name: '合计中：1.国家预算资金',
+    indent: 2,
     unit: '万元',
     code: '105',
     autoOf: ['r106', 'r111', 'r112', 'r113', 'r114'],
@@ -70,57 +78,102 @@ export const FUND_INDICATORS: FundIndicatorRow[] = [
   },
   {
     key: 'r106',
-    name: '　其中：(1) 中央预算资金',
+    name: '其中：（1）中央预算资金',
+    indent: 7,
     unit: '万元',
     code: '106',
     autoOf: ['r107', 'r108', 'r109', 'r110'],
     note: '自动计算，106=107+108+109+110',
   },
-  { key: 'r107', name: '　　合计中：中央预算内投资', unit: '万元', code: '107' },
-  { key: 'r108', name: '　　其中中央财政资金', unit: '万元', code: '108' },
-  { key: 'r109', name: '　　国债（增发国债）', unit: '万元', code: '109' },
-  { key: 'r110', name: '　　超长期特别国债', unit: '万元', code: '110' },
-  { key: 'r111', name: '　(2) 省级财政资金', unit: '万元', code: '111' },
+  { key: 'r107', name: '合计中：中央预算内投资', indent: 12, unit: '万元', code: '107' },
+  { key: 'r108', name: '其他中央财政资金', indent: 16, unit: '万元', code: '108' },
+  { key: 'r109', name: '国债（增发国债）', indent: 16, unit: '万元', code: '109' },
+  { key: 'r110', name: '超长期特别国债', indent: 16, unit: '万元', code: '110' },
+  { key: 'r111', name: '（2）省级预算资金', indent: 10, unit: '万元', code: '111' },
   {
     key: 'r112',
-    name: '　(3) 市县及以下财政资金',
+    name: '（3）市级及以下预算资金',
+    indent: 10,
     unit: '万元',
     code: '112',
     autoOf: ['cityBudget', 'districtBudget'],
     note: '自动计算，112=市级预算资金+区级预算资金',
   },
-  { key: 'cityBudget', name: '　　　市级预算资金', unit: '万元', code: '' },
-  { key: 'districtBudget', name: '　　　区级预算资金', unit: '万元', code: '' },
-  { key: 'r113', name: '　(4) 地方政府一般债券', unit: '万元', code: '113' },
-  { key: 'r114', name: '　(5) 地方政府专项债券', unit: '万元', code: '114' },
+  { key: 'cityBudget', name: '合计中：市级预算资金', indent: 12, unit: '万元', code: '' },
+  { key: 'districtBudget', name: '区级预算资金', indent: 16, unit: '万元', code: '' },
+  { key: 'r113', name: '（4）地方政府一般债券', indent: 10, unit: '万元', code: '113' },
+  { key: 'r114', name: '（5）地方政府专项债券', indent: 10, unit: '万元', code: '114' },
   {
     key: 'r115',
-    name: '　2.社会资本',
+    name: '2.社会资本',
+    indent: 6,
     unit: '万元',
     code: '115',
     autoOf: ['r116', 'r117', 'r118'],
     note: '自动计算，115=116+117+118',
   },
-  { key: 'r116', name: '　　(1) 产权单位出资', unit: '万元', code: '116' },
-  { key: 'r117', name: '　　(2) 规模化交通运营商出资', unit: '万元', code: '117' },
-  { key: 'r118', name: '　　(3) 居民出资', unit: '万元', code: '118' },
-  { key: 'finLoan', name: '　金融机构信贷资金', unit: '万元', code: '' },
-  { key: 'policyFund', name: '　　　其中：政策性资金', unit: '万元', code: '' },
-  { key: 'policyToolFund', name: '　　　政策性工具资金', unit: '万元', code: '' },
-  { key: 'paidFinFund', name: '　　　已拨付金融资金', unit: '万元', code: '' },
-  { key: 'r120', name: '　3.其他本年实际到位资金（应注明来源）', unit: '万元', code: '120' },
-  { key: 'otherSource', name: '　　其他本年实际到位资金的来源', unit: '—', code: '' },
+  { key: 'r116', name: '其中：（1）产权单位出资', indent: 7, unit: '万元', code: '116' },
+  { key: 'r117', name: '（2）规模化实施运营主体出资', indent: 10, unit: '万元', code: '117' },
+  { key: 'r118', name: '（3）居民出资', indent: 10, unit: '万元', code: '118' },
+  { key: 'r119', name: '其中：金融机构信贷资金', indent: 7, unit: '万元', code: '119' },
+  { key: 'finFunds', name: '包含：金融机构资金', indent: 10, unit: '万元', code: '' },
+  { key: 'policyToolFunds', name: '政策金融工具资金', indent: 13, unit: '万元', code: '' },
+  { key: 'creditedFunds', name: '已授信金融资金', indent: 13, unit: '万元', code: '' },
+  { key: 'loanedFunds', name: '已放款金融资金', indent: 13, unit: '万元', code: '' },
+  { key: 'r120', name: '3.其他本年实际到位资金（应注明来源）', indent: 6, unit: '万元', code: '120' },
+  { key: 'otherSource', name: '其他本年实际到位资金的来源', indent: 7, unit: '—', code: '' },
 ];
 
-/** 自动行数值（递归求和；金额累加走 NP 规避浮点尾差） */
+/** 指标名称展示文本（= indent 个全角空格 + 名称；改缩进只动 indent 数字） */
+export function fundIndicatorName(row: FundIndicatorRow): string {
+  return '　'.repeat(row.indent ?? 0) + row.name;
+}
+
+/** 自动行数值（递归求和，按单列/单月值计算；金额累加走 NP 规避浮点尾差） */
 export function autoValueOf(key: string, values: Record<string, number>): number {
   const row = FUND_INDICATORS.find((item) => item.key === key);
   if (!row?.autoOf) return values[key] ?? 0;
   return row.autoOf.reduce((sum, child) => NP.plus(sum, autoValueOf(child, values)), 0);
 }
 
+// ── 月份键工具（YYYY-MM；资金到位月份页签/表格月列与项目起止月换算） ──
+
+/** 月份键 → 显示标签（2026年6月） */
+export function fundMonthLabel(key: string): string {
+  const [year, month] = key.split('-');
+  return `${year}年${Number(month)}月`;
+}
+
+function fundMonthIndex(key: string): number | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(key);
+  return match ? Number(match[1]) * 12 + Number(match[2]) - 1 : null;
+}
+
+function fundIndexMonth(index: number): string {
+  const year = Math.floor(index / 12);
+  const month = (index % 12) + 1;
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+/** from→to 间全部月份键（含端点），倒序返回（to 在前；起止倒置返回空） */
+export function fundMonthRangeDesc(from: string, to: string): string[] {
+  const start = fundMonthIndex(from);
+  const end = fundMonthIndex(to);
+  if (start == null || end == null || end < start) return [];
+  return Array.from({ length: end - start + 1 }, (_, index) => fundIndexMonth(end - index));
+}
+
+/** 月份键夹进 [start, end]（页签默认月=填报期月，但不晚于项目结束月、不早于起始月） */
+export function clampFundMonth(key: string, start: string, end: string): string {
+  if (key > end) return end;
+  if (key < start) return start;
+  return key;
+}
+
 /** 资金分类管理行（列表 + 填报表单一体） */
 export type FundItem = {
+  /** 项目主键（行集并集去重/填报登记表的键） */
+  pUid: string;
   projectCode: string;
   projectName: string;
   district: string;
@@ -135,9 +188,17 @@ export type FundItem = {
   yearProgressRate: number;
   fundDeviation: FundDeviation;
   fillStatus: FundFillStatus;
+  /** 当前建设阶段（取计划编制工作台行快照，未填报为空） */
+  constructionStage?: string;
+  /** 计划开工时间（YYYY-MM-DD，工作台行快照；资金到位月份页签的起始月依据） */
+  planStartDate?: string;
+  /** 计划竣工时间（YYYY-MM-DD，工作台行快照；资金到位月份页签的结束月依据） */
+  planCompletionDate?: string;
   // ── 填报表单 ──
   /** 本年完成投资总额（亿元，进度填报自动带入，只读） */
   yearInvestTotal: number;
+  /** 投资纳统金额（万元，手填） */
+  statInvestWan?: number;
   /** 项目资金缺口（万元） */
   fundGap?: number;
   /** 缺口资金是否已有资金安排 */
@@ -146,194 +207,146 @@ export type FundItem = {
   gapArrangeDesc: string;
   /** 是否可以作为 REITs 培育项目 */
   reitsProject?: YesNo;
-  /** 资金到位情况输入行数值（key 同 FUND_INDICATORS 的输入行） */
-  values: Record<string, number>;
-  /** 其他本年实际到位资金的来源（文字行，无代码） */
-  otherSource: string;
+  /** 资金到位情况输入行数值（月份键 YYYY-MM → 行 key → 数值；自动行不落表） */
+  values: Record<string, Record<string, number>>;
+  /** 其他本年实际到位资金的来源（月份键 → 文字说明） */
+  otherSource: Record<string, string>;
 };
 
-export const FUND_ITEMS: FundItem[] = [
-  {
-    projectCode: '20263600',
-    projectName: '三阳设计之都项目（一元片）',
-    district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
-    fiveReformType: '老旧街区改造',
-    projectAffiliation: 'city-area',
-    investEstimate: 1.8,
-    yearPlanInvest: 0.9,
-    yearAccumulatedInvest: 0.45,
-    monthCompletedInvest: 0.08,
-    yearProgressRate: 50,
+// ── 行集：实施库 ∪ 最新年度任务已采纳（接口层拼装） ────────────────
+
+/** 会话内填报登记（pUid → 填报字段；含进度填报带入的投资值——列表进度条列随保存联动；
+ *  资金后端未接入，保存即写内存，刷新恢复） */
+type FundFillRecord = Pick<
+  FundItem,
+  | 'fillStatus'
+  | 'reitsProject'
+  | 'fundGap'
+  | 'gapArranged'
+  | 'gapArrangeDesc'
+  | 'values'
+  | 'otherSource'
+  | 'statInvestWan'
+  | 'yearInvestTotal'
+  | 'yearAccumulatedInvest'
+  | 'monthCompletedInvest'
+  | 'yearProgressRate'
+>;
+
+const fundFillStore = new Map<string, FundFillRecord>();
+
+export function saveFundFill(pUid: string, record: FundFillRecord) {
+  fundFillStore.set(pUid, record);
+}
+
+/** 已登记的填报数据覆盖回行集（未登记行原样返回） */
+function applyFill(items: FundItem[]): FundItem[] {
+  return items.map((item) => (fundFillStore.has(item.pUid) ? { ...item, ...fundFillStore.get(item.pUid) } : item));
+}
+
+/** 实施库项目全量（分页翻完；上限 20 页防御后端翻不尽） */
+async function fetchAllImplementingRows(): Promise<ProjectRow[]> {
+  const pageSize = 200;
+  const rows: ProjectRow[] = [];
+  for (let pageNum = 1; pageNum <= 20; pageNum += 1) {
+    const page = await fetchLibPage({ library: 'implementing', pageNum, pageSize });
+    rows.push(...(page?.list ?? []));
+    if (!page || rows.length >= page.total || (page.list?.length ?? 0) < pageSize) break;
+  }
+  return rows;
+}
+
+/** 后端行 → 资金分类行（进度/偏离度/到位明细暂无后端，置默认值待接入） */
+function toFundItem(
+  base: Pick<
+    FundItem,
+    | 'pUid'
+    | 'projectCode'
+    | 'projectName'
+    | 'district'
+    | 'renewalAreaName'
+    | 'renewalAreaBatch'
+    | 'fiveReformType'
+    | 'projectAffiliation'
+    | 'investEstimate'
+    | 'yearPlanInvest'
+    | 'constructionStage'
+    | 'planStartDate'
+    | 'planCompletionDate'
+  >,
+): FundItem {
+  return {
+    ...base,
+    yearAccumulatedInvest: 0,
+    monthCompletedInvest: 0,
+    yearProgressRate: 0,
     fundDeviation: '正常',
     fillStatus: '待填报',
-    yearInvestTotal: 1.05,
-    fundGap: 111111,
-    gapArranged: '是',
-    gapArrangeDesc: '',
-    reitsProject: '是',
-    values: {},
-    otherSource: '',
-  },
-  {
-    projectCode: '20263559',
-    projectName: '胜利街（二曜路—三阳路）道路改造项目',
-    district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
-    fiveReformType: '老旧街区改造',
-    projectAffiliation: 'city-area',
-    investEstimate: 0.86,
-    yearPlanInvest: 0.5,
-    yearAccumulatedInvest: 0.35,
-    monthCompletedInvest: 0.06,
-    yearProgressRate: 70,
-    fundDeviation: '正常',
-    fillStatus: '待填报',
-    yearInvestTotal: 0.62,
+    yearInvestTotal: 0,
     gapArrangeDesc: '',
     values: {},
-    otherSource: '',
-  },
-  {
-    projectCode: '20263558',
-    projectName: '西马片房地产新模式试点项目',
-    district: '江岸区',
-    renewalAreaName: '西马片',
-    renewalAreaBatch: 'second',
-    fiveReformType: '老旧街区改造',
-    projectAffiliation: 'city-area',
-    investEstimate: 2.03,
-    yearPlanInvest: 1.2,
-    yearAccumulatedInvest: 0.78,
-    monthCompletedInvest: 0.12,
-    yearProgressRate: 65,
-    fundDeviation: '偏离',
-    fillStatus: '待提交',
-    yearInvestTotal: 1.05,
-    fundGap: 8000,
-    gapArranged: '否',
-    gapArrangeDesc: '',
-    values: {
-      r107: 12000,
-      r108: 5000,
-      r109: 3000,
-      r110: 8000,
-      r111: 4000,
-      cityBudget: 6000,
-      districtBudget: 3000,
-      r113: 2000,
-      r114: 15000,
-      r116: 30000,
-      r117: 40000,
-      r118: 3000,
-      finLoan: 20000,
-      r120: 500,
-    },
-    otherSource: '其他财政专项补助',
-  },
-  {
-    projectCode: '20263412',
-    projectName: '黑泥湖片完整社区建设项目',
-    district: '江岸区',
-    renewalAreaName: '黑泥湖片',
-    renewalAreaBatch: 'second',
-    fiveReformType: '老旧小区改造',
-    projectAffiliation: 'city-area',
-    investEstimate: 1.35,
-    yearPlanInvest: 0.7,
-    yearAccumulatedInvest: 0.66,
-    monthCompletedInvest: 0.09,
-    yearProgressRate: 94,
-    fundDeviation: '正常',
-    fillStatus: '已提交',
-    yearInvestTotal: 0.66,
-    reitsProject: '是',
-    gapArrangeDesc: '',
-    values: {
-      r107: 8000,
-      r108: 3000,
-      r111: 2000,
-      cityBudget: 4000,
-      districtBudget: 2000,
-      r114: 9000,
-      r116: 15000,
-      r117: 20000,
-      r118: 1000,
-      r120: 300,
-    },
-    otherSource: '单位自筹',
-  },
-  {
-    projectCode: '20263388',
-    projectName: '红钢城片工业遗产保护利用项目',
-    district: '青山区',
-    renewalAreaName: '红钢城片',
-    renewalAreaBatch: 'first',
-    fiveReformType: '老旧厂区改造',
-    projectAffiliation: 'district-area',
-    investEstimate: 3.6,
-    yearPlanInvest: 1.6,
-    yearAccumulatedInvest: 0.8,
-    monthCompletedInvest: 0.15,
-    yearProgressRate: 50,
-    fundDeviation: '严重偏离',
-    fillStatus: '待提交',
-    yearInvestTotal: 0.95,
-    fundGap: 26000,
-    gapArranged: '是',
-    gapArrangeDesc: '拟通过地方政府专项债券解决 1.5 亿元，剩余由企业自筹。',
-    values: {
-      r107: 6000,
-      r110: 5000,
-      r111: 3000,
-      cityBudget: 5000,
-      districtBudget: 4000,
-      r114: 12000,
-      r116: 20000,
-      r117: 30000,
-      r118: 0,
-      r120: 800,
-    },
-    otherSource: '文创产业基金',
-  },
-  {
-    projectCode: '20263215',
-    projectName: '街道口片环大学片区更新项目',
-    district: '洪山区',
-    renewalAreaName: '街道口片',
-    renewalAreaBatch: 'second',
-    fiveReformType: '老旧街区改造',
-    projectAffiliation: 'district-area',
-    investEstimate: 2.4,
-    yearPlanInvest: 1.1,
-    yearAccumulatedInvest: 1.02,
-    monthCompletedInvest: 0.11,
-    yearProgressRate: 93,
-    fundDeviation: '正常',
-    fillStatus: '已提交',
-    yearInvestTotal: 1.02,
-    gapArranged: '否',
-    gapArrangeDesc: '',
-    reitsProject: '是',
-    values: {
-      r107: 10000,
-      r108: 4000,
-      r111: 3500,
-      cityBudget: 7000,
-      districtBudget: 4500,
-      r113: 3000,
-      r114: 18000,
-      r116: 25000,
-      r117: 35000,
-      r118: 2000,
-      finLoan: 15000,
-      r120: 600,
-    },
-    otherSource: '高校共建资金',
-  },
-];
+    otherSource: {},
+  };
+}
+
+/** 会话内行集缓存（同 impl-progress 倒排缓存口径：拼装一次，采纳变更需刷新页面） */
+let fundItemsCache: FundItem[] | null = null;
+
+/**
+ * 资金分类行集：实施库项目 ∪ 最新年度任务已采纳项目（按 pUid 并集去重）。
+ * 实施库行年度计划值/建设阶段取工作台采纳行快照；已采纳但未入实施库的行
+ * 追加在尾部（工作台行无片区批次，置空）。重新登记的填报数据随取随覆盖。
+ */
+export async function fetchFundItems(): Promise<FundItem[]> {
+  if (!fundItemsCache) {
+    const [libRows, tasks] = await Promise.all([fetchAllImplementingRows(), fetchCompileTasks()]);
+    const task = tasks[0];
+    const workbenchRows = task ? ((await fetchWorkbenchRows(task.code)) ?? []) : [];
+    const workbenchByUid = new Map(workbenchRows.map((row: WorkbenchProject) => [row.pUid, row]));
+
+    const items = libRows.map((row) => {
+      const adopted = workbenchByUid.get(row.p_uid);
+      return toFundItem({
+        pUid: row.p_uid,
+        projectCode: String(row.lib_project_code ?? ''),
+        projectName: String(row.pj_name ?? ''),
+        district: String(row.dist ?? ''),
+        renewalAreaName: String(row.area_name ?? ''),
+        renewalAreaBatch: String(row.batch ?? ''),
+        fiveReformType: String(row.wg_big ?? ''),
+        projectAffiliation: String(row.project_affiliation ?? ''),
+        investEstimate: Number(row.inv_bil ?? 0),
+        yearPlanInvest: Number(adopted?.yearPlanInvest ?? 0),
+        constructionStage: adopted?.constructionStage,
+        planStartDate: adopted?.planStartDate ?? '',
+        planCompletionDate: adopted?.planCompletionDate ?? '',
+      });
+    });
+    const seen = new Set(items.map((item) => item.pUid));
+    for (const row of workbenchRows.filter((item) => item.adoptStatus === '已采纳')) {
+      if (seen.has(row.pUid)) continue;
+      items.push(
+        toFundItem({
+          pUid: row.pUid,
+          projectCode: row.projectCode,
+          projectName: row.projectName,
+          district: row.district,
+          renewalAreaName: row.renewalAreaName,
+          renewalAreaBatch: '',
+          fiveReformType: row.fiveReformType,
+          projectAffiliation: row.projectAffiliation,
+          investEstimate: Number(row.investEstimate ?? 0),
+          yearPlanInvest: Number(row.yearPlanInvest ?? 0),
+          constructionStage: row.constructionStage,
+          planStartDate: row.planStartDate ?? '',
+          planCompletionDate: row.planCompletionDate ?? '',
+        }),
+      );
+    }
+    fundItemsCache = items;
+  }
+  return applyFill(fundItemsCache);
+}
 
 export type FundQuery = {
   projectName?: string;
@@ -346,11 +359,12 @@ function matchText(actual: string, query?: string) {
   return !query || actual.includes(query.trim());
 }
 
-export function filterFundItems(params: FundQuery): FundItem[] {
-  return FUND_ITEMS.filter(
+export function filterFundItems(items: FundItem[], params: FundQuery): FundItem[] {
+  return items.filter(
     (item) =>
       matchText(item.projectName, params.projectName) &&
       (!params.fiveReformType || item.fiveReformType === params.fiveReformType) &&
+      (!params.constructionStage || item.constructionStage === params.constructionStage) &&
       (!params.fillStatus || item.fillStatus === params.fillStatus),
   );
 }

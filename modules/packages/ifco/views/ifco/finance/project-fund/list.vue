@@ -2,8 +2,9 @@
   ifco —— 项目资金管理（/ifco/finance/project-fund/index）
 
   投融资管理 · 项目资金管理。顶部三张汇总卡（按区划/按片区/按项目汇总查询——
-  卡即单选 select，点选切换查询形态，经路由 ?mode= 持久化，默认区划；橙色胶囊
-  标签 + 汇总周期行 + 口径统计行，区划卡带进度条）+ 三张 BasicTable（v-show
+  卡即单选 select，点选切换查询形态，经路由 ?mode= 持久化，默认区划；卡片样式
+  同在库项目管理统计卡：白卡，选中=蓝描边浅蓝底+对勾；汇总周期行 + 口径统计行，
+  区划卡带进度条）+ 三张 BasicTable（v-show
   不销毁，各自搜索表单与列）：
   - 区划：行政区/在库项目数量/总投资/年度计划投资/统计周期内累计完成投资/
     年度投资进度(进度条)/统计周期内累计已到位资金/资金到位率(进度条)；末行全市合计；
@@ -25,29 +26,29 @@
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
-    <!-- 三张汇总卡：卡即单选 select（路由 ?mode=），默认按区划汇总查询 -->
+    <!-- 三张汇总卡：卡即单选 select（路由 ?mode=），默认按区划汇总查询；卡片样式同在库项目管理统计卡 -->
     <div class="grid grid-cols-1 gap-16px md:grid-cols-3">
       <div
         v-for="card in FUND_MODE_CARDS"
         :key="card.key"
-        class="cursor-pointer rd-8px b-1 b-solid px-20px py-16px transition-colors"
-        :class="selectedMode === card.key ? 'b-#d46b08 bg-white shadow-md' : 'b-gray-100 bg-#f0f7f4 hover:b-gray-300'"
+        class="cursor-pointer bg-white rd-8px b-1 b-solid px-20px py-16px shadow-sm transition-colors"
+        :class="selectedMode === card.key ? 'b-#1677ff bg-#f0f7ff' : 'b-gray-100 hover:b-gray-300'"
         @click="handleCardClick(card.key)"
       >
         <div class="flex items-center justify-between">
-          <span class="rd-full b-1 b-solid b-#d46b08 bg-white px-12px py-2px text-14px text-#d46b08">
+          <span class="text-15px font-600" :class="selectedMode === card.key ? 'text-#1677ff' : 'text-gray-900'">
             {{ card.label }}
           </span>
-          <span v-if="selectedMode === card.key" class="i-ant-design:check-circle-filled text-16px text-#d46b08"></span>
+          <span v-if="selectedMode === card.key" class="i-ant-design:check-circle-filled text-16px text-#1677ff"></span>
         </div>
-        <div class="mt-10px text-13px text-gray-500">{{ card.period }}</div>
-        <div v-if="card.progress !== undefined" class="mt-8px flex items-center gap-12px">
+        <div class="mt-4px text-12px text-gray-400">{{ card.period }}</div>
+        <div v-if="card.progress !== undefined" class="mt-10px flex items-center gap-12px">
           <div class="h-10px w-140px overflow-hidden rd-full bg-gray-100">
             <div class="h-full rd-full bg-#1677ff" :style="{ width: `${card.progress}%` }"></div>
           </div>
           <span class="text-12px text-gray-600">{{ card.progress }}%</span>
         </div>
-        <div class="mt-8px flex flex-col gap-4px text-13px text-gray-600">
+        <div class="mt-10px flex flex-col gap-4px text-13px text-gray-600">
           <span v-for="line in card.lines" :key="line">{{ line }}</span>
         </div>
       </div>

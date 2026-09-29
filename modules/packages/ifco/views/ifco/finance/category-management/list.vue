@@ -2,13 +2,16 @@
   ifco —— 资金分类管理（/ifco/finance/category-management/index）
 
   投融资管理 · 资金分类管理。顶部黄横幅（当前填报周期与截止天数 + 填报进度条 +
-  待填报/已填报统计；右侧 选择年份 + 一键导出（占位））+ BasicTable（项目名称/
+  待填报/已填报统计；经表格工具栏「隐藏/显示」收起）+ BasicTable（工具栏：隐藏/
+  一键导出（占位）；项目名称/
   五改分类/当前建设阶段/填报状态 搜索表单；16 列；年度投资进度=进度条、资金偏离度
   提醒/填报状态=标签）。操作列按填报状态变化：待填报/待提交=查看+编辑，已提交=
   仅查看（exhaustive 分支）。查看/编辑走资金分类填报抽屉 form.vue（资金基本情况 +
   资金到位情况指标网格）。
-  当前后端尚未介入：数据来自 @jeesite/ifco/api/ifco/finance（内存假数据，共 6 行；
-  刷新即恢复）。当前建设阶段搜索字段暂未参与过滤（行数据无该字段，随设计稿核对后补）。
+  行集 = 实施库项目 ∪ 最新年度任务已采纳项目（api/ifco/finance 拼装，会话缓存
+  一次；采纳变更需刷新页面）；项目编号/名称固定左侧，右侧四列（年度投资进度/
+  资金偏离度提醒/填报状态/操作）固定；长表头在列宽内换行（表头行随之变高）。
+  投资进度/偏离度/到位明细后端未出，暂为默认值；填报保存走会话内存（刷新恢复）。
 
   菜单注册（上级菜单「投融资管理」）：
    - 菜单名称：资金分类管理
@@ -17,8 +20,8 @@
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
-    <!-- 填报周期黄横幅：截止提醒 + 填报进度条 + 待/已填报统计；右侧 选择年份 + 一键导出 -->
-    <div class="b-l-4px b-l-solid b-l-#d46b08 bg-#fff7e6 rd-8px px-20px py-14px shadow-sm">
+    <!-- 填报周期黄横幅：截止提醒 + 填报进度条 + 待/已填报统计（表格工具栏「隐藏/显示」收起） -->
+    <div v-show="!bannerHidden" class="b-l-4px b-l-solid b-l-#d46b08 bg-#fff7e6 rd-8px px-20px py-14px shadow-sm">
       <div class="flex flex-wrap items-center gap-x-32px gap-y-8px">
         <span class="text-15px text-gray-800">
           当前填报周期{{ FUND_FILL_PERIOD.year }}年{{ FUND_FILL_PERIOD.month }}月，距离填报截止天数{{
@@ -34,16 +37,15 @@
             >/已填报<span class="mx-2px text-16px font-700 text-#1677ff">{{ submittedCount }}</span>
           </span>
         </div>
-        <div class="ml-auto flex items-center gap-8px">
-          <span class="text-14px text-gray-600">选择年份</span>
-          <Select v-model:value="year" :options="yearOptions" style="width: 100px" @change="handleTodo('切换年份')" />
-          <a-button type="primary" @click="handleTodo('一键导出')"> 一键导出 </a-button>
-        </div>
       </div>
     </div>
 
     <!-- 列表：搜索表单 + 表格 -->
     <BasicTable @register="registerTable">
+      <template #toolbar>
+        <a-button @click="bannerHidden = !bannerHidden">{{ bannerHidden ? '显示' : '隐藏' }}</a-button>
+        <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
+      </template>
       <template #renewalAreaBatch="{ record }">{{ renewalAreaBatchLabel(record.renewalAreaBatch) }}</template>
       <template #fiveReformType="{ record }">{{ fiveReformLabel(record.fiveReformType) }}</template>
       <template #projectAffiliation="{ record }">{{ projectAffiliationLabel(record.projectAffiliation) }}</template>
@@ -67,8 +69,8 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoFinanceCategoryManagementIndex">
-  import { computed, ref } from 'vue';
-  import { Progress, Select, Tag } from 'antdv-next';
+  import { computed, onMounted, ref } from 'vue';
+  import { Progress, Tag } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
@@ -78,7 +80,7 @@
     CONSTRUCTION_STAGE_OPTIONS,
     FUND_FILL_PERIOD,
     FUND_FILL_STATUS_OPTIONS,
-    FUND_ITEMS,
+    fetchFundItems,
     filterFundItems,
     fundDeviationTagProps,
     fundFillStatusTagProps,
@@ -87,23 +89,27 @@
     renewalAreaBatchLabel,
     type FundAction,
     type FundFillStatus,
+    type FundItem,
   } from '@jeesite/ifco/api/ifco/finance';
   import FundForm from './form.vue';
 
   const { showMessage } = useMessage();
 
+  // ── 行集（实施库 ∪ 最新任务已采纳；会话缓存一次，见 api/ifco/finance） ──
+  const rows = ref<FundItem[]>([]);
+
   // ── 填报进度（待填报/已提交按行数据实时统计） ────────────────────────
-  const pendingCount = computed(() => FUND_ITEMS.filter((item) => item.fillStatus === '待填报').length);
-  const submittedCount = computed(() => FUND_ITEMS.filter((item) => item.fillStatus !== '待填报').length);
+  const pendingCount = computed(() => rows.value.filter((item) => item.fillStatus === '待填报').length);
+  const submittedCount = computed(() => rows.value.filter((item) => item.fillStatus !== '待填报').length);
   const fillProgress = computed(() =>
-    FUND_ITEMS.length ? Math.round((submittedCount.value / FUND_ITEMS.length) * 100) : 0,
+    rows.value.length ? Math.round((submittedCount.value / rows.value.length) * 100) : 0,
   );
 
-  const year = ref('2026');
-  const yearOptions = [{ label: '2026', value: '2026' }];
+  /** 填报横幅显隐（表格工具栏「隐藏/显示」切换） */
+  const bannerHidden = ref(false);
 
   // ── 表格 ────────────────────────────────────────────────────────────
-  /** 项目编号/项目名称固定左侧，填报状态/操作固定右侧；金额右对齐 */
+  /** 项目编号/项目名称固定左侧；右侧四列（进度/偏离度/填报状态/操作）固定；金额右对齐 */
   const columns: BasicColumn[] = [
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
     { title: '项目名称', dataIndex: 'projectName', width: 210, fixed: 'left', ellipsis: true },
@@ -116,8 +122,8 @@
     { title: '本年度计划完成投资（亿元）', dataIndex: 'yearPlanInvest', width: 130, align: 'right' },
     { title: '年度累计完成投资（亿元）', dataIndex: 'yearAccumulatedInvest', width: 150, align: 'right' },
     { title: '当月完成投资（亿元）', dataIndex: 'monthCompletedInvest', width: 130, align: 'right' },
-    { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 140, slot: 'yearProgressRate' },
-    { title: '资金偏离度提醒', dataIndex: 'fundDeviation', width: 110, slot: 'fundDeviation' },
+    { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 140, fixed: 'right', slot: 'yearProgressRate' },
+    { title: '资金偏离度提醒', dataIndex: 'fundDeviation', width: 110, fixed: 'right', slot: 'fundDeviation' },
     { title: '填报状态', dataIndex: 'fillStatus', width: 100, fixed: 'right', slot: 'fillStatus' },
   ];
 
@@ -155,8 +161,8 @@
   const stageOptions = CONSTRUCTION_STAGE_OPTIONS.map((name) => ({ label: name, value: name }));
   const statusOptions = FUND_FILL_STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
 
-  const [registerTable, { setTableData, getForm }] = useTable({
-    dataSource: filterFundItems({}),
+  const [registerTable, { setTableData, setLoading, getForm }] = useTable({
+    dataSource: [],
     columns,
     actionColumn,
     rowSelection: { type: 'checkbox' },
@@ -190,16 +196,32 @@
         },
       ],
     },
-    // 无后端：查询/重置走本地过滤（当前建设阶段暂未参与，见文件头注释）
+    // 查询/重置走本地过滤（行集口径见文件头注释）
     handleSearchInfoFn: (params: Recordable) => {
-      setTableData(filterFundItems(params));
+      setTableData(filterFundItems(rows.value, params));
       return params;
     },
   });
 
-  /** 保存/提交后按当前条件重铺数据（假数据为内存变更，刷新即恢复） */
-  function refresh() {
-    setTableData(filterFundItems(getForm().getFieldsValue()));
+  /** 行集加载（实施库∪最新任务已采纳，拼装见 api/ifco/finance；按当前搜索条件重铺） */
+  async function load() {
+    setLoading(true);
+    try {
+      rows.value = await fetchFundItems();
+      setTableData(filterFundItems(rows.value, getForm().getFieldsValue()));
+    } catch (e) {
+      showMessage((e as Error)?.message || '行集加载失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  onMounted(load);
+
+  /** 保存/提交后重铺（会话缓存命中，登记的填报数据随取随覆盖；刷新页面即恢复） */
+  async function refresh() {
+    rows.value = await fetchFundItems();
+    setTableData(filterFundItems(rows.value, getForm().getFieldsValue()));
   }
 
   /** 占位操作（TODO：随导出后端接入） */
@@ -207,3 +229,9 @@
     showMessage(`${label}：功能待接入`);
   }
 </script>
+<style scoped>
+  /* 表头换行显示（窄列长列名自动折行，如「本年度计划完成投资（亿元）」；antd th 默认 nowrap） */
+  :deep(.ant-table-thead > tr > th) {
+    white-space: normal;
+  }
+</style>
