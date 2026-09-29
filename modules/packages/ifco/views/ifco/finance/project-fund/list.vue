@@ -15,6 +15,8 @@
     片区总体投资估算/项目投资估算/本年度计划完成投资/累计完成投资/年度投资进度/
     累计到位资金/资金到位率。
   三表共用 时间轴（开始/结束月份 MonthPicker，暂未参与过滤）+ 一键导出（占位）；
+  区划形态工具栏另有 查看趋势图（弹窗 ECharts：各月 投资进度/资金到位率/
+  月完成投资额，演示口径同资金统计分析）。
   行政区/片区名称/项目名称/项目归属/片区批次/五改分类为本地过滤。
   当前后端尚未介入：数据来自 @jeesite/ifco/api/ifco/finance（内存假数据，统计行
   照设计稿口径演示；刷新即恢复）。
@@ -58,6 +60,7 @@
     <div v-show="selectedMode === 'district'">
       <BasicTable @register="registerDistrictTable">
         <template #toolbar>
+          <a-button @click="trendVisible = true"> 查看趋势图 </a-button>
           <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
         </template>
         <template #district="{ record }">
@@ -105,15 +108,22 @@
         </template>
       </BasicTable>
     </div>
+
+    <!-- 区划汇总趋势图弹窗（各月 投资进度/资金到位率/月完成投资额；演示口径同资金统计分析） -->
+    <Modal v-model:open="trendVisible" title="区划汇总趋势图" :width="860" :footer="null">
+      <div ref="trendRef" class="h-360px w-full"></div>
+    </Modal>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoFinanceProjectFundIndex">
-  import { computed } from 'vue';
+  import { computed, nextTick, ref, shallowRef, watch } from 'vue';
+  import type { Ref } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
-  import { Progress } from 'antdv-next';
+  import { Modal, Progress } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+  import { useECharts } from '@jeesite/core/hooks/web/useECharts';
   import {
     FIVE_REFORM_TYPE_OPTIONS,
     PROJECT_AFFILIATION_OPTIONS,
@@ -122,6 +132,7 @@
   import {
     DISTRICT_FUND_ROWS,
     FUND_MODE_CARDS,
+    MONTHLY_FUND_TREND,
     filterAreaFundRows,
     filterDistrictFundRows,
     filterProjectFundRows,
@@ -146,6 +157,52 @@
     if (selectedMode.value === key) return;
     router.replace({ query: { ...route.query, mode: key } });
   }
+
+  // ── 区划汇总趋势图（弹窗；各月 投资进度/资金到位率/月完成投资额，演示口径同资金统计分析） ──
+  const trendVisible = ref(false);
+  const trendRef = shallowRef<HTMLDivElement>();
+  const { setOptions: setTrendOptions } = useECharts(trendRef as Ref<HTMLDivElement>);
+
+  watch(trendVisible, async (open) => {
+    if (!open) return;
+    // 弹窗内容挂载后再渲染图表（useECharts 对零高元素自带重试，双保险）
+    await nextTick();
+    setTrendOptions({
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['月完成投资额', '投资进度(全市平均)', '资金到位率(全市平均)'], top: 0 },
+      grid: { left: 70, right: 60, top: 36, bottom: 30 },
+      xAxis: { type: 'category', data: MONTHLY_FUND_TREND.map((row) => row.month) },
+      yAxis: [
+        { type: 'value', name: '万元' },
+        { type: 'value', name: '%', max: 100, splitLine: { show: false } },
+      ],
+      series: [
+        {
+          name: '月完成投资额',
+          type: 'bar',
+          data: MONTHLY_FUND_TREND.map((row) => row.monthCompleted),
+          itemStyle: { color: '#2B5CE6', borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 40,
+        },
+        {
+          name: '投资进度(全市平均)',
+          type: 'line',
+          yAxisIndex: 1,
+          data: MONTHLY_FUND_TREND.map((row) => row.progressRate),
+          itemStyle: { color: '#F5A623' },
+          smooth: true,
+        },
+        {
+          name: '资金到位率(全市平均)',
+          type: 'line',
+          yAxisIndex: 1,
+          data: MONTHLY_FUND_TREND.map((row) => row.arrivalRate),
+          itemStyle: { color: '#22A45D' },
+          smooth: true,
+        },
+      ],
+    });
+  });
 
   // ── 共用搜索字段口径 ────────────────────────────────────────────────
   const districtFilterOptions = [
@@ -364,3 +421,9 @@
     showMessage(`${label}：功能待接入`);
   }
 </script>
+<style scoped>
+  /* 表头换行显示（窄列长列名自动折行，如「统计周期内累计完成投资」；antd th 默认 nowrap） */
+  :deep(.ant-table-thead > tr > th) {
+    white-space: normal;
+  }
+</style>
