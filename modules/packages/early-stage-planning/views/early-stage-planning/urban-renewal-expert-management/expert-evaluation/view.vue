@@ -49,18 +49,18 @@
           <a-button type="link" danger size="small" :loading="deleting === rec.id" @click="handleDelete(rec)">删除</a-button>
         </div>
 
-        <!-- 三维度星级（只读） -->
+        <!-- 三维度星级（只读；文案与打分页一致：专业水平/履职表现/意见质量） -->
         <div class="mt-16px flex flex-wrap items-center gap-x-48px gap-y-8px border-t border-gray-100 pt-16px text-13px text-gray-700">
           <span class="flex items-center gap-8px"
-            >活跃度：<Rate :value="rec.activityStars" allow-half disabled class="text-16px" />
+            >专业水平：<Rate :value="rec.activityStars" allow-half disabled class="text-16px" />
             <span class="text-gray-500">{{ rec.activityScore ?? 0 }} 分</span></span
           >
           <span class="flex items-center gap-8px"
-            >专业度：<Rate :value="rec.coverageStars" allow-half disabled class="text-16px" />
+            >履职表现：<Rate :value="rec.coverageStars" allow-half disabled class="text-16px" />
             <span class="text-gray-500">{{ rec.coverageScore ?? 0 }} 分</span></span
           >
           <span class="flex items-center gap-8px"
-            >效率：<Rate :value="rec.efficiencyStars" allow-half disabled class="text-16px" />
+            >意见质量：<Rate :value="rec.efficiencyStars" allow-half disabled class="text-16px" />
             <span class="text-gray-500">{{ rec.efficiencyScore ?? 0 }} 分</span></span
           >
         </div>

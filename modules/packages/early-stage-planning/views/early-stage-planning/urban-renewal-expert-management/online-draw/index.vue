@@ -461,6 +461,7 @@
 <script lang="ts" setup name="ViewsEarlyStageUrbanRenewalExpertOnlineDraw">
   import { onMounted, reactive, ref, watch } from 'vue';
   import { Input, InputNumber, message, Modal, Select, Tabs } from 'antdv-next';
+  import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -748,6 +749,11 @@
     }
     const back = store.pickReturn || '/early-stage-planning/urban-renewal-expert-management/project-evaluation/index';
     store.endPick();
+    // 路由未注册（账号未授权对应菜单）时退回列表，避免静默无反应
+    if (!router.resolve(back).matched.length) {
+      go('/early-stage-planning/urban-renewal-expert-management/project-evaluation/index');
+      return;
+    }
     go(back);
   }
 

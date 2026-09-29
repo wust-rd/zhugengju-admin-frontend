@@ -18,7 +18,8 @@
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-12px">
               <span class="text-22px font-600 text-gray-900">{{ detail.name }}</span>
-              <Tag :color="STATUS_COLOR[detail.statusCode] || 'default'">{{ detail.status }}</Tag>
+              <Tag :color="STATUS_COLOR[detail.viewStatusCode ?? detail.statusCode] || 'default'">{{ detail.viewStatus ?? detail.status }}</Tag>
+              <Tag v-if="detail.isLeader" color="blue">组长视角</Tag>
             </div>
             <div class="mt-6px flex items-center gap-16px text-13px text-gray-500">
               <span>{{ detail.adminDistrict }} · {{ detail.district }}</span>
@@ -26,6 +27,14 @@
               <span>开始时间：{{ detail.startDate }}</span>
             </div>
           </div>
+          <!-- 专家（评估中）快捷入口：待评估→去评估，待总结（组长）→去总结评估，已评估→查看我的评估 -->
+          <a-button
+            v-if="isExpertView && detail.statusCode === '1'"
+            :type="detail.viewStatusCode === '5' ? 'primary' : 'default'"
+            @click="goEvaluate"
+          >
+            {{ evalEntryLabel }}
+          </a-button>
           <a-button @click="goBack">
             <span class="inline-flex items-center gap-4px">
               <span class="i-ant-design:arrow-left-outlined"></span> 返回列表
@@ -86,22 +95,12 @@
       <!-- 评估材料 -->
       <div class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
         <div class="text-16px font-600 text-gray-800">评估材料（{{ (detail.materials ?? []).length }}）</div>
-        <div class="mt-12px space-y-10px">
-          <div
-            v-for="(m, i) in detail.materials ?? []"
-            :key="i"
-            class="flex items-center gap-12px rd-8px bg-[#F7F9FC] px-16px py-12px"
-          >
-            <span class="i-ant-design:file-text-outlined text-18px text-[#3A8EF6]"></span>
-            <span class="flex-1 truncate text-14px text-gray-700" :title="m">{{ m }}</span>
-          </div>
-          <div v-if="(detail.materials ?? []).length === 0" class="text-13px text-gray-400">无评估材料</div>
-        </div>
+        <EspFileList :value="detail.materials" readonly class="mt-12px" empty-text="无评估材料" />
       </div>
 
-      <!-- 参与专家 -->
-      <div class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
-        <div class="text-16px font-600 text-gray-800">参与专家（{{ (detail.experts ?? []).length }} 名）</div>
+      <!-- 参与专家（组员视角后端已脱敏不返回，区块整体隐藏） -->
+      <div v-if="detail.experts?.length" class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
+        <div class="text-16px font-600 text-gray-800">参与专家（{{ detail.experts.length }} 名）</div>
         <div class="mt-12px grid grid-cols-3 gap-16px">
           <div
             v-for="expert in detail.experts ?? []"
@@ -161,15 +160,12 @@
             <div class="mt-8px line-clamp-3 whitespace-pre-wrap text-13px leading-22px text-gray-600">{{
               member.evalOpinion || '—'
             }}</div>
-            <div v-if="(member.evalAttachments ?? []).length" class="mt-8px flex flex-col gap-4px">
-              <span
-                v-for="(f, fi) in member.evalAttachments"
-                :key="fi"
-                class="flex items-center gap-6px truncate text-12px text-[#3A8EF6]"
-              >
-                <span class="i-ant-design:paper-clip-outlined"></span>{{ f }}
-              </span>
-            </div>
+            <EspFileList
+              v-if="(member.evalAttachments ?? []).length"
+              :value="member.evalAttachments"
+              readonly
+              class="mt-8px"
+            />
           </div>
           <div
             v-if="(evalsData.memberEvals ?? []).length === 0"
@@ -191,15 +187,12 @@
           <div class="mt-8px whitespace-pre-wrap text-13px leading-22px text-gray-700">{{
             evalsData.comprehensive.evalOpinion || '—'
           }}</div>
-          <div v-if="(evalsData.comprehensive.evalAttachments ?? []).length" class="mt-8px flex flex-wrap gap-12px">
-            <span
-              v-for="(f, fi) in evalsData.comprehensive.evalAttachments"
-              :key="fi"
-              class="flex items-center gap-6px text-12px text-[#3A8EF6]"
-            >
-              <span class="i-ant-design:paper-clip-outlined"></span>{{ f }}
-            </span>
-          </div>
+          <EspFileList
+            v-if="(evalsData.comprehensive.evalAttachments ?? []).length"
+            :value="evalsData.comprehensive.evalAttachments"
+            readonly
+            class="mt-8px"
+          />
         </div>
       </div>
     </template>
@@ -210,7 +203,7 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStageUrbanRenewalExpertProjectDetail">
-  import { onMounted, ref, unref } from 'vue';
+  import { computed, onMounted, ref, unref } from 'vue';
   import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
@@ -218,16 +211,19 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { ureProjectDetail, ureProjectEvals } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
   import type { UreProjectDetail, UreProjectEvals } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
+  import EspFileList from '../../../components/esp-file-list.vue';
 
   const go = useGo();
   const { showMessage } = useMessage();
 
-  /** 状态颜色（0待提交=橙，1评估中=蓝，2待评价=紫，3已完成=绿） */
+  /** 状态颜色（视角状态码：0待提交=橙，1待评估=蓝，2待评价=紫，3已完成=绿，4已评估=青，5待总结=橙红） */
   const STATUS_COLOR: Record<string, string> = {
     '0': 'warning',
     '1': 'processing',
     '2': 'purple',
     '3': 'success',
+    '4': 'cyan',
+    '5': 'orange',
   };
 
   const { params, query } = unref(router.currentRoute);
@@ -237,6 +233,20 @@
   const detail = ref<UreProjectDetail | null>(null);
   const evalsData = ref<UreProjectEvals | null>(null);
   const loading = ref(true);
+
+  /** 当前登录人是否为项目参与专家视角（后端仅对绑定专家的登录人返回 isLeader 字段） */
+  const isExpertView = computed(() => detail.value?.isLeader !== undefined);
+  const EVAL_ROUTE = '/early-stage-planning/urban-renewal-expert-management/project-evaluation/evaluate';
+  /** 评估入口文案：待评估→去评估，待总结（组长）→去总结评估，已评估→查看我的评估 */
+  const evalEntryLabel = computed(() => {
+    const vs = detail.value?.viewStatusCode;
+    if (vs === '5') return '去总结评估';
+    if (vs === '4') return '查看我的评估';
+    return '去评估';
+  });
+  function goEvaluate() {
+    if (detail.value?.id) go(`${EVAL_ROUTE}?id=${detail.value.id}`);
+  }
 
   onMounted(async () => {
     if (!projectCode) {

@@ -29,6 +29,48 @@ import { LAYOUT } from '@jeesite/core/router/constant';
  */
 export const ESP_AREA_DETAIL_PATH = '/early-stage-planning/overview/area-detail';
 
+/**
+ * 城市更新专家管理 · 专家评价 打分/查看页（不进菜单，从「专家评价」列表跳入）。
+ * 与片区详情同款姿势在此注册：后端隐藏菜单（评价专家/查看评价）未配置，缺路由时
+ * 进入会匹配失败并兜底到首个模块首页（表现为空白页 + 侧边栏变成城市体检）。
+ * currentActiveMenu 指向真实菜单项「专家评价」，侧边栏正确高亮前期规划模块。
+ * 若后端之后也注册了同路径菜单，删除这两条即可（避免重复注册）。
+ */
+const URE_EXPERT_EVAL_INDEX_MENU = '/early-stage-planning/urban-renewal-expert-management/expert-evaluation/index';
+
+const ureExpertEvalRoutes: AppRouteModule[] = [
+  {
+    path: '/early-stage-planning/urban-renewal-expert-management/expert-evaluation/rate',
+    name: 'UreExpertEvalRateRoot',
+    component: LAYOUT,
+    meta: { title: '评价' },
+    children: [
+      {
+        path: '',
+        name: 'UreExpertEvalRate',
+        component: () =>
+          import('@jeesite/early-stage-planning/views/early-stage-planning/urban-renewal-expert-management/expert-evaluation/rate.vue'),
+        meta: { title: '评价', currentActiveMenu: URE_EXPERT_EVAL_INDEX_MENU },
+      },
+    ],
+  },
+  {
+    path: '/early-stage-planning/urban-renewal-expert-management/expert-evaluation/view',
+    name: 'UreExpertEvalViewRoot',
+    component: LAYOUT,
+    meta: { title: '查看评价' },
+    children: [
+      {
+        path: '',
+        name: 'UreExpertEvalView',
+        component: () =>
+          import('@jeesite/early-stage-planning/views/early-stage-planning/urban-renewal-expert-management/expert-evaluation/view.vue'),
+        meta: { title: '查看评价', currentActiveMenu: URE_EXPERT_EVAL_INDEX_MENU },
+      },
+    ],
+  },
+];
+
 const earlyStagePlanning: AppRouteModule = {
   // 顶层直接用完整路径 + LAYOUT：不与后端菜单的 /early-stage-planning 父记录重名，
   // 也不会影响该模块其它菜单页的匹配（同前缀的不同记录各自匹配自己的子路由）
@@ -60,4 +102,4 @@ const earlyStagePlanning: AppRouteModule = {
   ],
 };
 
-export default earlyStagePlanning;
+export default [earlyStagePlanning, ...ureExpertEvalRoutes];

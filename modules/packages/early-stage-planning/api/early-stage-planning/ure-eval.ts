@@ -18,6 +18,10 @@ function unwrap<T = any>(body: any): T {
     if (body.code === 200) return body.data as T;
     throw new Error(body.msg || '接口请求失败');
   }
+  // jeesite 协议（框架拦截/权限校验返回 {result:'false', message}）：视为业务错误，避免错误对象被当数据渲染
+  if (body && typeof body === 'object' && body.result === 'false') {
+    throw new Error(body.message || '接口请求失败');
+  }
   return body as T;
 }
 

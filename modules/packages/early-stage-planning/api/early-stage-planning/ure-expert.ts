@@ -19,6 +19,10 @@ function unwrap<T = any>(body: any): T {
     if (body.code === 200) return body.data as T;
     throw new Error(body.msg || '接口请求失败');
   }
+  // jeesite 协议（框架拦截/权限校验返回 {result:'false', message}）：视为业务错误，避免错误对象被当数据渲染
+  if (body && typeof body === 'object' && body.result === 'false') {
+    throw new Error(body.message || '接口请求失败');
+  }
   return body as T;
 }
 
@@ -48,6 +52,19 @@ export type UreExpert = {
   reviewExperience?: string;
   /** 是否已绑定登录账号（保存时按手机号自动开通/换绑） */
   hasAccount?: boolean;
+  /** 绑定的登录账号（js_sys_user.user_code，「关联账号」回显用） */
+  userCode?: string;
+};
+
+/** 机构账号行（专家机构下的员工账号，「关联账号」下拉数据源） */
+export type UreAccountOption = {
+  userCode: string;
+  userName: string;
+  /** 登录名 */
+  loginCode: string;
+  mobile?: string;
+  /** 已绑定该账号的专家姓名（非空=已被占用，下拉过滤） */
+  boundExpert?: string;
 };
 
 /** 下拉选项集合（值为中文标签，与后端 ure 字典表一致） */
@@ -60,8 +77,8 @@ export type UreDictOptions = {
   districts: string[];
 };
 
-/** 保存结果（accountCreated=true 表示本次自动开通了登录账号，手机号即登录名） */
-export type UreExpertSaveResult = { id: string; code: string; name: string; accountCreated: boolean };
+/** 保存结果 */
+export type UreExpertSaveResult = { id: string; code: string; name: string };
 
 /** 删除结果（deletedEvalCount=级联逻辑删除的评价记录数；登录账号保留） */
 export type UreExpertDeleteResult = { id: string; code: string; name: string; deletedEvalCount: number };
@@ -71,6 +88,22 @@ export type UreExpertDeleteResult = { id: string; code: string; name: string; de
 /** 1.1 下拉选项集合（fields/titles/orgTypes/genders/reviewModes/districts，值即中文标签） */
 export async function ureDictOptions(): Promise<UreDictOptions> {
   return unwrap(await defHttp.get({ url: adminPath + '/ure/dict/options' }));
+}
+
+/** 1.2 专家关联账号候选清单（专家机构 ure.expert.officeCode 下的员工账号，经角色→机构→账号链已有专家角色）
+ *  errorMessageMode=none：新后端未上线时接口 404，静默降级为空选项，不弹全局错误；
+ *  后端 DAO 直查系统表返回下划线键，此处归一为驼峰 */
+export async function ureExpertAccounts(): Promise<UreAccountOption[]> {
+  const raw = unwrap<Recordable[]>(
+    await defHttp.get({ url: adminPath + '/ure/expert/accounts' }, { errorMessageMode: 'none' }),
+  );
+  return (raw ?? []).map((a) => ({
+    userCode: String(a.user_code ?? a.userCode ?? ''),
+    userName: String(a.user_name ?? a.userName ?? ''),
+    loginCode: String(a.login_code ?? a.loginCode ?? ''),
+    mobile: a.mobile ?? undefined,
+    boundExpert: a.bound_expert ?? a.boundExpert ?? undefined,
+  }));
 }
 
 // ---------------- 2. 专家档案 ----------------
@@ -98,7 +131,7 @@ export async function ureExpertForm(id: string): Promise<UreExpert> {
   return unwrap(await defHttp.get({ url: adminPath + '/ure/expert/form', params: { id } }));
 }
 
-/** 2.4 保存专家（新建/修改合一，id 空=新增；手机号即登录名，无同名账号自动开通并授予 urban_expert 角色） */
+/** 2.4 保存专家（新建/修改合一，id 空=新增；必传 userCode 绑定机构账号，一对一；联系电话为普通档案信息） */
 export async function ureExpertSave(data: Partial<UreExpert>): Promise<UreExpertSaveResult> {
   return unwrap(await defHttp.postJson({ url: adminPath + '/ure/expert/save', data }));
 }

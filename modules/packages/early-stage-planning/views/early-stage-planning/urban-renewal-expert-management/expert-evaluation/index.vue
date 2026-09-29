@@ -8,7 +8,7 @@
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
-    <BasicTable @register="registerTable" :showIndexColumn="false">
+    <BasicTable v-if="identityReady" @register="registerTable" :showIndexColumn="false">
       <template #tableTitle>
         <span>评价项目列表</span>
         <span class="ml-12px text-13px font-400 text-gray-400">（待评价项目可对参与专家打分；已完成项目可查看全部评价）</span>
@@ -30,11 +30,18 @@
   import { useGo } from '@jeesite/core/hooks/web/usePage';
   import { ureDictOptions } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
   import { ureProjectPage } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
+  import { ureIdentity } from '../shared/ure-role';
+  import type { UreRole } from '../shared/ure-role';
 
   const go = useGo();
 
   const RATE_ROUTE = '/early-stage-planning/urban-renewal-expert-management/expert-evaluation/rate';
   const VIEW_ROUTE = '/early-stage-planning/urban-renewal-expert-management/expert-evaluation/view';
+
+  /** 当前角色：评价专家由实施主体/运维操作，专家不显示「评价」按钮（后端接口同样拦截） */
+  const role = ref<UreRole>('none');
+  /** 角色未就绪不渲染表格：操作列按钮在行渲染时求值，避免按 'none' 求值后不随角色刷新 */
+  const identityReady = ref(false);
 
   /** 状态颜色（2待评价=紫，3已完成=绿） */
   const STATUS_COLOR: Record<string, string> = {
@@ -46,6 +53,13 @@
   const modeOptions = ref<{ label: string; value: string }[]>([]);
 
   onMounted(async () => {
+    try {
+      role.value = (await ureIdentity()).role;
+    } catch (e) {
+      // 身份识别失败按无角色兜底
+    } finally {
+      identityReady.value = true;
+    }
     try {
       const dict = await ureDictOptions();
       modeOptions.value = (dict.reviewModes ?? []).map((m) => ({ label: m, value: m }));
@@ -65,12 +79,15 @@
     { title: '状态', dataIndex: 'status', width: 90, slot: 'status' },
   ];
 
-  /** 操作列：待评价 →【评价】；已完成 →【查看】 */
+  /** 操作列：待评价 →【评价】（仅实施主体/运维，专家不参与评价）；已完成 →【查看】 */
   const actionColumn: BasicColumn = {
     width: 90,
     actions: (record: Recordable) => {
       const query = `projectCode=${record.code}&projectName=${encodeURIComponent(record.name)}`;
       if (record.statusCode === '2') {
+        if (role.value === 'expert') {
+          return [];
+        }
         return [{ label: '评价', onClick: () => go(`${RATE_ROUTE}?${query}`) }];
       }
       return [{ label: '查看', onClick: () => go(`${VIEW_ROUTE}?${query}`) }];
@@ -79,7 +96,7 @@
 
   const [registerTable] = useTable({
     api: ureProjectPage,
-    beforeFetch: (params) => ({ ...params, status: '2,3' }),
+    beforeFetch: (params) => ({ ...params, status: params.status || '2,3' }),
     columns,
     actionColumn,
     showTableSetting: true,
@@ -107,6 +124,19 @@
           field: 'reviewMode',
           component: 'Select',
           componentProps: () => ({ options: modeOptions.value, allowClear: true, placeholder: '请选择' }),
+        },
+        {
+          label: '状态',
+          field: 'status',
+          component: 'Select',
+          componentProps: {
+            options: [
+              { label: '待评价', value: '2' },
+              { label: '已完成', value: '3' },
+            ],
+            allowClear: true,
+            placeholder: '请选择',
+          },
         },
       ],
     },

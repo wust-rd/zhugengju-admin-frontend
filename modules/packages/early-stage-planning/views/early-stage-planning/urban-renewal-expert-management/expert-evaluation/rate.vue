@@ -1,141 +1,130 @@
 <!--
   市住更局 —— 城市更新专家管理 · 专家评价 打分页（独立路由页，已接后端 /a/ure/eval/*）
 
-  从「专家评价」列表（或项目评估列表「评价专家」）的【评价】进入（query：projectCode/projectName）。
-  对本项目参与专家三维度打分（活跃度/专业度/效率，半星步进一颗星 2 分）：顶部三张排名卡
-  （由本项目参与专家的均分排序），下方专家列表（操作：评价 / 历史记录）。
-  全部参与专家评完后点右上「完成评价」（后端校验），项目 待评价 → 已完成。
+  从「专家评价」列表待评价项目的【评价】进入（query：projectCode/projectName）。
+  页面结构（对齐设计图）：
+  - 顶部「评价说明」信息框（1~10 分制 / 三维度 / 记入专家档案 / 如实评价）；
+  - 每位参与专家一张卡片：姓名/单位/专业领域/职称 + 三维度星级（专业水平/履职表现/意见质量，
+    半星步进一颗星 2 分）+ 每卡评价说明；已评价的专家卡片只读回显；
+  - 底部「取消 / 提交」：一次提交全部未评专家（逐条 save），全部参与专家评完自动完成评价
+    （finishEval，项目 → 已完成）。
+  维度文案与后端字段的映射：专业水平→activity_score、履职表现→coverage_score、意见质量→efficiency_score
+  （沿用既有表列，仅展示文案不同）。
   规划路由（后端隐藏菜单）：
    - 链接地址：/early-stage-planning/urban-renewal-expert-management/expert-evaluation/rate?projectCode=xx
    - 组件位置：.../expert-evaluation/rate；是否可见：隐藏；上级菜单挂「专家评价」以点亮侧边栏
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
-    <!-- 项目上下文头：项目名 + 返回 + 完成评价 -->
+    <!-- 头部：返回 + 标题 + 项目名 -->
     <div class="flex items-center gap-12px shrink-0">
       <a-button @click="goBack">
         <span class="inline-flex items-center gap-4px">
           <span class="i-ant-design:arrow-left-outlined"></span> 返回
         </span>
       </a-button>
-      <span class="text-16px font-500 text-gray-800">评价专家</span>
+      <span class="text-16px font-500 text-gray-800">评价</span>
       <span v-if="projectName" class="text-14px text-gray-500">- {{ projectName }}</span>
-      <a-button type="primary" class="ml-auto" :loading="finishing" @click="finishProjectEval"> 完成评价 </a-button>
+      <span class="ml-auto text-13px text-gray-400">已评价 {{ evaluatedCount }} / {{ cards.length }} 位专家</span>
     </div>
 
-    <!-- 三张排名卡 -->
-    <div class="grid grid-cols-3 gap-16px">
-      <div
-        v-for="card in rankCards"
-        :key="card.title"
-        class="bg-white rd-12px b-1 b-solid b-gray-100 p-16px shadow-sm"
-        :style="{ '--accent': card.accent }"
-      >
-        <div class="flex items-center gap-8px">
-          <span class="h-16px w-4px rd-full" :style="{ background: card.accent }"></span>
-          <span class="text-15px font-600 text-gray-800">{{ card.title }}</span>
-        </div>
+    <div v-if="loading" class="bg-white rd-12px b-1 b-solid b-gray-100 p-48px text-center text-14px text-gray-400 shadow-sm">
+      加载中…
+    </div>
+    <div v-else-if="!projectId" class="bg-white rd-12px b-1 b-solid b-gray-100 p-48px text-center text-14px text-gray-400 shadow-sm">
+      {{ loadError || '缺少项目参数' }}
+    </div>
+    <template v-else>
+      <!-- 评价说明 -->
+      <div class="rd-12px b-1 b-solid b-[#BBD8F5] bg-[#F0F6FF] p-20px">
+        <div class="text-15px font-600 text-gray-800">评价说明</div>
+        <ul class="mt-8px space-y-4px text-13px leading-22px text-gray-600">
+          <li>1. 评分采用 1~10 分制：每颗星 2 分、半颗星 1 分，最低 1 分，最高 10 分。</li>
+          <li>2. 评分维度包括：专业水平、履职表现、意见质量。</li>
+          <li>3. 评分结果将记入专家个人档案，作为后续项目抽取专家的参考依据。</li>
+          <li>4. 请根据专家在项目评估过程中的实际表现，如实客观评价。</li>
+        </ul>
+      </div>
 
-        <div v-if="card.rows.length === 0" class="flex h-150px items-center justify-center text-13px text-gray-400">
-          暂无评价数据
-        </div>
-        <div v-else class="mt-12px space-y-14px">
-          <div v-for="(row, i) in card.rows" :key="`${card.title}-${row.name}`" class="flex items-center gap-10px">
-            <span
-              class="rank-badge flex h-22px w-22px shrink-0 items-center justify-center rd-full text-13px font-500 text-gray-500"
-              >{{ i + 1 }}</span
-            >
-            <span class="w-56px shrink-0 truncate text-14px text-gray-800" :title="row.name">{{ row.name }}</span>
-            <div class="h-10px flex-1 rd-full bg-[#EEF2F7] overflow-hidden">
-              <div
-                class="h-full rd-full"
-                :style="{ width: `${(row.score / 10) * 100}%`, background: card.barGradient }"
-              ></div>
-            </div>
-            <span class="w-36px shrink-0 text-right text-13px font-500 text-gray-700">{{ row.score.toFixed(1) }}</span>
+      <!-- 专家评价卡片 -->
+      <div v-for="card in cards" :key="card.expertId" class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
+        <!-- 卡片头：专家信息 -->
+        <div class="flex items-center gap-14px">
+          <div class="flex size-44px shrink-0 items-center justify-center rd-full bg-cyan-100 text-16px font-500 text-cyan-700">
+            {{ card.name.slice(0, 1) }}
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 专家列表 -->
-    <BasicTable @register="registerTable" :showIndexColumn="false">
-      <template #tableTitle>
-        <span>项目参与专家</span>
-      </template>
-    </BasicTable>
-
-    <!-- 打分 Modal -->
-    <Modal
-      v-model:open="rateModal.open"
-      :title="`评价专家 - ${rateModal.expert?.name ?? ''}`"
-      :confirm-loading="rateModal.loading"
-      ok-text="确定"
-      centered
-      cancel-text="取消"
-      @ok="submitRate"
-    >
-      <div class="flex flex-col gap-18px py-16px">
-        <div v-for="dim in RATE_DIMENSIONS" :key="dim.key" class="flex items-center gap-12px">
-          <span class="shrink-0 text-right text-14px text-gray-700 w-200px">{{ dim.label }}（10分）:</span>
-          <Rate v-model:value="rateModal[dim.key]" allow-half />
-          <span class="text-14px text-gray-500">{{ (rateModal[dim.key] * 2).toFixed(1) }} 分</span>
-        </div>
-        <div class="flex items-start gap-12px">
-          <span class="w-110px shrink-0 text-right text-14px leading-32px text-gray-700">评价说明:</span>
-          <Input.TextArea v-model:value="rateModal.comment" :rows="3" placeholder="请输入内容" class="flex-1" />
-        </div>
-      </div>
-    </Modal>
-
-    <!-- 历史评价 Modal -->
-    <Modal v-model:open="historyModal.open" width="720px" centered :footer="null">
-      <template #title>
-        <span>历史评价</span>
-        <span v-if="historyModal.expertName" class="ml-8px text-14px font-400 text-gray-500">{{ historyModal.expertName }}</span>
-      </template>
-      <div class="max-h-[60vh] overflow-y-auto pr-4px">
-        <div v-if="historyRecords.length === 0" class="flex h-200px items-center justify-center text-14px text-gray-400">
-          该专家暂无评价记录
-        </div>
-        <div v-else class="space-y-16px">
-          <div v-for="rec in historyRecords" :key="rec.id" class="rd-8px bg-[#EBF3FB] p-16px">
-            <div class="flex items-center gap-24px text-13px text-gray-700">
-              <span>评价人: {{ rec.evaluator }}</span>
-              <span>评价时间: {{ rec.time }}</span>
-              <a-button type="link" danger size="small" class="ml-auto" @click="handleHistoryDelete(rec)">删除</a-button>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-8px">
+              <span class="text-16px font-600 text-gray-800">{{ card.name }}</span>
+              <span v-if="card.isLeader" class="rd-4px px-6px py-2px text-12px text-white" style="background: #3a8ef6">组长</span>
+              <Tag v-if="card.evaluated" class="ml-4px" color="cyan">已评价</Tag>
             </div>
-            <div class="mt-10px flex flex-wrap items-center gap-x-32px gap-y-6px text-13px text-gray-700">
-              <span class="flex items-center gap-8px">活跃度: <Rate :value="rec.activityStars" allow-half disabled class="text-16px" /></span>
-              <span class="flex items-center gap-8px">专业度: <Rate :value="rec.coverageStars" allow-half disabled class="text-16px" /></span>
-              <span class="flex items-center gap-8px">效率: <Rate :value="rec.efficiencyStars" allow-half disabled class="text-16px" /></span>
-            </div>
-            <div class="mt-10px flex items-start gap-8px text-13px">
-              <span class="shrink-0 text-gray-700">评价说明:</span>
-              <span class="leading-22px text-gray-600">{{ rec.comment || '—' }}</span>
+            <div class="mt-2px flex flex-wrap gap-x-16px text-13px text-gray-500">
+              <span>单位：{{ card.org || '—' }}</span>
+              <span>专业领域：{{ card.field || '—' }}</span>
+              <span>职称：{{ card.title || '—' }}</span>
             </div>
           </div>
         </div>
+
+        <!-- 三维度星级 + 评价说明（已评价：只读回显） -->
+        <template v-if="!card.evaluated">
+          <div class="mt-16px space-y-12px border-t border-gray-100 pt-16px">
+            <div v-for="dim in RATE_DIMENSIONS" :key="dim.key" class="flex items-center gap-16px">
+              <span class="w-90px shrink-0 text-right text-14px text-gray-600">{{ dim.label }}（10分）</span>
+              <Rate v-model:value="card[dim.key]" allow-half />
+              <span class="w-48px text-13px text-gray-500">{{ (card[dim.key] * 2).toFixed(1) }} 分</span>
+            </div>
+            <div class="flex items-start gap-16px">
+              <span class="w-90px shrink-0 text-right text-14px leading-22px text-gray-600">评价说明</span>
+              <Input.TextArea
+                v-model:value="card.comment"
+                class="flex-1"
+                :rows="2"
+                :maxlength="1000"
+                placeholder="请输入评价说明"
+              />
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="mt-16px space-y-12px border-t border-gray-100 pt-16px">
+            <div v-for="dim in RATE_DIMENSIONS" :key="dim.key" class="flex items-center gap-16px">
+              <span class="w-90px shrink-0 text-right text-14px text-gray-600">{{ dim.label }}（10分）</span>
+              <Rate :value="card[dim.key]" allow-half disabled />
+              <span class="w-48px text-13px text-gray-500">{{ (card[dim.key] * 2).toFixed(1) }} 分</span>
+            </div>
+            <div class="flex items-start gap-16px">
+              <span class="w-90px shrink-0 text-right text-14px leading-22px text-gray-600">评价说明</span>
+              <span class="flex-1 whitespace-pre-wrap rounded-8px bg-[#F7F9FC] px-14px py-8px text-13px leading-22px text-gray-700">
+                {{ card.comment || '—' }}
+              </span>
+            </div>
+          </div>
+        </template>
       </div>
-    </Modal>
+
+      <!-- 底部操作 -->
+      <div class="flex items-center justify-end gap-12px">
+        <a-button @click="goBack">取消</a-button>
+        <a-button type="primary" :loading="submitting" @click="submitAll">提交</a-button>
+      </div>
+    </template>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStageUrbanRenewalExpertEvaluationRate">
-  import { computed, onMounted, reactive, ref, unref } from 'vue';
-  import { Input, Modal, Rate } from 'antdv-next';
+  import { computed, onMounted, ref, unref } from 'vue';
+  import { Input, Rate, Tag } from 'antdv-next';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
   import { useRoute } from 'vue-router';
   import { PageWrapper } from '@jeesite/core/components/Page';
-  import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+  import { ureEvalPage, ureEvalSave } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-eval';
+  import type { UreEvalRecordRow } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-eval';
   import {
-    ureEvalDelete,
-    ureEvalList,
-    ureEvalPage,
-    ureEvalSave,
-  } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-eval';
-  import type { UreEvalExpertRow, UreEvalRecordRow } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-eval';
-  import { ureProjectDetail, ureProjectFinishEval } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
+    ureProjectDetail,
+    ureProjectFinishEval,
+  } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
 
   const { showMessage } = useMessage();
   const route = useRoute();
@@ -147,184 +136,104 @@
   const projectCode = String(unref(route.query).projectCode ?? '');
   const projectName = String(unref(route.query).projectName ?? '');
 
-  /** 打分维度定义 */
+  /**
+   * 打分维度定义（展示文案 → 后端字段的映射，沿用既有表列仅文案不同）：
+   * 专业水平→activity、履职表现→coverage、意见质量→efficiency
+   */
   const RATE_DIMENSIONS = [
-    { key: 'activity', label: '活跃度' },
-    { key: 'coverage', label: '专业度' },
-    { key: 'efficiency', label: '效率' },
+    { key: 'activity', label: '专业水平' },
+    { key: 'coverage', label: '履职表现' },
+    { key: 'efficiency', label: '意见质量' },
   ] as const;
 
-  /** 专家列表行（后端聚合三维度均分与次数；项目模式=该项目参与专家） */
-  const expertRows = ref<UreEvalExpertRow[]>([]);
+  type RateKey = (typeof RATE_DIMENSIONS)[number]['key'];
 
-  async function loadExperts() {
-    if (!projectCode) return;
-    try {
-      expertRows.value = await ureEvalList({ projectCode });
-      setTableData(expertRows.value);
-    } catch (e) {
-      showMessage((e as Error)?.message || '专家列表加载失败');
-    }
-  }
+  /** 专家评价卡片（参与专家 + 打分状态；已评价的回显只读） */
+  type EvalCard = {
+    expertId: string;
+    name: string;
+    org: string;
+    field: string;
+    title: string;
+    isLeader: boolean;
+    evaluated: boolean;
+    comment: string;
+  } & Record<RateKey, number>;
 
-  onMounted(loadExperts);
+  const cards = ref<EvalCard[]>([]);
+  const projectId = ref('');
+  const loading = ref(true);
+  const loadError = ref('');
+  const submitting = ref(false);
 
-  /** 三张排名卡（Top5，主题色 per card；由本项目参与专家均分排序） */
-  const rankCards = computed(() => [
-    {
-      title: '活跃度排名',
-      accent: '#3A8EF6',
-      barGradient: 'linear-gradient(90deg, #5AB2FF 0%, #3A8EF6 100%)',
-      rows: [...expertRows.value]
-        .filter((e) => e.avgActivity > 0)
-        .sort((a, b) => b.avgActivity - a.avgActivity)
-        .slice(0, 5)
-        .map((e) => ({ name: e.name, score: e.avgActivity })),
-    },
-    {
-      title: '专业度排名',
-      accent: '#2AB69B',
-      barGradient: 'linear-gradient(90deg, #4ED3B8 0%, #2AB69B 100%)',
-      rows: [...expertRows.value]
-        .filter((e) => e.avgCoverage > 0)
-        .sort((a, b) => b.avgCoverage - a.avgCoverage)
-        .slice(0, 5)
-        .map((e) => ({ name: e.name, score: e.avgCoverage })),
-    },
-    {
-      title: '效率排名',
-      accent: '#F7A832',
-      barGradient: 'linear-gradient(90deg, #FFC163 0%, #F7A832 100%)',
-      rows: [...expertRows.value]
-        .filter((e) => e.avgEfficiency > 0)
-        .sort((a, b) => b.avgEfficiency - a.avgEfficiency)
-        .slice(0, 5)
-        .map((e) => ({ name: e.name, score: e.avgEfficiency })),
-    },
-  ]);
+  const evaluatedCount = computed(() => cards.value.filter((c) => c.evaluated).length);
 
-  /** 表格列 */
-  const columns: BasicColumn[] = [
-    { title: '专家姓名', dataIndex: 'name', width: 100 },
-    { title: '性别', dataIndex: 'gender', width: 70 },
-    { title: '年龄', dataIndex: 'age', width: 70 },
-    { title: '联系电话', dataIndex: 'phone', width: 130 },
-    { title: '评价次数', dataIndex: 'evalCount', width: 90, align: 'center' },
-    { title: '活跃度得分（10）', dataIndex: 'avgActivity', width: 140, align: 'center' },
-    { title: '专业度得分（10）', dataIndex: 'avgCoverage', width: 140, align: 'center' },
-    { title: '效率得分（10）', dataIndex: 'avgEfficiency', width: 130, align: 'center' },
-  ];
-
-  const actionColumn: BasicColumn = {
-    width: 150,
-    actions: (record: Recordable) => [
-      { label: '评价', onClick: () => openRateModal(record as unknown as UreEvalExpertRow) },
-      { label: '历史记录', onClick: () => openHistory(record as unknown as UreEvalExpertRow) },
-    ],
-  };
-
-  const [registerTable, { setTableData }] = useTable({
-    dataSource: [],
-    columns,
-    actionColumn,
-    showTableSetting: false,
-    showIndexColumn: false,
-    pagination: { pageSize: 10 },
-    canResize: true,
-  });
-
-  /** 打分 Modal */
-  const rateModal = reactive({
-    open: false,
-    loading: false,
-    activity: 0,
-    coverage: 0,
-    efficiency: 0,
-    comment: '',
-    expert: null as UreEvalExpertRow | null,
-  });
-
-  function openRateModal(expert: UreEvalExpertRow) {
-    rateModal.expert = expert;
-    rateModal.activity = 0;
-    rateModal.coverage = 0;
-    rateModal.efficiency = 0;
-    rateModal.comment = '';
-    rateModal.open = true;
-  }
-
-  async function submitRate() {
-    const expert = rateModal.expert;
-    if (!expert) return;
-    if (!rateModal.activity || !rateModal.coverage || !rateModal.efficiency) {
-      showMessage('请为三个维度都打分');
+  onMounted(async () => {
+    if (!projectCode) {
+      loading.value = false;
       return;
     }
-    rateModal.loading = true;
     try {
-      await ureEvalSave({
-        expertId: expert.id,
-        activityStars: rateModal.activity,
-        coverageStars: rateModal.coverage,
-        efficiencyStars: rateModal.efficiency,
-        comment: rateModal.comment || undefined,
-        projectCode: projectCode || undefined,
+      // 参与专家名单（实施主体为创建人可见完整名单）+ 本项目已有评价记录（回显已评专家）
+      const [detail, evalPage] = await Promise.all([
+        ureProjectDetail(projectCode),
+        ureEvalPage({ projectCode, pageNo: 1, pageSize: 100 }).catch(() => ({ list: [] as UreEvalRecordRow[] })),
+      ]);
+      projectId.value = detail.id;
+      const existed = evalPage.list ?? [];
+      cards.value = (detail.experts ?? []).map((expert) => {
+        const rec = existed.find((r) => r.expertId === expert.id);
+        return {
+          expertId: expert.id,
+          name: expert.name,
+          org: expert.org ?? '',
+          field: expert.field ?? '',
+          title: expert.title ?? '',
+          isLeader: expert.isLeader === true,
+          evaluated: !!rec,
+          activity: rec?.activityStars ?? 0,
+          coverage: rec?.coverageStars ?? 0,
+          efficiency: rec?.efficiencyStars ?? 0,
+          comment: rec?.comment ?? '',
+        };
       });
-      rateModal.open = false;
-      showMessage('评价成功');
-      await loadExperts();
+    } catch (e) {
+      loadError.value = (e as Error)?.message || '评价数据加载失败';
+      showMessage(loadError.value);
     } finally {
-      rateModal.loading = false;
+      loading.value = false;
     }
-  }
+  });
 
-  /** 完成评价（后端校验全部参与专家已有本项目评价记录；待评价 → 已完成） */
-  const finishing = ref(false);
-
-  async function finishProjectEval() {
-    if (!projectCode) return;
-    finishing.value = true;
+  /** 提交：逐个保存未评专家的三维度评价；全部参与专家评完自动完成评价（项目 → 已完成） */
+  async function submitAll() {
+    if (!projectId.value) return;
+    const pending = cards.value.filter((c) => !c.evaluated);
+    const invalid = pending.find((c) => !c.activity || !c.coverage || !c.efficiency);
+    if (invalid) {
+      showMessage(`请为专家「${invalid.name}」的三个维度都打分`);
+      return;
+    }
+    submitting.value = true;
     try {
-      const detail = await ureProjectDetail(projectCode);
-      await ureProjectFinishEval(detail.id);
-      showMessage('专家评价完成，项目已完成');
+      for (const card of pending) {
+        await ureEvalSave({
+          expertId: card.expertId,
+          activityStars: card.activity,
+          coverageStars: card.coverage,
+          efficiencyStars: card.efficiency,
+          comment: card.comment || undefined,
+          projectCode: projectCode || undefined,
+        });
+      }
+      // 全部参与专家已有评价 → 完成评价，项目流转已完成
+      await ureProjectFinishEval(projectId.value);
+      showMessage('评价完成，项目已完成');
       goBack();
     } catch (e) {
-      showMessage((e as Error)?.message || '完成评价失败');
+      showMessage((e as Error)?.message || '提交失败');
     } finally {
-      finishing.value = false;
-    }
-  }
-
-  /** 历史评价 Modal（本项目内该专家的评价记录） */
-  const historyModal = reactive({
-    open: false,
-    expertId: '',
-    expertName: '',
-  });
-  const historyRecords = ref<UreEvalRecordRow[]>([]);
-
-  async function openHistory(expert: UreEvalExpertRow) {
-    historyModal.expertId = expert.id;
-    historyModal.expertName = expert.name;
-    historyModal.open = true;
-    try {
-      const page = await ureEvalPage({ expertId: expert.id, projectCode: projectCode || undefined, pageNo: 1, pageSize: 50 });
-      historyRecords.value = page.list;
-    } catch (e) {
-      historyRecords.value = [];
-    }
-  }
-
-  async function handleHistoryDelete(rec: Recordable) {
-    try {
-      await ureEvalDelete(rec.id);
-      showMessage('删除成功');
-      const expert = expertRows.value.find((e) => e.id === historyModal.expertId);
-      if (expert) await openHistory(expert);
-      await loadExperts();
-    } catch (e) {
-      showMessage((e as Error)?.message || '删除失败');
+      submitting.value = false;
     }
   }
 
@@ -332,15 +241,3 @@
     go(LIST_ROUTE);
   }
 </script>
-
-<style scoped>
-  .rank-badge {
-    transition:
-      background-color 0.2s,
-      color 0.2s;
-  }
-  .rank-badge:hover {
-    background: var(--accent, #3e8ef7);
-    color: #fff;
-  }
-</style>

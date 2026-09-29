@@ -83,23 +83,7 @@
           <div class="mt-4px text-12px text-gray-400">支持 PDF、doc/docx 格式，可多选</div>
         </div>
       </Upload>
-      <div class="mt-12px space-y-10px">
-        <div
-          v-for="(m, i) in form.materials"
-          :key="i"
-          class="flex items-center gap-12px rd-8px bg-[#F7F9FC] px-16px py-12px transition-colors hover:bg-[#EEF4FB]"
-        >
-          <span class="i-ant-design:file-text-outlined text-18px text-[#3A8EF6]"></span>
-          <span class="flex-1 truncate text-14px text-gray-700" :title="m">{{ m }}</span>
-          <span
-            class="flex h-22px w-22px shrink-0 items-center justify-center rd-full text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-            @click="removeMaterial(i)"
-          >
-            <span class="i-ant-design:close-outlined"></span>
-          </span>
-        </div>
-        <div v-if="form.materials.length === 0" class="text-13px text-gray-400">尚未上传评估材料</div>
-      </div>
+      <EspFileList v-model:value="form.materials" :uploadable="false" class="mt-12px" empty-text="尚未上传评估材料" />
     </div>
 
     <!-- 参与专家 -->
@@ -164,9 +148,13 @@
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
+  import { areaTreeData } from '@jeesite/core/api/sys/area';
   import { ureDictOptions, ureExpertPage } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
   import type { UreExpert } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
   import { ureProjectForm, ureProjectSave, ureProjectSubmit } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
+  import type { UreFile } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
+  import { espFileUpload } from '@jeesite/early-stage-planning/api/early-stage-planning/scheme-declaration-review/scheme-fill';
+  import EspFileList from '../../components/esp-file-list.vue';
   import type { PickedExpert } from '../expert-store';
   import { useUrbanExpertStore } from '../expert-store';
 
@@ -182,7 +170,7 @@
   const editId = String(query.id ?? '') || '';
   const getTitle = computed(() => (editId ? '编辑评估项目' : '新增评估项目'));
 
-  /** 字典选项（行政区/评审模式） */
+  /** 字典选项（行政区=框架区划接口武汉下辖区；评审模式=ure 字典） */
   const districtOptions = ref<{ label: string; value: string }[]>([]);
   const modeOptions = ref<{ label: string; value: string }[]>([]);
 
@@ -198,7 +186,7 @@
     fundSource: '',
     investment: '',
     content: '',
-    materials: [] as string[],
+    materials: [] as (UreFile & { uploading?: boolean })[],
   });
 
   /** 参与专家行（3~7 人；expertId 为专家库主键，选中后带出单位/联系方式） */
@@ -217,40 +205,61 @@
   // ── 编辑回显 ─────────────────────────────────────────────────────
 
   onMounted(async () => {
+    // 行政区：框架行政区划接口（武汉市 420100 下辖 13 区）；评审模式：ure 字典
+    try {
+      const tree = await areaTreeData({ parentCode: '420100' });
+      districtOptions.value = (tree ?? []).map((n) => ({ label: String(n.name ?? ''), value: String(n.name ?? '') }));
+    } catch (e) {
+      // 区划加载失败时下拉为空，不阻塞表单
+    }
     try {
       const dict = await ureDictOptions();
-      districtOptions.value = (dict.districts ?? []).map((d) => ({ label: d, value: d }));
       modeOptions.value = (dict.reviewModes ?? []).map((m) => ({ label: m, value: m }));
     } catch (e) {
       // 字典加载失败不阻塞表单
     }
-    if (!editId) return;
-    try {
-      const detail = await ureProjectForm(editId);
-      Object.assign(form, {
-        name: detail.name ?? '',
-        adminDistrict: detail.adminDistrict,
-        district: detail.district ?? '',
-        coordinator: detail.coordinator ?? '',
-        implementOrg: detail.implementOrg ?? '',
-        reviewMode: detail.reviewMode,
-        dept: detail.dept ?? '',
-        fundSource: detail.fundSource ?? '',
-        investment: detail.investment ?? '',
-        content: detail.content ?? '',
-        materials: [...(detail.materials ?? [])],
-      });
-      const next: ExpertRow[] = (detail.experts ?? []).slice(0, 7).map((e) => ({
-        id: e.id,
-        name: e.name,
-        org: e.org ?? '',
-        phone: e.phone ?? '',
-      }));
-      while (next.length < 3) next.push(emptyRow());
-      rows.splice(0, rows.length, ...next);
-      leaderId.value = detail.leaderId || undefined;
-    } catch (e) {
-      showMessage((e as Error)?.message || '项目加载失败');
+    if (editId) {
+      try {
+        const detail = await ureProjectForm(editId);
+        Object.assign(form, {
+          name: detail.name ?? '',
+          adminDistrict: detail.adminDistrict,
+          district: detail.district ?? '',
+          coordinator: detail.coordinator ?? '',
+          implementOrg: detail.implementOrg ?? '',
+          reviewMode: detail.reviewMode,
+          dept: detail.dept ?? '',
+          fundSource: detail.fundSource ?? '',
+          investment: detail.investment ?? '',
+          content: detail.content ?? '',
+          materials: [...(detail.materials ?? [])],
+        });
+        const next: ExpertRow[] = (detail.experts ?? []).slice(0, 7).map((e) => ({
+          id: e.id,
+          name: e.name,
+          org: e.org ?? '',
+          phone: e.phone ?? '',
+        }));
+        while (next.length < 3) next.push(emptyRow());
+        rows.splice(0, rows.length, ...next);
+        leaderId.value = detail.leaderId || undefined;
+      } catch (e) {
+        showMessage((e as Error)?.message || '项目加载失败');
+      }
+    }
+    // 去抽取返回：恢复出发前保存的表单草稿（表单字段+组长；参与专家行以带回的抽取结果优先）
+    if (store.pickDraft && store.pickDraft.editId === editId) {
+      Object.assign(form, store.pickDraft.form);
+      if (store.pickDraft.leaderId) {
+        leaderId.value = store.pickDraft.leaderId;
+      }
+      store.clearPickDraft();
+    }
+    // 消费在线抽取带回的专家（须在编辑回显之后，带回结果优先覆盖参与专家行）
+    if (store.pickedExperts.length) {
+      fillPicked(store.pickedExperts);
+      store.endPick();
+      store.setPickedExperts([]);
     }
   });
 
@@ -339,7 +348,7 @@
     rows.splice(0, rows.length, ...next);
   }
 
-  /** 去抽取：需先填项目名称/统筹主体/实施主体（缺项弹出提示），再把这三项带入在线抽取页 */
+  /** 去抽取：需先填项目名称/统筹主体/实施主体（缺项弹出提示），保存表单草稿后带三项进入在线抽取页 */
   function goPick() {
     if (!form.name?.trim()) {
       showMessage('请先填写项目名称');
@@ -353,15 +362,38 @@
       showMessage('请先填写实施主体');
       return;
     }
+    // 保存草稿快照（返回本页时恢复，避免已填内容丢失）
+    store.setPickDraft({
+      editId,
+      form: {
+        name: form.name,
+        adminDistrict: form.adminDistrict,
+        district: form.district,
+        coordinator: form.coordinator,
+        implementOrg: form.implementOrg,
+        reviewMode: form.reviewMode,
+        dept: form.dept,
+        fundSource: form.fundSource,
+        investment: form.investment,
+        content: form.content,
+        materials: form.materials.filter((m) => !m.uploading).map(({ uploading: _u, ...rest }) => rest),
+      },
+      leaderId: leaderId.value,
+    });
     store.beginPick(`${FORM_ROUTE}${editId ? `?id=${editId}` : ''}`, {
       name: form.name,
       coordinator: form.coordinator,
       implementOrg: form.implementOrg,
     });
+    // 路由未注册（当前账号未授权「在线抽取」菜单）时明确提示，避免静默无反应
+    if (!router.resolve(ONLINE_DRAW_ROUTE).matched.length) {
+      showMessage('在线抽取页面不可用：当前账号未授权「在线抽取」菜单，请联系管理员配置');
+      return;
+    }
     go(ONLINE_DRAW_ROUTE);
   }
 
-  /** 在线抽取「返回」带回专家（pickedExperts 变化 / 页面挂载时已有数据）：回填参与专家、清空带回数据并退出挑选模式 */
+  /** 在线抽取「返回」带回专家（页面被 keep-alive 缓存不重建时由此消费；重建场景在 onMounted 编辑回显后消费） */
   watch(
     () => store.pickedExperts,
     (list) => {
@@ -371,16 +403,21 @@
         store.setPickedExperts([]);
       }
     },
-    { immediate: true },
   );
 
-  /** 上传：只把文件名加入材料列表（真实上传本期暂缓，与后端约定一致） */
-  function handleBeforeUpload(file: File) {
-    form.materials.push(file.name);
+  /** 上传：走真实上传接口（/a/esp/file/upload，MinIO 永久直链），完成后回填文件对象；
+   *  列表渲染/预览下载/删除由 EspFileList 公用组件负责 */
+  async function handleBeforeUpload(file: File) {
+    const entry = reactive<UreFile & { uploading?: boolean }>({ name: file.name, uploading: true });
+    form.materials.push(entry);
+    try {
+      const uploaded = await espFileUpload(file);
+      Object.assign(entry, uploaded, { uploading: false });
+    } catch (e) {
+      form.materials.splice(form.materials.indexOf(entry), 1);
+      message.error(`「${file.name}」上传失败：${(e as Error)?.message || '请重试'}`);
+    }
     return false;
-  }
-  function removeMaterial(index: number) {
-    form.materials.splice(index, 1);
   }
 
   /** 已选专家（有主键的行） */
@@ -402,7 +439,7 @@
     for (const [val, label] of checks) {
       if (!val) missing.push(label);
     }
-    if (form.materials.length === 0) missing.push('评估材料');
+    if (form.materials.length === 0 || form.materials.some((m) => m.uploading)) missing.push('评估材料');
     if (pickedRows.value.length < 3) missing.push('至少 3 名参与专家');
     if (!leaderId.value) missing.push('组长');
     if (missing.length) {
@@ -430,10 +467,13 @@
         fundSource: form.fundSource,
         investment: form.investment,
         content: form.content,
-        materials: form.materials,
+        materials: form.materials
+          .filter((m) => !m.uploading)
+          .map(({ uploading: _u, ...rest }) => rest),
         expertIds: pickedRows.value.map((r) => r.id),
         leaderId: leaderId.value,
       });
+      store.clearPickDraft();
       if (submit) {
         await ureProjectSubmit(res.id);
         showMessage('提交成功，项目进入评估中');
@@ -450,9 +490,13 @@
     go(LIST_ROUTE);
   }
   async function handleDraft() {
-    // 暂存宽松：只需项目名称，其余可后续补填
+    // 暂存宽松：只需项目名称且无上传中的材料，其余可后续补填
     if (!form.name) {
       showMessage('请输入项目名称');
+      return;
+    }
+    if (form.materials.some((m) => m.uploading)) {
+      showMessage('评估材料正在上传，请稍候');
       return;
     }
     await save(false);

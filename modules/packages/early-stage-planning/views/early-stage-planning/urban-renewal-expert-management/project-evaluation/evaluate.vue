@@ -1,11 +1,12 @@
 <!--
   市住更局 —— 城市更新专家管理 · 项目评估页（独立路由页，已接后端 /a/ure/project/evalForm|saveEval|comprehensive）
 
-  项目评估列表「评估中 → 评估」进入：上方展示项目全部信息（同详情页），下方按角色分区块：
-  - 普通专家（图2）：「项目评估」表单（评估结果 通过/不通过 + 评估意见 + 附件），提交保存个人评估（可重复修改）；
-  - 组长（图3）：「专家个人意见」组员评估卡片（只读）→「项目评估」本人表单 →「综合评估」表单；
-    组员未全部提交时按钮为「保存我的评估」（仅保存个人）；全部提交后「提交」一并保存个人 + 综合评估，
-    综合评估提交后项目流转「待评价」。
+  项目评估列表「评估/总结评估/查看评估」进入：上方展示项目全部信息（同详情页），下方按角色分区块：
+  - 普通专家（图2）：「项目评估」表单（评估结果 通过/不通过 + 评估意见 + 附件），一次性提交，提交后锁定只读；
+  - 组长（图3）：「专家个人意见」组员评估卡片（只读）→「项目评估」本人表单；
+    组长先和组员一样提交个人评估（「保存我的评估」），待本人+全部组员都提交后（待总结）才出现
+    「综合评估」表单与「提交综合评估」按钮，提交后项目流转「待评价」。
+  视角状态（viewStatus）：组员 待评估→已评估；组长 待评估→待总结→已完成（2026-09-28 用户定稿）。
   规划路由（后端隐藏菜单）：
    - 链接地址：/early-stage-planning/urban-renewal-expert-management/project-evaluation/evaluate?id={项目id}
    - 组件位置：early-stage-planning/urban-renewal-expert-management/project-evaluation/evaluate
@@ -20,8 +21,9 @@
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-12px">
               <span class="text-22px font-600 text-gray-900">{{ detail.name }}</span>
-              <Tag :color="STATUS_COLOR[detail.statusCode] || 'default'">{{ detail.status }}</Tag>
+              <Tag :color="STATUS_COLOR[detail.viewStatusCode ?? detail.statusCode] || 'default'">{{ detail.viewStatus ?? detail.status }}</Tag>
               <Tag v-if="detail.isLeader" color="blue">组长视角</Tag>
+              <Tag v-if="myEvalDone" color="cyan">已完成评估</Tag>
             </div>
             <div class="mt-6px flex items-center gap-16px text-13px text-gray-500">
               <span>{{ detail.adminDistrict }} · {{ detail.district }}</span>
@@ -96,15 +98,15 @@
             class="flex items-center gap-12px rd-8px bg-[#F7F9FC] px-16px py-12px"
           >
             <span class="i-ant-design:file-text-outlined text-18px text-[#3A8EF6]"></span>
-            <span class="flex-1 truncate text-14px text-gray-700" :title="m">{{ m }}</span>
+            <span class="flex-1 truncate text-14px text-gray-700" :title="m.name">{{ m.name }}</span>
           </div>
           <div v-if="(detail.materials ?? []).length === 0" class="text-13px text-gray-400">无评估材料</div>
         </div>
       </div>
 
-      <!-- 参与专家 -->
-      <div class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
-        <div class="text-16px font-600 text-gray-800">参与专家（{{ (detail.experts ?? []).length }} 名）</div>
+      <!-- 参与专家（组员视角后端已脱敏不返回，区块整体隐藏） -->
+      <div v-if="detail.experts?.length" class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
+        <div class="text-16px font-600 text-gray-800">参与专家（{{ detail.experts.length }} 名）</div>
         <div class="mt-12px flex flex-wrap gap-16px">
           <div
             v-for="expert in detail.experts ?? []"
@@ -159,15 +161,12 @@
             <div class="mt-8px line-clamp-3 whitespace-pre-wrap text-13px leading-22px text-gray-600">{{
               member.evalOpinion || '—'
             }}</div>
-            <div v-if="(member.evalAttachments ?? []).length" class="mt-8px flex flex-col gap-4px">
-              <span
-                v-for="(f, fi) in member.evalAttachments"
-                :key="fi"
-                class="flex items-center gap-6px truncate text-12px text-[#3A8EF6]"
-              >
-                <span class="i-ant-design:paper-clip-outlined"></span>{{ f }}
-              </span>
-            </div>
+            <EspFileList
+              v-if="(member.evalAttachments ?? []).length"
+              :value="member.evalAttachments"
+              readonly
+              class="mt-8px"
+            />
           </div>
           <div
             v-if="(detail.memberEvals ?? []).length === 0"
@@ -179,13 +178,32 @@
         </div>
       </div>
 
-      <!-- 项目评估（本人表单，图2 / 图3 中区块） -->
+      <!-- 项目评估（本人表单，图2 / 图3 中区块）：已提交→只读展示（提交后不可修改）；未提交→可编辑表单 -->
       <div v-if="canEvaluate" class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
         <div class="flex items-center gap-12px">
           <div class="text-16px font-600 text-gray-800">项目评估</div>
-          <span v-if="myForm.savedAt" class="text-13px text-gray-400">（上次提交：{{ myForm.savedAt }}，可修改后重新提交）</span>
+          <span v-if="myEvalDone" class="text-13px text-gray-400">（提交时间：{{ myForm.savedAt }}，评估提交后不可修改）</span>
         </div>
-        <div class="mt-16px flex flex-col gap-16px">
+        <div v-if="myEvalDone" class="mt-16px flex flex-col gap-16px">
+          <div class="flex items-center gap-16px">
+            <span class="w-90px shrink-0 text-right text-14px text-gray-600">评估结果</span>
+            <Tag :color="myForm.evalResult === '通过' ? 'success' : 'error'">{{ myForm.evalResult }}</Tag>
+          </div>
+          <div class="flex items-start gap-16px">
+            <span class="w-90px shrink-0 text-right text-14px leading-22px text-gray-600">评估意见</span>
+            <p class="flex-1 whitespace-pre-wrap rounded-8px bg-[#F7F9FC] px-16px py-12px text-14px leading-24px text-gray-700">
+              {{ myForm.evalOpinion || '—' }}
+            </p>
+          </div>
+          <div class="flex items-start gap-16px">
+            <span class="w-90px shrink-0 text-right text-14px leading-22px text-gray-600">附件</span>
+            <div class="flex flex-1 flex-col gap-8px">
+              <EspFileList :value="myForm.evalAttachments" readonly />
+              <span v-if="!(myForm.evalAttachments ?? []).length" class="text-13px text-gray-400">无附件</span>
+            </div>
+          </div>
+        </div>
+        <div v-else class="mt-16px flex flex-col gap-16px">
           <div class="flex items-center gap-16px">
             <span class="w-90px shrink-0 text-right text-14px text-gray-600">评估结果 <span class="text-red-500">*</span></span>
             <RadioGroup v-model:value="myForm.evalResult">
@@ -195,8 +213,8 @@
           </div>
           <div class="flex items-start gap-16px">
             <span class="w-90px shrink-0 text-right text-14px leading-22px text-gray-600"
-              >评估意见 <span class="text-red-500">*</span></span
-            >
+              >评估意见 <span class="text-red-500">*</span
+            ></span>
             <Input.TextArea
               v-model:value="myForm.evalOpinion"
               class="flex-1"
@@ -209,35 +227,14 @@
           <div class="flex items-start gap-16px">
             <span class="w-90px shrink-0 text-right text-14px leading-22px text-gray-600">附件</span>
             <div class="flex flex-1 flex-col gap-8px">
-              <Upload
-                :show-upload-list="false"
-                :before-upload="(f: File) => beforeUpload(f, myForm.evalAttachments)"
-                multiple
-                accept=".pdf,.doc,.docx"
-              >
-                <a-button>
-                  <span class="inline-flex items-center gap-4px">
-                    <span class="i-ant-design:upload-outlined"></span> 上传附件
-                  </span>
-                </a-button>
-              </Upload>
-              <div v-for="(f, i) in myForm.evalAttachments" :key="i" class="flex items-center gap-8px text-13px text-gray-600">
-                <span class="i-ant-design:paper-clip-outlined text-[#3A8EF6]"></span>
-                <span class="flex-1 truncate">{{ f }}</span>
-                <span
-                  class="flex h-20px w-20px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 hover:text-red-500"
-                  @click="myForm.evalAttachments.splice(i, 1)"
-                >
-                  <span class="i-ant-design:close-outlined"></span>
-                </span>
-              </div>
+              <EspFileList v-model:value="myForm.evalAttachments" />
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 综合评估（仅组长，图3 下区块） -->
-      <div v-if="detail.isLeader && canEvaluate" class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
+      <!-- 综合评估（仅组长 + 待总结状态：本人与全部组员均已提交个人评估后才出现总结表单） -->
+      <div v-if="detail.isLeader && canEvaluate && summaryReady" class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
         <div class="text-16px font-600 text-gray-800">综合评估</div>
         <div class="mt-4px text-13px text-gray-400"
           >综合评估须在全部组员提交个人评估后进行；提交后项目进入「待评价」，综合结果作为项目最终评估结论。</div
@@ -268,50 +265,37 @@
           <div class="flex items-start gap-16px">
             <span class="w-110px shrink-0 text-right text-14px leading-22px text-gray-600">附件</span>
             <div class="flex flex-1 flex-col gap-8px">
-              <Upload
-                :show-upload-list="false"
-                :before-upload="(f: File) => beforeUpload(f, compForm.evalAttachments)"
-                multiple
-                accept=".pdf,.doc,.docx"
-              >
-                <a-button>
-                  <span class="inline-flex items-center gap-4px">
-                    <span class="i-ant-design:upload-outlined"></span> 上传附件
-                  </span>
-                </a-button>
-              </Upload>
-              <div v-for="(f, i) in compForm.evalAttachments" :key="i" class="flex items-center gap-8px text-13px text-gray-600">
-                <span class="i-ant-design:paper-clip-outlined text-[#3A8EF6]"></span>
-                <span class="flex-1 truncate">{{ f }}</span>
-                <span
-                  class="flex h-20px w-20px shrink-0 cursor-pointer items-center justify-center rd-full text-gray-400 hover:text-red-500"
-                  @click="compForm.evalAttachments.splice(i, 1)"
-                >
-                  <span class="i-ant-design:close-outlined"></span>
-                </span>
-              </div>
+              <EspFileList v-model:value="compForm.evalAttachments" />
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 底部操作 -->
+      <!-- 底部操作：组长先和组员一样提交个人评估（「保存我的评估」）；
+           本人+全部组员交齐（待总结）后才出现「提交综合评估」 -->
       <div v-if="canEvaluate" class="flex items-center justify-end gap-12px">
-        <span v-if="leaderWaitingMembers" class="mr-auto text-13px text-orange-500"
+        <span v-if="detail.isLeader && leaderWaitingMembers" class="mr-auto text-13px text-orange-500"
           >还有 {{ waitingCount }} 名组员未提交个人评估，暂不能提交综合评估</span
         >
-        <a-button @click="goBack">取消</a-button>
-        <a-button v-if="leaderWaitingMembers" :loading="saving" @click="submitMyOnly">保存我的评估</a-button>
-        <a-button v-else type="primary" :loading="saving" @click="submitAll">提交</a-button>
+        <a-button @click="goBack">{{ myEvalDone && !detail.isLeader ? '返回列表' : '取消' }}</a-button>
+        <template v-if="!myEvalDone">
+          <a-button v-if="detail.isLeader" :loading="saving" @click="submitMyOnly">保存我的评估</a-button>
+          <a-button v-else type="primary" :loading="saving" @click="submitMember">提交</a-button>
+        </template>
+        <a-button v-else-if="summaryReady" type="primary" :loading="saving" @click="submitComprehensiveOnly">
+          提交综合评估
+        </a-button>
       </div>
     </template>
 
-    <div v-else class="bg-white rd-12px b-1 b-solid b-gray-100 p-48px text-center text-gray-400">加载中…</div>
+    <div v-else class="bg-white rd-12px b-1 b-solid b-gray-100 p-48px text-center text-gray-400">
+      {{ loadError ? `评估数据加载失败：${loadError}` : '加载中…' }}
+    </div>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsEarlyStageUrbanRenewalExpertProjectEvaluationEvaluate">
   import { computed, onMounted, reactive, ref, unref } from 'vue';
-  import { Input, Radio, RadioGroup, Tag, Upload } from 'antdv-next';
+  import { Input, Radio, RadioGroup, Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
@@ -321,19 +305,22 @@
     ureProjectEvalForm,
     ureProjectSaveEval,
   } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
-  import type { UreProjectDetail } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
+  import type { UreFile, UreProjectDetail } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-project';
+  import EspFileList from '../../components/esp-file-list.vue';
 
   const { showMessage } = useMessage();
   const go = useGo();
 
   const LIST_ROUTE = '/early-stage-planning/urban-renewal-expert-management/project-evaluation/index';
 
-  /** 状态颜色（0待提交=橙，1评估中=蓝，2待评价=紫，3已完成=绿） */
+  /** 状态颜色（视角状态码：0待提交=橙，1待评估=蓝，2待评价=紫，3已完成=绿，4已评估=青，5待总结=橙红） */
   const STATUS_COLOR: Record<string, string> = {
     '0': 'warning',
     '1': 'processing',
     '2': 'purple',
     '3': 'success',
+    '4': 'cyan',
+    '5': 'orange',
   };
 
   /** 路由参数：?id={项目id}（列表行 id） */
@@ -344,12 +331,14 @@
   const detail = ref<UreProjectDetail | null>(null);
   const loading = ref(true);
   const saving = ref(false);
+  /** 加载失败原因（页面错误态展示，如权限不足） */
+  const loadError = ref('');
 
   /** 本人「项目评估」表单 */
   const myForm = reactive({
     evalResult: undefined as string | undefined,
     evalOpinion: '',
-    evalAttachments: [] as string[],
+    evalAttachments: [] as (UreFile & { uploading?: boolean })[],
     savedAt: '',
   });
 
@@ -357,7 +346,7 @@
   const compForm = reactive({
     evalResult: undefined as string | undefined,
     evalOpinion: '',
-    evalAttachments: [] as string[],
+    evalAttachments: [] as (UreFile & { uploading?: boolean })[],
   });
 
   /** 组长：组员是否未全部提交（未交齐时仅能保存个人评估） */
@@ -365,6 +354,14 @@
     () => !!detail.value?.isLeader && (detail.value?.memberSubmitted ?? 0) < (detail.value?.memberTotal ?? 0),
   );
   const waitingCount = computed(() => (detail.value?.memberTotal ?? 0) - (detail.value?.memberSubmitted ?? 0));
+
+  /** 本人是否已提交个人评估（提交后锁定，不可修改——2026-09-28 规则） */
+  const myEvalDone = computed(() => !!detail.value?.myEval);
+
+  /** 组长是否可进行总结（待总结）：本人已交 + 全部组员已交 */
+  const summaryReady = computed(
+    () => !!detail.value?.isLeader && myEvalDone.value && !leaderWaitingMembers.value,
+  );
 
   /** 是否可评估：评估中状态 + 当前用户为参与专家 */
   const canEvaluate = computed(() => !!detail.value && detail.value.statusCode === '1' && detail.value.isParticipant !== false);
@@ -390,16 +387,16 @@
         myForm.savedAt = mine.evalDate ?? '';
       }
     } catch (e) {
-      showMessage((e as Error)?.message || '评估数据加载失败');
+      loadError.value = (e as Error)?.message || '评估数据加载失败';
+      showMessage(loadError.value);
     } finally {
       loading.value = false;
     }
   });
 
-  /** 附件假上传：只收文件名（真实上传本期暂缓，与后端约定一致） */
-  function beforeUpload(file: File, list: string[]) {
-    list.push(file.name);
-    return false;
+  /** 附件上传与列表渲染由 EspFileList 公用组件负责；提交时剥离上传中占位与本地标记 */
+  function cleanAttachments(list: (UreFile & { uploading?: boolean })[]): UreFile[] {
+    return list.filter((f) => !f.uploading).map(({ uploading: _u, ...rest }) => rest);
   }
 
   /** 校验本人评估表单 */
@@ -410,6 +407,10 @@
     }
     if (!myForm.evalOpinion.trim()) {
       showMessage('请输入评估意见');
+      return false;
+    }
+    if (myForm.evalAttachments.some((f) => f.uploading)) {
+      showMessage('附件正在上传，请稍候');
       return false;
     }
     return true;
@@ -423,45 +424,55 @@
       await ureProjectSaveEval(detail.value.id, {
         evalResult: myForm.evalResult!,
         evalOpinion: myForm.evalOpinion.trim(),
-        evalAttachments: myForm.evalAttachments,
+        evalAttachments: cleanAttachments(myForm.evalAttachments),
       });
-      showMessage('个人评估已保存，待组员全部提交后可提交综合评估');
+      showMessage('个人评估已提交（提交后不可修改），待组员全部提交后可提交综合评估');
       goBack();
     } finally {
       saving.value = false;
     }
   }
 
-  /** 提交：普通专家仅个人评估；组长为个人 + 综合评估（提交后项目 → 待评价） */
-  async function submitAll() {
+  /** 组员：提交个人评估（一次性，提交后锁定；组长走「保存我的评估」→「提交综合评估」两步） */
+  async function submitMember() {
     if (!validateMy() || !detail.value) return;
-    if (detail.value.isLeader) {
-      if (!compForm.evalResult) {
-        showMessage('请选择综合评估结果');
-        return;
-      }
-      if (!compForm.evalOpinion.trim()) {
-        showMessage('请输入综合评估意见');
-        return;
-      }
-    }
     saving.value = true;
     try {
       await ureProjectSaveEval(detail.value.id, {
         evalResult: myForm.evalResult!,
         evalOpinion: myForm.evalOpinion.trim(),
-        evalAttachments: myForm.evalAttachments,
+        evalAttachments: cleanAttachments(myForm.evalAttachments),
       });
-      if (detail.value.isLeader) {
-        await ureProjectComprehensive(detail.value.id, {
-          evalResult: compForm.evalResult!,
-          evalOpinion: compForm.evalOpinion.trim(),
-          evalAttachments: compForm.evalAttachments,
-        });
-        showMessage('综合评估提交成功，项目进入待评价');
-      } else {
-        showMessage('评估提交成功');
-      }
+      showMessage('评估提交成功');
+      goBack();
+    } finally {
+      saving.value = false;
+    }
+  }
+
+  /** 组长已提交个人评估且组员已交齐：仅提交综合评估 */
+  async function submitComprehensiveOnly() {
+    if (!detail.value) return;
+    if (!compForm.evalResult) {
+      showMessage('请选择综合评估结果');
+      return;
+    }
+    if (!compForm.evalOpinion.trim()) {
+      showMessage('请输入综合评估意见');
+      return;
+    }
+    if (compForm.evalAttachments.some((f) => f.uploading)) {
+      showMessage('综合评估附件正在上传，请稍候');
+      return;
+    }
+    saving.value = true;
+    try {
+      await ureProjectComprehensive(detail.value.id, {
+        evalResult: compForm.evalResult!,
+        evalOpinion: compForm.evalOpinion.trim(),
+        evalAttachments: cleanAttachments(compForm.evalAttachments),
+      });
+      showMessage('综合评估提交成功，项目进入待评价');
       goBack();
     } finally {
       saving.value = false;

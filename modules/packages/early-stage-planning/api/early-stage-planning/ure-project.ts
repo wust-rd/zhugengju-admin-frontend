@@ -21,6 +21,10 @@ function unwrap<T = any>(body: any): T {
     if (body.code === 200) return body.data as T;
     throw new Error(body.msg || '接口请求失败');
   }
+  // jeesite 协议（框架拦截/权限校验返回 {result:'false', message}）：视为业务错误，避免错误对象被当数据渲染
+  if (body && typeof body === 'object' && body.result === 'false') {
+    throw new Error(body.message || '接口请求失败');
+  }
   return body as T;
 }
 
@@ -30,6 +34,9 @@ type UrePage<T> = { total: number; pageNum: number; pageSize: number; list: T[] 
 type TablePage<T> = { count: number; list: T[] };
 
 // ---------------- 类型 ----------------
+
+/** 附件文件（真实上传 /a/esp/file/upload 后的保存契约；旧数据仅含 name 无 url） */
+export type UreFile = { name: string; url?: string; objectKey?: string; size?: number };
 
 /** 个人评估（当前用户回显 / 组员意见卡片共用结构） */
 export type UreMemberEval = {
@@ -41,7 +48,7 @@ export type UreMemberEval = {
   /** 通过 / 不通过 */
   evalResult: string;
   evalOpinion: string;
-  evalAttachments: string[];
+  evalAttachments: UreFile[];
   /** yyyy-MM-dd */
   evalDate?: string;
 };
@@ -50,7 +57,7 @@ export type UreMemberEval = {
 export type UreComprehensive = {
   evalResult: string;
   evalOpinion: string;
-  evalAttachments: string[];
+  evalAttachments: UreFile[];
 };
 
 /** 项目列表行（page 接口，含状态中文/码、组长姓名、专家名单） */
@@ -65,6 +72,10 @@ export type UreProjectRow = {
   reviewMode: string;
   status: string;
   statusCode: string;
+  /** 视角状态（不同角色不同状态机：实施主体 待提交/待评估/待评价/已完成；组员 待评估/已评估；组长 待评估/待总结/已完成） */
+  viewStatus?: string;
+  /** 视角状态码：0待提交/1待评估/2待评价/3已完成 沿用全局码，另有 4已评估（组员）、5待总结（组长） */
+  viewStatusCode?: string;
   startDate: string;
   expertCount: number;
   expertNames: string[];
@@ -84,11 +95,11 @@ export type UreProjectDetail = UreProjectRow & {
   fundSource: string;
   investment: string;
   content: string;
-  materials: string[];
+  materials: UreFile[];
   experts: (UreExpert & { isLeader?: boolean })[];
   leaderId: string;
   evalOpinion: string;
-  evalAttachments: string[];
+  evalAttachments: UreFile[];
   /** evalForm 接口附加：当前用户视角 */
   isParticipant?: boolean;
   /** 本人个人评估回显（未提交为 null） */
@@ -113,7 +124,7 @@ export type UreProjectSaveData = {
   fundSource?: string;
   investment?: string;
   content?: string;
-  materials?: string[];
+  materials?: UreFile[];
   /** 参与专家主键（3~7 名，全量重建） */
   expertIds?: string[];
   /** 组长专家主键（须为参与专家之一） */
@@ -125,7 +136,7 @@ export type UreEvalSubmitData = {
   /** 通过 / 不通过（或 1 / 0） */
   evalResult: string;
   evalOpinion: string;
-  evalAttachments?: string[];
+  evalAttachments?: UreFile[];
 };
 
 /** 评估情况（详情页展示） */
@@ -163,7 +174,9 @@ export async function ureProjectDetail(code: string): Promise<UreProjectDetail> 
 }
 
 /** 1.4 暂存项目（仅待提交可改；参与专家全量重建） */
-export async function ureProjectSave(data: UreProjectSaveData): Promise<{ id: string; code: string; name: string; status: string }> {
+export async function ureProjectSave(
+  data: UreProjectSaveData,
+): Promise<{ id: string; code: string; name: string; status: string }> {
   return unwrap(await defHttp.postJson({ url: adminPath + '/ure/project/save', data }));
 }
 
@@ -179,24 +192,35 @@ export async function ureProjectDelete(id: string): Promise<{ id: string; code: 
 
 // ---------------- 2. 评估流转 ----------------
 
-/** 2.1 保存个人评估（评估中状态，参与专家含组长，每人一条可重复更新） */
-export async function ureProjectSaveEval(id: string, data: UreEvalSubmitData): Promise<{ id: string; code: string; status: string; evalResult: string; updated: boolean }> {
+/** 2.1 保存个人评估（评估中状态，参与专家含组长；一次性提交，提交后锁定不可修改） */
+export async function ureProjectSaveEval(
+  id: string,
+  data: UreEvalSubmitData,
+): Promise<{ id: string; code: string; status: string; evalResult: string }> {
   return unwrap(await defHttp.postJson({ url: adminPath + '/ure/project/saveEval', params: { id }, data }));
 }
 
-/** 2.2 评估页数据（组长返回 memberEvals 组员意见与进度） */
+/** 2.2 评估页数据（组长返回 memberEvals 组员意见与进度；新后端未上线时 404 静默，页面自行提示） */
 export async function ureProjectEvalForm(id: string): Promise<UreProjectDetail> {
-  return unwrap(await defHttp.get({ url: adminPath + '/ure/project/evalForm', params: { id } }));
+  return unwrap(
+    await defHttp.get({ url: adminPath + '/ure/project/evalForm', params: { id } }, { errorMessageMode: 'none' }),
+  );
 }
 
 /** 2.3 提交综合评估（仅组长；前置全部组员已交个人评估；评估中 → 待评价） */
-export async function ureProjectComprehensive(id: string, data: UreEvalSubmitData): Promise<{ id: string; code: string; status: string; evalResult: string }> {
+export async function ureProjectComprehensive(
+  id: string,
+  data: UreEvalSubmitData,
+): Promise<{ id: string; code: string; status: string; evalResult: string }> {
   return unwrap(await defHttp.postJson({ url: adminPath + '/ure/project/comprehensive', params: { id }, data }));
 }
 
-/** 2.4 评估情况（详情页展示；仅组长/创建人/运维可见） */
+/** 2.4 评估情况（详情页展示；仅组长/创建人/运维可见。errorMessageMode=none：
+ *  无权限（普通组员）与后端未上线时都静默返回 null，不弹全局错误） */
 export async function ureProjectEvals(code: string): Promise<UreProjectEvals> {
-  return unwrap(await defHttp.get({ url: adminPath + '/ure/project/evals', params: { code } }));
+  return unwrap(
+    await defHttp.get({ url: adminPath + '/ure/project/evals', params: { code } }, { errorMessageMode: 'none' }),
+  );
 }
 
 /** 2.5 完成专家评价（待评价 → 已完成；前置全部参与专家已有项目化打分记录） */
@@ -207,6 +231,8 @@ export async function ureProjectFinishEval(id: string): Promise<{ id: string; co
 // ---------------- 3. 组长判定 ----------------
 
 /** 3.1 当前登录账号是否为项目组长（权限仅需登录） */
-export async function ureProjectIsLeader(id: string): Promise<{ isLeader: boolean; expert: UreExpert | null; projectCode: string }> {
+export async function ureProjectIsLeader(
+  id: string,
+): Promise<{ isLeader: boolean; expert: UreExpert | null; projectCode: string }> {
   return unwrap(await defHttp.get({ url: adminPath + '/ure/project/isLeader', params: { id } }));
 }

@@ -79,8 +79,9 @@
       componentProps: { maxlength: 11, placeholder: '11 位手机号（即登录账号）' },
       rules: [
         { required: true, message: '请输入联系电话' },
-        { pattern: /^1\d{10}$/, message: '联系电话须为 11 位手机号（同时作为登录账号）' },
+        { pattern: /^1\d{10}$/, message: '联系电话须为 11 位手机号（即登录账号）' },
       ],
+      helpMessage: '新建专家自动开通登录账号：登录名=手机号，归属「前期规划-城市更新专家」机构（自动获得专家角色），初始密码为系统默认；删除专家时账号一并删除',
     },
     {
       label: '专业领域',
@@ -180,12 +181,10 @@
       }
       return;
     }
-    // 保存接口（2.4）：id 空 = 新增，非空 = 修改；手机号即登录账号，无同名账号后端自动开通
+    // 保存接口（2.4）：id 空 = 新增（自动开通机构账号，登录名=手机号），非空 = 修改（保持原账号）
     try {
-      const res = await ureExpertSave({ ...data, id: record.value.id ?? '' } as Partial<UreExpert>);
-      showMessage(
-        record.value.isNewRecord ? `新增成功${res.accountCreated ? '，已按手机号自动开通登录账号' : ''}` : '保存成功',
-      );
+      await ureExpertSave({ ...data, id: record.value.id ?? '' } as Partial<UreExpert>);
+      showMessage(record.value.isNewRecord ? '新增成功，已开通登录账号（登录名=手机号）' : '保存成功');
     } catch (error: any) {
       showMessage(error.message || '保存失败');
       return;

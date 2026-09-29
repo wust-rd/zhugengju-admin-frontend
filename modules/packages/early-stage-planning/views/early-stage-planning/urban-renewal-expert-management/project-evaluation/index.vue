@@ -8,13 +8,15 @@
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
-    <BasicTable @register="registerTable" :showIndexColumn="false">
+    <!-- 角色异步加载完成后再渲染表格：操作列按钮在行渲染时求值，角色未就绪会导致专家第一眼看不到「评估」入口 -->
+    <BasicTable v-if="identityReady" @register="registerTable" :showIndexColumn="false">
       <template #tableTitle>
         <span>项目列表</span>
         <span v-if="roleHint" class="ml-12px text-13px font-400 text-gray-400">{{ roleHint }}</span>
       </template>
       <template #toolbar>
-        <a-button v-if="canEdit" type="primary" @click="go(FORM_ROUTE)">
+        <!-- 新增项目仅实施主体/运维可见（专家角色虽持有 ure:project:edit 权限串，但不建项目） -->
+        <a-button v-if="canEdit && role !== 'expert'" type="primary" @click="go(FORM_ROUTE)">
           <span class="inline-flex items-center gap-4px"> <span class="i-fluent:add-12-filled"></span> 新增项目 </span>
         </a-button>
       </template>
@@ -22,7 +24,7 @@
         <span class="text-13px text-gray-700">{{ (record.expertNames ?? []).join('、') }}</span>
       </template>
       <template #status="{ record }">
-        <Tag :color="STATUS_COLOR[record.statusCode as string] || 'default'">{{ record.status }}</Tag>
+        <Tag :color="STATUS_COLOR[record.viewStatusCode as string] || 'default'">{{ record.viewStatus ?? record.status }}</Tag>
       </template>
     </BasicTable>
   </PageWrapper>
@@ -53,6 +55,8 @@
   /** 当前角色：数据范围由后端过滤，这里控制按钮与提示（authInfo + 专家档案绑定判定，异步加载） */
   const role = ref<UreRole>('none');
   const canEdit = ref(false);
+  /** 角色是否就绪（未就绪不渲染表格，防止操作列按钮按 'none' 求值后不随角色刷新） */
+  const identityReady = ref(false);
 
   const roleHint = computed(() => {
     if (role.value === 'expert') return '（专家视角：仅显示您参与的项目）';
@@ -61,29 +65,36 @@
     return '';
   });
 
-  /** 字典选项（行政区/评审模式） */
-  const districtOptions = ref<{ label: string; value: string }[]>([]);
+  /** 评审模式下拉（ure 字典；片区名称搜索已改为输入模糊，不再需要区划下拉） */
   const modeOptions = ref<{ label: string; value: string }[]>([]);
 
   onMounted(async () => {
-    const identity = await ureIdentity();
-    role.value = identity.role;
-    canEdit.value = identity.canEditProject;
+    try {
+      const identity = await ureIdentity();
+      role.value = identity.role;
+      canEdit.value = identity.canEditProject;
+    } catch (e) {
+      // 身份识别失败按无角色兜底（按钮隐藏，列表仍可看）
+    } finally {
+      identityReady.value = true;
+    }
+    // 评审模式：ure 字典（行政区搜索已改为片区名称输入模糊，不再需要区划下拉）
     try {
       const dict = await ureDictOptions();
-      districtOptions.value = (dict.districts ?? []).map((d) => ({ label: d, value: d }));
       modeOptions.value = (dict.reviewModes ?? []).map((m) => ({ label: m, value: m }));
     } catch (e) {
       // 字典加载失败时下拉为空，不阻塞列表
     }
   });
 
-  /** 状态颜色（0待提交=橙，1评估中=蓝，2待评价=紫，3已完成=绿） */
+  /** 状态颜色（视角状态码：0待提交=橙，1待评估=蓝，2待评价=紫，3已完成=绿，4已评估=青，5待总结=橙红） */
   const STATUS_COLOR: Record<string, string> = {
     '0': 'warning',
     '1': 'processing',
     '2': 'purple',
     '3': 'success',
+    '4': 'cyan',
+    '5': 'orange',
   };
 
   /** 表格列 */
@@ -105,18 +116,14 @@
     actions: (record: Recordable) => {
       const list: any[] = [{ label: '查看', onClick: () => go(`${DETAIL_ROUTE}/${record.code}`) }];
       if (record.statusCode === '1') {
-        // 评估中：专家（后端已过滤为其参与的项目）可进入评估
+        // 评估中：专家按视角状态区分——待评估→「评估」，已评估→「查看评估」（只读），待总结（组长）→进页提交综合评估
         if (role.value === 'expert') {
-          list.push({
-            label: record.myEval ? '修改评估' : '评估',
-            onClick: () => go(`${EVAL_ROUTE}?id=${record.id}`),
-          });
+          if (record.viewStatusCode === '4') {
+            list.push({ label: '查看评估', onClick: () => go(`${EVAL_ROUTE}?id=${record.id}`) });
+          } else {
+            list.push({ label: record.viewStatusCode === '5' ? '总结评估' : '评估', onClick: () => go(`${EVAL_ROUTE}?id=${record.id}`) });
+          }
         }
-      } else if (record.statusCode === '2') {
-        list.push({
-          label: '评价专家',
-          onClick: () => handleExpertEval(record),
-        });
       } else if (record.statusCode === '0') {
         if (canEdit) {
           list.push({ label: '编辑', onClick: () => go(`${FORM_ROUTE}?id=${record.id}`) });
@@ -130,7 +137,8 @@
             popConfirm: { title: '是否确认删除该项目？', confirm: () => handleDelete(record) },
           });
         }
-      } else if (record.statusCode === '3') {
+      } else if (record.viewStatusCode === '3') {
+        // 已完成（含待评价：评价动作统一在「专家评价」模块进行，本页面不再提供评价入口）
         list.push({ label: '生成评估报告', onClick: () => handleReport(record) });
       }
       return list;
@@ -157,9 +165,9 @@
         },
         {
           label: '片区名称',
-          field: 'adminDistrict',
-          component: 'Select',
-          componentProps: () => ({ options: districtOptions.value, allowClear: true, placeholder: '请选择' }),
+          field: 'district',
+          component: 'Input',
+          componentProps: { allowClear: true, placeholder: '请输入（模糊查询）' },
         },
         {
           label: '评审模式',
@@ -170,13 +178,6 @@
       ],
     },
   });
-
-  /** 评价专家：跳专家评价打分页（对项目参与专家打分；完成后项目 → 已完成）；主入口在「专家评价」列表页 */
-  function handleExpertEval(record: Recordable) {
-    go(
-      `/early-stage-planning/urban-renewal-expert-management/expert-evaluation/rate?projectCode=${record.code}&projectName=${encodeURIComponent(record.name)}`,
-    );
-  }
 
   /** 提交（待提交 → 评估中）：服务端强校验（必填/材料/专家 3~7 名/组长） */
   async function handleSubmit(record: Recordable) {

@@ -14,6 +14,7 @@
  */
 
 import { authInfoApi } from '@jeesite/core/api/sys/login';
+import { getToken } from '@jeesite/core/utils/auth';
 import { ureExpertMe } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
 
 /** 角色编码 */
@@ -41,32 +42,56 @@ export type UreIdentity = {
 /** 框架超管角色码（与后端 User.SUPER_ADMIN_CODES 一致，超管拥有全部权限串） */
 const ADMIN_ROLE_CODES = ['system', 'admin'];
 
-let identityCache: Promise<UreIdentity> | null = null;
+/** 身份缓存时效（ms）：登录过期失败不缓存；换账号测试时最多 5 分钟后自动刷新 */
+const IDENTITY_TTL = 5 * 60 * 1000;
 
-/** 加载当前登录者的 ure 身份（进程内缓存；失败降级为 none，不阻塞页面） */
+let identityCache: Promise<UreIdentity> | null = null;
+let identityCacheAt = 0;
+/** 缓存时的登录 token：换账号登录 token 必变，缓存立即失效（切换专家/实施主体测试场景） */
+let identityCacheToken: string | null = null;
+
+/**
+ * 加载当前登录者的 ure 身份。
+ * 成功结果缓存 5 分钟或直到 token 变化（换账号登录立即失效）；
+ * 失败（如登录过期 401）【不缓存】，重新进入页面时重试，避免降级结果残留导致按钮消失。
+ */
 export function ureIdentity(): Promise<UreIdentity> {
-  if (!identityCache) {
-    identityCache = (async () => {
-      try {
-        const [auth, me] = await Promise.all([authInfoApi(), ureExpertMe()]);
-        const roles: string[] = auth?.roles ?? [];
-        const perms: string[] = auth?.stringPermissions ?? [];
-        const expertBound = !!me?.expert;
-        let role: UreRole = 'none';
-        if (expertBound && roles.includes(URE_ROLE_CODE.expert)) {
-          role = 'expert';
-        } else if (roles.includes(URE_ROLE_CODE.implement)) {
-          role = 'implement';
-        } else if (roles.includes(URE_ROLE_CODE.ops)) {
-          role = 'ops';
-        }
-        const canEditProject =
-          perms.includes('ure:project:edit') || roles.some((code) => ADMIN_ROLE_CODES.includes(code));
-        return { role, canEditProject, expertBound };
-      } catch (e) {
-        return { role: 'none', canEditProject: false, expertBound: false };
-      }
-    })();
+  const token = String(getToken() ?? '');
+  if (identityCache && Date.now() - identityCacheAt < IDENTITY_TTL && identityCacheToken === token) {
+    return identityCache;
   }
+  identityCacheAt = Date.now();
+  identityCacheToken = token;
+  identityCache = (async () => {
+    // authInfo 失败（登录过期等）直接抛出，外层不缓存
+    const auth = await authInfoApi();
+    // 专家档案映射失败按"未绑定"降级（不影响按钮权限判断）
+    let expertBound = false;
+    try {
+      const me = await ureExpertMe();
+      expertBound = !!me?.expert;
+    } catch (e) {
+      // 忽略：me 接口异常不阻塞身份判定
+    }
+    const roles: string[] = auth?.roles ?? [];
+    const perms: string[] = auth?.stringPermissions ?? [];
+    let role: UreRole = 'none';
+    if (expertBound && roles.includes(URE_ROLE_CODE.expert)) {
+      role = 'expert';
+    } else if (roles.includes(URE_ROLE_CODE.implement)) {
+      role = 'implement';
+    } else if (roles.includes(URE_ROLE_CODE.ops)) {
+      role = 'ops';
+    }
+    const canEditProject =
+      perms.includes('ure:project:edit') || roles.some((code) => ADMIN_ROLE_CODES.includes(code));
+    return { role, canEditProject, expertBound };
+  })().catch((e): UreIdentity => {
+    // 失败不缓存：清空引用，下次调用重新请求
+    identityCache = null;
+    identityCacheAt = 0;
+    identityCacheToken = null;
+    return { role: 'none', canEditProject: false, expertBound: false };
+  });
   return identityCache;
 }

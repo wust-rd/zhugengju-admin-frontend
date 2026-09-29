@@ -29,6 +29,8 @@ type UrbanPickState = {
   pickReturn: string;
   /** 去抽取时带入在线抽取的项目信息（项目名称/统筹主体/实施主体） */
   pickInfo: { name: string; coordinator: string; implementOrg: string };
+  /** 去抽取前的表单草稿快照（返回表单页时恢复，避免已填内容丢失） */
+  pickDraft: { editId: string; form: Record<string, any>; leaderId?: string } | null;
 };
 
 export const useUrbanExpertStore = defineStore('urbanExpertPool', {
@@ -38,10 +40,11 @@ export const useUrbanExpertStore = defineStore('urbanExpertPool', {
     pickLatest: [],
     pickReturn: '',
     pickInfo: { name: '', coordinator: '', implementOrg: '' },
+    pickDraft: null,
   }),
 
   actions: {
-    /** 进入「为新增项目挑选专家」的跨页模式（去抽取前调用，returnRoute 为挑完返回地址，pickInfo 为带入抽取页的项目信息） */
+    /** 进入「为新增项目挑选专家」的跨页模式（returnRoute 为挑完返回地址，pickInfo 为带入抽取页的项目信息） */
     beginPick(returnRoute: string, pickInfo?: { name: string; coordinator: string; implementOrg: string }) {
       this.pickMode = true;
       this.pickedExperts = [];
@@ -53,6 +56,16 @@ export const useUrbanExpertStore = defineStore('urbanExpertPool', {
     /** 退出挑选模式 */
     endPick() {
       this.pickMode = false;
+    },
+
+    /** 保存去抽取前的表单草稿（普通对象快照；返回表单页时恢复） */
+    setPickDraft(draft: { editId: string; form: Record<string, any>; leaderId?: string }) {
+      this.pickDraft = JSON.parse(JSON.stringify(draft));
+    },
+
+    /** 清除草稿（恢复消费或保存成功后调用） */
+    clearPickDraft() {
+      this.pickDraft = null;
     },
 
     /** 在线抽取把挑好的专家写入（带主键/单位/联系方式），供新增项目回填 */
