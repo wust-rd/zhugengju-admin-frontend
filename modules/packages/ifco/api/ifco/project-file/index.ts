@@ -1,88 +1,85 @@
 /**
  * ifco —— 项目资料管理（接口层）
  *
- * 资料归集的目录/文件仓库。用户自建目录：后端未接入，会话内存存储
- * （Map<项目pUid, 目录[]>，刷新即恢复），组件持有 fetchProjectDirs 返回的活引用，
- * 增删改直接作用于其上，无需回写。固定目录（策划库资料/实施库资料）：来自
- * 项目库详情的转库附件字段（策划转储备四项/储备转实施两项），只读展示。
+ * 对接后端 /a/ifco/projectfile/*（modules/ifco projectfile 包，接口文档-项目资料管理.md）。
+ * 目录：固定目录（策划库资料/实施库资料——服务端读 ESP_PROJECT_EXTRA 转库附件实时
+ * 派生，只读）+ 用户目录（IFCO_PROJECT_FILE_DIR，项目内目录名唯一）。文件为 JSON
+ * 数组串（与项目库附件同构 {name,url,objectKey,size,uploadDate}），上传/删除/
+ * 重命名均整替提交；文件本体走 esp 通用上传 /a/esp/file/upload（MinIO 永久直链）。
  */
+import { defHttp } from '@jeesite/core/utils/http/axios';
+import { useGlobSetting } from '@jeesite/core/hooks/setting';
+import { unwrap } from '../progress-fill';
 
-import { fetchLibDetail, fileListNames, parseFileList } from '@jeesite/ifco/api/ifco/project-library';
+const { adminPath } = useGlobSetting();
+const BASE = adminPath + '/ifco/projectfile';
 
-/** 归集文件条目（固定目录文件来自项目库附件；上传仅记录文件名与日期，演示口径） */
+/** 文件元数据（name 必有；固定目录来自项目库附件，无 uploadDate 展示为 —） */
 export type ProjectFileItem = {
-  id: string;
-  /** 文件名（含后缀） */
   name: string;
-  /** 上传日期（YYYY-MM-DD；项目库附件无日期，展示为 —） */
-  uploadDate: string;
+  url?: string;
+  objectKey?: string;
+  size?: number;
+  uploadDate?: string;
 };
 
-/** 归集目录 */
+/** 目录（fixed=固定目录：转库附件只读，无上传/改名/删除入口） */
 export type ProjectFileDir = {
   id: string;
   name: string;
-  /** 固定目录（策划库/实施库资料）：只读，不可上传/改名/删除（展示层标记） */
   fixed?: boolean;
   /** 折叠态（仅会话内的展开状态，不参与业务数据） */
   collapsed?: boolean;
   files: ProjectFileItem[];
 };
 
-/** 演示初始目录（后端接入前；首个访问时生成） */
-const DEFAULT_DIR_NAMES = ['立项批复文件', '施工许可文件', '验收备案文件'];
+type DirRow = { id: string; dirName: string; files: ProjectFileItem[] };
 
-const projectFileStore = new Map<string, ProjectFileDir[]>();
-
-/** id 发生器（会话内自增，前缀区分目录/文件便于调试） */
-let idSeq = 0;
-export function nextProjectFileId(prefix = ''): string {
-  idSeq += 1;
-  return `${prefix}${Date.now().toString(36)}${idSeq}`;
-}
-
-/** 取项目的用户自建目录集（无则按演示目录初始化；返回活引用，改动即时生效） */
-export function fetchProjectDirs(pUid: string): ProjectFileDir[] {
-  let dirs = projectFileStore.get(pUid);
-  if (!dirs) {
-    dirs = DEFAULT_DIR_NAMES.map((name) => ({ id: nextProjectFileId('d'), name, files: [] }));
-    projectFileStore.set(pUid, dirs);
-  }
-  return dirs;
-}
-
-// ── 固定目录：项目库转库附件（在库项目管理抽屉的上传字段） ────────────
-
-/** 策划转储备（抽屉步骤②）附件字段 → 策划库资料目录 */
-const PLANNING_FILE_FIELDS = ['approval_filing_files', 'tsp_files', 'impl_plan_files', 'other_arg_files'];
-
-/** 储备转实施（抽屉步骤③）附件字段 → 实施库资料目录 */
-const IMPL_FILE_FIELDS = ['impl_plan_adj_files', 'impl_fund_proof_files'];
-
-/** 详情附件字段（JSON 数组串）→ 文件条目（无日期，展示 —） */
-function libFilesOf(row: Recordable, field: string): ProjectFileItem[] {
-  return fileListNames(parseFileList(row[field])).map((name, index) => ({
-    id: `lib-${field}-${index}-${name}`,
-    name,
-    uploadDate: '',
-  }));
-}
-
-/** 取项目的固定目录（第一/第二个：策划库资料、实施库资料；文件来自项目库详情） */
-export async function fetchFixedProjectDirs(pUid: string): Promise<ProjectFileDir[]> {
-  const row = (await fetchLibDetail(pUid)) ?? {};
+/** 项目资料目录集（固定目录在前 + 用户目录；一次拉全） */
+export async function fetchProjectFileList(pUid: string): Promise<ProjectFileDir[]> {
+  const data = await unwrap<{ fixed: { name: string; files: ProjectFileItem[] }[]; dirs: DirRow[] }>(
+    defHttp.get({ url: BASE + '/list', params: { pUid } }),
+  );
   return [
-    {
-      id: 'fixed-planning',
-      name: '策划库资料',
+    ...(data.fixed ?? []).map((dir) => ({
+      id: `fixed-${dir.name}`,
+      name: dir.name,
       fixed: true,
-      files: PLANNING_FILE_FIELDS.flatMap((field) => libFilesOf(row, field)),
-    },
-    {
-      id: 'fixed-impl',
-      name: '实施库资料',
-      fixed: true,
-      files: IMPL_FILE_FIELDS.flatMap((field) => libFilesOf(row, field)),
-    },
+      files: dir.files ?? [],
+    })),
+    ...(data.dirs ?? []).map((dir) => ({ id: dir.id, name: dir.dirName, files: dir.files ?? [] })),
   ];
+}
+
+/** 目录保存（id 空=新增需带 pUid；非空=改名；后端做重名与固定目录名校验） */
+export async function saveProjectDir(data: { id?: string; pUid?: string; dirName: string }) {
+  return unwrap<{ id: string; dirName: string }>(defHttp.postJson({ url: BASE + '/dir/save', data }));
+}
+
+/** 目录删除（后端校验：仅空目录可删） */
+export async function deleteProjectDir(id: string) {
+  return unwrap<{ id: string }>(defHttp.postJson({ url: BASE + '/dir/delete', data: { id } }));
+}
+
+/** 文件清单整替（上传/删除/重命名后整份提交；空清单即清空） */
+export async function saveProjectFiles(dirId: string, files: ProjectFileItem[]) {
+  return unwrap<{ dirId: string; files: ProjectFileItem[] }>(
+    defHttp.postJson({ url: BASE + '/file/save', data: { dirId, files } }),
+  );
+}
+
+/**
+ * 文件本体上传（esp 通用上传，单文件；uploadFile 直走 axios 实例，resolve 完整
+ * AxiosResponse，.data 才是 {code,msg,data} body——与 scheme-fill 的 uploadBody 同款）
+ */
+export async function uploadProjectFile(file: File): Promise<ProjectFileItem> {
+  const res = await defHttp.uploadFile({ url: adminPath + '/esp/file/upload' }, { file, name: 'files' });
+  const uploaded = unwrap<{ fileName: string; url: string; objectKey: string; size: number }[]>(
+    (res as Recordable)?.data,
+  );
+  const first = (uploaded ?? [])[0];
+  if (!first) {
+    throw new Error('上传失败：未返回文件信息');
+  }
+  return { name: first.fileName, url: first.url, objectKey: first.objectKey, size: first.size };
 }
