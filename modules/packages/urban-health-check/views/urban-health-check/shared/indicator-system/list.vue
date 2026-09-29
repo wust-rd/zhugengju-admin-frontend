@@ -6,7 +6,7 @@
    - 新增/编辑/查看 表单使用 BasicDrawer（useDrawer），而非 Modal
   接口已接入（modules/check /cityCheck/indicatorSet）：
    - 列表/删除/启停/提交状态见 api/urban-health-check/urban/indicator-system；
-   - 行携带 id（操作用）与 code（下钻路由用）。
+   - 行携带 id（操作与下钻路由用），code(sys_no) 仅编码列展示。
 -->
 <template>
   <PageWrapper>
@@ -194,9 +194,10 @@
     openDrawer(true, record);
   }
 
-  /** 打开该体系的 show 页(RESTful:/…/indicator-system/{code}) */
+  /** 打开该体系的 show 页(RESTful:/…/indicator-system/{id})；传主键 id——
+   *  后端体系详情与指标项列表均只认主键（不支持 sys_no 反查），url 中 code 仅作展示 */
   function handleDetail(record: Recordable) {
-    go(`${props.routeBase}/${record.code}`);
+    go(`${props.routeBase}/${record.id}`);
   }
 
   /** 启用状态切换（后端保证同时仅一套启用；失败回滚刷新列表） */

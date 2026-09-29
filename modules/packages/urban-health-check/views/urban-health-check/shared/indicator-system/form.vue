@@ -12,6 +12,8 @@
    - 表单级 disabled 在回调里设置即可(抽屉体内,安全)。
   接口已接入：保存 POST /cityCheck/indicatorSet/save（indicatorSystemSave）。
   提交状态为体系生命周期字段（保存=暂存、提交发布动作置已提交），表单中只读展示不可改。
+  填报时间不进表单：保存不传 fillDate，后端自动取当前时间（填报时间=最新保存时间），
+  列表页"填报时间"列展示该自动值。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer" @ok="handleSubmit">
@@ -66,7 +68,7 @@
       label: '基本信息',
       field: 'basicInfo',
       component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
+      colProps: { xs: 24, sm: 24, md: 24, lg: 24, xl: 24 },
     },
     {
       label: '体检年份',
@@ -98,18 +100,18 @@
         ]
       : []),
     {
-      label: '填报时间',
-      field: 'reportDate',
-      component: 'DatePicker',
-      componentProps: { valueFormat: 'YYYY-MM-DD', style: 'width: 100%' },
-      rules: [{ type: 'string', required: true, message: '请选择填报时间' }],
+      label: '填报单位',
+      field: 'reportUnit',
+      component: 'Input',
+      componentProps: { maxlength: 50 },
+      rules: [{ required: true, message: '请输入填报单位' }],
     },
     {
       label: '指标体系名称',
       field: 'indicatorName',
       component: 'Input',
       componentProps: { maxlength: 100 },
-      colProps: { md: 24, lg: 24 },
+      colProps: { xs: 24, sm: 24, md: 24, lg: 24, xl: 24 },
       rules: [{ required: true, message: '请输入指标体系名称' }],
     },
     {
@@ -121,17 +123,10 @@
       rules: [{ required: true, message: '请输入指标数量' }],
     },
     {
-      label: '填报单位',
-      field: 'reportUnit',
-      component: 'Input',
-      componentProps: { maxlength: 50 },
-      rules: [{ required: true, message: '请输入填报单位' }],
-    },
-    {
       label: '其它信息',
       field: 'otherInfo',
       component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
+      colProps: { xs: 24, sm: 24, md: 24, lg: 24, xl: 24 },
     },
     {
       label: '启用状态',
@@ -162,14 +157,17 @@
       field: 'remarks',
       component: 'InputTextArea',
       componentProps: { maxlength: 500, rows: 3 },
-      colProps: { md: 24, lg: 24 },
+      colProps: { xs: 24, sm: 24, md: 24, lg: 24, xl: 24 },
     },
   ];
 
   const [registerForm, { resetFields, setFieldsValue, validate, setProps }] = useForm({
-    labelWidth: 160,
+    labelWidth: 140,
     schemas: inputFormSchemas,
-    baseColProps: { md: 24, lg: 12 },
+    // 恒两列:断点 xs 以下(<576px)单列,其余一律 12;整行字段需全断点写 24。
+    // 不能只写 span —— FormItem.getColProps 会给未设断点补 xs:24/sm:24,
+    // 且 antd Col 响应式值优先于 span,视口命中 sm/md(如 ~900px 内嵌面板)时 span 不生效。
+    baseColProps: { xs: 24, sm: 12, md: 12, lg: 12, xl: 12 },
   });
 
   const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data: any) => {
@@ -186,7 +184,6 @@
       indicatorName: record.value.indicatorName ?? '',
       indicatorCount: record.value.indicatorCount ?? 0,
       reportUnit: record.value.reportUnit ?? '市住更局',
-      reportDate: record.value.reportDate ?? '',
       enabled: record.value.enabled ?? ENABLED_STATUS.ENABLED,
       submitStatus: record.value.submitStatus ?? SUBMIT_STATUS.PENDING,
       remarks: record.value.remarks ?? '',

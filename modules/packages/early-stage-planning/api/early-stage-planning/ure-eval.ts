@@ -44,6 +44,8 @@ export type UreEvalRecordRow = {
   id: string;
   expertId: string;
   projectId: string;
+  /** 关联项目名（专家档案历史评价展示；非项目化评价为空） */
+  projectName?: string;
   activityStars: number;
   coverageStars: number;
   efficiencyStars: number;

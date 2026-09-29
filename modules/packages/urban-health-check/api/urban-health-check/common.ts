@@ -8,18 +8,14 @@
  *    不含 code 字段（后端未来切 jeesite 协议）→ 原样返回。
  *  - 分页映射：后端 {total, pageNum, pageSize, list} → BasicTable fetchSetting {count, list}
  *    （后端入参 pageNum/pageSize ← 表格 pageField pageNo/sizeField pageSize，在 api 函数内转换）。
- *  - URL 前缀：adminPath + '/cityCheck/...'（后端 @RequestMapping("${adminPath}/cityCheck/...")）。
- *  - 下钻路由 {id} 恒传记录业务编码 code（体系=sys_no、调查/成果=sort_no），后端详情接口
- *    同时支持主键与 code 反查。
+ *  - URL 前缀：'/cityCheck/...'（后端 @RequestMapping("/cityCheck/...")，不带 adminPath，
+ *    匿名放行；defHttp 自动拼 urlPrefix=/js。若拼上 adminPath=/a 后端会 404，已踩坑）。
  */
 
 import { defHttp } from '@jeesite/core/utils/http/axios';
-import { useGlobSetting } from '@jeesite/core/hooks/setting';
-
-const { adminPath } = useGlobSetting();
 
 /** check 模块接口基址 */
-export const CHECK_API = adminPath + '/cityCheck';
+export const CHECK_API = '/cityCheck';
 
 /** 统一解包 {code, msg, data}（兼容 jeesite result 协议透传） */
 export function unwrap<T = any>(body: any): T {

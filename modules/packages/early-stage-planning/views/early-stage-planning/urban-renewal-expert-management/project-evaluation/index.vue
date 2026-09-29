@@ -51,6 +51,7 @@
   const FORM_ROUTE = '/early-stage-planning/urban-renewal-expert-management/project-evaluation/form';
   const DETAIL_ROUTE = '/early-stage-planning/urban-renewal-expert-management/project-evaluation';
   const EVAL_ROUTE = '/early-stage-planning/urban-renewal-expert-management/project-evaluation/evaluate';
+  const REPORT_ROUTE = '/early-stage-planning/urban-renewal-expert-management/project-evaluation/report';
 
   /** 当前角色：数据范围由后端过滤，这里控制按钮与提示（authInfo + 专家档案绑定判定，异步加载） */
   const role = ref<UreRole>('none');
@@ -197,8 +198,8 @@
       reload();
     }
   }
-  /** 生成评估报告（TODO: 接入报告下载） */
+  /** 生成评估报告：进入报告页（纯前端现生成，意见可编辑后导出 PDF/Word，不存后端） */
   function handleReport(record: Recordable) {
-    showMessage(`${record.name}：生成评估报告待接入`);
+    go(`${REPORT_ROUTE}?code=${record.code}`);
   }
 </script>

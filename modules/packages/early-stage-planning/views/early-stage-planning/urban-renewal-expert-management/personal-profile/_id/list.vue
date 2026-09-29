@@ -7,7 +7,9 @@
    - 链接地址：/early-stage-planning/urban-renewal-expert-management/personal-profile/{id}（{id}=专家 id）
    - 组件位置：/early-stage-planning/urban-renewal-expert-management/personal-profile/_id/list（与链接地址不一致，菜单里需显式填写）
    - 是否可见：隐藏；上级菜单挂「个人档案」以点亮侧边栏
-  页面结构：档案头部卡（头像/姓名/职称/领域/单位）→ 基本信息栅格 → 主要经历 → 预留扩展区。
+  页面结构：档案头部卡（头像/姓名/职称/领域/单位）→ 基本信息栅格 → 主要经历 → 过往评审经历
+  → 历史评价（实施主体在「专家评价」模块给出的评价记录：评估项目/评价单位/评价时间 +
+  三维度星级（专业水平/履职表现/意见质量，括号内为实际得分）+ 评价说明；接 ure-eval page 按 expertId 查询）。
 -->
 <template>
   <PageWrapper contentClass="flex flex-col gap-16px">
@@ -99,11 +101,55 @@
         }}</p>
       </div>
 
-      <!-- 预留扩展区：后续可在此追加 参与项目 / 评价记录 等内容 -->
-      <div
-        class="flex min-h-160px items-center justify-center rd-12px b-1 b-dashed b-gray-200 bg-gray-50 text-14px text-gray-400"
-      >
-        预留扩展区（后续内容加在这里）
+      <!-- 历史评价（实施主体在「专家评价」模块对该专家的评价记录，按时间倒序） -->
+      <div class="bg-white rd-12px b-1 b-solid b-gray-100 p-24px shadow-sm">
+        <div class="flex items-center gap-12px">
+          <div class="text-16px font-600 text-gray-800">历史评价</div>
+          <span v-if="evalRecords.length" class="text-13px text-gray-400">共 {{ evalRecords.length }} 条</span>
+        </div>
+
+        <div v-if="evalLoading" class="mt-16px text-center text-13px text-gray-400">评价记录加载中…</div>
+        <div
+          v-else-if="evalRecords.length === 0"
+          class="mt-16px rd-12px bg-[#F0F6FF] px-24px py-32px text-center text-13px text-gray-400"
+        >
+          暂无评价记录
+        </div>
+        <div v-else class="mt-16px space-y-16px">
+          <div v-for="rec in evalRecords" :key="rec.id" class="rd-12px bg-[#F0F6FF] px-24px py-16px">
+            <!-- 评估项目 / 评价单位 / 评价时间 -->
+            <div class="flex flex-wrap items-center gap-x-40px gap-y-4px text-14px">
+              <span class="text-gray-800">
+                <span class="text-gray-500">评估项目：</span>{{ rec.projectName || '综合评价' }}
+              </span>
+              <span class="text-gray-800">
+                <span class="text-gray-500">评价单位：</span>{{ rec.org || rec.evaluator || '—' }}
+              </span>
+              <span class="text-gray-500">评价时间：{{ rec.time || '—' }}</span>
+            </div>
+
+            <!-- 三维度星级（括号内为该维度实际得分） -->
+            <div class="mt-10px flex flex-wrap items-center gap-x-32px gap-y-6px text-13px text-gray-700">
+              <span class="flex items-center gap-6px">
+                专业水平（{{ rec.activityScore ?? 0 }}分）：
+                <Rate :value="rec.activityStars" allow-half disabled class="text-15px" />
+              </span>
+              <span class="flex items-center gap-6px">
+                履职表现（{{ rec.coverageScore ?? 0 }}分）：
+                <Rate :value="rec.coverageStars" allow-half disabled class="text-15px" />
+              </span>
+              <span class="flex items-center gap-6px">
+                意见质量（{{ rec.efficiencyScore ?? 0 }}分）：
+                <Rate :value="rec.efficiencyStars" allow-half disabled class="text-15px" />
+              </span>
+            </div>
+
+            <!-- 评价说明 -->
+            <div class="mt-8px text-13px leading-22px text-gray-600">
+              <span class="text-gray-500">评价说明：</span>{{ rec.comment || '—' }}
+            </div>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -115,11 +161,14 @@
 </template>
 <script lang="ts" setup name="ViewsEarlyStageUrbanRenewalExpertProfileDetail">
   import { ref, unref } from 'vue';
+  import { Rate } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
   import type { UreExpert } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
   import { ureExpertForm } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-expert';
+  import { ureEvalPage } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-eval';
+  import type { UreEvalRecordRow } from '@jeesite/early-stage-planning/api/early-stage-planning/ure-eval';
 
   const go = useGo();
 
@@ -137,6 +186,20 @@
     .catch(() => {})
     .finally(() => {
       loading.value = false;
+    });
+
+  /** 历史评价（实施主体在专家评价模块给该专家的评价；失败静默为空，不阻塞档案展示） */
+  const evalRecords = ref<UreEvalRecordRow[]>([]);
+  const evalLoading = ref(true);
+  ureEvalPage({ expertId, pageNo: 1, pageSize: 100 })
+    .then((page) => {
+      evalRecords.value = page.list ?? [];
+    })
+    .catch(() => {
+      evalRecords.value = [];
+    })
+    .finally(() => {
+      evalLoading.value = false;
     });
 
   function goBack() {

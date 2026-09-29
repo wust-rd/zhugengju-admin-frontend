@@ -5,12 +5,18 @@
    - 链接地址:/urban-health-check/urban/indicator-system/{id}(show 页;与 /list 静态段不冲突)
    - 组件位置:/urban-health-check/urban/indicator-system/_id/list(与链接地址不一致,菜单里已显式填写)
    - 是否可见:隐藏;上级菜单挂「指标体系管理」以点亮侧边栏
-  接口已接入：体系详情 indicatorSystemInfo({id}=code) + 指标项 indicatorListBySet/save/delete +
+  接口已接入：体系详情 indicatorSystemInfo({id}=体系主键) + 指标项 indicatorListBySet/save/delete +
   体系提交 indicatorSystemSubmit。
   列结构:一级维度/二级维度/三级维度/序号/指标项名称/指标单位/指标来源/数据来源/责任部门/操作;
-  一、二级维度合并同值单元格(按页分块计算,组跨页时维度名在下一页重显),
+  一/二/三级维度合并同值单元格(按页分块计算,组跨页时维度名在下一页重显;
+  三级维度按 dim1+dim2+dim3 连续同值合并——同一二级维度下相同三级合并多行),
   三级维度可空(指标直接挂二级维度),空值显示空白。
-  已提交体系只读:编辑/删除/新增/提交发布均隐藏或禁用(US-2.4)。
+  行序:后端在保存/删除后按维度层级分组重排 item_no(IndicatorSetService 侧
+  renumberByDimension),前端直接按接口返回顺序展示;序号列即后端 item_no。
+  新增项由后端归位到所属维度组内,序号全表连续。
+  筛选(指标项名称/一级/二级维度):本地过滤——数据全量取回(指标项接口仅支持
+  一级维度/名称过滤且无二级维度参数),BasicTable 本地模式自带搜索表单不可用。
+  暂存:打开体系信息表单抽屉编辑保存(保存=暂存);提交发布后体系及指标项只读(US-2.4)。
 -->
 <template>
   <PageWrapper>
@@ -21,32 +27,61 @@
           <Progress
             class="ml-6 w-72"
             :percent="filledPercent"
-            :format="() => `已填报指标项 ${tableData.length} / 系统指标项 ${system?.indicatorCount ?? 0} 项`"
+            :format="() => `已填报指标项 ${items.length} / 系统指标项 ${system?.indicatorCount ?? 0} 项`"
           />
         </div>
-        <a-button
-          v-if="system?.submitStatus === SUBMIT_STATUS.PENDING"
-          type="primary"
-          :loading="submitting"
-          @click="handleSubmitPublish"
-        >
-          提交发布
-        </a-button>
-        <Tag v-else color="blue" variant="solid" style="border-radius: 10px">已提交</Tag>
+        <div class="flex items-center">
+          <a-button v-if="!readOnly" class="mr-3" @click="handleSystemForm">暂存</a-button>
+          <a-button
+            v-if="system?.submitStatus === SUBMIT_STATUS.PENDING"
+            type="primary"
+            :loading="submitting"
+            @click="handleSubmitPublish"
+          >
+            提交发布
+          </a-button>
+          <Tag v-else color="blue" variant="solid" style="border-radius: 10px">已提交</Tag>
+        </div>
       </div>
     </Card>
+    <div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span class="text-gray-600">指标项名称</span>
+      <Input
+        v-model:value="filterState.itemName"
+        placeholder="请输入"
+        allow-clear
+        style="width: 200px"
+        @press-enter="handleFilterApply"
+      />
+      <span class="text-gray-600">一级维度</span>
+      <Select
+        v-model:value="filterState.dim1"
+        :options="dim1Options"
+        placeholder="请选择"
+        allow-clear
+        style="width: 160px"
+        @change="handleDim1Change"
+      />
+      <span class="text-gray-600">二级维度</span>
+      <Select
+        v-model:value="filterState.dim2"
+        :options="dim2Options"
+        placeholder="请选择"
+        allow-clear
+        style="width: 160px"
+      />
+      <a-button type="primary" @click="handleFilterApply">查询</a-button>
+      <a-button @click="handleFilterReset">重置</a-button>
+    </div>
     <BasicTable @register="registerTable" @change="handleTableChange" :showIndexColumn="false">
       <template #tableTitle>
         <Icon :icon="getTitle.icon" class="m-1 pr-1" />
         <span> {{ getTitle.value }} </span>
       </template>
       <template #toolbar>
-        <a-button v-if="!readOnly" type="primary" @click="handleForm({ systemCode: systemId, isNewRecord: true })">
+        <a-button v-if="!readOnly" type="primary" @click="handleForm({ setId: systemId, isNewRecord: true })">
           <Icon icon="i-fluent:add-12-filled" /> 新增
         </a-button>
-      </template>
-      <template #dim1="{ record }">
-        {{ record.dim1Label }}
       </template>
       <template #firstColumn="{ record }">
         <a @click="handleForm({ ...record, isNewRecord: false, isView: true })" :title="record.indicatorName">
@@ -56,18 +91,19 @@
     </BasicTable>
 
     <InputForm :read-only="readOnly" @register="registerDrawer" @success="handleSuccess" />
+    <!-- 暂存=编辑体系信息并保存(后端语义:保存=暂存,提交发布后才只读) -->
+    <SystemForm @register="registerSystemDrawer" @success="loadData" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="UhcSharedIndicatorSystemIdList">
-  import { computed, onMounted, ref, unref } from 'vue';
-  import { Card, Progress, Tag } from 'antdv-next';
+  import { computed, onMounted, reactive, ref, unref, watch } from 'vue';
+  import { Card, Input, Progress, Select, Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { Icon } from '@jeesite/core/components/Icon';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
-  import { FormProps } from '@jeesite/core/components/Form';
   import { useTabs } from '@jeesite/core/hooks/web/useTabs';
   import type { IndicatorSystem } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import {
@@ -81,6 +117,7 @@
     indicatorListBySet,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
   import InputForm from './id-form.vue';
+  import SystemForm from './form.vue';
 
   const { meta, params } = unref(router.currentRoute);
   const getTitle = {
@@ -88,19 +125,23 @@
     value: meta.title || '指标项管理',
   };
 
-  // 兼容菜单链接地址占位符写 {id} 或 {code}:路由参数名与占位符一致
+  // 兼容菜单链接地址占位符写 {id} 或 {code}:路由参数名与占位符一致；值为体系主键(列表下钻传入)
   const systemId = ((params.id ?? params.code) as string) || '';
 
   const { showMessage } = useMessage();
 
-  /** 体系信息（按 code 反查接口） */
-  const system = ref<IndicatorSystem | undefined>();
+  /** 体系信息（按主键查详情接口,含 itemList 供资料清单回显） */
+  const system = ref<IndicatorSystem & { itemList?: any[] }>();
 
   /** 已提交体系只读（US-2.4：编辑/删除/新增/提交发布锁定） */
   const readOnly = computed(() => system.value?.submitStatus === SUBMIT_STATUS.SUBMITTED);
 
   /** 页签标题默认取菜单名,这里改为体系名称 */
   const { setTitle } = useTabs(router);
+
+  /** 详情 itemList 的资料清单缓存(指标项分页接口不返回 materialList,编辑/查看回显用) */
+  const materialByItemId = new Map<string, any[]>();
+
   onMounted(() => {
     loadData();
   });
@@ -108,6 +149,10 @@
   async function loadData() {
     try {
       system.value = await indicatorSystemInfo(systemId);
+      materialByItemId.clear();
+      for (const item of system.value?.itemList ?? []) {
+        materialByItemId.set(String(item.id), item.materialList ?? []);
+      }
       if (system.value?.indicatorName) {
         setTitle(`指标体系管理-${system.value.indicatorName}`);
       }
@@ -117,29 +162,7 @@
     }
   }
 
-  /** 搜索表单(体检年份/体系名称为体系信息回显,只读) */
-  const searchForm: FormProps = {
-    baseColProps: { md: 8, lg: 6 },
-    labelWidth: 120,
-    schemas: [
-      {
-        label: '体检年份',
-        field: 'year',
-        component: 'Input',
-        componentProps: { disabled: true },
-        defaultValue: system.value?.year,
-      },
-      {
-        label: '指标体系名称',
-        field: 'indicatorName',
-        component: 'Input',
-        componentProps: { disabled: true },
-        defaultValue: system.value?.indicatorName,
-      },
-    ],
-  };
-
-  /** 指标项列表（全量取回后本地分页 + 维度合并计算） */
+  /** 指标项列表（全量取回后本地分页 + 维度合并计算 + 本地筛选） */
   const items = ref<Indicator[]>([]);
   const loading = ref(false);
 
@@ -147,7 +170,6 @@
     loading.value = true;
     try {
       items.value = await indicatorListBySet(systemId);
-      buildTableData();
     } catch (e: any) {
       showMessage(e?.message || '加载指标项失败', 'error');
     } finally {
@@ -155,31 +177,77 @@
     }
   }
 
-  /** 一级维度按出现次数统计,组内首行附「共 N 项」标注 */
+  /** 筛选表单绑定值(输入中)与已应用值(点查询才生效)分离,便于"重置"恢复 */
+  const filterState = reactive({
+    itemName: '',
+    dim1: undefined as string | undefined,
+    dim2: undefined as string | undefined,
+  });
+  const appliedFilter = ref({ ...filterState });
+
+  /** 一级维度选项:全量数据去重;二级维度选项:随已选一级维度联动 */
+  const dim1Options = computed(() => uniqDims(items.value.map((i) => i.dim1)));
+  const dim2Options = computed(() => {
+    const pool = filterState.dim1 ? items.value.filter((i) => i.dim1 === filterState.dim1) : items.value;
+    return uniqDims(pool.map((i) => i.dim2));
+  });
+
+  function uniqDims(vals: (string | undefined)[]) {
+    return [...new Set(vals.filter((v): v is string => !!v))].map((v) => ({ label: v, value: v }));
+  }
+
+  /** 一级维度切换后二级维度选项集变化,清掉可能失效的二级值 */
+  function handleDim1Change() {
+    filterState.dim2 = undefined;
+  }
+
+  function handleFilterApply() {
+    appliedFilter.value = { ...filterState };
+  }
+
+  function handleFilterReset() {
+    filterState.itemName = '';
+    filterState.dim1 = undefined;
+    filterState.dim2 = undefined;
+    handleFilterApply();
+  }
+
+  /** 应用筛选后的指标项(名称模糊 + 一级/二级维度精确) */
+  const filteredItems = computed(() => {
+    const { itemName, dim1, dim2 } = appliedFilter.value;
+    const kw = itemName?.trim();
+    return items.value.filter(
+      (i) =>
+        (!kw || i.indicatorName?.includes(kw)) &&
+        (!dim1 || i.dim1 === dim1) &&
+        (!dim2 || i.dim2 === dim2),
+    );
+  });
+
+  /** 表格数据源=筛选后指标项(序号=后端 item_no) */
   const tableData = ref<Recordable[]>([]);
 
+  /**
+   * 行序说明:后端在指标项保存/删除后按维度层级分组重排 item_no
+   * (见 IndicatorItemService.renumberByDimension),ORDER BY item_no 即分组顺序,
+   * 前端直接展示,无需(也不再)自行排序或重编显示序号。
+   */
   function buildTableData() {
-    const dim1CountMap: Record<string, number> = {};
-    items.value.forEach((item) => {
-      dim1CountMap[item.dim1!] = (dim1CountMap[item.dim1!] || 0) + 1;
-    });
-    const seenDim1 = new Set<string>();
-    tableData.value = items.value.map((item) => {
-      const first = !seenDim1.has(item.dim1!);
-      seenDim1.add(item.dim1!);
-      return {
-        ...item,
-        dim1Label: first ? `${item.dim1}(共 ${dim1CountMap[item.dim1!]} 项)` : item.dim1,
-      };
-    });
+    tableData.value = filteredItems.value.map((item) => ({ ...item }));
     rebuildPageSpanMaps(currentPageSize.value);
   }
 
-  /** 填报进度:已填报(表格行数)/ 系统指标项 */
+  /** 数据加载或筛选变化后重建表格数据并回到第 1 页 */
+  watch(filteredItems, () => {
+    buildTableData();
+    setPagination({ current: 1 });
+  });
+
+  /** 填报进度:已填报(全量条数,不受筛选影响)/ 系统指标项 */
   const filledPercent = computed(() => {
     const total = system.value?.indicatorCount ?? 0;
     if (!total) return 0;
-    return Math.min(100, Math.round((tableData.value.length / total) * 10000) / 100);
+    return Math.min(100, Math.round((items.value.length / total) * 10000) / 100);
   });
 
   /**
@@ -217,21 +285,26 @@
    */
   const dim1Map = ref(new Map<string, number>());
   const dim2Map = ref(new Map<string, number>());
+  const dim3Map = ref(new Map<string, number>());
 
   function rebuildPageSpanMaps(pageSize: number) {
     const m1 = new Map<string, number>();
     const m2 = new Map<string, number>();
+    const m3 = new Map<string, number>();
     for (let start = 0; start < tableData.value.length; start += pageSize) {
       const pageRows = tableData.value.slice(start, start + pageSize) as Recordable[];
       const spans1 = calcRowSpans(pageRows, ['dim1']);
       const spans2 = calcRowSpans(pageRows, ['dim1', 'dim2']);
+      const spans3 = calcRowSpans(pageRows, ['dim1', 'dim2', 'dim3']);
       pageRows.forEach((row, i) => {
         m1.set(row.id, spans1[i]);
         m2.set(row.id, spans2[i]);
+        m3.set(row.id, spans3[i]);
       });
     }
     dim1Map.value = m1;
     dim2Map.value = m2;
+    dim3Map.value = m3;
   }
 
   /** 页大小变化时重算合并(仅翻页不重算) */
@@ -249,7 +322,6 @@
       title: '一级维度',
       dataIndex: 'dim1',
       width: 140,
-      slot: 'dim1',
       onCell: (record: Recordable) => ({ rowSpan: dim1Map.value.get(record.id) ?? 1 }),
     },
     {
@@ -258,7 +330,13 @@
       width: 110,
       onCell: (record: Recordable) => ({ rowSpan: dim2Map.value.get(record.id) ?? 1 }),
     },
-    { title: '三级维度', dataIndex: 'dim3', width: 130 },
+    {
+      title: '三级维度',
+      dataIndex: 'dim3',
+      width: 130,
+      // 同一二级维度下相同三级维度合并多行(按 dim1+dim2+dim3 连续同值)
+      onCell: (record: Recordable) => ({ rowSpan: dim3Map.value.get(record.id) ?? 1 }),
+    },
     { title: '序号', dataIndex: 'code', width: 70, align: 'center' },
     { title: '指标项名称', dataIndex: 'indicatorName', slot: 'firstColumn', width: 150 },
     { title: '指标单位', dataIndex: 'unit', width: 80, align: 'center' },
@@ -290,14 +368,15 @@
   };
 
   const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
-  const [registerTable] = useTable({
+  // 暂存(编辑体系信息)用独立抽屉,与指标项抽屉互不干扰
+  const [registerSystemDrawer, { openDrawer: openSystemDrawer, setDrawerProps: setSystemDrawerProps }] = useDrawer();
+  const [registerTable, { setPagination }] = useTable({
     dataSource: tableData,
     loading,
     columns: tableColumns,
     actionColumn: actionColumn,
-    formConfig: searchForm,
     showTableSetting: true,
-    useSearchForm: true,
+    // 筛选为页内自实现(本地过滤),不用表格自带搜索表单
     // 屏蔽 BasicTable 默认在最左侧追加的「序号」索引列(showIndexColumn 默认 true)
     showIndexColumn: false,
     // 分页器与 sys/config/list 相同:走全局默认(20 条/页,可切 10/20/50/80/100),
@@ -309,7 +388,14 @@
   function handleForm(record: Recordable) {
     // 打开前先按查看/编辑设好 showFooter(抽屉级);打开动画期间翻转会导致首次不弹(见对应 form.vue 头注释)
     setDrawerProps({ showFooter: !record.isView });
-    openDrawer(true, record);
+    // 编辑/查看时补上资料清单(分页行不带,取详情缓存;新增无)
+    openDrawer(true, { ...record, materialList: materialByItemId.get(String(record.id)) ?? [] });
+  }
+
+  /** 暂存:编辑体系信息并保存(后端语义 保存=暂存,填报时间自动取当前时间) */
+  function handleSystemForm() {
+    setSystemDrawerProps({ showFooter: true });
+    openSystemDrawer(true, { ...system.value, isNewRecord: false });
   }
 
   /** 提交发布:提交当前体系形成版本快照,提交后体系与指标项只读 */
@@ -338,8 +424,8 @@
     }
   }
 
-  /** 表单保存成功回调：刷新指标项列表 */
+  /** 表单保存成功回调：刷新列表与资料清单缓存(缓存不刷新会导致保存后立刻编辑回显空清单,再存会清掉资料) */
   function handleSuccess() {
-    loadItems();
+    loadData();
   }
 </script>
