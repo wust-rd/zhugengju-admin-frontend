@@ -8,6 +8,9 @@
  * project-library 口径；金额累加走 number-precision。
  */
 import NP from 'number-precision';
+import dayjs from 'dayjs';
+import { defHttp } from '@jeesite/core/utils/http/axios';
+import { useGlobSetting } from '@jeesite/core/hooks/setting';
 import {
   CITY_RENEWAL_AREA_LIST,
   DISTRICTS,
@@ -18,6 +21,10 @@ import {
   type ProjectRow,
 } from '@jeesite/ifco/api/ifco/project-library';
 import { fetchCompileTasks, fetchWorkbenchRows, type WorkbenchProject } from '@jeesite/ifco/api/ifco/compilation';
+import { fetchMonthlyRows, orientationLabel } from '@jeesite/ifco/api/ifco/impl-progress';
+import { unwrap } from '../progress-fill';
+
+const { adminPath } = useGlobSetting();
 
 // ══════════════════════ 资金分类管理 ══════════════════════
 
@@ -62,7 +69,7 @@ export const FUND_INDICATORS: FundIndicatorRow[] = [
   {
     key: 'r104',
     name: '本年实际到位资金',
-    unit: '万元',
+    unit: '亿元',
     code: '104',
     autoOf: ['r105', 'r115', 'r120'],
     note: '自动计算，104=105+115+120',
@@ -71,7 +78,7 @@ export const FUND_INDICATORS: FundIndicatorRow[] = [
     key: 'r105',
     name: '合计中：1.国家预算资金',
     indent: 2,
-    unit: '万元',
+    unit: '亿元',
     code: '105',
     autoOf: ['r106', 'r111', 'r112', 'r113', 'r114'],
     note: '自动计算，105=106+111+112+113+114',
@@ -80,47 +87,47 @@ export const FUND_INDICATORS: FundIndicatorRow[] = [
     key: 'r106',
     name: '其中：（1）中央预算资金',
     indent: 7,
-    unit: '万元',
+    unit: '亿元',
     code: '106',
     autoOf: ['r107', 'r108', 'r109', 'r110'],
     note: '自动计算，106=107+108+109+110',
   },
-  { key: 'r107', name: '合计中：中央预算内投资', indent: 12, unit: '万元', code: '107' },
-  { key: 'r108', name: '其他中央财政资金', indent: 16, unit: '万元', code: '108' },
-  { key: 'r109', name: '国债（增发国债）', indent: 16, unit: '万元', code: '109' },
-  { key: 'r110', name: '超长期特别国债', indent: 16, unit: '万元', code: '110' },
-  { key: 'r111', name: '（2）省级预算资金', indent: 10, unit: '万元', code: '111' },
+  { key: 'r107', name: '合计中：中央预算内投资', indent: 12, unit: '亿元', code: '107' },
+  { key: 'r108', name: '其他中央财政资金', indent: 16, unit: '亿元', code: '108' },
+  { key: 'r109', name: '国债（增发国债）', indent: 16, unit: '亿元', code: '109' },
+  { key: 'r110', name: '超长期特别国债', indent: 16, unit: '亿元', code: '110' },
+  { key: 'r111', name: '（2）省级预算资金', indent: 10, unit: '亿元', code: '111' },
   {
     key: 'r112',
     name: '（3）市级及以下预算资金',
     indent: 10,
-    unit: '万元',
+    unit: '亿元',
     code: '112',
     autoOf: ['cityBudget', 'districtBudget'],
     note: '自动计算，112=市级预算资金+区级预算资金',
   },
-  { key: 'cityBudget', name: '合计中：市级预算资金', indent: 12, unit: '万元', code: '' },
-  { key: 'districtBudget', name: '区级预算资金', indent: 16, unit: '万元', code: '' },
-  { key: 'r113', name: '（4）地方政府一般债券', indent: 10, unit: '万元', code: '113' },
-  { key: 'r114', name: '（5）地方政府专项债券', indent: 10, unit: '万元', code: '114' },
+  { key: 'cityBudget', name: '合计中：市级预算资金', indent: 12, unit: '亿元', code: '' },
+  { key: 'districtBudget', name: '区级预算资金', indent: 16, unit: '亿元', code: '' },
+  { key: 'r113', name: '（4）地方政府一般债券', indent: 10, unit: '亿元', code: '113' },
+  { key: 'r114', name: '（5）地方政府专项债券', indent: 10, unit: '亿元', code: '114' },
   {
     key: 'r115',
     name: '2.社会资本',
     indent: 6,
-    unit: '万元',
+    unit: '亿元',
     code: '115',
     autoOf: ['r116', 'r117', 'r118'],
     note: '自动计算，115=116+117+118',
   },
-  { key: 'r116', name: '其中：（1）产权单位出资', indent: 7, unit: '万元', code: '116' },
-  { key: 'r117', name: '（2）规模化实施运营主体出资', indent: 10, unit: '万元', code: '117' },
-  { key: 'r118', name: '（3）居民出资', indent: 10, unit: '万元', code: '118' },
-  { key: 'r119', name: '其中：金融机构信贷资金', indent: 7, unit: '万元', code: '119' },
-  { key: 'finFunds', name: '包含：金融机构资金', indent: 10, unit: '万元', code: '' },
-  { key: 'policyToolFunds', name: '政策金融工具资金', indent: 13, unit: '万元', code: '' },
-  { key: 'creditedFunds', name: '已授信金融资金', indent: 13, unit: '万元', code: '' },
-  { key: 'loanedFunds', name: '已放款金融资金', indent: 13, unit: '万元', code: '' },
-  { key: 'r120', name: '3.其他本年实际到位资金（应注明来源）', indent: 6, unit: '万元', code: '120' },
+  { key: 'r116', name: '其中：（1）产权单位出资', indent: 7, unit: '亿元', code: '116' },
+  { key: 'r117', name: '（2）规模化实施运营主体出资', indent: 10, unit: '亿元', code: '117' },
+  { key: 'r118', name: '（3）居民出资', indent: 10, unit: '亿元', code: '118' },
+  { key: 'r119', name: '其中：金融机构信贷资金', indent: 7, unit: '亿元', code: '119' },
+  { key: 'finFunds', name: '包含：金融机构资金', indent: 10, unit: '亿元', code: '' },
+  { key: 'policyToolFunds', name: '政策金融工具资金', indent: 13, unit: '亿元', code: '' },
+  { key: 'creditedFunds', name: '已授信金融资金', indent: 13, unit: '亿元', code: '' },
+  { key: 'loanedFunds', name: '已放款金融资金', indent: 13, unit: '亿元', code: '' },
+  { key: 'r120', name: '3.其他本年实际到位资金（应注明来源）', indent: 6, unit: '亿元', code: '120' },
   { key: 'otherSource', name: '其他本年实际到位资金的来源', indent: 7, unit: '—', code: '' },
 ];
 
@@ -197,9 +204,9 @@ export type FundItem = {
   // ── 填报表单 ──
   /** 本年完成投资总额（亿元，进度填报自动带入，只读） */
   yearInvestTotal: number;
-  /** 投资纳统金额（万元，手填） */
+  /** 投资纳统金额（亿元，手填；字段名沿用 statInvestWan 存量契约） */
   statInvestWan?: number;
-  /** 项目资金缺口（万元） */
+  /** 项目资金缺口（亿元） */
   fundGap?: number;
   /** 缺口资金是否已有资金安排 */
   gapArranged?: YesNo;
@@ -346,6 +353,353 @@ export async function fetchFundItems(): Promise<FundItem[]> {
     fundItemsCache = items;
   }
   return applyFill(fundItemsCache);
+}
+
+// ── 项目资金管理 · 区划汇总（资金组合查询，真实口径） ────────────────
+
+/** 统计期起始月份下限（业务口径：统计自 2026 年 10 月起，开始月份选择器同此限制） */
+export const PORTFOLIO_START_MONTH = '2026-10';
+
+/** 资金组合查询 · 项目指标快照（区划/片区/项目汇总的数据底座，会话缓存一次；采纳/填报变更刷新页面生效） */
+export type PortfolioProject = {
+  pUid: string;
+  projectCode: string;
+  projectName: string;
+  district: string;
+  /** 片区名称（实施库 area_name；空=片区外零星项目，不进片区汇总） */
+  renewalAreaName: string;
+  /** 片区批次（实施库 batch；片区行元数据兜底用，优先取策划方案） */
+  renewalAreaBatch: string;
+  /** 五改分类（实施库 wg_big 代码，展示经 fiveReformLabel 转中文） */
+  fiveReformType: string;
+  /** 项目归属（实施库 project_affiliation 代码 market/district/scattered） */
+  projectAffiliation: string;
+  /** 项目投资估算（亿元，实施库 inv_bil） */
+  investEstimate: number;
+  /** 本年度计划完成投资（亿元，年度计划编制已采纳行） */
+  yearPlanInvest: number;
+  /** 入库月份（YYYY-MM；缺入库时间视为已在库；在库项目数量按「入库月 ≤ 结束月」随统计期变化） */
+  inLibraryMonth: string;
+  /** 本年度累计完成投资（亿元，最新一次月度进度填报） */
+  yearAccumulatedInvest: number;
+  /** 逐月当月完成投资（YYYY-MM → 亿元；月度填报逐月暂存值，统计周期内加和用） */
+  monthlyInvest: Record<string, number>;
+  /** 逐月实际到位资金（YYYY-MM → 亿元；资金填报 r104 当月值=各子项自动求和） */
+  monthlyArrived: Record<string, number>;
+};
+
+/** 区划汇总统计行（列口径见项目资金管理 list.vue 列定义） */
+export type DistrictFundStatRow = {
+  district: string;
+  /** 在库项目数量（随统计期变化：入库月 ≤ 结束月） */
+  projectCount: number;
+  totalInvest: number;
+  yearPlanInvest: number;
+  yearAccumulatedInvest: number;
+  /** 年度投资进度 = 本年度累计完成投资/本年度计划完成投资（%） */
+  yearProgressRate: number;
+  periodCompletedInvest: number;
+  yearArrivedFunds: number;
+  periodArrivedFunds: number;
+  /** 年度资金到位率 = 本年度累计实际到位资金/本年度计划完成投资（%） */
+  yearArrivalRate: number;
+};
+
+/** 枚举 [from, to] 闭区间月份（YYYY-MM；非法区间返回空） */
+function enumerateMonths(from: string, to: string): string[] {
+  if (!/^\d{4}-\d{2}$/.test(from) || !/^\d{4}-\d{2}$/.test(to) || from > to) return [];
+  const months: string[] = [];
+  let [year, month] = from.split('-').map(Number);
+  const [endYear, endMonth] = to.split('-').map(Number);
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    months.push(`${year}-${String(month).padStart(2, '0')}`);
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return months;
+}
+
+/** 资金组合查询项目集：既在实施库、且最新年度计划已采纳（交集）；
+ *  逐月完成取月度填报 monthEntries、逐月到位取资金填报登记 r104 */
+let portfolioCache: PortfolioProject[] | null = null;
+
+async function fetchPortfolioProjects(): Promise<PortfolioProject[]> {
+  if (portfolioCache) return portfolioCache;
+  const [libRows, tasks, monthlyRows] = await Promise.all([
+    fetchAllImplementingRows(),
+    fetchCompileTasks(),
+    fetchMonthlyRows(),
+  ]);
+  const task = tasks[0];
+  const workbenchRows = task ? ((await fetchWorkbenchRows(task.code)) ?? []) : [];
+  const adoptedByUid = new Map(
+    workbenchRows.filter((row) => row.adoptStatus === '已采纳').map((row) => [row.pUid, row]),
+  );
+  const monthlyByCode = new Map(monthlyRows.map((row) => [row.projectCode, row]));
+  portfolioCache = libRows
+    .filter((row) => adoptedByUid.has(row.p_uid))
+    .map((row) => {
+      const adopted = adoptedByUid.get(row.p_uid)!;
+      const monthly = monthlyByCode.get(String(row.lib_project_code ?? ''));
+      const reportYear = String(monthly?.reportMonth ?? '').slice(0, 4) || String(new Date().getFullYear());
+      const monthlyInvest: Record<string, number> = {};
+      for (const [month, entry] of Object.entries(monthly?.monthEntries ?? {})) {
+        const monthInvest = entry?.monthCompletedInvest;
+        if (monthInvest != null) {
+          monthlyInvest[`${reportYear}-${String(month).padStart(2, '0')}`] = monthInvest;
+        }
+      }
+      const monthlyArrived: Record<string, number> = {};
+      for (const [month, monthValues] of Object.entries(fundFillStore.get(row.p_uid)?.values ?? {})) {
+        monthlyArrived[month] = autoValueOf('r104', monthValues);
+      }
+      return {
+        pUid: row.p_uid,
+        projectCode: String(row.lib_project_code ?? ''),
+        projectName: String(row.pj_name ?? ''),
+        district: String(row.dist ?? ''),
+        renewalAreaName: String(row.area_name ?? ''),
+        renewalAreaBatch: String(row.batch ?? ''),
+        fiveReformType: String(row.wg_big ?? ''),
+        projectAffiliation: String(row.project_affiliation ?? ''),
+        investEstimate: Number(row.inv_bil ?? 0),
+        yearPlanInvest: Number(adopted.yearPlanInvest ?? 0),
+        inLibraryMonth: (adopted.inLibraryDate ?? '').slice(0, 7) || '0000-01',
+        yearAccumulatedInvest: monthly?.yearAccumulatedInvest ?? 0,
+        monthlyInvest,
+        monthlyArrived,
+      };
+    });
+  return portfolioCache;
+}
+
+/** 统计期与当年月份口径归一（缺省统计期=[2026-10, 当前月]；当前月早于下限取下限；起大于止取单月下限） */
+function portfolioPeriod(startMonth: string, endMonth: string) {
+  const now = dayjs().format('YYYY-MM');
+  const end =
+    endMonth && /^\d{4}-\d{2}$/.test(endMonth) ? endMonth : now > PORTFOLIO_START_MONTH ? now : PORTFOLIO_START_MONTH;
+  const start =
+    startMonth && /^\d{4}-\d{2}$/.test(startMonth) && startMonth >= PORTFOLIO_START_MONTH
+      ? startMonth
+      : PORTFOLIO_START_MONTH;
+  const year = now.slice(0, 4);
+  return {
+    end,
+    periodMonths: enumerateMonths(start, end > start ? end : start),
+    yearMonths: enumerateMonths(`${year}-01`, `${year}-12`),
+  };
+}
+
+/** 逐月数值按月份清单加和（金额走 NP 规避浮点尾差） */
+function sumOf(values: Record<string, number>, months: string[]): number {
+  return NP.round(
+    months.reduce((sum, month) => NP.plus(sum, values[month] ?? 0), 0),
+    2,
+  );
+}
+
+/** 项目清单按取值函数加和 */
+function sumBy(list: PortfolioProject[], pick: (project: PortfolioProject) => number): number {
+  return NP.round(
+    list.reduce((sum, project) => NP.plus(sum, pick(project)), 0),
+    2,
+  );
+}
+
+/** 在库项目数量口径：入库月 ≤ 结束月（随统计期变化） */
+function projectCountInPeriod(list: PortfolioProject[], end: string): number {
+  return list.filter((project) => project.inLibraryMonth <= end).length;
+}
+
+/** 区划/片区汇总共用的金额与两率口径（不随统计期变化列 + 统计期逐月加和列） */
+function portfolioMetrics(list: PortfolioProject[], periodMonths: string[], yearMonths: string[]) {
+  const yearPlan = sumBy(list, (project) => project.yearPlanInvest);
+  const yearCompleted = sumBy(list, (project) => project.yearAccumulatedInvest);
+  const yearArrived = sumBy(list, (project) => sumOf(project.monthlyArrived, yearMonths));
+  const percent = (value: number) => (yearPlan ? Math.round(NP.times(NP.divide(value, yearPlan), 100)) : 0);
+  return {
+    yearPlanInvest: yearPlan,
+    yearAccumulatedInvest: yearCompleted,
+    yearProgressRate: percent(yearCompleted),
+    periodCompletedInvest: sumBy(list, (project) => sumOf(project.monthlyInvest, periodMonths)),
+    yearArrivedFunds: yearArrived,
+    periodArrivedFunds: sumBy(list, (project) => sumOf(project.monthlyArrived, periodMonths)),
+    yearArrivalRate: percent(yearArrived),
+  };
+}
+
+/**
+ * 区划汇总统计（含末行全市合计，行政区按 DISTRICTS 序、未知区置尾）。
+ * 口径：在库项目数量随统计期变化（入库月 ≤ 结束月）；总投资=实施库投资估算加和；
+ * 其余金额与两率见 portfolioMetrics（本年度口径不随统计期变化，统计周期内两列随期逐月加和）。
+ */
+export async function fetchDistrictFundStats(startMonth: string, endMonth: string): Promise<DistrictFundStatRow[]> {
+  const projects = await fetchPortfolioProjects();
+  const { end, periodMonths, yearMonths } = portfolioPeriod(startMonth, endMonth);
+
+  const buildRow = (district: string, list: PortfolioProject[]): DistrictFundStatRow => ({
+    district,
+    projectCount: projectCountInPeriod(list, end),
+    totalInvest: sumBy(list, (project) => project.investEstimate),
+    ...portfolioMetrics(list, periodMonths, yearMonths),
+  });
+
+  const groups = new Map<string, PortfolioProject[]>();
+  for (const project of projects) {
+    const list = groups.get(project.district) ?? [];
+    list.push(project);
+    groups.set(project.district, list);
+  }
+  const rows = [...groups.entries()]
+    .sort((a, b) => {
+      const districtOrder = DISTRICTS as readonly string[];
+      const indexA = districtOrder.indexOf(a[0]);
+      const indexB = districtOrder.indexOf(b[0]);
+      return (indexA === -1 ? districtOrder.length : indexA) - (indexB === -1 ? districtOrder.length : indexB);
+    })
+    .map(([district, list]) => buildRow(district, list));
+  rows.push(buildRow('全市合计', projects));
+  return rows;
+}
+
+// ── 片区汇总（真实口径；片区元数据与总体投资估算取自策划方案填报） ──
+
+/** 策划方案片区行（编号/批次/功能定位/总体投资估算来源；接口 /esp/schemeFill/page） */
+type SchemeAreaRow = {
+  code: string;
+  name: string;
+  district: string;
+  batch: string;
+  funcTypes: string[];
+  invest: number | null;
+};
+
+let schemeAreasCache: SchemeAreaRow[] | null = null;
+
+/** 策划方案片区行集（已批准+待审查两页签合并，会话缓存一次） */
+async function fetchSchemeAreas(): Promise<SchemeAreaRow[]> {
+  if (schemeAreasCache) return schemeAreasCache;
+  const fetchPage = (isApprove: '1' | '2') =>
+    unwrap<{ total: number; list: SchemeAreaRow[] }>(
+      defHttp.get({ url: adminPath + '/esp/schemeFill/page', params: { isApprove, pageNum: 1, pageSize: 200 } }),
+    );
+  const [approved, pending] = await Promise.all([fetchPage('1'), fetchPage('2')]);
+  schemeAreasCache = [...(approved?.list ?? []), ...(pending?.list ?? [])];
+  return schemeAreasCache;
+}
+
+/** 片区汇总统计行（列口径见项目资金管理 list.vue 列定义） */
+export type AreaFundStatRow = {
+  /** 片区编号（策划方案 code；无方案为空） */
+  areaCode: string;
+  district: string;
+  renewalAreaName: string;
+  renewalAreaBatch: string;
+  /** 片区功能定位（方案代码经 orientationLabel 转中文顿号拼接；无方案为空） */
+  orientation: string;
+  /** 项目数量（随统计期变化：片区内入库月 ≤ 结束月的项目数） */
+  projectCount: number;
+  /** 片区总体投资估算（亿元，策划方案填报 invest，片区口径非项目加和；无方案为 0） */
+  areaTotalInvest: number;
+  yearPlanInvest: number;
+  yearAccumulatedInvest: number;
+  yearProgressRate: number;
+  periodCompletedInvest: number;
+  yearArrivedFunds: number;
+  periodArrivedFunds: number;
+  yearArrivalRate: number;
+};
+
+/**
+ * 片区汇总统计（仅含有关联项目的片区，按片区编号排序、无编号置尾）。
+ * 片区外零星项目（无片区名）不进片区汇总；片区元数据（编号/行政区/批次/功能定位）
+ * 与总体投资估算取自策划方案填报，方案缺项回退项目行值。
+ */
+export async function fetchAreaFundStats(startMonth: string, endMonth: string): Promise<AreaFundStatRow[]> {
+  const [projects, schemes] = await Promise.all([fetchPortfolioProjects(), fetchSchemeAreas()]);
+  const { end, periodMonths, yearMonths } = portfolioPeriod(startMonth, endMonth);
+  const schemeByName = new Map(schemes.map((scheme) => [scheme.name, scheme]));
+
+  const groups = new Map<string, PortfolioProject[]>();
+  for (const project of projects) {
+    if (!project.renewalAreaName) continue;
+    const list = groups.get(project.renewalAreaName) ?? [];
+    list.push(project);
+    groups.set(project.renewalAreaName, list);
+  }
+  return [...groups.entries()]
+    .map(([areaName, list]) => {
+      const scheme = schemeByName.get(areaName);
+      const fallbackDistrict = list[0]?.district ?? '';
+      return {
+        areaCode: scheme?.code ?? '',
+        district: scheme?.district || fallbackDistrict,
+        renewalAreaName: areaName,
+        renewalAreaBatch: scheme?.batch || list[0]?.renewalAreaBatch || '',
+        orientation: (scheme?.funcTypes ?? []).map((type) => orientationLabel(type)).join('、'),
+        projectCount: projectCountInPeriod(list, end),
+        areaTotalInvest: Number(scheme?.invest ?? 0),
+        ...portfolioMetrics(list, periodMonths, yearMonths),
+      } satisfies AreaFundStatRow;
+    })
+    .sort((a, b) => a.areaCode.localeCompare(b.areaCode));
+}
+
+// ── 项目汇总（真实口径；一行一项目，片区总体投资估算取所属片区策划方案值） ──
+
+/** 项目汇总统计行（列口径见项目资金管理 list.vue 列定义） */
+export type ProjectFundStatRow = {
+  pUid: string;
+  projectCode: string;
+  projectName: string;
+  district: string;
+  renewalAreaName: string;
+  renewalAreaBatch: string;
+  fiveReformType: string;
+  projectAffiliation: string;
+  /** 片区总体投资估算（亿元，项目所属片区的策划方案 invest；无片区/无方案为 0） */
+  areaTotalInvest: number;
+  /** 项目投资估算（亿元，实施库 inv_bil） */
+  projectInvestEstimate: number;
+  yearPlanInvest: number;
+  yearAccumulatedInvest: number;
+  yearProgressRate: number;
+  periodCompletedInvest: number;
+  yearArrivedFunds: number;
+  periodArrivedFunds: number;
+  yearArrivalRate: number;
+};
+
+/**
+ * 项目汇总统计（一行一项目，按项目编号排序）。统计对象与区划/片区一致
+ * （实施库 ∩ 最新年度计划已采纳）；片区总体投资估算=所属片区策划方案值，
+ * 片区批次优先取方案值；金额与两率口径见 portfolioMetrics。
+ */
+export async function fetchProjectFundStats(startMonth: string, endMonth: string): Promise<ProjectFundStatRow[]> {
+  const [projects, schemes] = await Promise.all([fetchPortfolioProjects(), fetchSchemeAreas()]);
+  const { periodMonths, yearMonths } = portfolioPeriod(startMonth, endMonth);
+  const schemeByName = new Map(schemes.map((scheme) => [scheme.name, scheme]));
+  return projects
+    .map((project) => {
+      const scheme = project.renewalAreaName ? schemeByName.get(project.renewalAreaName) : undefined;
+      return {
+        pUid: project.pUid,
+        projectCode: project.projectCode,
+        projectName: project.projectName,
+        district: project.district,
+        renewalAreaName: project.renewalAreaName,
+        renewalAreaBatch: scheme?.batch || project.renewalAreaBatch || '',
+        fiveReformType: project.fiveReformType,
+        projectAffiliation: project.projectAffiliation,
+        areaTotalInvest: Number(scheme?.invest ?? 0),
+        projectInvestEstimate: project.investEstimate,
+        ...portfolioMetrics([project], periodMonths, yearMonths),
+      } satisfies ProjectFundStatRow;
+    })
+    .sort((a, b) => a.projectCode.localeCompare(b.projectCode));
 }
 
 export type FundQuery = {

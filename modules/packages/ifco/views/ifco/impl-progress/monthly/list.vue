@@ -23,20 +23,36 @@
     </div>
 
     <!-- 填报主体：填报列表（含查看/填写/编辑抽屉） -->
-    <MonthlyPanel v-show="activeTab === 'main'" />
+    <MonthlyPanel v-show="activeTab === 'main'" ref="mainPanelRef" />
     <!-- 区住更局：审查列表（待区级审查出审查按钮） -->
-    <MonthlyConfirmPanel v-show="activeTab === 'district'" role="district" />
+    <MonthlyConfirmPanel v-show="activeTab === 'district'" ref="districtPanelRef" role="district" />
     <!-- 项目推进组（市级）：审查列表（待市级审查出审查按钮） -->
-    <MonthlyConfirmPanel v-show="activeTab === 'urban'" role="urban" />
+    <MonthlyConfirmPanel v-show="activeTab === 'urban'" ref="urbanPanelRef" role="urban" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoImplProgressMonthlyList">
-  import { ref } from 'vue';
+  import { ref, watch } from 'vue';
   import { TabPane, Tabs } from 'antdv-next';
+  import { match } from 'ts-pattern';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import MonthlyPanel from './monthly-panel.vue';
   import MonthlyConfirmPanel from './monthly-confirm-panel.vue';
 
   /** 默认页签=填报主体；生产接机构角色后按角色显隐页签 */
-  const activeTab = ref('main');
+  const activeTab = ref<'main' | 'district' | 'urban'>('main');
+
+  const mainPanelRef = ref<InstanceType<typeof MonthlyPanel>>();
+  const districtPanelRef = ref<InstanceType<typeof MonthlyConfirmPanel>>();
+  const urbanPanelRef = ref<InstanceType<typeof MonthlyConfirmPanel>>();
+
+  /** 切换视角页签时重拉该视角数据：三面板 v-show 不销毁、各持初次加载的表格快照，
+   *  其余视角提交审查后仅本视角重拉（如区级审查通过后市级页签仍显「待区级审查」），
+   *  故切页签即刷新，保证流转状态各视角一致 */
+  watch(activeTab, (tab) => {
+    match(tab)
+      .with('main', () => mainPanelRef.value?.reload())
+      .with('district', () => districtPanelRef.value?.reload())
+      .with('urban', () => urbanPanelRef.value?.reload())
+      .exhaustive();
+  });
 </script>

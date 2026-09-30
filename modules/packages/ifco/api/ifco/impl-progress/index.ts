@@ -226,6 +226,8 @@ export type MonthlyProgressEntry = {
   actualStartDate?: string;
   /** 实际完工时间（当前建设阶段为已完工时必填） */
   actualCompletionDate?: string;
+  /** 当月完成投资（亿元；随月度填报逐月暂存，资金组合查询按统计周期逐月加和） */
+  monthCompletedInvest?: number;
 };
 
 /** 月度进度填报行 */
@@ -263,6 +265,10 @@ export type MonthlyItem = {
   yearRangeAccumulatedInvest?: number;
   /** 2025年10月前累计完成投资（亿元，往期结转；演示口径，接后端后按计划周期动态） */
   carryOverAccumulatedInvest?: number;
+  /** 2025年10-12月累计完成投资（亿元，初始写入数据库的值；演示口径，接后端后按计划周期动态） */
+  octDecAccumulatedInvest?: number;
+  /** 2026年6月至今累计完成投资（亿元，初始值+每月累加、随月度填报滚动回写；演示口径，接后端后动态） */
+  juneToNowAccumulatedInvest?: number;
   /** 当前进度落实情况（当月快照，列表「完成进度计划情况」列） */
   monthProgressDesc: string;
   /** 实施进度完成百分比（0~100，未填报不展示；当月快照） */

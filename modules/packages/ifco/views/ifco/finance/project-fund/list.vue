@@ -6,20 +6,33 @@
   同在库项目管理统计卡：白卡，选中=蓝描边浅蓝底+对勾；汇总周期行 + 口径统计行，
   区划卡带进度条）+ 三张 BasicTable（v-show
   不销毁，各自搜索表单与列）：
-  - 区划：行政区/在库项目数量/总投资/年度计划投资/统计周期内累计完成投资/
-    年度投资进度(进度条)/统计周期内累计已到位资金/资金到位率(进度条)；末行全市合计；
-  - 片区：片区编号/行政区/片区名称/片区批次/片区功能定位/项目数量/片区总体投资
-    估算/累计已完成投资/本年度计划完成投资/统计周期内累计完成投资/年度投资进度/累计
-    已到位资金/资金到位率；
-  - 项目：复选框/项目编号/项目名称/行政区/片区名称/片区批次/五改分类/项目归属/
-    片区总体投资估算/项目投资估算/本年度计划完成投资/累计完成投资/年度投资进度/
-    累计到位资金/资金到位率。
-  三表共用 时间轴（开始/结束月份 MonthPicker，暂未参与过滤）+ 一键导出（占位）；
-  区划形态工具栏另有 查看趋势图（弹窗 ECharts：各月 投资进度/资金到位率/
-  月完成投资额，演示口径同资金统计分析）。
+  - 区划（真实口径统计，api/ifco/finance fetchDistrictFundStats：既在实施库且
+    年度计划已采纳的项目）：行政区/在库项目数量(随统计期)/总投资(实施库投资
+    估算)/本年度计划完成投资(采纳行)/本年度累计完成投资(最新月度填报)/统计
+    周期内累计完成投资(逐月当月完成加和)/年度投资进度(进度条)/本年度累计
+    实际到位资金(资金填报 r104 当年加和)/统计周期内累计已到位资金(r104 逐月
+    加和)/年度资金到位率(进度条)；末行全市合计；开始月份限 2026-10 起、
+    结束月份默认当前月，默认显示本年度统计数据；
+  - 片区（真实口径统计，api/ifco/finance fetchAreaFundStats：既在实施库且年度
+    计划已采纳的项目按片区汇总，片区外零星项目不进片区表；片区编号/行政区/
+    片区批次/功能定位/片区总体投资估算取自策划方案填报，方案缺项回退项目行）：
+    片区编号/行政区/片区名称/片区批次/片区功能定位/项目数量(随统计期)/片区
+    总体投资估算(方案 invest)/本年度计划完成投资(采纳行加和)/本年度累计完成
+    投资(最新月度填报加和)/统计周期内累计完成投资(逐月当月完成加和)/年度
+    投资进度(进度条)/本年度累计实际到位资金(资金填报 r104 当年加和)/统计
+    周期内累计已到位资金(r104 逐月加和)/年度资金到位率(进度条)；月份口径
+    同区划形态（开始月份限 2026-10 起、结束月份默认当前月）；
+  - 项目（真实口径统计，api/ifco/finance fetchProjectFundStats：实施库 ∩
+    年度计划已采纳，一行一项目，按项目编号排序）：复选框/项目编号/项目名称/
+    行政区/片区名称/片区批次/五改分类/项目归属/片区总体投资估算(所属片区
+    策划方案值)/项目投资估算/本年度计划完成投资(采纳行)/本年度累计完成投资
+    (最新月度填报)/统计周期内累计完成投资/年度投资进度/本年度累计实际到位
+    资金/统计周期内累计已到位资金/年度资金到位率；月份口径同区划形态；
+  汇总卡/趋势图仍为内存假数据（后端未介入，刷新即恢复）；
+  时间轴（开始/结束月份）在区划/片区/项目三形态参与统计（见上口径）；
+  一键导出（占位）。区划形态工具栏另有 查看趋势图（弹窗 ECharts：各月 投资进度/
+  资金到位率/月完成投资额，演示口径同资金统计分析）。
   行政区/片区名称/项目名称/项目归属/片区批次/五改分类为本地过滤。
-  当前后端尚未介入：数据来自 @jeesite/ifco/api/ifco/finance（内存假数据，统计行
-  照设计稿口径演示；刷新即恢复）。
 
   菜单注册（上级菜单「投融资管理」）：
    - 菜单名称：项目资金管理
@@ -69,8 +82,8 @@
         <template #yearProgressRate="{ record }">
           <Progress :percent="record.yearProgressRate" size="small" style="max-width: 110px" />
         </template>
-        <template #arrivalRate="{ record }">
-          <Progress :percent="record.arrivalRate" size="small" style="max-width: 110px" />
+        <template #yearArrivalRate="{ record }">
+          <Progress :percent="record.yearArrivalRate" size="small" style="max-width: 110px" />
         </template>
       </BasicTable>
     </div>
@@ -85,8 +98,8 @@
         <template #yearProgressRate="{ record }">
           <Progress :percent="record.yearProgressRate" size="small" style="max-width: 110px" />
         </template>
-        <template #arrivalRate="{ record }">
-          <Progress :percent="record.arrivalRate" size="small" style="max-width: 110px" />
+        <template #yearArrivalRate="{ record }">
+          <Progress :percent="record.yearArrivalRate" size="small" style="max-width: 110px" />
         </template>
       </BasicTable>
     </div>
@@ -103,8 +116,8 @@
         <template #yearProgressRate="{ record }">
           <Progress :percent="record.yearProgressRate" size="small" style="max-width: 110px" />
         </template>
-        <template #arrivalRate="{ record }">
-          <Progress :percent="record.arrivalRate" size="small" style="max-width: 110px" />
+        <template #yearArrivalRate="{ record }">
+          <Progress :percent="record.yearArrivalRate" size="small" style="max-width: 110px" />
         </template>
       </BasicTable>
     </div>
@@ -116,9 +129,10 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoFinanceProjectFundIndex">
-  import { computed, nextTick, ref, shallowRef, watch } from 'vue';
+  import { computed, nextTick, onMounted, ref, shallowRef, watch } from 'vue';
   import type { Ref } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
+  import dayjs from 'dayjs';
   import { Modal, Progress } from 'antdv-next';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
@@ -133,9 +147,10 @@
     DISTRICT_FUND_ROWS,
     FUND_MODE_CARDS,
     MONTHLY_FUND_TREND,
-    filterAreaFundRows,
-    filterDistrictFundRows,
-    filterProjectFundRows,
+    PORTFOLIO_START_MONTH,
+    fetchAreaFundStats,
+    fetchDistrictFundStats,
+    fetchProjectFundStats,
     fiveReformLabel,
     projectAffiliationLabel,
     renewalAreaBatchLabel,
@@ -220,20 +235,27 @@
   const batchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
   const fiveReformOptions = [...FIVE_REFORM_TYPE_OPTIONS];
 
-  // ── 区划形态 ────────────────────────────────────────────────────────
+  // ── 区划形态（真实口径统计：实施库 ∩ 年度计划已采纳；列口径见文件头注释） ──
   const districtColumns: BasicColumn[] = [
     { title: '行政区', dataIndex: 'district', width: 120, fixed: 'left', slot: 'district' },
     { title: '在库项目数量(个)', dataIndex: 'projectCount', width: 130, align: 'right' },
     { title: '总投资（亿元）', dataIndex: 'totalInvest', width: 120, align: 'right' },
-    { title: '年度计划投资（亿元）', dataIndex: 'yearPlanInvest', width: 150, align: 'right' },
+    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearPlanInvest', width: 170, align: 'right' },
+    { title: '本年度累计完成投资（亿元）', dataIndex: 'yearAccumulatedInvest', width: 170, align: 'right' },
     { title: '统计周期内累计完成投资（亿元）', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 140, slot: 'yearProgressRate' },
+    { title: '本年度累计实际到位资金（亿元）', dataIndex: 'yearArrivedFunds', width: 190, align: 'right' },
     { title: '统计周期内累计已到位资金（亿元）', dataIndex: 'periodArrivedFunds', width: 200, align: 'right' },
-    { title: '资金到位率', dataIndex: 'arrivalRate', width: 130, fixed: 'right', slot: 'arrivalRate' },
+    { title: '年度资金到位率', dataIndex: 'yearArrivalRate', width: 130, fixed: 'right', slot: 'yearArrivalRate' },
   ];
 
-  const [registerDistrictTable, { setTableData: setDistrictData }] = useTable({
-    dataSource: filterDistrictFundRows({}),
+  /** 统计期月份限制：开始月份自 2026-10 起（业务口径），结束月份不早于开始可选 */
+  function portfolioMonthDisabled(current: dayjs.Dayjs) {
+    return current.isBefore(dayjs(`${PORTFOLIO_START_MONTH}-01`), 'month');
+  }
+
+  const [registerDistrictTable, { setTableData: setDistrictData, getForm: getDistrictForm }] = useTable({
+    dataSource: [],
     columns: districtColumns,
     showTableSetting: true,
     showIndexColumn: false,
@@ -248,13 +270,21 @@
           label: '开始月份',
           field: 'startMonth',
           component: 'MonthPicker',
-          componentProps: { valueFormat: 'YYYY-MM', placeholder: '请选择' },
+          componentProps: {
+            valueFormat: 'YYYY-MM',
+            placeholder: '请选择',
+            disabledDate: portfolioMonthDisabled,
+          },
         },
         {
           label: '结束月份',
           field: 'endMonth',
           component: 'MonthPicker',
-          componentProps: { valueFormat: 'YYYY-MM', placeholder: '请选择' },
+          componentProps: {
+            valueFormat: 'YYYY-MM',
+            placeholder: '请选择',
+            disabledDate: portfolioMonthDisabled,
+          },
         },
         {
           label: '行政区',
@@ -270,32 +300,59 @@
         },
       ],
     },
-    // 无后端：行政区本地过滤（时间轴/统计类型暂未参与，见文件头注释）
+    // 真实口径统计：开始/结束月份与行政区参与（缺省统计期=[2026-10, 当前月]，本年度口径字段不随统计期变化）
     handleSearchInfoFn: (params: Recordable) => {
-      setDistrictData(filterDistrictFundRows(params));
+      applyDistrictStats(params);
       return params;
     },
   });
 
-  // ── 片区形态 ────────────────────────────────────────────────────────
+  /** 区划汇总统计（异步接数；行政区筛选=只留该区行，不筛选时含末行全市合计） */
+  async function applyDistrictStats(params: Recordable) {
+    let rows;
+    try {
+      rows = await fetchDistrictFundStats(String(params.startMonth ?? ''), String(params.endMonth ?? ''));
+    } catch (e) {
+      showMessage((e as Error)?.message || '区划汇总统计加载失败');
+      setDistrictData([]);
+      return;
+    }
+    setDistrictData(params.district ? rows.filter((row) => row.district === params.district) : rows);
+  }
+
+  /** 默认统计期：2026-10 → 当前月（当前月早于 2026-10 时取 2026-10），默认显示本年度统计数据（区划/片区/项目三形态同口径） */
+  onMounted(() => {
+    const now = dayjs().format('YYYY-MM');
+    const endMonth = now > PORTFOLIO_START_MONTH ? now : PORTFOLIO_START_MONTH;
+    const defaults = { startMonth: PORTFOLIO_START_MONTH, endMonth };
+    getDistrictForm().setFieldsValue(defaults);
+    getAreaForm().setFieldsValue(defaults);
+    getProjectForm().setFieldsValue(defaults);
+    applyDistrictStats(defaults);
+    applyAreaStats(defaults);
+    applyProjectStats(defaults);
+  });
+
+  // ── 片区形态（真实口径统计：实施库 ∩ 年度计划已采纳，按片区汇总；列口径见文件头注释） ──
   const areaColumns: BasicColumn[] = [
     { title: '片区编号', dataIndex: 'areaCode', width: 100, fixed: 'left' },
     { title: '行政区', dataIndex: 'district', width: 90 },
     { title: '片区名称', dataIndex: 'renewalAreaName', width: 110, fixed: 'left' },
     { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
-    { title: '片区功能定位', dataIndex: 'orientation', width: 110 },
+    { title: '片区功能定位', dataIndex: 'orientation', width: 130 },
     { title: '项目数量(个)', dataIndex: 'projectCount', width: 100, align: 'right' },
     { title: '片区总体投资估算（亿元）', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
-    { title: '累计已完成投资（亿元）', dataIndex: 'accumulatedCompletedInvest', width: 150, align: 'right' },
-    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearInvestPlan', width: 140, align: 'right' },
+    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearPlanInvest', width: 170, align: 'right' },
+    { title: '本年度累计完成投资（亿元）', dataIndex: 'yearAccumulatedInvest', width: 170, align: 'right' },
     { title: '统计周期内累计完成投资（亿元）', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 130, slot: 'yearProgressRate' },
+    { title: '本年度累计实际到位资金（亿元）', dataIndex: 'yearArrivedFunds', width: 190, align: 'right' },
     { title: '统计周期内累计已到位资金（亿元）', dataIndex: 'periodArrivedFunds', width: 200, align: 'right' },
-    { title: '资金到位率', dataIndex: 'arrivalRate', width: 120, fixed: 'right', slot: 'arrivalRate' },
+    { title: '年度资金到位率', dataIndex: 'yearArrivalRate', width: 130, fixed: 'right', slot: 'yearArrivalRate' },
   ];
 
-  const [registerAreaTable, { setTableData: setAreaData }] = useTable({
-    dataSource: filterAreaFundRows({}),
+  const [registerAreaTable, { setTableData: setAreaData, getForm: getAreaForm }] = useTable({
+    dataSource: [],
     columns: areaColumns,
     showTableSetting: true,
     showIndexColumn: false,
@@ -310,13 +367,21 @@
           label: '开始月份',
           field: 'startMonth',
           component: 'MonthPicker',
-          componentProps: { valueFormat: 'YYYY-MM', placeholder: '请选择' },
+          componentProps: {
+            valueFormat: 'YYYY-MM',
+            placeholder: '请选择',
+            disabledDate: portfolioMonthDisabled,
+          },
         },
         {
           label: '结束月份',
           field: 'endMonth',
           component: 'MonthPicker',
-          componentProps: { valueFormat: 'YYYY-MM', placeholder: '请选择' },
+          componentProps: {
+            valueFormat: 'YYYY-MM',
+            placeholder: '请选择',
+            disabledDate: portfolioMonthDisabled,
+          },
         },
         {
           label: '行政区',
@@ -333,13 +398,33 @@
         },
       ],
     },
+    // 真实口径统计：开始/结束月份与行政区/片区名称参与（缺省统计期=[2026-10, 当前月]）
     handleSearchInfoFn: (params: Recordable) => {
-      setAreaData(filterAreaFundRows(params));
+      applyAreaStats(params);
       return params;
     },
   });
 
-  // ── 项目形态 ────────────────────────────────────────────────────────
+  /** 片区汇总统计（异步接数；行政区=精确过滤，片区名称=模糊过滤） */
+  async function applyAreaStats(params: Recordable) {
+    let rows;
+    try {
+      rows = await fetchAreaFundStats(String(params.startMonth ?? ''), String(params.endMonth ?? ''));
+    } catch (e) {
+      showMessage((e as Error)?.message || '片区汇总统计加载失败');
+      setAreaData([]);
+      return;
+    }
+    const keyword = String(params.renewalAreaName ?? '').trim();
+    setAreaData(
+      rows.filter(
+        (row) =>
+          (!params.district || row.district === params.district) && (!keyword || row.renewalAreaName.includes(keyword)),
+      ),
+    );
+  }
+
+  // ── 项目形态（真实口径统计：实施库 ∩ 年度计划已采纳，一行一项目；列口径见文件头注释） ──
   const projectColumns: BasicColumn[] = [
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
     { title: '项目名称', dataIndex: 'projectName', width: 210, fixed: 'left', ellipsis: true },
@@ -350,15 +435,17 @@
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '片区总体投资估算（亿元）', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
     { title: '项目投资估算（亿元）', dataIndex: 'projectInvestEstimate', width: 140, align: 'right' },
-    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearInvestPlan', width: 140, align: 'right' },
+    { title: '本年度计划完成投资（亿元）', dataIndex: 'yearPlanInvest', width: 170, align: 'right' },
+    { title: '本年度累计完成投资（亿元）', dataIndex: 'yearAccumulatedInvest', width: 170, align: 'right' },
     { title: '统计周期内累计完成投资（亿元）', dataIndex: 'periodCompletedInvest', width: 200, align: 'right' },
     { title: '年度投资进度', dataIndex: 'yearProgressRate', width: 130, slot: 'yearProgressRate' },
-    { title: '统计周期内累计到位资金（亿元）', dataIndex: 'periodArrivedFunds', width: 190, align: 'right' },
-    { title: '资金到位率', dataIndex: 'arrivalRate', width: 120, fixed: 'right', slot: 'arrivalRate' },
+    { title: '本年度累计实际到位资金（亿元）', dataIndex: 'yearArrivedFunds', width: 190, align: 'right' },
+    { title: '统计周期内累计已到位资金（亿元）', dataIndex: 'periodArrivedFunds', width: 200, align: 'right' },
+    { title: '年度资金到位率', dataIndex: 'yearArrivalRate', width: 130, fixed: 'right', slot: 'yearArrivalRate' },
   ];
 
-  const [registerProjectTable, { setTableData: setProjectData }] = useTable({
-    dataSource: filterProjectFundRows({}),
+  const [registerProjectTable, { setTableData: setProjectData, getForm: getProjectForm }] = useTable({
+    dataSource: [],
     columns: projectColumns,
     rowSelection: { type: 'checkbox' },
     showTableSetting: true,
@@ -374,13 +461,21 @@
           label: '开始月份',
           field: 'startMonth',
           component: 'MonthPicker',
-          componentProps: { valueFormat: 'YYYY-MM', placeholder: '请选择' },
+          componentProps: {
+            valueFormat: 'YYYY-MM',
+            placeholder: '请选择',
+            disabledDate: portfolioMonthDisabled,
+          },
         },
         {
           label: '结束月份',
           field: 'endMonth',
           component: 'MonthPicker',
-          componentProps: { valueFormat: 'YYYY-MM', placeholder: '请选择' },
+          componentProps: {
+            valueFormat: 'YYYY-MM',
+            placeholder: '请选择',
+            disabledDate: portfolioMonthDisabled,
+          },
         },
         {
           label: '行政区',
@@ -410,11 +505,37 @@
         },
       ],
     },
+    // 真实口径统计：开始/结束月份与各维度本地过滤（缺省统计期=[2026-10, 当前月]）
     handleSearchInfoFn: (params: Recordable) => {
-      setProjectData(filterProjectFundRows(params));
+      applyProjectStats(params);
       return params;
     },
   });
+
+  /** 项目汇总统计（异步接数；行政区/归属/批次/五改=精确过滤，片区/项目名称=模糊过滤） */
+  async function applyProjectStats(params: Recordable) {
+    let rows;
+    try {
+      rows = await fetchProjectFundStats(String(params.startMonth ?? ''), String(params.endMonth ?? ''));
+    } catch (e) {
+      showMessage((e as Error)?.message || '项目汇总统计加载失败');
+      setProjectData([]);
+      return;
+    }
+    const areaKeyword = String(params.renewalAreaName ?? '').trim();
+    const nameKeyword = String(params.projectName ?? '').trim();
+    setProjectData(
+      rows.filter(
+        (row) =>
+          (!params.district || row.district === params.district) &&
+          (!areaKeyword || row.renewalAreaName.includes(areaKeyword)) &&
+          (!nameKeyword || row.projectName.includes(nameKeyword)) &&
+          (!params.projectAffiliation || row.projectAffiliation === params.projectAffiliation) &&
+          (!params.renewalAreaBatch || row.renewalAreaBatch === params.renewalAreaBatch) &&
+          (!params.fiveReformType || row.fiveReformType === params.fiveReformType),
+      ),
+    );
+  }
 
   /** 占位操作（TODO：随导出后端接入） */
   function handleTodo(label: string) {

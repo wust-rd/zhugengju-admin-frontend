@@ -7,9 +7,10 @@
   直连模板组件绑定 ref、不走表单 schema——schema 字段的空值会被渲染成首个
   选项，直连 Select 的 placeholder 正常，参照 dispatch-form 行政区写法）——
   选「采纳」出现确认信息四字段：本年度计划完成投资[yearPlanInvest]/计划开工
-  时间[planStartDate]/计划完工时间[planCompletionDate]/备注[remarks]，两日期
-  存采纳行（各年度任务各自口径，回显值=工作台行 effective 值：采纳值优先、
-  无采纳值为主表值）；选「不采纳」出现 不采纳说明（存 adopt 行 remarks）；
+  时间[planStartDate]/计划完工时间[planCompletionDate]（三字段必填，schema
+  rules 校验拦截）/备注[remarks]（可选），两日期存采纳行（各年度任务各自
+  口径，回显值=工作台行 effective 值：采纳值优先、无采纳值为主表值）；
+  选「不采纳」出现 不采纳说明（存 adopt 行 remarks，必填）；
   切换选择清空已填内容；编辑态恒从「请选择」开始（无默认值，查看态按存量回显）。
   底部按钮由打开方经 showFooter 预隐藏。提交经 emit success 交工作台持久化
   （handleSuccess 调 adoptAnnualPlan，采纳投资由后端回写项目主表）。
@@ -103,6 +104,7 @@
       field: 'yearPlanInvest',
       component: 'InputNumber',
       componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '请输入本年度计划完成投资' },
+      rules: [{ required: true, message: '请输入本年度计划完成投资' }],
       colProps: { md: 24, lg: 24 },
       ifShow: () => adoptChoice.value === '采纳',
       dynamicDisabled: () => isView.value,
@@ -112,6 +114,7 @@
       field: 'planStartDate',
       component: 'DatePicker',
       componentProps: { valueFormat: 'YYYY-MM-DD', style: 'width: 100%', placeholder: '请选择计划开工时间' },
+      rules: [{ required: true, message: '请选择计划开工时间' }],
       colProps: { md: 24, lg: 24 },
       ifShow: () => adoptChoice.value === '采纳',
       dynamicDisabled: () => isView.value,
@@ -121,6 +124,7 @@
       field: 'planCompletionDate',
       component: 'DatePicker',
       componentProps: { valueFormat: 'YYYY-MM-DD', style: 'width: 100%', placeholder: '请选择计划完工时间' },
+      rules: [{ required: true, message: '请选择计划完工时间' }],
       colProps: { md: 24, lg: 24 },
       ifShow: () => adoptChoice.value === '采纳',
       dynamicDisabled: () => isView.value,
@@ -139,6 +143,7 @@
       field: 'rejectReason',
       component: 'InputTextArea',
       componentProps: { maxlength: 500, rows: 3, placeholder: '请输入不采纳说明' },
+      rules: [{ required: true, message: '请输入不采纳说明' }],
       colProps: { md: 24, lg: 24 },
       ifShow: () => adoptChoice.value === '不采纳',
       dynamicDisabled: () => isView.value,
@@ -184,7 +189,7 @@
     setDrawerProps({ open: true });
   });
 
-  /** 提交：先拦「请选择」，再按是否采纳分流（不采纳的说明存 adopt 行 remarks），emit success 交工作台持久化 */
+  /** 提交：先拦「请选择」，再经 validate 拦必填（采纳=投资/开工/完工；不采纳=说明），按是否采纳分流（不采纳的说明存 adopt 行 remarks），emit success 交工作台持久化 */
   async function handleSubmit() {
     if (isView.value) {
       closeDrawer();

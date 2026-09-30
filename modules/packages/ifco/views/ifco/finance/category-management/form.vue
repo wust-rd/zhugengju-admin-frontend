@@ -8,9 +8,10 @@
   月度进度信息 + 投资情况/纳统情况，本抽屉恒只读——数据来自月度进度填报，编辑入口
   在月度填报抽屉）→ ③资金填报（平铺无卡片：资金基本情况 + 资金到位情况）→
   ④确认提交（流程占位页）。
-  ③资金基本情况：本年完成投资总额（=步骤②进度填报的本年度累计完成投资，只读
-  自动带入）/ 投资纳统金额（手填）/ REITs 培育项目 / 项目资金缺口 / 缺口资金是否
-  已有资金安排 / 资金安排说明（安排=是时提交必填，红字提示）；
+  ③资金基本情况（金额均按亿元计量）：本年完成投资总额（=步骤②进度填报的
+  本年度累计完成投资，只读自动带入）/ 投资纳统金额（手填）/ REITs 培育项目 /
+  项目资金缺口 / 缺口资金是否已有资金安排 / 资金安排说明（安排=是时提交必填，
+  红字提示）；
   ③资金到位情况（口径照 impl-progress/monthly/table.csv，备注列不进系统）：
   月份页签（默认月=填报期月夹进项目计划起止月；页签到项目起始月倒序止）+ 指标
   表格（列=指标名称/计量单位/代码/累计实际到位资金/本年度累计实际到位资金/
@@ -80,15 +81,15 @@
       <div v-show="activeStep === 2" class="flex flex-col gap-16px">
         <!-- 资金基本情况 -->
         <div>
-          <div class="text-15px font-600 text-gray-900">资金基本情况(此表使用万元计量)</div>
+          <div class="text-15px font-600 text-gray-900">资金基本情况(此表使用亿元计量)</div>
           <div class="mt-12px grid grid-cols-1 gap-x-24px gap-y-12px md:grid-cols-2">
             <div class="flex items-center gap-8px">
-              <div class="w-180px shrink-0 text-right text-14px text-gray-700">本年完成投资总额（万元）</div>
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">本年完成投资总额（亿元）</div>
               <Input :value="yearInvestTotal" disabled class="flex-1" />
               <span class="shrink-0 text-12px text-#ff4d4f">进度填报时自动带入</span>
             </div>
             <div class="flex items-center gap-8px">
-              <div class="w-180px shrink-0 text-right text-14px text-gray-700">投资纳统金额(万元)</div>
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">投资纳统金额(亿元)</div>
               <InputNumber
                 v-model:value="formState.statInvestWan"
                 :min="0"
@@ -109,7 +110,7 @@
               />
             </div>
             <div class="flex items-center gap-8px">
-              <div class="w-180px shrink-0 text-right text-14px text-gray-700">项目资金缺口(万元)</div>
+              <div class="w-180px shrink-0 text-right text-14px text-gray-700">项目资金缺口(亿元)</div>
               <InputNumber
                 v-model:value="formState.fundGap"
                 :min="0"
@@ -207,7 +208,7 @@
                       <span v-else class="text-13px text-gray-600">{{ otherSources[month] || '' }}</span>
                     </template>
                     <!-- 自动行：按该月子项求和（只读） -->
-                    <span v-else-if="row.autoOf" class="text-gray-800">{{ formatWan(cellValue(row, month)) }}</span>
+                    <span v-else-if="row.autoOf" class="text-gray-800">{{ formatAmount(cellValue(row, month)) }}</span>
                     <!-- 输入行：所选月可填，已过月份只读 -->
                     <InputNumber
                       v-else-if="month === activeFundMonth && !isView"
@@ -219,7 +220,7 @@
                       placeholder="请输入"
                       @change="(value) => handleValueChange(month, row.key, value)"
                     />
-                    <span v-else class="text-gray-600">{{ formatWan(fundValues[month]?.[row.key] ?? 0) }}</span>
+                    <span v-else class="text-gray-600">{{ formatAmount(fundValues[month]?.[row.key] ?? 0) }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -376,11 +377,11 @@
   /** 累计列展示文本（文字行「其他来源」无累计概念，显示空而非 0） */
   function totalText(row: FundIndicatorRow, onlyActiveYear: boolean): string {
     if (row.key === 'otherSource') return '';
-    return formatWan(totalCell(row, onlyActiveYear));
+    return formatAmount(totalCell(row, onlyActiveYear));
   }
 
   /** 数值展示：千分位 + 最多两位小数 */
-  function formatWan(value: number) {
+  function formatAmount(value: number) {
     return value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
   }
 

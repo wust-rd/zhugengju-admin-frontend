@@ -258,6 +258,9 @@
   function handleTodo(label: string) {
     showMessage(`${label}：功能待接入`);
   }
+
+  /** 暴露重拉（list 页切换视角页签时调用：面板 v-show 不销毁，其余视角审查提交后需刷新本视角流转状态） */
+  defineExpose({ reload: loadRows });
 </script>
 <style scoped>
   /* 表头换行显示（长列名两行，与填报端月度列表同口径） */
