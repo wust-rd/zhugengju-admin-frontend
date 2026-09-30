@@ -4,22 +4,22 @@ import type { MenuItemType } from 'antdv-next';
 import { defineComponent, type PropType } from 'vue';
 
 /**
- * TopFilter —— 顶部筛选行：年份下拉 + 指标分类下拉
+ * TopFilter —— 顶部筛选行：年份下拉 + 指标体系下拉
  *
- * 左侧年份选择（buildYearItems 生成），右侧指标分类选择（带 chart 图标前缀）。
+ * 左侧年份选择（选项由后端体系年份去重生成），右侧指标体系选择（带 chart 图标前缀）。
  *
  * props：
  * - yearItems: 年份下拉选项（MenuItemType[]）
- * - indicatorItems: 指标分类下拉选项
+ * - indicatorItems: 指标体系下拉选项
  * - yearKey: v-model:yearKey 年份选中项
- * - indicatorKey: v-model:indicatorKey 指标分类选中项
+ * - indicatorKey: v-model:indicatorKey 指标体系选中项（值为体系主键 id）
  */
 export const TopFilter = defineComponent({
   name: 'TopFilter',
   props: {
     /** 年份下拉选项 */
     yearItems: { type: Array as PropType<MenuItemType[]>, default: () => [] },
-    /** 指标分类下拉选项 */
+    /** 指标体系下拉选项 */
     indicatorItems: { type: Array as PropType<MenuItemType[]>, default: () => [] },
     /** 年份选中项（v-model:yearKey） */
     yearKey: { type: [String, Number] as PropType<string | number | null>, default: null },

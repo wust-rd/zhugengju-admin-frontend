@@ -25,6 +25,9 @@ export const RATING_COLOR: Record<string, string> = {
   较好: '#4ADE80',
   一般: '#FBBF24',
   较差: '#F472B6',
+  // 城市体检后端评估结果字典用「不足」而非「较差」；无标准=不可评估，灰色
+  不足: '#F472B6',
+  无标准: '#CBD5E1',
 };
 
 /**
@@ -79,18 +82,26 @@ export const CornerPanelRow = defineComponent({
             props.class,
           )}
         >
-          {/* 序号 */}
-          <div class="relative z-10 text-14px text-white shrink-0">{item.seq}</div>
+          {/* 序号：定宽居中（01 与 267 等不同位数对齐，不挤动右侧列） */}
+          <div class="relative z-10 w-28px text-center text-14px text-white shrink-0">{item.seq}</div>
 
-          {/* 指标项名称：固定 164px，超长自动换行 */}
-          <div class="relative z-10 w-164px text-14px text-white">{item.label}</div>
+          {/* 指标项名称：单行省略号，title 悬停看全称（宽度控制在行预算内，避免挤扁右侧评级胶囊） */}
+          <div class="relative z-10 w-164px text-14px text-white shrink-0 truncate" title={item.label}>
+            {item.label}
+          </div>
 
-          {/* 数值 */}
-          <div class="relative z-10 w-84px text-center text-14px text-white shrink-0">{item.value}</div>
+          {/* 数值：超长省略号，title 悬停看全值（如 1360.09万平方米） */}
+          <div class="relative z-10 w-96px text-center text-14px text-white shrink-0 truncate" title={item.value}>
+            {item.value}
+          </div>
 
-          {/* 评级胶囊：背景为评级色 0.1 透明度，边框 0.2 透明度，文字保持原色 */}
+          {/* 评级胶囊：背景为评级色 0.1 透明度，边框 0.2 透明度，文字保持原色；shrink-0+nowrap 防被挤压变形。
+              3 字及以上评级（如 无标准）字号降一档，避免文字撑满胶囊显得臃肿 */}
           <div
-            class="b rd-full w-48px h-24px flex items-center justify-center"
+            class={cn(
+              'b rd-full w-48px h-24px flex items-center justify-center shrink-0 whitespace-nowrap px-4px',
+              (item.rating?.length ?? 0) > 2 ? 'text-12px' : 'text-14px',
+            )}
             style={{
               background: withAlpha(ratingColor, 0.1),
               borderColor: withAlpha(ratingColor, 0.2),

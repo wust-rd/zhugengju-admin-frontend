@@ -101,13 +101,17 @@ export const DropdownSelector = defineComponent({
         >
           {slots.prefix?.()}
 
-          <div class={cn('text-14px text-white whitespace-nowrap', hasPrefix ? 'ml-12px' : 'ml-16px')}>
+          {/* 选中文字：容器定宽时超长省略号（truncate 含 nowrap+hidden+ellipsis；min-w-0 允许 flex 收缩），title 悬停看全称 */}
+          <div
+            class={cn('text-14px text-white truncate min-w-0', hasPrefix ? 'ml-12px' : 'ml-16px')}
+            title={displayLabel.value}
+          >
             {displayLabel.value}
           </div>
 
           {/* 清除按钮：allowClear 且已有选中值时显示，点击置空 activeKey */}
           {props.allowClear && hasValue.value && (
-            <div class="ml-auto flex items-center cursor-pointer" onClick={handleClear}>
+            <div class="ml-auto flex items-center shrink-0 cursor-pointer" onClick={handleClear}>
               {slots.clearIcon?.() ?? <CircleX class="size-20px text-gray-400" />}
             </div>
           )}
@@ -119,7 +123,7 @@ export const DropdownSelector = defineComponent({
             /* 默认箭头：ghost 时去掉描边与底，仅保留圆形图标 */
             <div
               class={cn(
-                'ml-auto size-32px rd-full flex items-center justify-center cursor-pointer',
+                'ml-auto size-32px rd-full flex items-center justify-center shrink-0 cursor-pointer',
                 props.ghost ? '' : 'b b-gray-500 bg-white/12',
               )}
             >

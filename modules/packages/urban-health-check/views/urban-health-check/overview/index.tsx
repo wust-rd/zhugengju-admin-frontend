@@ -1,120 +1,291 @@
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import type { MenuItemType } from 'antdv-next';
-import { buildYearItems } from '@jeesite/core/libs';
+import { cn } from '@jeesite/core/libs';
+import { CollapseGroups, type CollapseGroupItem } from '@jeesite/display/components/collapse-groups';
 import { CornerItem, CornerPanelRow } from '@jeesite/display/components/corner-panel';
-import { CollapseGroups } from '@jeesite/display/components/collapse-groups';
-import type { GlowTabItem } from '@jeesite/display/components/glow-tabs';
+import { GlowTabs } from '@jeesite/display/components/glow-tabs';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
-import { RegionTabs } from '@jeesite/display/components/region-tabs';
-import { RatingResult, type RatingDatum } from './rating-result';
 import { SearchFilter } from '@jeesite/display/components/search-filter';
-import { TopFilter } from './top-filter';
 import { VMap, VMapControls, basemapStyle, basemapMapOptions } from '@jeesite/vmap';
+import { indicatorListBySet } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
+import {
+  overviewResultRows,
+  overviewSurveyByYear,
+  overviewSystemList,
+  type OverviewResultRow,
+  type OverviewSystemOption,
+  type OverviewSurveyQuestion,
+} from '@jeesite/urban-health-check/api/urban-health-check/urban/overview';
+import { RatingResult, type RatingDatum } from './rating-result';
+import { SatisfactionSurvey, type SatisfactionItem } from './satisfaction-survey';
+import { TopFilter } from './top-filter';
 
-// 指标评价结果分布：饼图与右侧统计网格共用同一份数据（数值为百分数）
-const ratingData: RatingDatum[] = [
-  { key: '很好', label: '很好', value: 18.7, color: '#22D3EE' },
-  { key: '无标准', label: '无标准', value: 20.1, color: '#CBD5E1' },
-  { key: '较好', label: '较好', value: 32.5, color: '#4ADE80' },
-  { key: '较差', label: '较差', value: 32.5, color: '#F472B6' },
-  { key: '一般', label: '一般', value: 23.7, color: '#FBBF24' },
-];
+/**
+ * 评估结果五档（后端字典：很好 / 较好 / 一般 / 不足 / 无标准）：
+ * 「指标评价结果」饼图、行评级色、筛选下拉共用同一顺序与色系。
+ * evaluateResult 为空（已填报但不可评估）归入 无标准 档。
+ */
+const EVAL_TIERS = [
+  { key: '很好', color: '#22D3EE' },
+  { key: '较好', color: '#4ADE80' },
+  { key: '一般', color: '#FBBF24' },
+  { key: '不足', color: '#F472B6' },
+  { key: '无标准', color: '#CBD5E1' },
+] as const;
 
-// —— 三个折叠面板的指标列表（占位数据，接入接口后替换） ——
-// 生态宜居：公园绿化 / 绿地率等指标
-const ecoItems: CornerItem[] = [
-  { seq: '01', label: '公园绿化活动场地服务半径', value: '77.8%', rating: '很好' },
-  { seq: '02', label: '城市绿地率', value: '28.58%', rating: '一般' },
-  { seq: '03', label: '城市绿化覆盖率', value: '84.0%', rating: '较好' },
-  { seq: '04', label: '10万人拥有综合公园数量', value: '5个', rating: '很好' },
-  { seq: '05', label: '人均公园绿地面积', value: '0.16m²/人', rating: '较差' },
-  { seq: '06', label: '公园综合吸引半径', value: '7.03Km', rating: '较好' },
-  { seq: '07', label: '年度主要城市公园游客量', value: '3万人', rating: '一般' },
-  { seq: '08', label: '公园内年举办活动数量', value: '25场', rating: '一般' },
-];
+/** 指标项 + 结果联表行（indicatorItem 表2 骨架，按 itemNo 挂接表6 结果值） */
+type JoinedRow = {
+  itemNo: number;
+  dim1: string; // 一级维度（空归「其他」）
+  dim2: string; // 二级维度（空归「其他」）
+  name: string;
+  unit?: string;
+  result?: OverviewResultRow; // 表6 结果行（体系刚建无结果时缺省）
+};
 
-// 历史文化保护利用：历史建筑 / 街区 / 非遗等指标
-const heritageItems: CornerItem[] = [
-  { seq: '01', label: '历史文化街区保护率', value: '92.5%', rating: '很好' },
-  { seq: '02', label: '历史建筑修缮率', value: '68.0%', rating: '较好' },
-  { seq: '03', label: '非遗代表性项目数量', value: '36项', rating: '一般' },
-  { seq: '04', label: '古树名木保护率', value: '100%', rating: '很好' },
-];
-
-// 特色活力：夜间经济 / 活动等指标
-const vitalityItems: CornerItem[] = [
-  { seq: '01', label: '夜间经济活跃度', value: '87.3%', rating: '很好' },
-  { seq: '02', label: '网红打卡点数量', value: '42处', rating: '较好' },
-  { seq: '03', label: '文化活动年举办场次', value: '128场', rating: '较好' },
-  { seq: '04', label: '青年人口占比', value: '24.6%', rating: '一般' },
-];
-
-// 区域 tabs：激活项由 RegionTabs 的 svg 发光胶囊指示器表达（按钮本身不再发光）
-const regionTabs: GlowTabItem[] = [
-  { key: 'city', label: '城区', icon: 'i-ri-map-2-line' },
-  { key: 'factory', label: '工厂', icon: 'i-ri-community-line' },
-  { key: 'enterprise', label: '企业', icon: 'i-ri-building-2-line' },
-  { key: 'residence', label: '住宅', icon: 'i-ri-home-smile-line' },
-];
+/** 指标值 → 展示文本：去尾零，拼单位（如 1393栋 / 77.8%），无值占位 -- */
+function formatValue(value: number | null | undefined, unit?: string): string {
+  if (value == null) return '--';
+  const n = Number(value);
+  const text = Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
+  return unit ? `${text}${unit}` : text;
+}
 
 export default defineComponent({
   name: 'ViewsUrbanHealthCheckOverview',
   setup() {
     // 沉浸式全屏由布局按路由自动判定（new-header 的 isDisplayRoute），页面无需拨开关
 
-    // 指标分类下拉菜单项
-    const items: MenuItemType[] = [
-      { key: '1', label: '一好基础指标' },
-      { key: '2', label: '二好基础指标' },
-      { key: '3', label: '三好基础指标' },
-      { key: '4', label: '四好基础指标' },
-    ];
+    // —— 顶部筛选：年份 + 指标体系（选项均来自后端 indicatorSet/page）——
+    const systems = ref<OverviewSystemOption[]>([]);
+    const yearKey = ref('');
+    const systemKey = ref('');
 
-    // 年份下拉：最近 N 年（当前改为最近两年，变更年数只改 buildYearItems 参数）
-    const yearItems = buildYearItems(2);
-    const yearKey = ref<string | number>(yearItems[0]?.key ?? '');
+    // 年份下拉：体系年份去重倒序（有数据的年份优先，非固定近 N 年）
+    const yearItems = computed<MenuItemType[]>(() => {
+      const years = [...new Set(systems.value.map((s) => s.year).filter((y): y is string => !!y))];
+      years.sort((a, b) => Number(b) - Number(a));
+      return years.map((y) => ({ key: y, label: `${y} 年` }));
+    });
 
-    // 受控选中项：指标分类默认选中「四好基础指标」，年份默认选中最近一年（当前年）
-    const indicatorKey = ref<string | number>('4');
+    // 指标体系下拉：当前年份下的体系（label 用体系名称，兜底业务编码）
+    const systemItems = computed<MenuItemType[]>(() =>
+      systems.value
+        .filter((s) => s.year === yearKey.value)
+        .map((s) => ({ key: s.id ?? '', label: s.indicatorName || s.code || '未命名体系' })),
+    );
 
-    // 区域 tabs 当前激活项（点击切换，单选）
-    const activeRegionKey = ref<string>('city');
+    onMounted(async () => {
+      try {
+        systems.value = await overviewSystemList();
+        // 默认选中：优先启用体系所在年份，否则最新年份
+        const preferred = systems.value.find((s) => s.enabled === '1') ?? systems.value[0];
+        yearKey.value = preferred?.year ?? '';
+      } catch (e) {
+        console.error('[城市体检总览] 指标体系加载失败', e);
+      }
+    });
+
+    // —— 满意度调查（按体检年份加载全量问题，展示时按一级维度 tab 过滤）——
+    const surveyQuestions = ref<OverviewSurveyQuestion[]>([]);
+    let surveyToken = 0;
+
+    // —— 指标项 + 结果联表（按体系主键加载）——
+    const rows = ref<JoinedRow[]>([]);
+    const loadingRows = ref(false);
+    let rowsToken = 0;
+
+    watch(yearKey, (year) => {
+      // 年份切换：体系默认取该年份下启用体系，否则第一套（联动触发 systemKey 加载）
+      const list = systems.value.filter((s) => s.year === year);
+      systemKey.value = (list.find((s) => s.enabled === '1') ?? list[0])?.id ?? '';
+
+      // 满意度调查随年份加载（问题行带 firstDimensionName，供 tab 过滤；年份为空不发请求）
+      const token = ++surveyToken;
+      if (year) {
+        overviewSurveyByYear(year)
+          .then((questions) => {
+            if (token !== surveyToken) return;
+            surveyQuestions.value = questions;
+          })
+          .catch((e) => console.error('[城市体检总览] 满意度调查加载失败', e));
+      }
+    });
+
+    watch(systemKey, async (setId) => {
+      const token = ++rowsToken;
+      rows.value = [];
+      if (!setId) return;
+      loadingRows.value = true;
+      try {
+        // 表2 维度骨架 + 表6 结果值并行拉取，按 itemNo 前端联表
+        const [items, results] = await Promise.all([indicatorListBySet(setId), overviewResultRows(setId)]);
+        if (token !== rowsToken) return;
+        const resultMap = new Map(results.map((r) => [String(r.itemNo), r]));
+        rows.value = items.map((it) => ({
+          itemNo: Number(it.code),
+          dim1: it.dim1 || '其他',
+          dim2: it.dim2 || '其他',
+          name: it.indicatorName || '',
+          unit: it.unit,
+          result: resultMap.get(String(it.code)),
+        }));
+      } catch (e) {
+        console.error('[城市体检总览] 指标项结果加载失败', e);
+      } finally {
+        if (token === rowsToken) loadingRows.value = false;
+      }
+    });
+
+    // —— 一级维度 tabs：联表行首次出现顺序（即 itemNo 序）——
+    const dimTabs = computed(() => {
+      const seen = new Set<string>();
+      const tabs: { key: string; label: string }[] = [];
+      for (const r of rows.value) {
+        if (!seen.has(r.dim1)) {
+          seen.add(r.dim1);
+          tabs.push({ key: r.dim1, label: r.dim1 });
+        }
+      }
+      return tabs;
+    });
+
+    const activeDim = ref('');
+    watch(
+      dimTabs,
+      (tabs) => {
+        // 当前 tab 不在新体系的一级维度中时回落到第一个
+        if (!tabs.some((t) => t.key === activeDim.value)) activeDim.value = tabs[0]?.key ?? '';
+      },
+      { immediate: true },
+    );
+
+    // —— 居民满意度调查条目：跟随当前一级维度 tab（问题行按 firstDimensionName 过滤；
+    // 未标维度的问题视为通用，所有 tab 都展示；名称优先取关联指标名，兜底问题原文）——
+    const satisfactionItems = computed<SatisfactionItem[]>(() =>
+      surveyQuestions.value
+        .filter((q) => !q.firstDimensionName || q.firstDimensionName === activeDim.value)
+        .map((q) => ({
+          key: q.id ?? String(q.sortNo ?? ''),
+          name: q.indicatorItemName || q.questionText || '',
+          rate: q.satisfactionRate ?? null,
+        })),
+    );
+
+    // —— 指标评价结果：跟随当前一级维度 tab（evaluateResult 空归 无标准）——
+    // 当前 tab 下的行集合（饼图分布与环心指标总数共用）
+    const scopedRows = computed(() =>
+      activeDim.value ? rows.value.filter((r) => r.dim1 === activeDim.value) : rows.value,
+    );
+    const ratingData = computed<RatingDatum[]>(() => {
+      const counts = new Map<string, number>(EVAL_TIERS.map((t) => [t.key, 0]));
+      for (const r of scopedRows.value) {
+        const tier = r.result?.evaluateResult || '无标准';
+        counts.set(tier, (counts.get(tier) ?? 0) + 1);
+      }
+      const total = scopedRows.value.length;
+      return EVAL_TIERS.map((t) => ({
+        key: t.key,
+        label: t.key,
+        value: total === 0 ? 0 : Math.round(((counts.get(t.key) ?? 0) / total) * 1000) / 10,
+        color: t.color,
+      }));
+    });
+
+    // —— 搜索 + 评估结果筛选（作用于二级维度列表行）——
+    const searchKey = ref('');
+    const ratingKey = ref<string | number | null>(null);
+
+    // —— 二级维度分组列表：activeDim 下的行按 dim2 分组，行 = 指标值 + 评估结果 ——
+    const bottomGroups = computed<CollapseGroupItem<CornerItem>[]>(() => {
+      const keyword = searchKey.value.trim();
+      const groups: CollapseGroupItem<CornerItem>[] = [];
+      for (const r of rows.value) {
+        if (r.dim1 !== activeDim.value) continue;
+        if (keyword && !r.name.includes(keyword)) continue;
+        if (ratingKey.value != null && (r.result?.evaluateResult || '无标准') !== ratingKey.value) continue;
+        let group = groups.find((g) => g.title === r.dim2);
+        if (!group) {
+          group = { title: r.dim2, items: [] };
+          groups.push(group);
+        }
+        group.items.push({
+          seq: String(r.itemNo).padStart(2, '0'),
+          label: r.name,
+          value: formatValue(r.result?.resultValue, r.unit),
+          rating: r.result?.evaluateResult || '无标准',
+        });
+      }
+      return groups.map((g) => ({ ...g, badgeValue: g.items.length }));
+    });
 
     return () => (
       <DisplayPageLayout collapsible={false}>
         {{
           left: () => (
             <>
-              {/* 顶部筛选行：年份 + 指标分类 */}
+              {/* 顶部筛选行：年份 + 指标体系（选项后端拉取） */}
               <TopFilter
                 v-model:yearKey={yearKey.value}
-                v-model:indicatorKey={indicatorKey.value}
-                yearItems={yearItems}
-                indicatorItems={items}
+                v-model:indicatorKey={systemKey.value}
+                yearItems={yearItems.value}
+                indicatorItems={systemItems.value}
               />
 
-              {/* 区域 tabs：RegionTabs 组件（发光胶囊指示器 + 文字动画） */}
-              <RegionTabs v-model:activeKey={activeRegionKey.value} items={regionTabs} class="mt-16px" />
-
-              {/* 指标评价结果：环形饼图 + 中心文字 + 统计网格 */}
-              <RatingResult ratingData={ratingData} />
-
-              {/* 搜索筛选行：搜索框 + 全部筛选下拉 */}
-              <SearchFilter v-model:activeKey={yearKey.value} items={ratingData as unknown as MenuItemType[]} />
-
-              <div class="mt-16px space-y-12px">
-                {/* 折叠分组：CollapseGroups 组件（GlowCollapse + CornerPanel + CornerPanelRow 指标行） */}
-                <CollapseGroups
-                  groups={[
-                    { title: '生态宜居', badgeValue: 25, items: ecoItems },
-                    { title: '历史文化保护利用', badgeValue: 18, items: heritageItems },
-                    { title: '特色活力', badgeValue: 12, items: vitalityItems },
-                  ]}
+              {/* 一级维度 tabs：GlowTabs 直接渲染文字 tab（无图标）；tab 集合变化时重挂载让指示器重测位置 */}
+              {dimTabs.value.length > 0 && (
+                <GlowTabs
+                  key={dimTabs.value.map((t) => t.key).join('|')}
+                  activeKey={activeDim.value}
+                  class="mt-16px"
+                  onUpdate:activeKey={(key) => (activeDim.value = String(key))}
                 >
-                  {{
-                    row: (item) => <CornerPanelRow item={item as CornerItem} />,
-                  }}
-                </CollapseGroups>
+                  {dimTabs.value.map((tab) => (
+                    <div
+                      key={tab.key}
+                      data-glow-tab-key={tab.key}
+                      class="flex-1 h-42px px-4px rd-10px flex items-center justify-center select-none cursor-pointer"
+                    >
+                      <div
+                        class={cn(
+                          'text-16px font-500 whitespace-nowrap transition-colors',
+                          tab.key === activeDim.value ? 'text-white' : 'text-gray-500',
+                        )}
+                      >
+                        {tab.label}
+                      </div>
+                    </div>
+                  ))}
+                </GlowTabs>
+              )}
+
+              {/* 指标评价结果：环形饼图（当前 tab 五档占比，随数据重绘），环心默认显示指标总数 */}
+              <RatingResult ratingData={ratingData.value} total={scopedRows.value.length} />
+
+              {/* 居民满意度调查：名称 + 满意率渐变进度条（按年份加载，无月粒度下拉） */}
+              <SatisfactionSurvey items={satisfactionItems.value} />
+
+              {/* 搜索筛选行：指标名关键字 + 评估结果五档筛选（清除 = 全部） */}
+              <SearchFilter
+                v-model:value={searchKey.value}
+                v-model:activeKey={ratingKey.value}
+                items={EVAL_TIERS.map((t) => ({ key: t.key, label: t.key }))}
+                placeholder="搜索指标项名称"
+                class="mt-16px"
+              />
+
+              <div class="mt-16px">
+                {bottomGroups.value.length === 0 ? (
+                  <div class="py-24px text-center text-14px text-gray-500">
+                    {loadingRows.value ? '数据加载中…' : '暂无数据'}
+                  </div>
+                ) : (
+                  <CollapseGroups groups={bottomGroups.value}>
+                    {{
+                      row: (item) => <CornerPanelRow item={item as CornerItem} />,
+                    }}
+                  </CollapseGroups>
+                )}
               </div>
             </>
           ),
