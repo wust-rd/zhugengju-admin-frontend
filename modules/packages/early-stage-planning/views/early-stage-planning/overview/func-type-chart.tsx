@@ -5,7 +5,7 @@ import { Tooltip } from 'antdv-next';
 import type { PropType, Ref } from 'vue';
 import { defineComponent, onMounted, shallowRef, watch } from 'vue';
 
-/** 功能定位维度（other = 未命中任何导向 / FUNC_TYPE 为空） */
+/** 功能定位维度（other = 其他导向：FUNC_TYPE_VALUE 含字面 XOD 编码） */
 export type FuncKey = 'cod' | 'tod' | 'iod' | 'sod' | 'eod' | 'hod' | 'other';
 
 /** 各维度单一配色（柱体从该色向底部渐变变浅；顶帽用亮色）；
@@ -24,7 +24,7 @@ export const FUNC_COLORS: Record<FuncKey, { color: string; cap: string }> = {
  * FuncTypeChart —— 片区功能定位分布：各导向维度命中片区数柱状图
  *
  * 统计口径：片区 FUNC_TYPE 文本（大写化）包含维度关键词即 +1，一个片区可命中多个维度；
- * 未命中任何维度（含空值）计入「其他」。
+ * 含字面 XOD 编码（其他导向）计入「其他」（正向查询）。
  * 柱样式：单一维度色、自上而下渐变变浅；柱顶一段亮色小杠；无背景竖带。
  *
  * 点击柱子 → emit select(维度 key)：父级据此筛选列表与地图（FUNC_TYPE_VALUE 含该编码的片区）；
@@ -174,7 +174,7 @@ export const FuncTypeChart = defineComponent({
             <div class="i-ri-compass-3-fill size-16px text-white" />
           </DoubleRing>
           <div class="ml-12px text-16px text-white font-500 tracking-wide">片区功能定位分布</div>
-          <Tooltip title="统计各功能导向维度覆盖的片区数量，一个片区可命中多个导向维度；未命中任何维度计入其他">
+          <Tooltip title="统计各功能导向维度覆盖的片区数量，一个片区可命中多个导向维度；XOD（其他导向）计入其他">
             <div class="ml-8px i-ri-information-fill size-16px text-gray-500 cursor-pointer" />
           </Tooltip>
         </div>

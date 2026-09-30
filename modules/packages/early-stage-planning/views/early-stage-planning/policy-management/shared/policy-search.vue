@@ -4,6 +4,7 @@
   布局对齐项目既有页面范式:
    - PageWrapper #sidebar:查询历史(语义=匹配历史)/我的收藏/政策订阅 三张侧栏卡片
      (原型 match.html / search.html 的侧栏内容,localStorage 本地保存,与原型同 key,收藏订阅两页共享);
+     历史/收藏条目单行截断、每页固定 5 条,超出在卡片内翻页(迷你 Pagination),左栏高度不随数据增长;
    - 右侧上方检索区 Card(语义模式带提示文案 + 多行文本输入,关键字模式为单行输入),
      下方为标准 BasicTable(formConfig 搜索表单:层级/类型/领域/区域/发布日期区间/排序;
      标题列下方展示命中片段并按查询词高亮;语义模式带相似度列);
@@ -17,31 +18,55 @@
 <template>
   <PageWrapper :sidebarWidth="230">
     <template #sidebar>
-      <!-- 查询历史 -->
+      <!-- 查询历史(固定每页条数,内容多时卡片内翻页,避免左栏被撑长) -->
       <Card size="small" class="mb-3">
         <template #title>{{ semantic ? '匹配历史' : '查询历史' }}</template>
-        <div v-for="item in history" :key="item.q" class="mb-2 last:mb-0">
-          <a class="text-13px" :title="item.q" @click="useHistory(item.q)">{{ shortHist(item.q) }}</a>
+        <div v-for="item in pagedHistory" :key="item.q" class="mb-2 last:mb-0">
+          <a class="block truncate text-13px" :title="item.q" @click="useHistory(item.q)">{{ item.q }}</a>
           <div class="text-xs text-gray-400">{{ item.t }}</div>
         </div>
         <div v-if="!history.length" class="text-xs text-gray-400">暂无</div>
+        <Pagination
+          v-if="histPages > 1"
+          class="mt-1 mb-0"
+          size="small"
+          simple
+          :current="safeHistPage"
+          :page-size="HIST_PAGE_SIZE"
+          :total="history.length"
+          @change="changeHistPage"
+        />
       </Card>
 
-      <!-- 我的收藏 -->
+      <!-- 我的收藏(同上:固定每页条数 + 卡片内翻页) -->
       <Card size="small" class="mb-3" title="我的收藏">
-        <div v-for="item in favs" :key="item.code" class="mb-2 text-13px last:mb-0">
-          <a :title="item.title" @click="openDetail({ code: item.code, title: item.title })">
-            {{ shortHist(item.title) }}
+        <div v-for="item in pagedFavs" :key="item.code" class="mb-2 flex items-center justify-between gap-2 last:mb-0">
+          <a
+            class="min-w-0 flex-1 truncate text-13px"
+            :title="item.title"
+            @click="openDetail({ code: item.code, title: item.title })"
+          >
+            {{ item.title }}
           </a>
           <button
             type="button"
-            class="float-right cursor-pointer border-0 bg-transparent p-0 text-xs text-blue-600"
+            class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-blue-600"
             @click="removeFav(item.code)"
           >
             取消
           </button>
         </div>
         <div v-if="!favs.length" class="text-xs text-gray-400">暂无收藏</div>
+        <Pagination
+          v-if="favPages > 1"
+          class="mt-1 mb-0"
+          size="small"
+          simple
+          :current="safeFavPage"
+          :page-size="FAV_PAGE_SIZE"
+          :total="favs.length"
+          @change="changeFavPage"
+        />
       </Card>
 
       <!-- 政策订阅 -->
@@ -129,7 +154,7 @@
 </template>
 <script lang="ts" setup>
   import { computed, onMounted, ref, unref } from 'vue';
-  import { Card, Input, Progress, Tag, TextArea } from 'antdv-next';
+  import { Card, Input, Pagination, Progress, Tag, TextArea } from 'antdv-next';
   import { saveAs } from 'file-saver';
   import { router } from '@jeesite/core/router';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -379,8 +404,29 @@
   const subs = ref<string[]>(loadJson<string[]>(SUB_KEY, []));
   const subInput = ref('');
 
-  function shortHist(text: string) {
-    return text.length > 36 ? `${text.slice(0, 36)}…` : text;
+  /** 侧栏历史/收藏分页:每页固定条数封住卡片高度,条目单行截断,超出翻页查看 */
+  const HIST_PAGE_SIZE = 5;
+  const FAV_PAGE_SIZE = 5;
+  const histPage = ref(1);
+  const favPage = ref(1);
+  const histPages = computed(() => Math.ceil(history.value.length / HIST_PAGE_SIZE) || 1);
+  const favPages = computed(() => Math.ceil(favs.value.length / FAV_PAGE_SIZE) || 1);
+  /** 删除条目后页码可能越界,自动收敛到最后一页 */
+  const safeHistPage = computed(() => Math.min(histPage.value, histPages.value));
+  const safeFavPage = computed(() => Math.min(favPage.value, favPages.value));
+  const pagedHistory = computed(() =>
+    history.value.slice((safeHistPage.value - 1) * HIST_PAGE_SIZE, safeHistPage.value * HIST_PAGE_SIZE),
+  );
+  const pagedFavs = computed(() =>
+    favs.value.slice((safeFavPage.value - 1) * FAV_PAGE_SIZE, safeFavPage.value * FAV_PAGE_SIZE),
+  );
+
+  function changeHistPage(page: number) {
+    histPage.value = page;
+  }
+
+  function changeFavPage(page: number) {
+    favPage.value = page;
   }
 
   function pushHistory(text: string) {

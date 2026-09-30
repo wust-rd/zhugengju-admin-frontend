@@ -91,7 +91,8 @@ modules/packages/early-stage-planning/
   粘底滚动 + 回到底部按钮、流式打字机（强制 SSE）、建议问题空态（居中）、
   引用卡片（编号 + 政策标题/单位/文号/层级等元信息 + 片段摘要两行 + 打开文件）；
   接口层 `api/.../qa.ts`。
-- 检索两页共用 `shared/policy-search.vue`（项目范式：PageWrapper #sidebar 三张侧栏卡片[历史/收藏/订阅]
+- 检索两页共用 `shared/policy-search.vue`（项目范式：PageWrapper #sidebar 三张侧栏卡片[历史/收藏/订阅]，
+  历史/收藏条目单行截断、每页 5 条卡片内迷你翻页，左栏高度不随数据增长撑长；
   + 检索区 Card + 标准 BasicTable[formConfig：层级/类型/领域/区域/发布日期区间/排序]；标题列下方展示
   命中片段并按查询词高亮；查看走 `shared/detail-drawer.vue` 详情抽屉[Description 元数据/命中片段/版本
   变更记录/关联政策]）。按「区级/市级共用抽象」约定：shared 持完整实现，薄壳持 keep-alive name 并以

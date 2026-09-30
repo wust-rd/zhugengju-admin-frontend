@@ -30,6 +30,7 @@ import {
   districtAreaCount,
   filterPredicate,
   funcFlags,
+  isFuncOther,
   loadAreas,
   loadProjects,
   progressItems,
@@ -225,25 +226,21 @@ export default defineComponent({
     /** 片区投资总额数据：随批次下拉联动 */
     const activeInvest = computed(() => BATCH_INVEST[batchKey.value] ?? null);
 
-    /** 功能定位维度 key（other = 未命中任何导向 / FUNC_TYPE 为空） */
+    /** 功能定位维度 key（other = 其他导向，FUNC_TYPE_VALUE 含字面 XOD 编码） */
     type FuncRowKey = 'cod' | 'tod' | 'iod' | 'sod' | 'eod' | 'hod' | 'other';
     const FUNC_KEYS: FuncRowKey[] = ['cod', 'tod', 'iod', 'sod', 'eod', 'hod'];
 
     /** 功能定位分布：FUNC_TYPE_VALUE 命中维度即计数（一片可命中多维，按全量批次统计不随筛选变化）；
-        未命中任何维度（含空值）计入 other；随批次联动 */
+        「其他」= 含字面 XOD 编码（正向查询，与 filterPredicate 口径一致）；随批次联动 */
     const funcRows = computed<{ key: FuncRowKey; count: number }[]>(() => {
       const counts = new Map<FuncRowKey, number>(FUNC_KEYS.map((k) => [k, 0] as [FuncRowKey, number]));
       counts.set('other', 0);
       for (const f of areas.value?.features ?? []) {
         const flags = funcFlags(f.properties.FUNC_TYPE_VALUE);
-        let hit = false;
         for (const k of FUNC_KEYS) {
-          if (flags[k]) {
-            counts.set(k, (counts.get(k) ?? 0) + 1);
-            hit = true;
-          }
+          if (flags[k]) counts.set(k, (counts.get(k) ?? 0) + 1);
         }
-        if (!hit) counts.set('other', (counts.get('other') ?? 0) + 1);
+        if (isFuncOther(f.properties.FUNC_TYPE_VALUE)) counts.set('other', (counts.get('other') ?? 0) + 1);
       }
       const ordered: FuncRowKey[] = [...FUNC_KEYS, 'other'];
       return ordered.map((key) => ({ key, count: counts.get(key) ?? 0 }));

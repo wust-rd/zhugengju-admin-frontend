@@ -62,7 +62,8 @@ const DIST_MERGE: Record<string, string> = {
 
 /** 图表点击筛选谓词（统计图选中值 → 要素命中判定）：
     district 按归并后区划名（= 柱状图类目名）；progress 按 AREA_COLOR（green/yellow/red）；
-    func 按功能维度小写 key（cod/tod/…，FUNC_TYPE_VALUE 含该编码即命中） */
+    func 按功能维度小写 key（cod/tod/…，FUNC_TYPE_VALUE 含该编码即命中；
+    other = 含字面 XOD 编码，正向查询） */
 export function filterPredicate(
   tab: 'district' | 'progress' | 'func',
   filter: string,
@@ -72,6 +73,9 @@ export function filterPredicate(
   }
   if (tab === 'progress') {
     return (f) => f.properties.AREA_COLOR === filter;
+  }
+  if (filter === 'other') {
+    return (f) => isFuncOther(f.properties.FUNC_TYPE_VALUE);
   }
   return (f) => funcFlags(f.properties.FUNC_TYPE_VALUE)[filter as XodFlag] === true;
 }
@@ -87,11 +91,13 @@ function toCollection<R extends { geometry: string; FUNC_TYPE_VALUE?: string | n
   for (const row of rows) {
     try {
       const { geometry, ...props } = row;
-      // 功能定位着色键：首个编码小写（无编码 undefined，地图 match 表达式走兜底灰）
-      const funcFirst = String(row.FUNC_TYPE_VALUE ?? '')
+      // 功能定位着色键：首个编码小写（无编码 undefined，地图 match 表达式走兜底灰）；
+      // 字面 XOD（其他导向）映射为 other，与柱状图/图例的「其他」色板一致
+      const first = String(row.FUNC_TYPE_VALUE ?? '')
         .split(',')[0]
         ?.trim()
         .toLowerCase();
+      const funcFirst = first === 'xod' ? 'other' : first;
       features.push({
         type: 'Feature',
         id: idOf(row),
@@ -192,13 +198,26 @@ export function districtAreaCount(areas: AreaCollection): { name: string; value:
 /** 功能定位胶囊解析：FUNC_TYPE_VALUE（如「TOD,COD」）逗号拆分映射到 XodItem 布尔位（POD 无胶囊位，忽略） */
 const XOD_FLAGS: XodFlag[] = ['tod', 'eod', 'iod', 'sod', 'cod', 'hod'];
 
+/** FUNC_TYPE_VALUE 编码拆分（逗号分隔 → 去空白、小写；空值得到空数组） */
+function funcCodes(value: string | null): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((code) => code.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export function funcFlags(value: string | null): Partial<XodItem> {
   const item: Partial<XodItem> = {};
-  for (const code of (value ?? '').split(',')) {
-    const key = code.trim().toLowerCase() as XodFlag;
-    if (XOD_FLAGS.includes(key)) item[key] = true;
+  for (const code of funcCodes(value)) {
+    if (XOD_FLAGS.includes(code as XodFlag)) item[code as XodFlag] = true;
   }
   return item;
+}
+
+/** 功能定位「其他」命中：FUNC_TYPE_VALUE 含字面 XOD 编码（数据字典的「其他导向」码，
+    正向查询而非"六维皆未命中"的反向判定） */
+export function isFuncOther(value: string | null): boolean {
+  return funcCodes(value).includes('xod');
 }
 
 /** 更新片区列表行：XodItem + 片区唯一号（列表点击 → 地图飞到该片区并聚焦其项目图斑） */
