@@ -1,5 +1,6 @@
 import { DropdownSelector } from '@jeesite/display/components/dropdown-selector';
 import { GlassRing } from '@jeesite/display/components/glass-ring';
+import type { WmsFeaturePayload } from '@jeesite/display/components/layer-controls';
 import { cn } from '@jeesite/core/libs';
 import { computed, defineComponent, ref, watch, type PropType } from 'vue';
 import type { MenuItemType } from 'antdv-next';
@@ -12,6 +13,9 @@ const KIND_META: Record<SelectedPolygon['kind'], { label: string; color: string 
   project: { label: '项目地块', color: '#A855F7' },
   area: { label: '片区范围', color: IFCO_LAYER_COLORS.areaFill },
 };
+
+/** 控规类别标签（点击控规图斑、无选中面时的头部标签；青蓝与图层管理器一致） */
+const KZXG_KIND_META = { label: '控制性详细规划', color: '#00b8d4' } as const;
 
 /** 片区标签色随批次（与 area-fills 图层配色同源）：第一批浅紫 / 第二批浅蓝 / 未知批次浅黄兜底 */
 const areaKindColor = (p: AreaPolygonProps): string =>
@@ -107,30 +111,56 @@ const MetaGrid = (props: { items: [string, string][]; start: string; end: string
   );
 };
 
-/** 页签定义：片区 / 项目 */
+/** 页签定义：片区 / 项目 / 控制性详细规划 */
 const TABS = [
   { key: 'area', label: '片区' },
   { key: 'project', label: '项目' },
+  { key: 'kzxg', label: '控制性详细规划' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
 
+/** 平方度 → 公顷（按要素纬度近似：经度向 111320·cosφ × 纬度向 110574 米/度） */
+const deg2ToHa = (deg2: number, lat: number): string => {
+  const ha = deg2 * 111320 * Math.cos((lat * Math.PI) / 180) * 110574 * 1e-4;
+  return ha > 0 ? ha.toFixed(2) : '';
+};
+
+/** 控规要素属性网格项：GetFeatureInfo 原始属性（shape_length 舍弃、shape_area 换算公顷，空值跳过） */
+const kzxgFeatureItems = (p: Record<string, unknown>, lat: number): [string, string][] =>
+  (
+    [
+      ...Object.entries(p)
+        .filter(([k]) => k !== 'shape_length' && k !== 'shape_area')
+        .map(([k, v]) => [k, s(v)] as [string, string]),
+      ['图斑面积（公顷）', deg2ToHa(Number(p.shape_area), lat)],
+    ] as [string, string][]
+  ).filter(([, v]) => v !== '');
+
+/** 控规要素块标题：优先用地性质（服务返回的中文字段），缺失按序号兜底 */
+const kzxgFeatureTitle = (p: Record<string, unknown>, idx: number): string =>
+  s(p['用地性质']) || `图斑 ${idx + 1}`;
+
 /**
- * PolygonCard —— 面（片区范围 / 项目地块）详情卡片（项目投融建运大屏右侧）
+ * PolygonCard —— 面（片区范围 / 项目地块 / 控规图斑）详情卡片（项目投融建运大屏右侧）
  *
- * 点击地图面要素后从右侧滑入，内部为「片区 / 项目」两个页签：
+ * 点击地图后从右侧滑入，内部为「片区 / 项目 / 控制性详细规划」三个页签：
  * - 点到片区 → 停在「片区」页签，展示片区信息，地图高亮片区面；
  * - 点到项目 → 停在「项目」页签，页签内下拉可切换同片区其他项目，
  *   切换时 emit update:polygon 回写父级选中面，地图高亮随之迁移；
- * - 手动切到「片区」页签 → 高亮同步切到该片区面（切回「项目」恢复上次项目）。
- * polygon 为 null 时整体隐藏（透明 + 禁用鼠标穿透）。
- * 数据来自 esp 图斑接口（/a/esp/map/areas、/a/esp/map/projects）的原始属性字段。
+ * - 手动切到「片区」页签 → 高亮同步切到该片区面（切回「项目」恢复上次项目）；
+ * - 点到控规图斑（WMS GetFeatureInfo 查询，kzxgInfo）→ 停在「控制性详细规划」
+ *   页签展示查询属性；该页签纯视图切换，不联动地图高亮。
+ * polygon 与 kzxgInfo 均为 null 时整体隐藏（透明 + 禁用鼠标穿透）。
+ * 面/项目数据来自 esp 图斑接口的原始属性字段；控规数据来自 WMS 通用查询。
  */
 export const PolygonCard = defineComponent({
   name: 'IfcoPolygonCard',
 
   props: {
     polygon: { type: Object as PropType<SelectedPolygon | null>, default: null },
+    /** 控规图层点击查询结果（null = 未查询/已清空，页签显示空态提示） */
+    kzxgInfo: { type: Object as PropType<WmsFeaturePayload | null>, default: null },
   },
 
   emits: {
@@ -160,6 +190,14 @@ export const PolygonCard = defineComponent({
       { immediate: true },
     );
 
+    /** 控规点击查询 → 停在「控制性详细规划」页签（纯视图切换，无地图联动） */
+    watch(
+      () => props.kzxgInfo,
+      (info) => {
+        if (info) activeTab.value = 'kzxg';
+      },
+    );
+
     /** 当前选中面（项目/片区）所属片区 A_UID——两类 props 均携带 */
     const areaUid = computed(() => s(props.polygon?.props.A_UID));
 
@@ -176,10 +214,13 @@ export const PolygonCard = defineComponent({
       return uid ? (ifcoProjects.value.find((it) => it.uid === uid) ?? null) : null;
     });
 
-    /** 手动切页签：同步地图高亮面（父级回写 selectedPolygon → feature-state 迁移） */
+    /** 手动切页签：同步地图高亮面（父级回写 selectedPolygon → feature-state 迁移）；
+     *  「控制性详细规划」为纯视图切换，不联动地图 */
     const selectTab = (tab: TabKey) => {
       if (activeTab.value === tab) return;
       activeTab.value = tab;
+
+      if (tab === 'kzxg') return;
 
       if (tab === 'area' && props.polygon) {
         // 切「片区」：优先取片区索引；缺失时用共有字段兜底构造
@@ -219,26 +260,34 @@ export const PolygonCard = defineComponent({
 
     return () => {
       const polygon = props.polygon;
-      /** 类别标签（片区色随批次，与图层配色同源） */
+      const kzxg = props.kzxgInfo;
+      /** 卡片可见：选中面或控规查询结果任一存在 */
+      const visible = !!polygon || !!kzxg;
+      /** 类别标签（片区色随批次，与图层配色同源；仅控规查询时用控规标签） */
       const kind = polygon
         ? {
             label: KIND_META[polygon.kind].label,
             color: polygon.kind === 'area' ? areaKindColor(polygon.props) : KIND_META.project.color,
           }
-        : null;
+        : kzxg
+          ? KZXG_KIND_META
+          : null;
 
       /** 片区页签展示数据（切到该页签时 polygon 已回写为片区） */
       const areaProps = polygon?.kind === 'area' ? polygon.props : null;
       /** 项目页签展示数据（下拉选中项；未选时展示空态） */
       const project = currentProject.value;
 
-      /** 头部标题与类别标签跟随当前高亮面（polygon），页签仅切换视图 */
+      /** 头部标题与类别标签跟随当前高亮面（polygon），页签仅切换视图；
+       *  仅控规查询时标题取首个要素的用地性质 */
       const heading =
         polygon?.kind === 'project'
           ? s(polygon.props.GIS_NAME) || s(polygon.props.PJ_NAME) || '未命名项目'
           : polygon
             ? s(polygon.props.AREA_NAME) || '未命名片区'
-            : '';
+            : kzxg
+              ? kzxgFeatureTitle(kzxg.features[0]?.properties ?? {}, 0)
+              : '';
 
       return (
         <div
@@ -246,10 +295,10 @@ export const PolygonCard = defineComponent({
             'absolute right-24px top-24px z-50 w-420px max-h-[calc(100%-48px)] flex flex-col rd-12px overflow-hidden',
             'border border-cyan-900 bg-[#0f2b47]/95 shadow-2xl backdrop-blur',
             'transition-[transform,opacity] duration-200',
-            polygon ? 'opacity-100' : 'pointer-events-none translate-x-16px opacity-0',
+            visible ? 'opacity-100' : 'pointer-events-none translate-x-16px opacity-0',
           )}
         >
-          {polygon && kind && (
+          {visible && kind && (
             <>
               {/* 头部：名称 + 类别标签 + 关闭按钮（跟随当前高亮面） */}
               <div class="flex items-start gap-8px bg-gradient-to-r px-20px pt-16px pb-12px">
@@ -288,14 +337,18 @@ export const PolygonCard = defineComponent({
               {/* 内容区：高度受限时纵向滚动 */}
               <div class="min-h-0 flex-1 overflow-y-auto">
                 {activeTab.value === 'area' ? (
-                  areaProps && (
+                  areaProps ? (
                     <MetaGrid
                       items={areaMetaItems(areaProps)}
                       start={s(areaProps.START_DATE)}
                       end={s(areaProps.END_DATE)}
                     />
+                  ) : (
+                    <div class="flex items-center justify-center py-40px text-14px text-white/40">
+                      请在地图上点击片区查看信息
+                    </div>
                   )
-                ) : (
+                ) : activeTab.value === 'project' ? (
                   <>
                     {/* 片区内项目切换下拉（选项 = 当前片区全部项目） */}
                     <div class="px-20px pt-14px">
@@ -321,6 +374,27 @@ export const PolygonCard = defineComponent({
                       </div>
                     )}
                   </>
+                ) : kzxg ? (
+                  /* 控规查询结果：每个要素一块（标题=用地性质），叠压多图斑依次展示 */
+                  kzxg.features.map((feature, i) => (
+                    <div key={i} class="flex flex-col">
+                      <div class="flex items-center gap-8px px-20px pt-14px">
+                        <span class="h-12px w-3px rd-2px shrink-0" style={{ background: KZXG_KIND_META.color }} />
+                        <span class="truncate text-14px font-500 text-white/85">
+                          {kzxgFeatureTitle(feature.properties, i)}
+                        </span>
+                      </div>
+                      <MetaGrid
+                        items={kzxgFeatureItems(feature.properties, kzxg.lngLat[1])}
+                        start=""
+                        end=""
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div class="flex items-center justify-center py-40px text-14px text-white/40">
+                    请在地图上点击控规图斑查看信息
+                  </div>
                 )}
               </div>
             </>

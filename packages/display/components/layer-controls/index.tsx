@@ -2,18 +2,36 @@ import { cn, type ClassValue } from '@jeesite/core/libs';
 import { useMap, useMapLayer } from '@jeesite/vmap';
 import { animate, AnimatePresence, motion } from 'motion-v';
 import { computed, defineComponent, ref, watch, type PropType } from 'vue';
-import type { LayerSpecification } from 'maplibre-gl';
+import type { LayerSpecification, MapMouseEvent } from 'maplibre-gl';
 import { ConfigProvider } from 'antdv-next';
 import { LayerTabs } from '@jeesite/display/components/layer-tabs';
 import topBarImg from '@jeesite/assets/images/display/top-bar.webp';
 import bottomBarImg from '@jeesite/assets/images/display/bottom-bar.webp';
 import { PANEL_THEME } from './theme';
 import { createInitialLayers, createInitialCategories } from './data';
-import { KZXG_KEY, KZXG_LAYER, KZXG_LAYER_ID, KZXG_SOURCE, KZXG_SOURCE_ID } from './kzxg-wms';
+import { getWmsFeatureInfo, type WmsFeaturePayload, type WmsFeatureQueryConfig } from './wms-feature-info';
+import { KZXG_KEY, KZXG_LAYER, KZXG_LAYER_ID, KZXG_QUERY, KZXG_SOURCE, KZXG_SOURCE_ID } from './kzxg-wms';
 import { LayerList } from './layer-list';
 import { CategoryLeafRow, CategoryGroupRow, CategoryChildrenList } from './category-rows';
 import { DataMenuTitle, DataMenuSearch } from './data-menu';
-import type { LayerCategory, LayerChild } from './types';
+import type { LayerCategory, LayerChild, LayerSwitchItem } from './types';
+
+export type { WmsFeaturePayload } from './wms-feature-info';
+
+/**
+ * 外部图层项：由业务组件（如 IfcoMapLayers）自行 addLayer / 管理数据，
+ * 图层管理器只同步显隐与透明度（不增删 source/layer）。
+ * 业务图层异步添加晚于管理器初始化时，靠 styledata 重放状态对齐。
+ */
+export interface ExtraLayerItem {
+  key: string;
+  label: string;
+  /** 受控地图图层 id（可多个：面 fill + 边界线 / 描边一起显隐；透明度只作用于 fill/raster 型） */
+  layerIds: string[];
+  defaultOn: boolean;
+  /** 初始透明度（fill→fill-opacity / raster→raster-opacity，缺省 0.9） */
+  defaultOpacity?: number;
+}
 
 /** 开关/开合动画时长（与 page-layout、glow-tabs 节奏一致） */
 const ANIM_DURATION = 0.3;
@@ -23,8 +41,17 @@ const ANIM_X = 24;
 const MENU_ANIM = { duration: 0.28, ease: 'easeInOut' as const };
 
 /** 数据项 key → 地图图层定义（layers 开关项与地图 source/layer 的对应关系） */
-const MANAGED_LAYER_DEFS: Record<string, { sourceId: string; layerId: string; source: object; layer: LayerSpecification }> = {
-  [KZXG_KEY]: { sourceId: KZXG_SOURCE_ID, layerId: KZXG_LAYER_ID, source: KZXG_SOURCE, layer: KZXG_LAYER },
+interface ManagedLayerDef {
+  sourceId: string;
+  layerId: string;
+  source: object;
+  layer: LayerSpecification;
+  /** 点击查询配置（缺省 = 图层不支持点击查询） */
+  query?: WmsFeatureQueryConfig;
+}
+
+const MANAGED_LAYER_DEFS: Record<string, ManagedLayerDef> = {
+  [KZXG_KEY]: { sourceId: KZXG_SOURCE_ID, layerId: KZXG_LAYER_ID, source: KZXG_SOURCE, layer: KZXG_LAYER, query: KZXG_QUERY },
 };
 
 /**
@@ -46,8 +73,19 @@ export const LayerControls = defineComponent({
   name: 'LayerControls',
   props: {
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: 'left-32px' },
+    /** 外部图层（业务组件管理数据，管理器只控显隐/透明度），追加在开关列表与数据菜单中 */
+    extraLayers: { type: Array as PropType<ExtraLayerItem[]>, default: () => [] },
   },
-  setup(props) {
+
+  emits: {
+    /**
+     * 点击受管 WMS 图层（图层开启且点击处无业务矢量要素）时的查询结果。
+     * features 为空数组 = 点到处无该图层要素（调用方可借此清空展示）。
+     */
+    wmsFeature: (_payload: WmsFeaturePayload) => true,
+  },
+
+  setup(props, { emit }) {
     const { map, isLoaded } = useMap();
 
     /** 面板是否打开 */
@@ -60,10 +98,50 @@ export const LayerControls = defineComponent({
     const menuBodyRef = ref<HTMLDivElement | null>(null);
     const searchText = ref('');
 
-    /** 图层开关项（真实图层，on 与地图图层显隐联动） */
-    const layers = ref(createInitialLayers());
-    /** 数据菜单分类（真实图层目录） */
-    const categories = ref(createInitialCategories());
+    /** 外部图层项（props 传入，业务组件管理数据；setup 期固定不变） */
+    const extraLayers = props.extraLayers;
+
+    /** 图层开关项：自有真实图层 + 外部图层（on 显隐 / opacity 透明度均与地图联动） */
+    const layers = ref<LayerSwitchItem[]>([
+      ...createInitialLayers(),
+      ...extraLayers.map((e) => ({
+        key: e.key,
+        label: e.label,
+        on: e.defaultOn,
+        starred: false,
+        opacity: e.defaultOpacity ?? 0.9,
+      })),
+    ]);
+    /** 数据菜单分类：自有真实图层目录 + 外部图层（均以 leaf 展示） */
+    const categories = ref<LayerCategory[]>([
+      ...createInitialCategories(),
+      ...extraLayers.map((e) => ({ key: e.key, label: e.label, type: 'leaf' as const })),
+    ]);
+
+    /** key → 受控地图图层 id 列表（自有图层取注册表；外部图层取 props） */
+    const layerIdsOf = (key: string): string[] => {
+      const own = MANAGED_LAYER_DEFS[key];
+      if (own) return [own.layerId];
+      return extraLayers.find((e) => e.key === key)?.layerIds ?? [];
+    };
+
+    /** 把开关项状态同步到地图（显隐 → 全部受控图层；透明度 → fill/raster 型）。
+     *  值比对守卫：外部图层异步 addLayer 触发 styledata 重放时不产生新写入，避免循环。 */
+    const applyLayerState = (m: maplibregl.Map, item: LayerSwitchItem) => {
+      const visibility = item.on ? 'visible' : 'none';
+      for (const id of layerIdsOf(item.key)) {
+        if (!m.getLayer(id)) continue;
+        if (m.getLayoutProperty(id, 'visibility') !== visibility) {
+          m.setLayoutProperty(id, 'visibility', visibility);
+        }
+        // fill-opacity / raster-opacity 按图层类型分发；line 型不动（选中描边自带 feature-state 透明度）
+        const type = m.getLayer(id)?.type;
+        const opacityProp = type === 'raster' ? 'raster-opacity' : type === 'fill' ? 'fill-opacity' : null;
+        if (opacityProp && m.getPaintProperty(id, opacityProp) !== item.opacity) {
+          m.setPaintProperty(id, opacityProp, item.opacity);
+        }
+      }
+    };
 
     /** 按搜索词过滤分类（命中分组则展开其子项） */
     const filteredCategories = computed(() => {
@@ -82,7 +160,7 @@ export const LayerControls = defineComponent({
     });
 
     // ===== 地图联动 =====
-    /** 地图就绪：为受管图层注册 source/layer（visibility / 透明度按当前状态） */
+    /** 地图就绪：为自有图层注册 source/layer + 状态同步 + 点击查询 */
     useMapLayer(map, isLoaded, (m) => {
       for (const item of layers.value) {
         const def = MANAGED_LAYER_DEFS[item.key];
@@ -93,10 +171,37 @@ export const LayerControls = defineComponent({
             ...def.layer,
             layout: { visibility: item.on ? 'visible' : 'none' },
           } as LayerSpecification);
-          m.setPaintProperty(def.layerId, 'raster-opacity', item.opacity);
         }
       }
+
+      // 状态重放：自有图层补透明度；外部图层（业务组件异步 addLayer，如 IfcoMapLayers
+      // 拉数后建层）在 styledata 到达时对齐当前开关/透明度（applyLayerState 带值比对，
+      // 幂等不回写）
+      const resync = () => {
+        for (const item of layers.value) applyLayerState(m, item);
+      };
+      resync();
+      m.on('styledata', resync);
+
+      // 点击查询（全局 click，raster 图层无要素不能按图层委托）：
+      // 点击处已有业务矢量要素（片区/项目面等）时让行业务点击，不抢；
+      // 否则对每个开启且支持查询的受管图层发 GetFeatureInfo，结果 emit 给页面。
+      const onClick = (e: MapMouseEvent) => {
+        if (m.queryRenderedFeatures(e.point).length > 0) return;
+        for (const item of layers.value) {
+          const def = MANAGED_LAYER_DEFS[item.key];
+          if (!item.on || !def?.query) continue;
+          const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+          getWmsFeatureInfo(def.query, lngLat, m.getZoom()).then((features) => {
+            emit('wmsFeature', { key: item.key, label: item.label, lngLat, features });
+          });
+        }
+      };
+      m.on('click', onClick);
+
       return () => {
+        m.off('click', onClick);
+        m.off('styledata', resync);
         for (const def of Object.values(MANAGED_LAYER_DEFS)) {
           if (m.getLayer(def.layerId)) m.removeLayer(def.layerId);
           if (m.getSource(def.sourceId)) m.removeSource(def.sourceId);
@@ -110,15 +215,7 @@ export const LayerControls = defineComponent({
       () => {
         const m = map.value;
         if (!m) return;
-        for (const item of layers.value) {
-          const def = MANAGED_LAYER_DEFS[item.key];
-          if (!def || !m.getLayer(def.layerId)) continue;
-          m.setLayoutProperty(def.layerId, 'visibility', item.on ? 'visible' : 'none');
-          // raster-opacity 仅 raster 图层有；后续接入 fill/line 等再按类型分发
-          if (m.getLayer(def.layerId)?.type === 'raster') {
-            m.setPaintProperty(def.layerId, 'raster-opacity', item.opacity);
-          }
-        }
+        for (const item of layers.value) applyLayerState(m, item);
       },
       { deep: true },
     );

@@ -1,6 +1,7 @@
 import { colors } from '@jeesite/core/libs/colors';
 import { useMap, useMapLayer } from '@jeesite/vmap';
 import zhiyinUrl from '@jeesite/display/data/zhiyin.geojson?url';
+import type { ExtraLayerItem } from '@jeesite/display/components/layer-controls';
 import { defineComponent, onBeforeUnmount, watch, type PropType } from 'vue';
 import { fetchAreaGeojson, fetchProjectGeojson } from '@jeesite/ifco/api/ifco/map';
 import type { AreaPolygonProps, ProjectPolygonProps, SelectedPolygon } from './polygon-types';
@@ -31,6 +32,43 @@ export const IFCO_LAYER_COLORS = {
   /** 选中高亮描边（琥珀金） */
   highlight: '#F59E0B',
 };
+
+/**
+ * 图层管理器受控的四个业务图层（按批次拆层后的 layerId，见下方 addLayer）：
+ * 数据与图层仍由本组件管理，图层管理器只同步显隐与透明度（ExtraLayerItem）。
+ * 第二批 = 非第一批（含未知批次兜底特征，颜色由 match 保底）。
+ * defaultOpacity 与建层时 fill-opacity 初始值一致（片区 0.3 / 项目 0.8）。
+ */
+export const IFCO_MANAGER_LAYERS: ExtraLayerItem[] = [
+  {
+    key: 'area-batch1',
+    label: '片区范围 · 第一批',
+    layerIds: ['area-fills-batch1', 'area-lines-batch1', 'area-fills-outline-batch1'],
+    defaultOn: true,
+    defaultOpacity: 0.3,
+  },
+  {
+    key: 'area-batch2',
+    label: '片区范围 · 第二批',
+    layerIds: ['area-fills-batch2', 'area-lines-batch2', 'area-fills-outline-batch2'],
+    defaultOn: true,
+    defaultOpacity: 0.3,
+  },
+  {
+    key: 'project-batch1',
+    label: '项目地块 · 第一批',
+    layerIds: ['project-fills-batch1', 'project-fills-outline-batch1'],
+    defaultOn: true,
+    defaultOpacity: 0.8,
+  },
+  {
+    key: 'project-batch2',
+    label: '项目地块 · 第二批',
+    layerIds: ['project-fills-batch2', 'project-fills-outline-batch2'],
+    defaultOn: true,
+    defaultOpacity: 0.8,
+  },
+];
 
 /**
  * 地图内容组件（纯逻辑，不渲染 DOM）：
@@ -107,8 +145,9 @@ export const IfcoMapLayers = defineComponent({
 
       // 点击地图：命中知音地块 → 显示金字塔 Marker + 片区抽屉；
       // 命中项目地块 / 片区范围面 → emit select（父级右侧弹详情卡片）；
-      // 空白 → 清理并关闭。图层从上到下：zhiyin-fill > project-fills > area-lines > area-fills，
-      // queryRenderedFeatures 首个命中即最上层，项目地块与片区面重叠时优先项目。
+      // 空白 → 清理并关闭。图层从上到下：zhiyin-fill > project-fills-batch* > area-lines-batch*
+      // > area-fills-batch*，queryRenderedFeatures 首个命中即最上层，项目地块与片区面
+      // 重叠时优先项目。
       const onClick = (e: maplibregl.MapMouseEvent) => {
         const zhiyinHit = m.queryRenderedFeatures(e.point, { layers: ['zhiyin-fill'] }).length > 0;
         if (zhiyinHit) {
@@ -120,12 +159,19 @@ export const IfcoMapLayers = defineComponent({
         hideZhiyinMarker();
         emit('update:drawer', false);
 
-        const polygonLayers = ['project-fills', 'area-fills', 'area-lines'].filter((id) => m.getLayer(id));
+        const polygonLayers = [
+          'project-fills-batch1',
+          'project-fills-batch2',
+          'area-fills-batch1',
+          'area-fills-batch2',
+          'area-lines-batch1',
+          'area-lines-batch2',
+        ].filter((id) => m.getLayer(id));
         if (polygonLayers.length > 0) {
           const [hit] = m.queryRenderedFeatures(e.point, { layers: polygonLayers });
           if (hit) {
             emit('select', {
-              kind: hit.layer.id === 'project-fills' ? 'project' : 'area',
+              kind: hit.layer.id.startsWith('project') ? 'project' : 'area',
               props: (hit.properties ?? {}) as Recordable,
             });
             return;
@@ -136,9 +182,11 @@ export const IfcoMapLayers = defineComponent({
       m.on('click', onClick);
 
       // 片区 + 项目从 esp geojson 接口拉取（api/ifco/map：FeatureCollection 直出，addSource 直喂）
-      // + 知音静态 geojson，三份数据拉齐后按固定层级挂图层：
-      // area-fills（按批次浅紫/浅蓝面，最底）→ area-lines（片区边界线）→ area-fills-outline（片区选中描边）
-      // → project-fills / outline（项目面）→ zhiyin-fill（最上）。
+      // + 知音静态 geojson，三份数据拉齐后按固定层级挂图层（批次拆层，供图层管理器按
+      // 「片区范围/项目地块 · 第X批」控显隐与透明度）：
+      // area-fills-batch1/2（按批次浅紫/浅蓝面，最底）→ area-lines-batch1/2（片区边界线）
+      // → area-fills-outline-batch1/2（片区选中描边）
+      // → project-fills-batch1/2 / outline-batch1/2（项目面）→ zhiyin-fill（最上）。
       // 同时写入轻量索引（polygon-store），供详情卡片做片区内项目下拉与页签联动。
       Promise.all([fetchAreaGeojson(), fetchProjectGeojson(), fetch(zhiyinUrl).then((res) => res.json())])
         .then(([areaData, projectData, zhiyinData]) => {
@@ -147,14 +195,31 @@ export const IfcoMapLayers = defineComponent({
           const areaFeatures = areaData.features;
           const projectFeatures = projectData.features;
 
-          // 片区范围：按批次浅紫/浅蓝半透明面（第一批 purple[100] / 第二批 blue[100] / 未知批次浅黄兜底，
-          // 选中变琥珀金加深）+ 边界线（浅灰常显）+ 选中外描边（琥珀金 6px）。
-          // promoteId 把 A_UID 提升为要素 id，fill / line 两图层共享同一份 feature-state。
+          // 片区范围：按批次拆层（第一批 = 精确匹配；第二批 = 非第一批，含未知批次兜底）。
+          // fill / line / outline 各层共享 areas 数据源的 feature-state（promoteId 提升 A_UID）；
+          // fill-opacity 建层初始 0.3，随后由图层管理器接管为常量（选中高亮靠琥珀金填色+描边，
+          // 不再依赖选中态透明度差异）。
           m.addSource('areas', { type: 'geojson', data: areaData, promoteId: 'A_UID' });
           m.addLayer({
-            id: 'area-fills',
+            id: 'area-fills-batch1',
             type: 'fill',
             source: 'areas',
+            filter: ['==', ['get', 'BATCH'], '第一批'],
+            paint: {
+              'fill-color': [
+                'case',
+                ['boolean', ['feature-state', 'selected'], false],
+                IFCO_LAYER_COLORS.highlight,
+                IFCO_LAYER_COLORS.areaBatch1,
+              ],
+              'fill-opacity': 0.3,
+            },
+          });
+          m.addLayer({
+            id: 'area-fills-batch2',
+            type: 'fill',
+            source: 'areas',
+            filter: ['!=', ['get', 'BATCH'], '第一批'],
             paint: {
               'fill-color': [
                 'case',
@@ -163,30 +228,46 @@ export const IfcoMapLayers = defineComponent({
                 [
                   'match',
                   ['get', 'BATCH'],
-                  '第一批',
-                  IFCO_LAYER_COLORS.areaBatch1,
                   '第二批',
                   IFCO_LAYER_COLORS.areaBatch2,
                   IFCO_LAYER_COLORS.areaFill,
                 ],
               ],
-              'fill-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.5, 0.3],
+              'fill-opacity': 0.3,
             },
           });
+          // 片区边界线（浅灰常显，按批次拆层随开关显隐）
           m.addLayer({
-            id: 'area-lines',
+            id: 'area-lines-batch1',
             type: 'line',
             source: 'areas',
-            paint: {
-              'line-color': colors.stone[400],
-              'line-width': 1,
-            },
+            filter: ['==', ['get', 'BATCH'], '第一批'],
+            paint: { 'line-color': colors.stone[400], 'line-width': 1 },
+          });
+          m.addLayer({
+            id: 'area-lines-batch2',
+            type: 'line',
+            source: 'areas',
+            filter: ['!=', ['get', 'BATCH'], '第一批'],
+            paint: { 'line-color': colors.stone[400], 'line-width': 1 },
           });
           // 片区选中外描边（琥珀金 6px，仅选中显示）
           m.addLayer({
-            id: 'area-fills-outline',
+            id: 'area-fills-outline-batch1',
             type: 'line',
             source: 'areas',
+            filter: ['==', ['get', 'BATCH'], '第一批'],
+            paint: {
+              'line-color': IFCO_LAYER_COLORS.highlight,
+              'line-width': 6,
+              'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
+            },
+          });
+          m.addLayer({
+            id: 'area-fills-outline-batch2',
+            type: 'line',
+            source: 'areas',
+            filter: ['!=', ['get', 'BATCH'], '第一批'],
             paint: {
               'line-color': IFCO_LAYER_COLORS.highlight,
               'line-width': 6,
@@ -194,30 +275,56 @@ export const IfcoMapLayers = defineComponent({
             },
           });
 
-          // 项目地块 fill 图层（BATCH：第一批紫 / 第二批深蓝；选中加深）+ 琥珀金描边 line 图层（仅选中显示）
-          // promoteId 把 P_UID 提升为要素 id 供 feature-state 定位
+          // 项目地块 fill 图层（BATCH：第一批紫 / 第二批深蓝，未知批次紫罗兰兜底；选中加深）
+          // + 琥珀金描边 line 图层（仅选中显示）；按批次拆层，promoteId 提升 P_UID 供
+          // feature-state 定位，fill-opacity 建层初始 0.8（图层管理器接管后同片区）
           m.addSource('project-fills', { type: 'geojson', data: projectData, promoteId: 'P_UID' });
           m.addLayer({
-            id: 'project-fills',
+            id: 'project-fills-batch1',
             type: 'fill',
             source: 'project-fills',
+            filter: ['==', ['get', 'BATCH'], '第一批'],
             paint: {
               'fill-color': [
-                'match',
-                ['get', 'BATCH'],
-                '第一批',
+                'case',
+                ['boolean', ['feature-state', 'selected'], false],
+                IFCO_LAYER_COLORS.highlight,
                 IFCO_LAYER_COLORS.batch1,
-                '第二批',
-                IFCO_LAYER_COLORS.batch2,
-                IFCO_LAYER_COLORS.batchFallback,
               ],
-              'fill-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.95, 0.8],
+              'fill-opacity': 0.8,
             },
           });
           m.addLayer({
-            id: 'project-fills-outline',
+            id: 'project-fills-batch2',
+            type: 'fill',
+            source: 'project-fills',
+            filter: ['!=', ['get', 'BATCH'], '第一批'],
+            paint: {
+              'fill-color': [
+                'case',
+                ['boolean', ['feature-state', 'selected'], false],
+                IFCO_LAYER_COLORS.highlight,
+                ['match', ['get', 'BATCH'], '第二批', IFCO_LAYER_COLORS.batch2, IFCO_LAYER_COLORS.batchFallback],
+              ],
+              'fill-opacity': 0.8,
+            },
+          });
+          m.addLayer({
+            id: 'project-fills-outline-batch1',
             type: 'line',
             source: 'project-fills',
+            filter: ['==', ['get', 'BATCH'], '第一批'],
+            paint: {
+              'line-color': IFCO_LAYER_COLORS.highlight,
+              'line-width': 3.5,
+              'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0],
+            },
+          });
+          m.addLayer({
+            id: 'project-fills-outline-batch2',
+            type: 'line',
+            source: 'project-fills',
+            filter: ['!=', ['get', 'BATCH'], '第一批'],
             paint: {
               'line-color': IFCO_LAYER_COLORS.highlight,
               'line-width': 3.5,
@@ -263,11 +370,16 @@ export const IfcoMapLayers = defineComponent({
         m.off('click', onClick);
         hideZhiyinMarker();
         [
-          'area-fills',
-          'area-lines',
-          'area-fills-outline',
-          'project-fills',
-          'project-fills-outline',
+          'area-fills-batch1',
+          'area-fills-batch2',
+          'area-lines-batch1',
+          'area-lines-batch2',
+          'area-fills-outline-batch1',
+          'area-fills-outline-batch2',
+          'project-fills-batch1',
+          'project-fills-batch2',
+          'project-fills-outline-batch1',
+          'project-fills-outline-batch2',
           'zhiyin-fill',
         ].forEach((id) => {
           try {

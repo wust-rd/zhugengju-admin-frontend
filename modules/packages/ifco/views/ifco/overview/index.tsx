@@ -4,13 +4,14 @@ import { DropdownSelector } from '@jeesite/display/components/dropdown-selector'
 import { GlassRing } from '@jeesite/display/components/glass-ring';
 import { GlowTitle2 } from '@jeesite/display/components/glow-title/title2';
 import { LayerControls } from '@jeesite/display/components/layer-controls';
+import type { WmsFeaturePayload } from '@jeesite/display/components/layer-controls';
 import { DisplayPageLayout } from '@jeesite/display/components/page-layout';
 import { VMap, VMapControls, basemapMapOptions, basemapStyle } from '@jeesite/vmap';
 import { defineComponent, ref, shallowRef } from 'vue';
 import { RouterLink } from 'vue-router';
 import { DistrictChart } from './district-chart';
 import { InvestStats } from './invest-stats';
-import { IFCO_LAYER_COLORS, IfcoMapLayers } from './map-layers';
+import { IFCO_LAYER_COLORS, IFCO_MANAGER_LAYERS, IfcoMapLayers } from './map-layers';
 import { PolygonCard } from './polygon-card';
 import type { SelectedPolygon } from './polygon-types';
 import { ProgressChart } from './progress-chart';
@@ -32,6 +33,10 @@ export default defineComponent({
 
     /** 当前选中多边形（项目地块 / 片区范围），点击面设置，展示右侧详情卡片 */
     const selectedPolygon = shallowRef<SelectedPolygon | null>(null);
+
+    /** 控规图层点击查询结果（GetFeatureInfo），展示在详情卡片「控制性详细规划」页签；
+     *  点击控规图斑时取代当前选中面，features 为空（点到无图斑处）则清空 */
+    const kzxgInfo = shallowRef<WmsFeaturePayload | null>(null);
 
     // 年份下拉：最近 N 年（当前改为最近两年，变更年数只改 buildYearItems 参数）
     const yearItems = buildYearItems(2);
@@ -76,8 +81,18 @@ export default defineComponent({
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
 
                 {/* 图层管理器：左上角胶囊按钮（useMap 依赖 VMap 上下文，须在插槽内）。
-                    置于 IfcoMapLayers 之前，让控规等叠加图层垫在业务面之下 */}
-                <LayerControls class="left-32px" />
+                    置于 IfcoMapLayers 之前，让控规等叠加图层垫在业务面之下；
+                    extraLayers = 片区/项目按批次四个业务图层（默认开、可调透明度，
+                    数据仍由 IfcoMapLayers 管理）；点击控规图斑 → GetFeatureInfo
+                    查询结果进右侧详情卡片控规页签 */}
+                <LayerControls
+                  class="left-32px"
+                  extraLayers={IFCO_MANAGER_LAYERS}
+                  onWmsFeature={(payload) => {
+                    kzxgInfo.value = payload.features.length ? payload : null;
+                    if (payload.features.length) selectedPolygon.value = null;
+                  }}
+                />
 
                 {/* 图层 / 交互逻辑子组件：必须在 VMap 插槽内才能 useMap；selected 联动选中高亮 */}
                 <IfcoMapLayers
@@ -92,10 +107,14 @@ export default defineComponent({
               </VMap>
 
               {/* 多边形详情卡片：点击片区/项目面弹出；页签与片区内项目下拉切换会回写选中面（联动地图高亮），
-                  点击空白处/关闭按钮收起 */}
+                  点击控规图斑切「控制性详细规划」页签；点击空白处/关闭按钮收起 */}
               <PolygonCard
                 polygon={selectedPolygon.value}
-                onClose={() => (selectedPolygon.value = null)}
+                kzxgInfo={kzxgInfo.value}
+                onClose={() => {
+                  selectedPolygon.value = null;
+                  kzxgInfo.value = null;
+                }}
                 onUpdate:polygon={(polygon) => {
                   selectedPolygon.value = polygon;
                 }}

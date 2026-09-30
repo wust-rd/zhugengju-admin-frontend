@@ -20,6 +20,7 @@
  */
 import { addProtocol } from 'maplibre-gl';
 import type { LayerSpecification, RasterSourceSpecification } from 'maplibre-gl';
+import type { WmsFeatureQueryConfig } from './wms-feature-info';
 
 /** WMS 端点（/sgj 前缀代理到 10.34.4.103:8010，勿写内网绝对地址：局域网页面来源会被 DCI 鉴权 401） */
 const WMS_URL = '/sgj/ServiceAdapter/MAP/GHSJ/da4dd42f59b24cd4b0b74f1e23985100/wms';
@@ -36,6 +37,9 @@ export const KZXG_LAYER_ID = 'kzxg-ghsj';
 
 /** 图层管理器数据项 key（layers 开关项 / 数据菜单分类与地图图层对应关系） */
 export const KZXG_KEY = 'kzxg';
+
+/** 点击查询配置（GetFeatureInfo 通用接口，见 wms-feature-info.ts） */
+export const KZXG_QUERY: WmsFeatureQueryConfig = { url: WMS_URL, layers: WMS_LAYER };
 
 const TILE = 256;
 /** 服务端单边采样像素（2 倍超采样，重采样后线条更清晰） */
