@@ -41,10 +41,10 @@ export default defineComponent({
               {/* 地图：VMap 组件内部创建/销毁 MapLibre 实例，crs/center/zoom 走 options prop */}
               <VMap reuseMaps style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
-              </VMap>
 
-              {/* 图层管理器：左上角胶囊按钮（图层开关/数据菜单，占位数据） */}
-              <LayerControls class="left-32px top-24px" />
+                {/* 图层管理器：左上角胶囊按钮（useMap 依赖 VMap 上下文，须在插槽内） */}
+                <LayerControls class="left-32px top-24px" />
+              </VMap>
 
               {/* 征收项目信息 Tab 面板：项目基本信息 / 征收进度汇总（右上角） */}
               {/* <ExpropriationInfoTabs class="absolute right-24px top-24px z-10" /> */}

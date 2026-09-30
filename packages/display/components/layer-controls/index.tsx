@@ -1,12 +1,15 @@
 import { cn, type ClassValue } from '@jeesite/core/libs';
+import { useMap, useMapLayer } from '@jeesite/vmap';
 import { animate, AnimatePresence, motion } from 'motion-v';
-import { computed, defineComponent, ref, type PropType } from 'vue';
+import { computed, defineComponent, ref, watch, type PropType } from 'vue';
+import type { LayerSpecification } from 'maplibre-gl';
 import { ConfigProvider } from 'antdv-next';
 import { LayerTabs } from '@jeesite/display/components/layer-tabs';
 import topBarImg from '@jeesite/assets/images/display/top-bar.webp';
 import bottomBarImg from '@jeesite/assets/images/display/bottom-bar.webp';
 import { PANEL_THEME } from './theme';
 import { createInitialLayers, createInitialCategories } from './data';
+import { KZXG_KEY, KZXG_LAYER, KZXG_LAYER_ID, KZXG_SOURCE, KZXG_SOURCE_ID } from './kzxg-wms';
 import { LayerList } from './layer-list';
 import { CategoryLeafRow, CategoryGroupRow, CategoryChildrenList } from './category-rows';
 import { DataMenuTitle, DataMenuSearch } from './data-menu';
@@ -19,14 +22,23 @@ const ANIM_X = 24;
 /** 数据菜单收起/展开的 height 动画时长与缓动 */
 const MENU_ANIM = { duration: 0.28, ease: 'easeInOut' as const };
 
+/** 数据项 key → 地图图层定义（layers 开关项与地图 source/layer 的对应关系） */
+const MANAGED_LAYER_DEFS: Record<string, { sourceId: string; layerId: string; source: object; layer: LayerSpecification }> = {
+  [KZXG_KEY]: { sourceId: KZXG_SOURCE_ID, layerId: KZXG_LAYER_ID, source: KZXG_SOURCE, layer: KZXG_LAYER },
+};
+
 /**
  * LayerControls —— 图层管理器（左边缘胶囊按钮 + 完整浮层面板）
  *
+ * - 必须放在 <VMap> 插槽内（useMap 依赖 VMap provide 的地图上下文）；
+ *   建议置于业务图层组件（如 IfcoMapLayers）之前，让叠加图层垫在业务面之下
  * - 点「图层管理器」→ 按钮 fadeRightOut + 面板 fadeLeftIn（AnimatePresence + motion.div）
  * - 面板：头部 LayerTabs（已打开图层/我的收藏 + × 关闭）、图层开关列表、
  *   数据菜单（Divider 标题 + 搜索 + 分类复选树，height 收起动画）
  * - 点右上角 × → 面板 fadeRightOut + 按钮 fadeLeftIn
  * - 数据菜单点击标题用 height 收起/展开（展开后 height 设 auto）
+ * - 地图联动：地图就绪按 layers 注册 source/layer（useMapLayer 管理生命周期），
+ *   开关项 / 数据菜单分类勾选直接改共享 layers item，深层 watch 同步 visibility
  *
  * 子组件拆分（同目录）：LayerList / CategoryRows / DataMenu，类型 data。
  */
@@ -36,6 +48,8 @@ export const LayerControls = defineComponent({
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: 'left-32px' },
   },
   setup(props) {
+    const { map, isLoaded } = useMap();
+
     /** 面板是否打开 */
     const open = ref(false);
     /** 头部页签：opened=已打开图层 / fav=我的收藏 */
@@ -46,12 +60,10 @@ export const LayerControls = defineComponent({
     const menuBodyRef = ref<HTMLDivElement | null>(null);
     const searchText = ref('');
 
-    /** 图层开关项（占位数据） */
+    /** 图层开关项（真实图层，on 与地图图层显隐联动） */
     const layers = ref(createInitialLayers());
-    /** 数据菜单分类（占位数据） */
+    /** 数据菜单分类（真实图层目录） */
     const categories = ref(createInitialCategories());
-    /** leaf 单项勾选状态 */
-    const leafChecked = ref<Record<string, boolean>>({});
 
     /** 按搜索词过滤分类（命中分组则展开其子项） */
     const filteredCategories = computed(() => {
@@ -68,6 +80,48 @@ export const LayerControls = defineComponent({
         })
         .filter((c): c is LayerCategory => c != null);
     });
+
+    // ===== 地图联动 =====
+    /** 地图就绪：为受管图层注册 source/layer（visibility / 透明度按当前状态） */
+    useMapLayer(map, isLoaded, (m) => {
+      for (const item of layers.value) {
+        const def = MANAGED_LAYER_DEFS[item.key];
+        if (!def) continue;
+        if (!m.getSource(def.sourceId)) m.addSource(def.sourceId, def.source as never);
+        if (!m.getLayer(def.layerId)) {
+          m.addLayer({
+            ...def.layer,
+            layout: { visibility: item.on ? 'visible' : 'none' },
+          } as LayerSpecification);
+          m.setPaintProperty(def.layerId, 'raster-opacity', item.opacity);
+        }
+      }
+      return () => {
+        for (const def of Object.values(MANAGED_LAYER_DEFS)) {
+          if (m.getLayer(def.layerId)) m.removeLayer(def.layerId);
+          if (m.getSource(def.sourceId)) m.removeSource(def.sourceId);
+        }
+      };
+    });
+
+    /** 开关项 / 数据菜单勾选 / 透明度滑杆变化 → 同步地图（深层捕获 item 直改） */
+    watch(
+      layers,
+      () => {
+        const m = map.value;
+        if (!m) return;
+        for (const item of layers.value) {
+          const def = MANAGED_LAYER_DEFS[item.key];
+          if (!def || !m.getLayer(def.layerId)) continue;
+          m.setLayoutProperty(def.layerId, 'visibility', item.on ? 'visible' : 'none');
+          // raster-opacity 仅 raster 图层有；后续接入 fill/line 等再按类型分发
+          if (m.getLayer(def.layerId)?.type === 'raster') {
+            m.setPaintProperty(def.layerId, 'raster-opacity', item.opacity);
+          }
+        }
+      },
+      { deep: true },
+    );
 
     // ===== 交互 =====
     const openPanel = () => {
@@ -104,8 +158,10 @@ export const LayerControls = defineComponent({
     const toggleGroup = (cat: LayerCategory) => {
       cat.expanded = !cat.expanded;
     };
+    /** leaf 勾选：与「已打开图层」同一数据源（layers item.on），联动地图显隐 */
     const toggleLeaf = (key: string) => {
-      leafChecked.value[key] = !leafChecked.value[key];
+      const item = layers.value.find((l) => l.key === key);
+      if (item) item.on = !item.on;
     };
     /** 分组 checkbox：全选/全不选；全选展开、全不选收起 */
     const toggleGroupCheck = (cat: LayerCategory) => {
@@ -201,7 +257,11 @@ export const LayerControls = defineComponent({
                 {filteredCategories.value.map((cat) => (
                   <div key={cat.key} class="flex flex-col">
                     {cat.type === 'leaf' ? (
-                      <CategoryLeafRow cat={cat} checked={!!leafChecked.value[cat.key]} onToggle={toggleLeaf} />
+                      <CategoryLeafRow
+                        cat={cat}
+                        checked={!!layers.value.find((l) => l.key === cat.key)?.on}
+                        onToggle={toggleLeaf}
+                      />
                     ) : (
                       <CategoryGroupRow cat={cat} onExpand={toggleGroup} onCheck={toggleGroupCheck} />
                     )}

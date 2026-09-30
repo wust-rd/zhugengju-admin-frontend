@@ -4,6 +4,8 @@ export interface LayerSwitchItem {
   label: string;
   on: boolean;
   starred: boolean;
+  /** 图层不透明度（0~1，作用于地图图层 raster-opacity） */
+  opacity: number;
 }
 
 /** 数据菜单分组下的子项 */

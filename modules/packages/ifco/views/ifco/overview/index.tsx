@@ -74,6 +74,11 @@ export default defineComponent({
               {/* 地图：VMap 组件内部创建/销毁 MapLibre 实例，crs/center/zoom 走 options prop */}
               <VMap reuseMaps style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
+
+                {/* 图层管理器：左上角胶囊按钮（useMap 依赖 VMap 上下文，须在插槽内）。
+                    置于 IfcoMapLayers 之前，让控规等叠加图层垫在业务面之下 */}
+                <LayerControls class="left-32px" />
+
                 {/* 图层 / 交互逻辑子组件：必须在 VMap 插槽内才能 useMap；selected 联动选中高亮 */}
                 <IfcoMapLayers
                   selected={selectedPolygon.value}
@@ -119,9 +124,6 @@ export default defineComponent({
                   </div>
                 </div>
               </div>
-
-              {/* 图层管理器：左上角胶囊按钮 */}
-              <LayerControls class="left-32px" />
 
               {/* 右侧 Drawer：地图点击打开，Tab 切换内容；显示时从右往左平移渐显，隐藏时向右移出并淡出 */}
               <div

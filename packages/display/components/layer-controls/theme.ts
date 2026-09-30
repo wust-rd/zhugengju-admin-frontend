@@ -1,4 +1,4 @@
-/** 面板局部主题：Switch / Divider / Checkbox 统一青蓝；ConfigProvider 作用域内生效，不改全局 */
+/** 面板局部主题：Switch / Slider / Divider / Checkbox 统一青蓝；ConfigProvider 作用域内生效，不改全局 */
 export const PANEL_THEME: any = {
   components: {
     Switch: {
@@ -24,6 +24,21 @@ export const PANEL_THEME: any = {
       // hover 不加深/不加色：选中 hover 与选中色一致
       colorPrimaryHover: '#00b8d4',
       colorBorder: 'rgba(255, 255, 255, 0.25)',
+    },
+    Slider: {
+      // 透明度滑杆：青蓝滑轨/手柄（与面板主色一致），深色轨道、紧凑尺寸适配图层行内
+      trackBg: '#00b8d4',
+      trackHoverBg: '#00b8d4',
+      handleColor: '#00b8d4',
+      handleActiveColor: '#00b8d4',
+      handleActiveOutlineColor: 'rgba(0, 184, 212, 0.25)',
+      railBg: 'rgba(255, 255, 255, 0.15)',
+      railHoverBg: 'rgba(255, 255, 255, 0.25)',
+      railSize: 4,
+      handleSize: 10,
+      handleSizeHover: 12,
+      handleLineWidth: 2,
+      handleLineWidthHover: 2,
     },
   },
 };
