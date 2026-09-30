@@ -7,7 +7,16 @@
   只读）+
   月度进度信息（按月切换；当前进度计划安排=导入倒排工期计划当月内容，恒只读）
   + 月度投资情况/项目纳统情况/困难问题/里程碑节点/其他（当期填报，不随页签
-  切换；年度投资进度=本年度累计完成投资/本年度计划完成投资 派生只读）。
+  切换）。月度投资情况仅「当月完成投资」可编辑，其余只读：截止目前累计/
+  本年度累计/2026年6月至今累计=滚动累计（行底稿累计值−底稿当月值+当前
+  输入，随输入实时联动，保存时经 collect 滚动回写行底稿），2026年1-5月/
+  2025年10-12月/2025年10月前=初始写入数据库的值（disabled 回显），
+  年度投资进度=本年度累计完成投资/本年度计划完成投资 派生只读。
+  项目纳统情况的入库纳统情况为直连 Select 绑 ref（同 compilation 表单是否
+  采纳写法，不走 formModel、空值显 placeholder）：选「是」出现 纳统分类
+  [statisticsCategory]（Input）/统计局纳统项目编码[statisticsProjectCode]，
+  选「否」出现 未纳统原因[notIncludedReason]（必填）；切换清空已填、提交前
+  未选拦截 showMessage。
   父组件经 ref 调用：init(record, disabled) 打开时初始化（表单先重置再回填——
   setFieldsValue 跳过 undefined，不重置会残留上一行的值）；validate() 提交
   必填校验；collect() 收集逐月值+当期值（先暂存当前页签）。审查结果组由
@@ -27,14 +36,35 @@
         <BasicForm @register="handleProgressFormRegister" />
 
         <BasicForm @register="handleReportFormRegister">
+          <!-- 累计类只读（滚动口径：行底稿累计值−底稿当月值+当前输入，随输入实时联动） -->
+          <template #totalAccumulatedInvest="{ model }">
+            {{ rollingInvest(current.totalAccumulatedInvest, model.monthCompletedInvest) }}
+          </template>
+          <template #yearAccumulatedInvest="{ model }">
+            {{ rollingInvest(current.yearAccumulatedInvest, model.monthCompletedInvest) }}
+          </template>
+          <template #juneToNowAccumulatedInvest="{ model }">
+            {{ rollingInvest(current.juneToNowAccumulatedInvest, model.monthCompletedInvest) }}
+          </template>
           <!-- 年度投资进度（派生只读：本年度累计完成投资/本年度计划完成投资，随输入实时联动） -->
           <template #yearProgressRate="{ model }">
             {{
               yearProgressPercent({
-                yearAccumulatedInvest: Number(model.yearAccumulatedInvest ?? 0),
+                yearAccumulatedInvest: rollingInvest(current.yearAccumulatedInvest, model.monthCompletedInvest),
                 yearInvest: current.yearInvest,
               })
             }}
+          </template>
+          <!-- 入库纳统情况（直连 Select 绑 ref，不走 formModel；空值显示 placeholder） -->
+          <template #statisticsIncluded>
+            <Select
+              :value="statisticsIncluded"
+              :options="YES_NO_OPTIONS"
+              :disabled="fillDisabled"
+              placeholder="请选择"
+              class="w-full"
+              @change="onStatisticsIncludedChange"
+            />
           </template>
           <!-- 审查结果（两级，按轮次分组；历史只读、本层级当前轮可填）：UI 由父级插槽提供 -->
           <template v-if="showReview" #reviewBlock>
@@ -61,14 +91,15 @@
 </template>
 <script lang="ts" setup name="ViewsIfcoSharedMonthlyProgressFill">
   import { computed, ref, watch } from 'vue';
-  import { TabPane, Tabs, Upload } from 'antdv-next';
+  import NP from 'number-precision';
+  import { Select, TabPane, Tabs, Upload } from 'antdv-next';
   import type { UploadFile } from 'antdv-next';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import type { FormActionType } from '@jeesite/core/components/Form/src/types/form';
+  import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { YES_NO_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
   import {
     CONSTRUCTION_STAGE_OPTIONS,
-    STATISTICS_CATEGORY_OPTIONS,
     monthPlanOf,
     yearProgressPercent,
     type MonthlyItem,
@@ -76,6 +107,7 @@
   } from '@jeesite/ifco/api/ifco/impl-progress';
 
   const props = defineProps<{ showReview?: boolean }>();
+  const { showMessage } = useMessage();
 
   /** 当前行底稿（父组件 init 传入；表单回填与派生只读都取自它） */
   const current = ref<Partial<MonthlyItem>>({});
@@ -83,7 +115,6 @@
   const fillDisabled = ref(false);
 
   const stageOptions = CONSTRUCTION_STAGE_OPTIONS.map((name) => ({ label: name, value: name }));
-  const statisticsCategoryOptions = STATISTICS_CATEGORY_OPTIONS.map((name) => ({ label: name, value: name }));
 
   /** 当前填报月（默认页签；早于它的月份为已填历史，只读） */
   const currentMonth = computed(
@@ -94,6 +125,12 @@
   const currentYear = computed(
     () => Number(String(current.value.reportMonth ?? '').slice(0, 4)) || new Date().getFullYear(),
   );
+
+  /** 滚动累计口径：行底稿累计值 − 底稿当月值 + 当前输入（底稿当月值=上次保存已并入累计的当月
+      累加，先减后加避免重复计数；当前输入随填写实时并入显示，保存时经 collect 滚动回写行底稿） */
+  function rollingInvest(total: number | undefined, input: unknown): number {
+    return NP.round(NP.plus(NP.minus(total ?? 0, current.value.monthCompletedInvest ?? 0), Number(input ?? 0) || 0), 2);
+  }
 
   /** 月份页签：当月至当年 1 月倒序（如 9 月 → 2026年9月~2026年1月，未来月份不显示） */
   const monthTabs = computed(() =>
@@ -191,7 +228,7 @@
 
   const progressFormReady = ref(false);
 
-  /** 打开时初始化逐月值（当月无记录则用行快照兜底） */
+  /** 打开时初始化逐月值（当月无记录则用行快照兜底；当月完成投资随逐月值一并落位） */
   function initEntries(): Partial<Record<number, MonthlyProgressEntry>> {
     const cloned: Partial<Record<number, MonthlyProgressEntry>> = { ...(current.value.monthEntries ?? {}) };
     if (!cloned[currentMonth.value]) {
@@ -200,6 +237,7 @@
         currentProgress: current.value.currentProgress ?? '',
         implementProgress: current.value.implementProgress,
         progressDesc: current.value.monthProgressDesc ?? '',
+        monthCompletedInvest: current.value.monthCompletedInvest,
       };
     }
     return cloned;
@@ -219,10 +257,11 @@
     setProgressProps({ disabled: fillDisabled.value || activeMonth.value < currentMonth.value });
   }
 
-  /** 切页签前把当前表单值暂存进对应月份（已过月份只读，不暂存） */
+  /** 切页签前把当前表单值暂存进对应月份（已过月份只读，不暂存；当月完成投资一并入逐月值） */
   function stashEntry(month: number) {
     if (!progressFormReady.value || month < currentMonth.value) return;
     const values = getProgressFieldsValue() as Record<string, unknown>;
+    const reportValues = getReportFieldsValue() as Record<string, unknown>;
     entries.value[month] = {
       constructionStage: String(values.constructionStage ?? ''),
       currentProgress: String(values.currentProgress ?? ''),
@@ -233,6 +272,10 @@
       progressDesc: String(values.progressDesc ?? ''),
       actualStartDate: (values.actualStartDate as string) || undefined,
       actualCompletionDate: (values.actualCompletionDate as string) || undefined,
+      monthCompletedInvest:
+        reportValues.monthCompletedInvest == null || reportValues.monthCompletedInvest === ''
+          ? undefined
+          : Number(reportValues.monthCompletedInvest),
     };
   }
 
@@ -253,7 +296,19 @@
     applyProgressFormValues();
   }
 
-  /** 月度投资情况 + 项目纳统情况（当期填报，不随月份页签切换）；审查结果组仅月度填报抽屉开 */
+  /** 入库纳统情况（未选=undefined 显 placeholder；是＝纳统分类+统计局编码；否＝未纳统原因必填；切换即清空已填内容） */
+  const statisticsIncluded = ref<'是' | '否' | undefined>(undefined);
+
+  function onStatisticsIncludedChange(value: any) {
+    statisticsIncluded.value = value || undefined;
+    setReportFieldsValue({
+      statisticsCategory: '',
+      statisticsProjectCode: '',
+      notIncludedReason: '',
+    });
+  }
+
+  /** 月度投资情况 + 项目纳统情况（当期填报，不随月份页签切换；入库纳统情况直连 Select 分流）；审查结果组仅月度填报抽屉开 */
   const reportSchemas: FormSchema[] = [
     { label: '月度投资情况', field: 'investGroup', component: 'FormGroup', colProps: { md: 24, lg: 24 } },
     {
@@ -262,23 +317,47 @@
       component: 'InputNumber',
       componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '请输入当月完成投资' },
     },
+    // 截止目前累计/本年度累计：滚动累计只读（初始值+当月累加值，随当月输入实时联动）
     {
       label: '截止目前累计完成投资（亿元）',
       field: 'totalAccumulatedInvest',
-      component: 'InputNumber',
-      componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '请输入截止目前累计完成投资' },
+      component: 'Input',
+      slot: 'totalAccumulatedInvest',
     },
     {
       label: '本年度累计完成投资（亿元）',
       field: 'yearAccumulatedInvest',
-      component: 'InputNumber',
-      componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '请输入本年度累计完成投资' },
+      component: 'Input',
+      slot: 'yearAccumulatedInvest',
     },
+    // 2026年1-5月/2025年10-12月/2025年10月前：初始写入数据库的值，恒只读回显
     {
       label: '2026年1-5月累计完成投资（亿元）',
       field: 'yearRangeAccumulatedInvest',
       component: 'InputNumber',
-      componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '请输入2026年1-5月累计完成投资' },
+      dynamicDisabled: () => true,
+      componentProps: { precision: 2, min: 0, style: 'width: 100%' },
+    },
+    // 2026年6月至今：滚动累计只读（初始值+每月累加值，随当月输入实时联动）
+    {
+      label: '2026年6月至今累计完成投资（亿元）',
+      field: 'juneToNowAccumulatedInvest',
+      component: 'Input',
+      slot: 'juneToNowAccumulatedInvest',
+    },
+    {
+      label: '2025年10-12月累计完成投资（亿元）',
+      field: 'octDecAccumulatedInvest',
+      component: 'InputNumber',
+      dynamicDisabled: () => true,
+      componentProps: { precision: 2, min: 0, style: 'width: 100%' },
+    },
+    {
+      label: '2025年10月前累计完成投资（亿元）',
+      field: 'carryOverAccumulatedInvest',
+      component: 'InputNumber',
+      dynamicDisabled: () => true,
+      componentProps: { precision: 2, min: 0, style: 'width: 100%' },
     },
     {
       label: '年度投资进度',
@@ -286,41 +365,34 @@
       component: 'Input',
       slot: 'yearProgressRate',
     },
-    {
-      label: '2025年10月前累计完成投资（亿元）',
-      field: 'carryOverAccumulatedInvest',
-      component: 'InputNumber',
-      componentProps: { precision: 2, min: 0, style: 'width: 100%', placeholder: '请输入2025年10月前累计完成投资' },
-    },
     { label: '项目纳统情况', field: 'statisticsGroup', component: 'FormGroup', colProps: { md: 24, lg: 24 } },
     {
       label: '入库纳统情况',
       field: 'statisticsIncluded',
-      component: 'RadioGroup',
-      componentProps: { options: [...YES_NO_OPTIONS] },
+      component: 'Input',
+      slot: 'statisticsIncluded',
     },
     {
       label: '纳统分类',
       field: 'statisticsCategory',
-      component: 'Select',
-      componentProps: { options: statisticsCategoryOptions, allowClear: true, placeholder: '请选择纳统分类' },
-      ifShow: ({ values }) => values.statisticsIncluded === '是',
+      component: 'Input',
+      componentProps: { maxlength: 50, placeholder: '请输入纳统分类' },
+      ifShow: () => statisticsIncluded.value === '是',
     },
     {
       label: '统计局纳统项目编码',
       field: 'statisticsProjectCode',
       component: 'Input',
       componentProps: { maxlength: 50, placeholder: '请输入统计局纳统项目编码' },
-      ifShow: ({ values }) => values.statisticsIncluded === '是',
+      ifShow: () => statisticsIncluded.value === '是',
     },
     {
       label: '未纳统原因',
       field: 'notIncludedReason',
       component: 'InputTextArea',
       componentProps: { rows: 2, maxlength: 200, placeholder: '请输入未纳统原因' },
-      ifShow: ({ values }) => values.statisticsIncluded === '否',
-      dynamicRules: ({ values }) =>
-        values.statisticsIncluded === '否' ? [{ required: true, message: '请输入未纳统原因' }] : [],
+      ifShow: () => statisticsIncluded.value === '否',
+      rules: [{ required: true, message: '请输入未纳统原因' }],
     },
     { label: '困难问题', field: 'difficultyGroup', component: 'FormGroup', colProps: { md: 24, lg: 24 } },
     {
@@ -381,13 +453,16 @@
   const milestonePhotoList = ref<UploadFile[]>([]);
 
   function applyReportFormValues() {
+    // 入库纳统情况不走 formModel：按行底稿回显（无存量=undefined 显 placeholder）
+    statisticsIncluded.value =
+      current.value.statisticsIncluded === '是' || current.value.statisticsIncluded === '否'
+        ? current.value.statisticsIncluded
+        : undefined;
     setReportFieldsValue({
       monthCompletedInvest: current.value.monthCompletedInvest ?? undefined,
-      totalAccumulatedInvest: current.value.totalAccumulatedInvest ?? undefined,
-      yearAccumulatedInvest: current.value.yearAccumulatedInvest ?? undefined,
       yearRangeAccumulatedInvest: current.value.yearRangeAccumulatedInvest ?? undefined,
+      octDecAccumulatedInvest: current.value.octDecAccumulatedInvest ?? undefined,
       carryOverAccumulatedInvest: current.value.carryOverAccumulatedInvest ?? undefined,
-      statisticsIncluded: current.value.statisticsIncluded || '否',
       statisticsCategory: current.value.statisticsCategory ?? undefined,
       statisticsProjectCode: current.value.statisticsProjectCode ?? '',
       notIncludedReason: current.value.notIncludedReason ?? '',
@@ -427,8 +502,12 @@
     }
   }
 
-  /** 提交必填校验（月度进度信息 + 投资情况/纳统情况） */
+  /** 提交必填校验（先拦入库纳统情况「请选择」，再月度进度信息 + 投资情况/纳统情况表单校验） */
   async function validate() {
+    if (!statisticsIncluded.value) {
+      showMessage('请选择入库纳统情况');
+      throw new Error('请选择入库纳统情况');
+    }
     await validateProgress();
     await validateReport();
   }
@@ -443,6 +522,8 @@
       totalAccumulatedInvest: number;
       yearAccumulatedInvest: number;
       yearRangeAccumulatedInvest?: number;
+      juneToNowAccumulatedInvest: number;
+      octDecAccumulatedInvest?: number;
       carryOverAccumulatedInvest?: number;
       statisticsIncluded: string;
       statisticsCategory?: string;
@@ -457,6 +538,14 @@
     stashEntry(activeMonth.value);
     const raw = getReportFieldsValue() as Record<string, unknown>;
     const cloned: Partial<Record<number, MonthlyProgressEntry>> = { ...entries.value };
+    // 当月完成投资落进逐月值（资金组合查询按统计周期逐月加和；浏览历史页签提交时兜底写入；当月条目由 initEntries 保证存在）
+    cloned[currentMonth.value] = {
+      ...cloned[currentMonth.value]!,
+      monthCompletedInvest:
+        raw.monthCompletedInvest == null || raw.monthCompletedInvest === ''
+          ? undefined
+          : Number(raw.monthCompletedInvest),
+    };
     const optNum = (value: unknown) => (value == null || value === '' ? undefined : Number(value));
     const optStr = (value: unknown) => String(value ?? '') || undefined;
     return {
@@ -465,14 +554,17 @@
       snapshot: cloned[currentMonth.value],
       values: {
         monthCompletedInvest: Number(raw.monthCompletedInvest ?? 0),
-        totalAccumulatedInvest: Number(raw.totalAccumulatedInvest ?? 0),
-        yearAccumulatedInvest: Number(raw.yearAccumulatedInvest ?? 0),
+        // 滚动累计：底稿累计−底稿当月+当前输入（与表单只读显示同口径，保存滚动回写行底稿）
+        totalAccumulatedInvest: rollingInvest(current.value.totalAccumulatedInvest, raw.monthCompletedInvest),
+        yearAccumulatedInvest: rollingInvest(current.value.yearAccumulatedInvest, raw.monthCompletedInvest),
         yearRangeAccumulatedInvest: optNum(raw.yearRangeAccumulatedInvest),
+        juneToNowAccumulatedInvest: rollingInvest(current.value.juneToNowAccumulatedInvest, raw.monthCompletedInvest),
+        octDecAccumulatedInvest: optNum(raw.octDecAccumulatedInvest),
         carryOverAccumulatedInvest: optNum(raw.carryOverAccumulatedInvest),
-        statisticsIncluded: String(raw.statisticsIncluded ?? '否'),
-        statisticsCategory: raw.statisticsIncluded === '是' ? optStr(raw.statisticsCategory) : undefined,
-        statisticsProjectCode: raw.statisticsIncluded === '是' ? optStr(raw.statisticsProjectCode) : undefined,
-        notIncludedReason: raw.statisticsIncluded === '否' ? optStr(raw.notIncludedReason) : undefined,
+        statisticsIncluded: statisticsIncluded.value ?? '',
+        statisticsCategory: statisticsIncluded.value === '是' ? optStr(raw.statisticsCategory) : undefined,
+        statisticsProjectCode: statisticsIncluded.value === '是' ? optStr(raw.statisticsProjectCode) : undefined,
+        notIncludedReason: statisticsIncluded.value === '否' ? optStr(raw.notIncludedReason) : undefined,
         difficultyProblem: optStr(raw.difficultyProblem),
         milestonePhotos: milestonePhotoList.value.length
           ? milestonePhotoList.value.map((file) => file.name)

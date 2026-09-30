@@ -330,6 +330,8 @@
     target.totalAccumulatedInvest = collected.values.totalAccumulatedInvest;
     target.yearAccumulatedInvest = collected.values.yearAccumulatedInvest;
     target.yearRangeAccumulatedInvest = collected.values.yearRangeAccumulatedInvest;
+    target.juneToNowAccumulatedInvest = collected.values.juneToNowAccumulatedInvest;
+    target.octDecAccumulatedInvest = collected.values.octDecAccumulatedInvest;
     target.carryOverAccumulatedInvest = collected.values.carryOverAccumulatedInvest;
     target.statisticsIncluded = collected.values.statisticsIncluded;
     target.statisticsCategory = collected.values.statisticsCategory;
