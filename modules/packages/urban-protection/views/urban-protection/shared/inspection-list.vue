@@ -1,10 +1,12 @@
 <!--
   市住更局 —— 名城保护 · 巡查列表页实现（优保建筑巡查 / 拟保护建筑巡查共用）
 
+  scope=excellent 走优保巡查接口（WHFW_AQJD_EXCELLENT_XC，按父建筑在册过滤）；
+  scope=proposed 走拟优保巡查接口（WHFW_OLDJZ_XC 独立表，无是否上报字段）。
   列与操作对齐老系统：序号/区/建筑原名称/巡查人/录入时间/巡查时间/是否特别关注/
   录入类型（PC|APP）/[是否上报]/操作（查看巡查、修改特别关注）。
   支持 ?parentId=&jzOldName= 路由参数定向进入（建筑列表「巡查记录(NN)」入口）。
-  老系统列表的「联系电话」列无数据来源（三表均无巡查人电话），未实现。
+  老系统列表的「联系电话」列无数据来源（两族表均无巡查人电话），未实现。
 -->
 <template>
   <PageWrapper>
@@ -29,7 +31,7 @@
       </template>
     </BasicTable>
 
-    <InspectionDetailDrawer @register="registerDrawer" />
+    <InspectionDetailDrawer :scope="scope" @register="registerDrawer" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsUrbanProtectionSharedInspectionList">
@@ -46,12 +48,18 @@
     setInspectionAttention,
     InspectionRow,
   } from '@jeesite/urban-protection/api/urban-protection/inspection';
+  import {
+    fetchProposedInspectionPage,
+    setProposedInspectionAttention,
+    fetchProposedDict,
+    ProposedInspectionRow,
+  } from '@jeesite/urban-protection/api/urban-protection/proposed';
   import { fetchExcellentDict } from '@jeesite/urban-protection/api/urban-protection/excellent';
   import InspectionDetailDrawer from './inspection-detail-drawer.vue';
   import { fmtDate, fmtDateTime } from './excellent-format';
 
   const props = defineProps<{
-    /** excellent=优保巡查（父建筑在册） proposed=拟优保巡查 */
+    /** excellent=优保巡查（WHFW_AQJD_EXCELLENT_XC） proposed=拟优保巡查（WHFW_OLDJZ_XC） */
     scope: 'excellent' | 'proposed';
     /** 列表页标题（缺省取路由 meta.title） */
     title?: string;
@@ -67,11 +75,28 @@
     value: props.title ?? String(meta.title ?? '建筑巡查'),
   }));
 
-  /** 区下拉（库内实际区名） */
+  /** 列表/详情/特别关注的行类型（两族接口共有字段） */
+  type Row = InspectionRow | ProposedInspectionRow;
+
+  /** 按数据源分流：拟优保走 proposed 接口（无 scope 参数），优保走 inspection 接口 */
+  const isProposed = props.scope === 'proposed';
+
+  /** 区下拉（库内实际区名，按各自数据源取） */
   const districtOptions = ref<{ label: string; value: string }[]>([]);
-  fetchExcellentDict().then((dict) => {
-    districtOptions.value = dict.districts.map((d) => ({ label: d, value: d }));
-  });
+  if (isProposed) {
+    fetchProposedDict().then((dict) => {
+      districtOptions.value = dict.districts.map((d) => ({ label: d, value: d }));
+    });
+  } else {
+    fetchExcellentDict().then((dict) => {
+      districtOptions.value = dict.districts.map((d) => ({ label: d, value: d }));
+    });
+  }
+
+  /** 分页取数（适配 useTable 的 api 签名，返回 {list, count}） */
+  function fetchPage(params: Recordable) {
+    return isProposed ? fetchProposedInspectionPage(params) : fetchInspectionPage(params);
+  }
 
   /** 路由参数定向过滤（建筑列表「巡查记录」入口） */
   const routeParentId = String(query.parentId ?? '');
@@ -110,13 +135,13 @@
   const [registerDrawer, { openDrawer }] = useDrawer();
 
   const [registerTable, { reload }] = useTable({
-    api: fetchInspectionPage,
+    api: fetchPage,
     beforeFetch: (params: Recordable) => {
       const { pageNo, pageSize, xcTimeRange, ...rest } = params;
       const [begin, end] = Array.isArray(xcTimeRange) ? xcTimeRange : [];
       return {
         ...rest,
-        scope: props.scope,
+        ...(isProposed ? {} : { scope: props.scope }),
         pageNum: pageNo,
         pageSize,
         begin,
@@ -181,11 +206,11 @@
     },
   });
 
-  function openDetail(record: InspectionRow) {
+  function openDetail(record: Row) {
     openDrawer(true, { id: record.id });
   }
 
-  function toggleAttention(record: InspectionRow) {
+  function toggleAttention(record: Row) {
     const next = record.sfTbgz ? '0' : '1';
     const actionText = record.sfTbgz ? '取消特别关注' : '设为特别关注';
     createConfirm({
@@ -193,7 +218,11 @@
       title: `确认${actionText}？`,
       content: `建筑「${record.jzOldName}」${fmtDate(record.xcTime)} 的巡查记录`,
       onOk: async () => {
-        await setInspectionAttention(record.id, next as '0' | '1');
+        if (isProposed) {
+          await setProposedInspectionAttention(record.id, next as '0' | '1');
+        } else {
+          await setInspectionAttention(record.id, next as '0' | '1');
+        }
         reload();
       },
     });

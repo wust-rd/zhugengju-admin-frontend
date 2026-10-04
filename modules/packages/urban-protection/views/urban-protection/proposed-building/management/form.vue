@@ -1,8 +1,8 @@
 <!--
   市住更局 —— 名城保护 · 拟优保建筑表单（新增 / 编辑抽屉）
 
-  老系统拟优保表单字段精简：建筑名称 / 所在行政区 / 建筑坐标（X/Y）。
-  保存固定 STATUS='0'（拟优保）。编辑时先回填后掀开（防闪烁）。
+  WHFW_OLDJZ 仅 6 列，可编辑字段：建筑名称 / 所在行政区 / 建筑坐落 / 是否纳入巡查。
+  编辑时先回填后掀开（防闪烁）。
 -->
 <template>
   <BasicDrawer v-bind="$attrs" width="50%" force-render @register="registerDrawer" @ok="handleSubmit">
@@ -20,7 +20,7 @@
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { saveExcellent, ExcellentRow } from '@jeesite/urban-protection/api/urban-protection/excellent';
+  import { saveProposed, ProposedRow } from '@jeesite/urban-protection/api/urban-protection/proposed';
 
   const emit = defineEmits(['success', 'register']);
   const { showMessage } = useMessage();
@@ -45,8 +45,13 @@
       colProps: { md: 24, lg: 24 },
     },
     { label: '所在行政区', field: 'xzqName', component: 'Input', componentProps: { maxlength: 50 } },
-    { label: '坐标X(纬度)', field: 'locationX', component: 'Input', componentProps: { maxlength: 50 } },
-    { label: '坐标Y(经度)', field: 'locationY', component: 'Input', componentProps: { maxlength: 50 } },
+    { label: '建筑坐落', field: 'jzLoccation', component: 'Input', componentProps: { maxlength: 200 } },
+    {
+      label: '是否纳入巡查',
+      field: 'isPatrol',
+      component: 'Switch',
+      helpMessage: '拟优保巡查报表的"应巡查量"只统计已纳入巡查的建筑',
+    },
   ];
 
   const [registerForm, { setFieldsValue, resetFields, validate }] = useForm({
@@ -63,12 +68,12 @@
     isNew.value = !!data._isNew;
     editId.value = isNew.value ? '' : String(data.id ?? '');
     if (!isNew.value) {
-      const row = data as ExcellentRow;
+      const row = data as ProposedRow;
       await setFieldsValue({
         jzOldName: row.jzOldName,
         xzqName: row.xzqName,
-        locationX: row.locationX,
-        locationY: row.locationY,
+        jzLoccation: row.jzLoccation,
+        isPatrol: row.isPatrol,
       });
     }
     setDrawerProps({ open: true });
@@ -80,11 +85,10 @@
       const values = await validate();
       saving.value = true;
       setDrawerProps({ confirmLoading: true });
-      await saveExcellent({
+      await saveProposed({
         ...values,
         id: isNew.value ? undefined : editId.value,
-        status: '0',
-      } as Partial<ExcellentRow> & { status?: string });
+      } as Partial<ProposedRow>);
       showMessage(isNew.value ? '新增成功' : '保存成功');
       closeDrawer();
       emit('success');

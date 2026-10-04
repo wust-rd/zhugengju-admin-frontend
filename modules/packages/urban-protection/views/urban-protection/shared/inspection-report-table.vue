@@ -56,13 +56,21 @@
     fetchInspectionYears,
     InspectionReportRow,
   } from '@jeesite/urban-protection/api/urban-protection/stats';
+  import {
+    fetchProposedInspectionReport,
+    fetchProposedInspectionYears,
+    ProposedInspectionReportRow,
+  } from '@jeesite/urban-protection/api/urban-protection/proposed';
 
   const props = defineProps<{
-    /** excellent=优保巡查 proposed=拟优保巡查 */
+    /** excellent=优保巡查（stats 接口） proposed=拟优保巡查（proposed/stats 接口，WHFW_OLDJZ 口径） */
     scope: 'excellent' | 'proposed';
     /** 报表标题 */
     heading: string;
   }>();
+
+  /** 报表行类型（两族接口同构，buildingCount 口径不同） */
+  type ReportRow = InspectionReportRow | ProposedInspectionReportRow;
 
   /** 查询模式：month=按月份 range=按日期起止 */
   const mode = ref<'month' | 'range'>('month');
@@ -74,8 +82,8 @@
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}月`, value: i + 1 }));
 
   const loading = ref(false);
-  const rows = ref<InspectionReportRow[]>([]);
-  const summary = ref<InspectionReportRow | null>(null);
+  const rows = ref<ReportRow[]>([]);
+  const summary = ref<ReportRow | null>(null);
 
   const columns = [
     { title: '序号', dataIndex: 'index', key: 'index', width: 60, align: 'center' as const },
@@ -94,20 +102,20 @@
     if (mode.value === 'range' && (!dateRange.value?.[0] || !dateRange.value?.[1])) return;
     loading.value = true;
     try {
+      const monthQuery = { mode: 'month' as const, year: year.value, month: month.value };
+      const rangeQuery = {
+        mode: 'range' as const,
+        begin: dateRange.value![0],
+        end: dateRange.value![1],
+      };
       const data =
-        mode.value === 'month'
-          ? await fetchInspectionReport({
-              scope: props.scope,
-              mode: 'month',
-              year: year.value,
-              month: month.value,
-            })
-          : await fetchInspectionReport({
-              scope: props.scope,
-              mode: 'range',
-              begin: dateRange.value![0],
-              end: dateRange.value![1],
-            });
+        props.scope === 'proposed'
+          ? mode.value === 'month'
+            ? await fetchProposedInspectionReport(monthQuery)
+            : await fetchProposedInspectionReport(rangeQuery)
+          : mode.value === 'month'
+            ? await fetchInspectionReport({ scope: props.scope, ...monthQuery })
+            : await fetchInspectionReport({ scope: props.scope, ...rangeQuery });
       rows.value = data.rows;
       summary.value = data.summary;
     } finally {
@@ -116,7 +124,7 @@
   }
 
   onMounted(async () => {
-    const years = await fetchInspectionYears();
+    const years = props.scope === 'proposed' ? await fetchProposedInspectionYears() : await fetchInspectionYears();
     yearOptions.value = years.map((y) => ({ label: `${y}年`, value: y }));
     // 默认当前年月（年份下拉没有当年时取最新一年）
     const now = new Date();

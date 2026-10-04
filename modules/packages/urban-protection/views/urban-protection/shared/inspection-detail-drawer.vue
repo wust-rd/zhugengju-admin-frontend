@@ -1,8 +1,10 @@
 <!--
   市住更局 —— 名城保护 · 巡查记录详情抽屉（优保/拟优保巡查共用）
 
+  scope=excellent 走优保巡查详情接口；scope=proposed 走拟优保巡查详情接口
+  （WHFW_OLDJZ_XC 表无是否上报字段，拟优保不展示该行）。
   对齐老系统「查看巡查/查看详情」页字段：建筑区划、建筑原名称、是否特别关注、
-  巡查人、录入/巡查时间、录入类型、是否上报、巡查结果、巡查问题、房屋现状，
+  巡查人、录入/巡查时间、录入类型、[是否上报]、巡查结果、巡查问题、房屋现状，
   以及巡查照片（MinIO URL 直连加载，九宫格缩略，点击新窗口看原图）。
 -->
 <template>
@@ -23,7 +25,7 @@
         <DescriptionsItem label="录入时间">{{ fmtDateTime(record.czTime) || '—' }}</DescriptionsItem>
         <DescriptionsItem label="巡查时间">{{ fmtDate(record.xcTime) || '—' }}</DescriptionsItem>
         <DescriptionsItem label="录入类型">{{ record.typeView }}</DescriptionsItem>
-        <DescriptionsItem label="是否上报">
+        <DescriptionsItem v-if="showSfsb" label="是否上报">
           <Tag :color="record.sfSb ? 'green' : 'default'">{{ record.sfSb ? '已上报' : '未上报' }}</Tag>
         </DescriptionsItem>
         <DescriptionsItem label="巡查结果" :span="2">
@@ -64,13 +66,28 @@
   import { router } from '@jeesite/core/router';
   import { Icon } from '@jeesite/core/components/Icon';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
-  import { fetchInspectionDetail, InspectionRow } from '@jeesite/urban-protection/api/urban-protection/inspection';
+  import { fetchInspectionDetail } from '@jeesite/urban-protection/api/urban-protection/inspection';
+  import {
+    fetchProposedInspectionDetail,
+    ProposedInspectionRow,
+  } from '@jeesite/urban-protection/api/urban-protection/proposed';
   import { fmtDate, fmtDateTime } from './excellent-format';
+
+  const props = defineProps<{
+    /** excellent=优保巡查 proposed=拟优保巡查（WHFW_OLDJZ_XC 无是否上报，不展示该行） */
+    scope?: 'excellent' | 'proposed';
+  }>();
 
   const { meta } = unref(router.currentRoute);
 
+  /** 行类型：拟优保行 + 可选 sfSb（优保详情返回 sfSb 布尔，结构兼容） */
+  type DetailRecord = ProposedInspectionRow & { sfSb?: boolean };
+
   const loading = ref(false);
-  const record = ref<InspectionRow | null>(null);
+  const record = ref<DetailRecord | null>(null);
+
+  /** 拟优保巡查表无是否上报字段 */
+  const showSfsb = computed(() => props.scope !== 'proposed');
 
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:file-search-outlined',
@@ -81,7 +98,10 @@
     loading.value = true;
     record.value = null;
     try {
-      record.value = await fetchInspectionDetail(String(data.id));
+      record.value =
+        props.scope === 'proposed'
+          ? await fetchProposedInspectionDetail(String(data.id))
+          : await fetchInspectionDetail(String(data.id));
     } finally {
       loading.value = false;
     }
