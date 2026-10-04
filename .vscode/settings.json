@@ -34,7 +34,6 @@
   "files.exclude": {
     "**/.cache": true,
     "**/.editorconfig": true,
-    "**/.eslintcache": true,
     "**/bower_components": true,
     "**/.idea": true,
     "**/tmp": true,
@@ -53,11 +52,8 @@
     "**/bower_components/**": true,
     "**/dist/**": true
   },
-  "stylelint.enable": true,
-  "stylelint.packageManager": "yarn",
   "liveServer.settings.donotShowInfoMsg": true,
   "workbench.settings.enableNaturalLanguageSearch": false,
-  "prettier.requireConfig": true,
   "typescript.updateImportsOnFileMove.enabled": "always",
   "workbench.sideBar.location": "left",
   "editor.tabSize": 2,
@@ -84,7 +80,7 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[markdown]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.formatOnSave": false
   },
   "[vue]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
@@ -100,7 +96,6 @@
     "*.ts": "$(capture).test.ts, $(capture).test.tsx, $(capture).spec.ts, $(capture).spec.tsx, $(capture).d.ts",
     "*.tsx": "$(capture).test.ts, $(capture).test.tsx, $(capture).spec.ts, $(capture).spec.tsx,$(capture).d.ts",
     ".oxlintrc.json": ".oxlintrc.json,.oxfmtrc.json",
-    "eslint.config.mjs": ".prettierignore,.stylelintignore,.commitlintrc.*,.prettierrc.*,stylelint.config.*,.lintstagedrc.*",
     "Dockerfile": "Dockerfile,.docker*,docker-entrypoint.sh,build-local-docker*,nginx.conf",
     "package.json": ".npmrc,.gitattributes,.gitignore,turbo.json,package.json*,pnpm-lock.yaml*,pnpm-workspace.yaml,*.iml",
     "README.md": "README*,LICENSE*,terms.md"
@@ -137,7 +132,6 @@
     "qrcode",
     "sider",
     "sortablejs",
-    "stylelint",
     "tailwindcss",
     "tinymce",
     "unocss",

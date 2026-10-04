@@ -16,6 +16,9 @@ export function createBuildOptions(viteEnv: ViteEnv): BuildOptions {
   return {
     target: viteTarget,
     cssTarget: viteTarget,
+    // 生产 CSS 压缩走 lightningcss（Rust，vite 8 自带依赖）：压缩率优于默认 esbuild，
+    // 并按 cssTarget 做语法降级/前缀处理；CSS 格式化由 oxfmt 负责（lint:format）
+    cssMinify: 'lightningcss',
     outDir: viteEnv.VITE_OUTPUT_DIR ?? 'dist',
     reportCompressedSize: false,
     chunkSizeWarningLimit: 5000,
