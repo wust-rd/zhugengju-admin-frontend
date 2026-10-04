@@ -1,12 +1,13 @@
 <!--
-  市住更局 —— 满意度调查（列表页）
+  市住更局 —— 满意度调查（列表页，原型图1）
 
   菜单注册（菜单名称「满意度调查」）:
    - 链接地址:/urban-health-check/urban/satisfaction-survey/list
    - 组件位置:/urban-health-check/urban/satisfaction-survey/list(与链接地址一致)
    - 是否可见:显示
   接口已接入：surveyPage / surveyDelete（/cityCheck/survey）。
-  已提交的调查只读（编辑/删除锁定）；数据来源列点入问题明细 show 页。
+  列:序号/调查年份/填报时间/数据来源/调查问题数量/有效调查问卷数/综合满意度/提交状态/操作。
+  查看/编辑下钻 RESTful 页面 /satisfaction-survey/{id}（编辑页=原型图2）；已提交只读（仅查看）。
 -->
 <template>
   <PageWrapper>
@@ -20,10 +21,15 @@
           <Icon icon="i-fluent:add-12-filled" /> 新增
         </a-button>
       </template>
-      <template #dataSource="{ record }">
-        <a @click="handleDetail(record)" :title="record.dataSource">
-          {{ record.dataSource }}
-        </a>
+      <template #submitStatus="{ record }">
+        <Tag v-if="isSubmitted(record)" color="blue" variant="solid" style="border-radius: 10px">已提交</Tag>
+        <Tag v-else color="orange" variant="solid" style="border-radius: 10px">待提交</Tag>
+      </template>
+      <template #overallSatisfaction="{ record }">
+        <span v-if="record.overallSatisfaction != null" class="font-medium" style="color: var(--ant-color-success)">
+          {{ record.overallSatisfaction }}
+        </span>
+        <span v-else>-</span>
       </template>
     </BasicTable>
 
@@ -32,6 +38,7 @@
 </template>
 <script lang="ts" setup name="ViewsUrbanHealthCheckUrbanSatisfactionSurveyList">
   import { unref } from 'vue';
+  import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { useGo } from '@jeesite/core/hooks/web/usePage';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
@@ -42,14 +49,17 @@
   import { FormProps } from '@jeesite/core/components/Form';
   import type { SatisfactionSurvey } from '@jeesite/urban-health-check/api/urban-health-check/urban/satisfaction-survey';
   import {
-    SUBMIT_STATUS,
-    YEAR_OPTIONS,
-  } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
-  import {
     surveyDelete,
     surveyPage,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/satisfaction-survey';
+  import {
+    SUBMIT_STATUS,
+    YEAR_OPTIONS,
+  } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
   import InputForm from './form.vue';
+
+  /** 下钻路由基址（编辑页=原型图2，RESTful {id}） */
+  const ROUTE_BASE = '/urban-health-check/urban/satisfaction-survey';
 
   const { meta } = unref(router.currentRoute);
   const go = useGo();
@@ -58,6 +68,17 @@
     icon: meta.icon || 'ant-design:book-outlined',
     value: meta.title || '满意度调查',
   };
+
+  /** 后端 submitStatus 为数字，SUBMIT_STATUS 常量为字符串 → 统一 String 比较 */
+  function isSubmitted(record: Recordable) {
+    return String(record.submitStatus) === SUBMIT_STATUS.SUBMITTED;
+  }
+
+  /** 填报时间展示到日（后端返回 "yyyy-MM-dd HH:mm" / ISO 均取前 10 位） */
+  function formatFillDate(value: any) {
+    if (value == null || value === '') return '-';
+    return String(value).slice(0, 10);
+  }
 
   /** 搜索表单 */
   const searchForm: FormProps = {
@@ -75,38 +96,39 @@
 
   /** 表格列 */
   const tableColumns: BasicColumn[] = [
-    { title: '序号', dataIndex: 'code', width: 70, align: 'center' },
-    { title: '调查年份', dataIndex: 'year', width: 110 },
-    { title: '填报时间', dataIndex: 'reportDate', width: 120, align: 'center' },
-    { title: '数据来源', dataIndex: 'dataSource', width: 150, slot: 'dataSource' },
+    { title: '序号', dataIndex: 'sortNo', width: 70, align: 'center' },
+    { title: '调查年份', dataIndex: 'surveyYear', width: 110, align: 'center' },
+    { title: '填报时间', dataIndex: 'fillDate', width: 120, align: 'center', format: formatFillDate },
+    { title: '数据来源', dataIndex: 'dataSource', width: 180, ellipsis: true },
     { title: '调查问题数量（项）', dataIndex: 'questionCount', width: 150, align: 'center' },
     { title: '有效调查问卷数（份）', dataIndex: 'validQuestionnaireCount', width: 160, align: 'center' },
-    { title: '综合满意度（%）', dataIndex: 'overallSatisfaction', width: 140, align: 'center' },
+    { title: '综合满意度（%）', dataIndex: 'overallSatisfaction', width: 140, align: 'center', slot: 'overallSatisfaction' },
+    { title: '提交状态', dataIndex: 'submitStatus', width: 100, align: 'center', slot: 'submitStatus' },
   ];
 
-  /** 操作列（已提交只读） */
+  /** 操作列（已提交只读，仅查看） */
   const actionColumn: BasicColumn = {
-    width: 150,
+    width: 160,
     actions: (record: Recordable) => [
       {
         label: '查看',
-        onClick: () => handleForm({ ...record, isNewRecord: false, isView: true }),
+        onClick: () => handleDetail(record, true),
       },
       {
         label: '编辑',
-        onClick: () => handleForm({ ...record, isNewRecord: false }),
-        ifShow: () => record.submitStatus === SUBMIT_STATUS.PENDING,
+        ifShow: () => !isSubmitted(record),
+        onClick: () => handleDetail(record, false),
       },
       {
         label: '删除',
         color: 'error',
+        ifShow: () => !isSubmitted(record),
         popConfirm: { title: '是否确认删除该记录？', confirm: () => handleDelete(record) },
-        ifShow: () => record.submitStatus === SUBMIT_STATUS.PENDING,
       },
     ],
   };
 
-  const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
+  const [registerDrawer, { openDrawer }] = useDrawer();
   const [registerTable, { reload }] = useTable({
     api: surveyPage,
     columns: tableColumns,
@@ -119,15 +141,14 @@
     canResize: true,
   });
 
+  /** 新增调查（抽屉只管表8字段；问题明细在编辑页维护） */
   function handleForm(record: Recordable) {
-    // 打开前先按查看/编辑设好 showFooter(抽屉级);打开动画期间翻转会导致首次不弹(见对应 form.vue 头注释)
-    setDrawerProps({ showFooter: !record.isView });
     openDrawer(true, record);
   }
 
-  /** 打开该年调查的 show 页(RESTful:/…/satisfaction-survey/{code},code=调查序号) */
-  function handleDetail(record: Recordable) {
-    go(`/urban-health-check/urban/satisfaction-survey/${record.code}`);
+  /** 查看/编辑 → 编辑页(原型图2)；查看态加 ?view=1 整页只读 */
+  function handleDetail(record: Recordable, isView: boolean) {
+    go(`${ROUTE_BASE}/${record.id}${isView ? '?view=1' : ''}`);
   }
 
   /** 删除 */

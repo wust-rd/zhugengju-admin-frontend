@@ -1,9 +1,9 @@
 <!--
-  市住更局 —— 一级维度图层信息 新增/编辑 表单抽屉（dim-table 子组件）
+  市住更局 —— 一级维度图层信息 编辑 表单抽屉（dim-table 子组件）
 
-  接口已接入：dimensionSave（{id?, setId, firstDimensionName, layerObjectCount,
-  layerTotalArea, shpFile}）。新增时 dimName 可填（补充体系未覆盖的维度）；
-  编辑时 dimName 只读仅维护图层信息。
+  接口已接入：dimensionSave（{id, setId, firstDimensionName, layerObjectCount,
+  layerTotalArea, shpFile}）。维度行来自指标体系管理（模块一）的指标项，本模块
+  仅补充维护图层信息——名称只读，不可新增/删除。
   上传图层对象（shp）：shp 图层一般由 .shp/.shx/.dbf 等多个文件组成，
   后端单文件接口 → 多文件请打包 zip 上传（白名单 zip/shp）；
   附件以 {"name","url"} JSON 存 shpFile 列（原始文件名随存，落盘名为时间戳）。
@@ -61,7 +61,7 @@
 
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:book-outlined',
-    value: record.value.isNewRecord ? '新增一级维度' : `编辑 · ${record.value.dimName ?? '一级维度'}`,
+    value: `编辑 · ${record.value.dimName ?? '一级维度'}`,
   }));
 
   const inputFormSchemas: FormSchema[] = [
@@ -70,9 +70,8 @@
       field: 'dimName',
       component: 'Input',
       componentProps: { maxlength: 50 },
-      rules: [{ required: true, message: '请输入一级维度名称' }],
-      dynamicDisabled: () => !record.value.isNewRecord,
-      helpMessage: '维度行由系统按体系指标项自动同步；此处可手工补充未覆盖的维度',
+      dynamicDisabled: () => true,
+      helpMessage: '维度由指标体系管理生成，此处不可修改',
     },
     {
       label: '图层对象数量',
@@ -100,9 +99,12 @@
 
   const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data: any) => {
     setDrawerProps({ loading: true });
-    await resetFields();
+    // 表单首次挂载前 resetFields 可能长时间不结算，2s 兜底放行（setFieldsValue 覆盖全部字段）
+    await Promise.race([
+      resetFields().catch(() => undefined),
+      new Promise((r) => setTimeout(r, 2000)),
+    ]);
     record.value = { ...(data || {}) };
-    record.value.isNewRecord = data?.isNewRecord ?? data?.id == null;
     shpAtt.value = data?.shpAtt;
     await setFieldsValue({
       dimName: record.value.dimName ?? '',
@@ -146,7 +148,7 @@
     setDrawerProps({ loading: true });
     try {
       await dimensionSave({
-        id: record.value.isNewRecord ? undefined : record.value.id,
+        id: record.value.id,
         setId: record.value.setId,
         dimName: data.dimName,
         layerCount: data.layerCount,

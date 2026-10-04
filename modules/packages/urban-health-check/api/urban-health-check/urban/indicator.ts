@@ -122,6 +122,20 @@ export async function indicatorListBySet(setId: string): Promise<Indicator[]> {
   return (data.list ?? []).map(toFrontItem);
 }
 
+/**
+ * 拉取体系下全部指标项的轻量列（结果页联表用：补维度/数据来源）
+ *
+ * 后端 listLight 不取 item_explain/remarks 大字段——达梦 CLOB 逐行取在远程库上
+ * 250+ 行要 2~3s；联表只需要小字段，itemExplain 用 /page 或详情兜底。
+ * @param setId 所属体系主键
+ */
+export async function indicatorListLightBySet(setId: string): Promise<Indicator[]> {
+  const list = unwrap<BackItem[]>(
+    await defHttp.get({ url: CHECK_API + '/indicatorItem/listLight', params: { setId } }),
+  );
+  return (list ?? []).map(toFrontItem);
+}
+
 /** 保存指标项（新增/修改合一；所属体系已提交后只读；setId 归属体系主键） */
 export async function indicatorSave(data: Partial<Indicator>): Promise<{ id: string }> {
   return unwrap(await defHttp.postJson({ url: CHECK_API + '/indicatorItem/save', data: toBackItem(data) }));

@@ -3,7 +3,8 @@
 
   接口已接入：dimensionListBySet（/cityCheck/dimensionResult/page?setId=，
   首次查询自动按体系指标项的一级维度同步生成维度行）。
-  列:一级维度名称 / 图层对象数量 / 图层覆盖面积(km²) / 操作(编辑)；新增可补充体系未覆盖的维度。
+  列:一级维度名称 / 图层对象数量 / 图层覆盖面积(km²) / 操作(编辑)。
+  一级维度由指标体系管理（模块一）的指标项生成，本模块只补充维护图层信息，不可增删。
 -->
 <template>
   <div>
@@ -11,11 +12,6 @@
       <template #tableTitle>
         <Icon :icon="getTitle.icon" class="m-1 pr-1" />
         <span> {{ getTitle.value }} </span>
-      </template>
-      <template #toolbar>
-        <a-button type="primary" @click="handleForm({ isNewRecord: true })">
-          <Icon icon="i-fluent:add-12-filled" /> 新增
-        </a-button>
       </template>
       <template #shpFile="{ record }">
         <template v-if="record.shpAtt?.url">
@@ -76,7 +72,7 @@
     { title: '上传的图层对象', dataIndex: 'shpFile', slot: 'shpFile', width: 220 },
   ];
 
-  /** 操作列（编辑图层信息） */
+  /** 操作列（仅编辑图层信息——维度行来自指标体系，不可增删） */
   const actionColumn: BasicColumn = {
     width: 100,
     actions: (record: Recordable) => [

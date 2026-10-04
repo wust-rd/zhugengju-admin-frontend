@@ -30,25 +30,23 @@
         <a-button type="primary" :loading="submitting" @click="handleSubmitAll">提交指标结果</a-button>
       </div>
     </Card>
-    <Tabs type="card">
+    <Tabs v-model:activeKey="activeTab" type="card">
       <Tabs.TabPane key="dim" tab="一级维度">
         <DimTable :set-id="systemId" />
       </Tabs.TabPane>
       <Tabs.TabPane key="indicator" tab="指标项">
-        <IndicatorTable ref="indicatorTableRef" :set-id="systemId" :items-map="itemsMap" @refresh-stat="loadStat" />
+        <IndicatorTable ref="indicatorTableRef" :set-id="systemId" @refresh-stat="loadStat" />
       </Tabs.TabPane>
     </Tabs>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="UhcSharedIndicatorResultIdList">
-  import { computed, h, onMounted, ref, unref } from 'vue';
+  import { computed, h, onActivated, onMounted, ref, unref } from 'vue';
   import { Card, Modal, Progress, Tabs } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useTabs } from '@jeesite/core/hooks/web/useTabs';
-  import type { Indicator } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
-  import { indicatorListBySet } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
   import type { IndicatorResult, IndicatorResultRow } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
   import {
     indicatorResultStatById,
@@ -58,27 +56,35 @@
   import DimTable from './dim-table.vue';
   import IndicatorTable from './indicator-table.vue';
 
-  const { params } = unref(router.currentRoute);
+  const { params, query } = unref(router.currentRoute);
   // 兼容菜单链接地址占位符写 {id} 或 {code}:路由参数名与占位符一致
   const systemId = ((params.id ?? params.code) as string) || '';
 
   const { showMessage, createMessage } = useMessage();
   const { setTitle } = useTabs(router);
 
+  /**
+   * 激活的 tab（受控）：从指标项编辑页返回时按 query.tab=indicator 恢复，
+   * 避免 keep-alive 重建/非受控 Tabs 回落到默认的一级维度
+   */
+  const activeTab = ref<'dim' | 'indicator'>(query.tab === 'indicator' ? 'indicator' : 'dim');
+
   /** 体系结果统计（按体系主键取单行：filledCount/indicatorCount 驱动进度卡） */
   const system = ref<IndicatorResult | undefined>();
-
-  /**
-   * 表2 指标项联表映射（item_no → 指标项）：结果分页接口不返维度/数据来源列，
-   * 指标项 tab 与编辑抽屉展示用（dims/dataSource 只读信息）
-   */
-  const itemsMap = ref(new Map<number, Indicator>());
 
   /** 指标项 tab 组件引用（批量提交后刷新列表） */
   const indicatorTableRef = ref<InstanceType<typeof IndicatorTable>>();
 
-  onMounted(async () => {
-    await Promise.all([loadStat(), loadItems()]);
+  onMounted(loadStat);
+
+  /** 标签页激活时刷新头部统计（从指标项编辑页保存返回后数据最新）；首次激活跳过 */
+  let skipFirstActivate = true;
+  onActivated(() => {
+    if (skipFirstActivate) {
+      skipFirstActivate = false;
+      return;
+    }
+    loadStat();
   });
 
   async function loadStat() {
@@ -89,15 +95,6 @@
       }
     } catch (e: any) {
       showMessage(e?.message || '加载统计信息失败', 'error');
-    }
-  }
-
-  async function loadItems() {
-    try {
-      const items = await indicatorListBySet(systemId);
-      itemsMap.value = new Map(items.filter((i) => i.code != null).map((i) => [Number(i.code), i]));
-    } catch {
-      /* 联表信息缺失不阻塞主流程，抽屉/表格降级显示空 */
     }
   }
 

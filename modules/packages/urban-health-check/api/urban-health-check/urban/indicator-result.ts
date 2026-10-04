@@ -219,16 +219,11 @@ export async function indicatorResultStatPage(params: Recordable) {
   };
 }
 
-/** 按体系主键取单行统计（show 页头部进度卡；statPage 无 id 入参，大页取回本地匹配） */
+/** 按体系主键取单行统计（show 页头部进度卡；单 SQL 轻量版，statPage 全表聚合要 ~2.5s） */
 export async function indicatorResultStatById(setId: string): Promise<IndicatorResult> {
-  const data = unwrap<{ total: number; list: Recordable[] }>(
-    await defHttp.get({
-      url: CHECK_API + '/indicatorResult/statPage',
-      params: { pageNum: 1, pageSize: 200 },
-    }),
+  const row = unwrap<Recordable>(
+    await defHttp.get({ url: CHECK_API + '/indicatorResult/statInfo', params: { setId } }),
   );
-  const row = (data.list ?? []).find((r) => r.id === setId);
-  if (!row) throw new Error('未找到该体系的统计信息');
   return {
     id: row.id,
     code: row.sysNo,
@@ -258,7 +253,7 @@ export async function indicatorResultListBySet(setId: string): Promise<Indicator
       params: { setId, pageNum: 1, pageSize: 1000 },
     }),
   );
-  return (data.list ?? []).map(toFrontRow);
+  return (data.list ?? []).map(toFrontRow) as IndicatorResultRow[];
 }
 
 /** 结果详情（首次自动按表3 生成资料清单结果空值快照） */
@@ -350,7 +345,7 @@ export async function dimensionListBySet(setId: string): Promise<DimensionRow[]>
   return (data.list ?? []).map(toFrontDim);
 }
 
-/** 保存一级维度（新增/修改合一；新增时 dimName 可填补充体系未覆盖的维度） */
+/** 保存一级维度（仅编辑图层信息——维度行来自指标体系，不可增删） */
 export async function dimensionSave(
   data: Partial<DimensionRow> & { setId: string; setYear?: string },
 ) {

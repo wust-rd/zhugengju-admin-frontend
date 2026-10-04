@@ -39,33 +39,27 @@
         <span v-else>-</span>
       </template>
     </BasicTable>
-
-    <InputForm :items-map="itemsMap" @register="registerDrawer" @success="handleSuccess" />
   </div>
 </template>
 <script lang="ts" setup name="UhcSharedIndicatorResultIndicatorTable">
-  import { unref } from 'vue';
+  import { onActivated, onMounted, ref, unref } from 'vue';
   import type { PropType } from 'vue';
   import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
+  import { useGo } from '@jeesite/core/hooks/web/usePage';
   import { Icon } from '@jeesite/core/components/Icon';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
-  import { useDrawer } from '@jeesite/core/components/Drawer';
   import { FormProps } from '@jeesite/core/components/Form';
   import type { Indicator } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
-  import { EVAL_RESULT, WARNING_STATUS } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
-  import type { IndicatorResultRow } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
+  import { EVAL_RESULT, WARNING_STATUS, indicatorListLightBySet } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
   import {
     indicatorResultPageBySet,
     displayValue,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
-  import InputForm from './id-form.vue';
 
   const props = defineProps({
     /** 所属体系主键 */
     setId: { type: String, required: true },
-    /** 表2 指标项联表映射（item_no → 指标项）：补维度/数据来源展示列 */
-    itemsMap: { type: Object as PropType<Map<number, Indicator>>, required: true },
   });
 
   const emit = defineEmits(['refreshStat']);
@@ -155,7 +149,7 @@
     api: (params: Recordable) => indicatorResultPageBySet({ ...params, setId: props.setId }),
     afterFetch: (rows: Recordable[]) =>
       (rows ?? []).map((r) => {
-        const item = props.itemsMap.get(Number(r.code));
+        const item = itemsMap.value.get(Number(r.code));
         return {
           ...r,
           dim1: item?.dim1,
@@ -174,18 +168,50 @@
     canResize: true,
   });
 
+  /**
+   * 表2 指标项联表映射（item_no → 指标项）：结果分页不返维度列，表格数据来源列与
+   * 编辑抽屉只读信息用它补齐。轻量端点（无 CLOB）+ 本 tab 懒挂载时才加载——
+   * 250+ 行的全量大字段查询要 2~3s，不能放进首屏关键路径；加载完成补刷一次表格。
+   */
+  const itemsMap = ref(new Map<number, Indicator>());
+  let mapApplied = false;
+
+  onMounted(async () => {
+    try {
+      const items = await indicatorListLightBySet(props.setId);
+      itemsMap.value = new Map(items.filter((i) => i.code != null).map((i) => [Number(i.code), i]));
+      // 首次拉到联表后补刷一次（此前渲染的行数据来源列可能为空）
+      if (!mapApplied) {
+        mapApplied = true;
+        reload();
+      }
+    } catch {
+      /* 联表信息缺失不阻塞主流程，抽屉/表格降级显示空 */
+    }
+  });
+
   defineExpose({ reload });
 
-  const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
+  /**
+   * 查看/编辑 → 跳独立页面（内容多，抽屉改为页面形式）：
+   * /…/indicator-result/item/{结果行id}?set={体系id}&view=1
+   * routeBase 从本页路径（/…/indicator-result/{setId}）去掉尾段推导，urban/district 通用
+   */
+  const go = useGo();
+  const routeBase = unref(router.currentRoute).path.replace(/\/[^/]*$/, '');
 
-  function handleForm(record: IndicatorResultRow & Recordable, isView: boolean) {
-    setDrawerProps({ showFooter: !isView });
-    openDrawer(true, { id: record.id, isView });
+  function handleForm(record: Recordable, isView: boolean) {
+    go(`${routeBase}/item/${record.id}?set=${props.setId}&tab=indicator${isView ? '&view=1' : ''}`);
   }
 
-  /** 表单保存成功回调：刷新列表 + 头部统计 */
-  function handleSuccess() {
+  /** 标签页激活时刷新（从指标项编辑页保存返回后能看到最新数据）；首次激活跳过 */
+  let skipFirstActivate = true;
+  onActivated(() => {
+    if (skipFirstActivate) {
+      skipFirstActivate = false;
+      return;
+    }
     reload();
     emit('refreshStat');
-  }
+  });
 </script>
