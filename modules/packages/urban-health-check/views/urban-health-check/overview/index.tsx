@@ -1,5 +1,5 @@
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
-import type { MenuItemType } from 'antdv-next';
+import { message, type MenuItemType } from 'antdv-next';
 import { cn } from '@jeesite/core/libs';
 import { CollapseGroups, type CollapseGroupItem } from '@jeesite/display/components/collapse-groups';
 import { CornerItem, CornerPanelRow } from '@jeesite/display/components/corner-panel';
@@ -16,9 +16,16 @@ import {
   type OverviewSystemOption,
   type OverviewSurveyQuestion,
 } from '@jeesite/urban-health-check/api/urban-health-check/urban/overview';
+import {
+  indicatorSpatialGeojson,
+  spaceBaseGeojson,
+  DIM_SPACE_TYPES,
+  type SpaceFeatureCollection,
+} from '@jeesite/urban-health-check/api/urban-health-check/urban/space-map';
 import { RatingResult, type RatingDatum } from './rating-result';
 import { SatisfactionSurvey, type SatisfactionItem } from './satisfaction-survey';
 import { TopFilter } from './top-filter';
+import { CityCheckMapLayers } from './map-layers';
 
 /**
  * 评估结果五档（后端字典：很好 / 较好 / 一般 / 不足 / 无标准）：
@@ -35,6 +42,7 @@ const EVAL_TIERS = [
 
 /** 指标项 + 结果联表行（indicatorItem 表2 骨架，按 itemNo 挂接表6 结果值） */
 type JoinedRow = {
+  id?: string; // 表2 指标项主键（问题图斑接口的 indicatorItemId）
   itemNo: number;
   dim1: string; // 一级维度（空归「其他」）
   dim2: string; // 二级维度（空归「其他」）
@@ -123,6 +131,7 @@ export default defineComponent({
         if (token !== rowsToken) return;
         const resultMap = new Map(results.map((r) => [String(r.itemNo), r]));
         rows.value = items.map((it) => ({
+          id: it.id,
           itemNo: Number(it.code),
           dim1: it.dim1 || '其他',
           dim2: it.dim2 || '其他',
@@ -172,6 +181,64 @@ export default defineComponent({
         })),
     );
 
+    // —— 地图基础图层：一级维度 tab → 绑定对象类型（城区-district / 街区-street /
+    // 社区-community / 住房-building+village），切 tab 清叠加并重新铺满视口 ——
+    const baseLayer = ref<SpaceFeatureCollection | null>(null);
+    let baseToken = 0;
+
+    // —— 地图指标叠加：点击指标行叠加该指标的问题图斑（点/线/面），再点同一行取消 ——
+    const overlayLayer = ref<SpaceFeatureCollection | null>(null);
+    const activeItemNo = ref<number | null>(null);
+    // 全局选中行 key（= 行 seq，与 CornerPanelRow 的 data-corner-key 一致）：
+    // 传给所有分组面板实现"整个列表最多选中一行"，其他分组的高亮自动清除
+    const activeRowKey = ref('');
+    let overlayToken = 0;
+
+    watch(activeDim, () => {
+      const token = ++baseToken;
+      overlayLayer.value = null;
+      activeItemNo.value = null;
+      activeRowKey.value = '';
+      const types = activeDim.value ? DIM_SPACE_TYPES[activeDim.value] : undefined;
+      if (!types?.length) {
+        baseLayer.value = null;
+        return;
+      }
+      spaceBaseGeojson(types)
+        .then((fc) => {
+          if (token === baseToken) baseLayer.value = fc;
+        })
+        .catch((e) => console.error('[城市体检总览] 基础图层加载失败', e));
+    });
+
+    function handleRowClick(row: JoinedRow) {
+      if (!row.id) return;
+      if (activeItemNo.value === row.itemNo) {
+        activeItemNo.value = null;
+        activeRowKey.value = '';
+        overlayLayer.value = null;
+        return;
+      }
+      activeItemNo.value = row.itemNo;
+      activeRowKey.value = String(row.itemNo).padStart(2, '0');
+      const token = ++overlayToken;
+      indicatorSpatialGeojson(row.id)
+        .then((fc) => {
+          if (token !== overlayToken) return;
+          // 全库仅部分指标有空间图斑数据（住房维度只有 1 个）：
+          // 拉回空结果时给出明确反馈并回退选中，避免"点了没东西"的困惑
+          if (!fc.features?.length) {
+            message.info('该指标暂无空间图斑数据');
+            activeItemNo.value = null;
+            activeRowKey.value = '';
+            overlayLayer.value = null;
+            return;
+          }
+          overlayLayer.value = fc;
+        })
+        .catch((e) => console.error('[城市体检总览] 指标问题图斑加载失败', e));
+    }
+
     // —— 指标评价结果：跟随当前一级维度 tab（evaluateResult 空归 无标准）——
     // 当前 tab 下的行集合（饼图分布与环心指标总数共用）
     const scopedRows = computed(() =>
@@ -197,9 +264,11 @@ export default defineComponent({
     const ratingKey = ref<string | number | null>(null);
 
     // —— 二级维度分组列表：activeDim 下的行按 dim2 分组，行 = 指标值 + 评估结果 ——
-    const bottomGroups = computed<CollapseGroupItem<CornerItem>[]>(() => {
+    // 行数据额外携带 JoinedRow（row 隐藏字段），供行点击叠加问题图斑时定位指标项主键
+    type RowItem = CornerItem & { row: JoinedRow };
+    const bottomGroups = computed<CollapseGroupItem<RowItem>[]>(() => {
       const keyword = searchKey.value.trim();
-      const groups: CollapseGroupItem<CornerItem>[] = [];
+      const groups: CollapseGroupItem<RowItem>[] = [];
       for (const r of rows.value) {
         if (r.dim1 !== activeDim.value) continue;
         if (keyword && !r.name.includes(keyword)) continue;
@@ -214,6 +283,7 @@ export default defineComponent({
           label: r.name,
           value: formatValue(r.result?.resultValue, r.unit),
           rating: r.result?.evaluateResult || '无标准',
+          row: r,
         });
       }
       return groups.map((g) => ({ ...g, badgeValue: g.items.length }));
@@ -280,9 +350,15 @@ export default defineComponent({
                     {loadingRows.value ? '数据加载中…' : '暂无数据'}
                   </div>
                 ) : (
-                  <CollapseGroups groups={bottomGroups.value}>
+                  // activeKey 受控：整个列表最多选中一行（跨分组互斥），行点击叠加/取消问题图斑
+                  <CollapseGroups groups={bottomGroups.value} activeKey={activeRowKey.value}>
                     {{
-                      row: (item) => <CornerPanelRow item={item as CornerItem} />,
+                      row: (item) => (
+                        // 行点击 → 叠加/取消该指标的问题图斑（CornerPanel 高亮由内部委托，不受包装层影响）
+                        <div onClick={() => handleRowClick((item as RowItem).row)}>
+                          <CornerPanelRow item={item as CornerItem} />
+                        </div>
+                      ),
                     }}
                   </CollapseGroups>
                 )}
@@ -291,9 +367,11 @@ export default defineComponent({
           ),
           right: () => (
             <>
-              {/* 右侧地图：VMap 内部创建/销毁 MapLibre 实例，底图为天地图（矢量 + 中文注记） */}
+              {/* 右侧地图：VMap 内部创建/销毁 MapLibre 实例，底图为天地图（矢量 + 中文注记）。
+                  空间图层逻辑组件在 VMap 插槽内（useMap 依赖注入）：基础图层随 tab、叠加随指标行点击 */}
               <VMap reuseMaps style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
+                <CityCheckMapLayers base={baseLayer.value} overlay={overlayLayer.value} />
               </VMap>
             </>
           ),

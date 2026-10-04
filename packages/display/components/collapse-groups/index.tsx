@@ -53,6 +53,8 @@ export const CollapseGroups = defineComponent({
     isRound: { type: Boolean, default: false },
     /** 透传给 CornerPanel 的 class（如 rd-8px） */
     panelClass: { type: String, default: '' },
+    /** 受控选中行 key（透传给各 CornerPanel；跨分组"全列表最多选中一行"，不传=各面板自治） */
+    activeKey: { type: String as PropType<string | null | undefined>, default: undefined },
   },
   slots: {} as SlotsType<{
     row: (item: unknown) => unknown;
@@ -67,7 +69,7 @@ export const CollapseGroups = defineComponent({
             badgeValue={group.badgeValue ?? ''}
             defaultExpanded={group.defaultExpanded ?? true}
           >
-            <CornerPanel isRound={props.isRound} class={props.panelClass}>
+            <CornerPanel isRound={props.isRound} class={props.panelClass} activeKey={props.activeKey}>
               {group.items.map((item, i) => (
                 <Fragment key={`${groupIndex}-${i}`}>{slots.row?.(item)}</Fragment>
               ))}

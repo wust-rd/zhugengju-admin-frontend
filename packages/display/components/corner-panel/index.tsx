@@ -1,5 +1,5 @@
 import { cn, type ClassValue } from '@jeesite/core/libs';
-import { defineComponent, provide, ref, type PropType, type SlotsType, type VNode } from 'vue';
+import { defineComponent, provide, ref, watch, type PropType, type SlotsType, type VNode } from 'vue';
 import { AnimatePresence, motion } from 'motion-v';
 import { Light, MotionLight } from '@jeesite/display/components/light';
 import ltCornerSvg from '@jeesite/assets/svg/display/lt-corner.svg';
@@ -86,6 +86,12 @@ export const CornerPanel = defineComponent({
   props: {
     /** 高亮形式：'slide' 整块滑块滑动（默认）；'line' 上下线生长 + 左右灯开合（motion-v） */
     highlight: { type: String as PropType<'slide' | 'line'>, default: 'line' },
+    /**
+     * 受控选中行 key（跨面板单选用）：不传（undefined）时面板自治（旧行为）；
+     * 传入时若该 key 不在本面板行中则清除自身高亮——父级持有全局唯一 key
+     * 并分发给所有面板，即可实现"整个列表最多选中一行"
+     */
+    activeKey: { type: String as PropType<string | null | undefined>, default: undefined },
     // ClassValue 是纯类型，运行时需用构造函数组合，编译期用 PropType 约束
     class: { type: [String, Object, Array] as PropType<ClassValue>, default: '' },
     isRound: { type: Boolean, default: false },
@@ -99,8 +105,29 @@ export const CornerPanel = defineComponent({
     const activeTop = ref(-80);
     const activeHeight = ref(40);
 
-    // 注入选中行 key：插槽内行组件（CornerPanelRow）据此感知自身是否被选中
+    // 注入选选行 key：插槽内行组件（CornerPanelRow）据此感知自身是否被选中
     provide(CORNER_ACTIVE_KEY, activeKey);
+
+    const containerRef = ref<HTMLDivElement | null>(null);
+
+    /** 受控同步：外部 key 在本面板行中 → 定位高亮；不在（含清空）→ 清除自身高亮 */
+    watch(
+      () => props.activeKey,
+      (key) => {
+        if (key === undefined || key === activeKey.value) return;
+        const row = key
+          ? containerRef.value?.querySelector(`[data-corner-key="${key}"]`)
+          : null;
+        if (row && key) {
+          activeTop.value = (row as HTMLElement).offsetTop;
+          activeHeight.value = (row as HTMLElement).offsetHeight;
+          activeKey.value = key;
+        } else {
+          activeKey.value = '';
+        }
+      },
+      { flush: 'post' },
+    );
 
     /** 点击容器：事件委托找到带 data-corner-row 的行，读取几何触发高亮 */
     const handleClick = (e: MouseEvent) => {
@@ -113,7 +140,11 @@ export const CornerPanel = defineComponent({
 
     return () => {
       return (
-        <div class={cn('relative mt-8px w-full b b-cyan-900 rd-4px bg-[#162a43]', props.class)} onClick={handleClick}>
+        <div
+          ref={containerRef}
+          class={cn('relative mt-8px w-full b b-cyan-900 rd-4px bg-[#162a43]', props.class)}
+          onClick={handleClick}
+        >
           {!props.isRound && (
             <>
               {/* 四角装饰：不拦截指针事件 */}
