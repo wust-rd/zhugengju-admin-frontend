@@ -2,7 +2,8 @@
  * 市住更局 —— 名城保护 · 优保建筑巡查接口层
  *
  * 对接后端 /a/urban-protection/inspection/...。
- * 优保与拟优保巡查共用：scope=excellent（父建筑在册）/ proposed（父建筑拟优保）。
+ * scope=excellent（父建筑在册，优保巡查页用）；拟优保巡查已迁至独立接口
+ * （api/urban-protection/proposed.ts，WHFW_OLDJZ_XC），后端仍保留 scope=proposed 旧口径。
  */
 
 import { defHttp } from '@jeesite/core/utils/http/axios';
@@ -54,7 +55,7 @@ export type InspectionRow = {
 /** 巡查范围 */
 export type InspectionScope = 'excellent' | 'proposed';
 
-/** 分页查询参数 */
+/** 分页查询参数（后端 /inspection/list 不支持录入类型筛选，typeView 仅作展示列） */
 export type InspectionPageQuery = {
   scope?: InspectionScope;
   jzOldName?: string;

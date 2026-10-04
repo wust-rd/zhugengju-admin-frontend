@@ -5,7 +5,8 @@
   实现（搜索/列/详情/特别关注）见 shared/inspection-list.vue。
 -->
 <template>
-  <InspectionList scope="excellent" />
+  <!-- plain-name：建筑原名称纯文本显示，不加详情链接（对齐老系统优保巡查页） -->
+  <InspectionList scope="excellent" plain-name />
 </template>
 <script lang="ts" setup name="ViewsUrbanProtectionExcellentBuildingInspectionList">
   import InspectionList from '../../shared/inspection-list.vue';

@@ -1,10 +1,10 @@
 <!--
-  市住更局 —— 名城保护 · 优保建筑管理修改抽屉
+  市住更局 —— 名城保护 · 在册优保建筑新增抽屉
 
-  对齐老系统「修改优保建筑」：所在行政区*/建筑原名称*/建筑现使用名称*/建筑坐落*/建成年份*/
-  建筑面积(平方米)*/产权人*/保护等级/公布批次*/公布时间，单列表单，底部按钮 确定/取消。
-  建成年份/公布时间不做格式限制（存量为自由文本，如「1910年以前」）；
-  修改不动 status（拟优保行不被转正），保存走 excellent/save 成功后 emit success 由列表刷新。
+  对齐老系统「新增优保建筑」：所在行政区*/建筑原名称*/建筑现使用名称*/建筑坐落*/建成年份*/
+  建筑面积(平方米)*/产权人*/保护等级（默认一级）/公布批次*/公布时间，单列表单。
+  建成年份/公布时间不做格式限制（存量为自由文本，如「1937年前」）；底部按钮：新增=保存/关闭，修改=确定/取消。
+  保存走 excellent/save（id 空=新增 status='1' 在册，带 id=修改不动 status），成功后 emit success 由列表刷新。
   打开方式：openDrawer(false, data) 只传数据，回调末尾 setDrawerProps({ open: true }) 掀开（防闪烁）。
 -->
 <template>
@@ -23,7 +23,7 @@
   </BasicDrawer>
 </template>
 
-<script lang="ts" setup name="ViewsUrbanProtectionExcellentBuildingManagementForm">
+<script lang="ts" setup name="ViewsUrbanProtectionExcellentBuildingRegisteredForm">
   import { ref } from 'vue';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
@@ -94,7 +94,7 @@
       field: 'buildYear',
       component: 'Input',
       componentProps: { maxlength: 50, placeholder: '请输入四位数字,例如2014' },
-      // 存量数据为自由文本（如「1910年以前」「1949-1966」），不做四位数字限制
+      // 存量数据为自由文本（如「1937年前」「1949-1966」），不做四位数字限制
       rules: [{ required: true, message: '请输入建成年份' }],
       colProps: { md: 24, lg: 24 },
     },

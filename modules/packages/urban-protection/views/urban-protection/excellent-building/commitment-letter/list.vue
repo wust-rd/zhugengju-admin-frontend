@@ -33,22 +33,23 @@
 </template>
 <script lang="ts" setup name="ViewsUrbanProtectionExcellentBuildingCommitmentLetterList">
   import { onMounted, ref } from 'vue';
+  import { Table as ATable } from 'antdv-next';
   import { Icon } from '@jeesite/core/components/Icon';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { fetchCommitmentStats, CommitmentRow } from '@jeesite/urban-protection/api/urban-protection/stats';
   import { exportBorderedSheet } from '../../shared/excel-export';
-  import { fmtDate } from '../../shared/excellent-format';
+  import { dateUtil } from '@jeesite/core/utils/dateUtil';
 
   const loading = ref(false);
   const rows = ref<CommitmentRow[]>([]);
   const summary = ref<CommitmentRow | null>(null);
 
   const columns = [
-    { title: '序号', dataIndex: 'index', key: 'index', width: 60, align: 'center' },
+    { title: '序号', dataIndex: 'index', key: 'index', width: 60, align: 'center' as const },
     { title: '所属区', dataIndex: 'qu', width: 160 },
-    { title: '优保建筑数量', dataIndex: 'total', align: 'center' },
-    { title: '已上传', dataIndex: 'uploaded', align: 'center' },
-    { title: '未上传', dataIndex: 'missing', align: 'center' },
+    { title: '优保建筑数量', dataIndex: 'total', align: 'center' as const },
+    { title: '已上传', dataIndex: 'uploaded', align: 'center' as const },
+    { title: '未上传', dataIndex: 'missing', align: 'center' as const },
   ];
 
   const dataSource = ref<CommitmentRow[]>([]);
@@ -73,7 +74,7 @@
     ];
     const lastRow = tableRows.length - 1;
     exportBorderedSheet(
-      `优保责任书上传统计报表_${fmtDate(Date.now()).replaceAll('-', '')}.xlsx`,
+      `优保责任书上传统计报表_${dateUtil().format('YYYYMMDD')}.xlsx`,
       tableRows,
       [{ wch: 8 }, { wch: 18 }, { wch: 16 }, { wch: 12 }, { wch: 12 }],
       {
@@ -86,3 +87,9 @@
 
   onMounted(load);
 </script>
+<style scoped>
+  /* 列名不加粗 */
+  :deep(.ant-table-thead > tr > th) {
+    font-weight: normal;
+  }
+</style>

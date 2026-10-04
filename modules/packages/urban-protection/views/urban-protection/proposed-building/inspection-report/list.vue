@@ -1,13 +1,14 @@
 <!--
   市住更局 —— 名城保护 · 拟优保巡查报表统计
 
-  拟优保巡查情况统计（WHFW_OLDJZ / WHFW_OLDJZ_XC 口径，/a/urban-protection/proposed/stats/* 接口）：
-  按月份/按日期起止双模式 + 单值列（应巡查量/已巡查量/未巡查量/巡查率），
-  应巡查量 = 该区未删除且已纳入巡查（ISPATROL=1）建筑数 × 2，实现见 shared/inspection-report-table.vue。
+  各区拟优保巡查情况统计报表（WHFW_OLDJZ / WHFW_OLDJZ_XC 口径，/a/urban-protection/proposed/stats/* 接口）：
+  巡查年月（月选）+ 巡查时间（区间）查询，左上导出EXCEL；
+  多级表头（巡查建筑数量/建筑巡查次数分组）+ 末行「全部」合计，实现见
+  shared/proposed-inspection-report-table.vue（优保/拟优保共用组件，按 scope/frequency 区分）。
 -->
 <template>
-  <InspectionReportTable scope="proposed" heading="拟优保巡查情况统计表" />
+  <ProposedInspectionReportTable heading="各区拟优保巡查情况统计报表" />
 </template>
 <script lang="ts" setup name="ViewsUrbanProtectionProposedBuildingInspectionReportList">
-  import InspectionReportTable from '../../shared/inspection-report-table.vue';
+  import ProposedInspectionReportTable from '../../shared/proposed-inspection-report-table.vue';
 </script>
