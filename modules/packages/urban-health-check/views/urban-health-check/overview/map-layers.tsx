@@ -35,6 +35,12 @@ const OVERLAY_FILL_LAYER = 'uhc-space-overlay-fill';
 const OVERLAY_LINE_LAYER = 'uhc-space-overlay-line';
 const OVERLAY_CIRCLE_LAYER = 'uhc-space-overlay-circle';
 
+/** 图斑点击事件载荷（properties 含 attributes，父级弹详情窗） */
+export type SpaceFeatureClick = {
+  source: 'base' | 'overlay';
+  properties: Record<string, unknown>;
+};
+
 /**
  * CityCheckMapLayers —— 城市体检空间图层
  *
@@ -42,6 +48,9 @@ const OVERLAY_CIRCLE_LAYER = 'uhc-space-overlay-circle';
  * - base: 基础图层 FeatureCollection（null = 清空；变化仅 setData，不动视野——
  *   住房等全市域图层 fitBounds 会把地图拉太远，缩放交给用户手动控制）
  * - overlay: 指标叠加 FeatureCollection（null = 清空）
+ *
+ * emits：
+ * - featureClick: 点击任意图斑（基础/叠加 × 点/线/面 6 个图层）时上抛属性，父级弹窗展示
  */
 export const CityCheckMapLayers = defineComponent({
   name: 'CityCheckMapLayers',
@@ -51,8 +60,38 @@ export const CityCheckMapLayers = defineComponent({
     /** 指标叠加图层（问题图斑） */
     overlay: { type: Object as PropType<SpaceFeatureCollection | null>, default: null },
   },
-  setup(props) {
+  emits: {
+    featureClick: (payload: SpaceFeatureClick) => !!payload,
+  },
+  setup(props, { emit }) {
     const { map, isLoaded } = useMap();
+
+    /** 已注册的委托监听（事件 × layerId × handler），卸载/setStyle 后统一注销防泄漏 */
+    type LayerEventName = 'click' | 'mouseenter' | 'mouseleave';
+    const clickHandlers: Array<[LayerEventName, string, (e: maplibregl.MapLayerMouseEvent) => void]> = [];
+
+    function bindLayerClick(m: maplibregl.Map, layerId: string, source: 'base' | 'overlay') {
+      const handler = (e: maplibregl.MapLayerMouseEvent) => {
+        const feature = e.features?.[0];
+        if (!feature) return;
+        emit('featureClick', { source, properties: (feature.properties ?? {}) as Record<string, unknown> });
+      };
+      // 悬停手型提示可点
+      const enter = () => (m.getCanvas().style.cursor = 'pointer');
+      const leave = () => (m.getCanvas().style.cursor = '');
+      clickHandlers.push(['click', layerId, handler]);
+      clickHandlers.push(['mouseenter', layerId, enter as () => void as never]);
+      clickHandlers.push(['mouseleave', layerId, leave as () => void as never]);
+      m.on('click', layerId, handler);
+      m.on('mouseenter', layerId, enter);
+      m.on('mouseleave', layerId, leave);
+    }
+
+    function unbindLayerClicks(m: maplibregl.Map) {
+      for (const [type, layerId, handler] of clickHandlers.splice(0)) {
+        m.off(type, layerId, handler);
+      }
+    }
 
     /** source+layers 已存在 → setData 增量更新；不存在（首载/setStyle 换底图后）补齐 */
     function ensureBase(m: maplibregl.Map, data: SpaceFeatureCollection | null) {
@@ -86,11 +125,18 @@ export const CityCheckMapLayers = defineComponent({
           source: BASE_SOURCE,
           filter: ['==', '$type', 'Point'],
           paint: {
-            'circle-radius': 2.2,
+            // 楼栋点：加大到 4.5px 保证可点击（原 2.2px 太难点中）
+            'circle-radius': 4.5,
             'circle-color': BASE_CIRCLE_COLOR,
             'circle-opacity': BASE_CIRCLE_OPACITY,
+            'circle-stroke-width': 0.8,
+            'circle-stroke-color': '#7FB8E8',
           },
         });
+        // 图斑点击 → 上抛属性弹详情
+        bindLayerClick(m, BASE_FILL_LAYER, 'base');
+        bindLayerClick(m, BASE_LINE_LAYER, 'base');
+        bindLayerClick(m, BASE_CIRCLE_LAYER, 'base');
       }
       (m.getSource(BASE_SOURCE) as maplibregl.GeoJSONSource).setData(
         (data ?? { type: 'FeatureCollection', features: [] }) as never,
@@ -133,6 +179,10 @@ export const CityCheckMapLayers = defineComponent({
             'circle-stroke-color': '#FFFFFF',
           },
         });
+        // 叠加图斑点击 → 上抛属性弹详情
+        bindLayerClick(m, OVERLAY_FILL_LAYER, 'overlay');
+        bindLayerClick(m, OVERLAY_LINE_LAYER, 'overlay');
+        bindLayerClick(m, OVERLAY_CIRCLE_LAYER, 'overlay');
       }
       (m.getSource(OVERLAY_SOURCE) as maplibregl.GeoJSONSource).setData(
         (data ?? { type: 'FeatureCollection', features: [] }) as never,
@@ -159,10 +209,11 @@ export const CityCheckMapLayers = defineComponent({
       { immediate: true },
     );
 
-    // 卸载兜底清理（setStyle 会清图层，这里防 map 实例复用时的残留）
+    // 卸载兜底清理（先注销 map.on 委托监听防跨样式累积，再移除图层/数据源）
     onBeforeUnmount(() => {
       const m = map.value;
       if (!m) return;
+      unbindLayerClicks(m);
       for (const layer of [OVERLAY_CIRCLE_LAYER, OVERLAY_LINE_LAYER, OVERLAY_FILL_LAYER, BASE_CIRCLE_LAYER, BASE_LINE_LAYER, BASE_FILL_LAYER]) {
         if (m.getLayer(layer)) m.removeLayer(layer);
       }

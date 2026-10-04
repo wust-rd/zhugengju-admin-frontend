@@ -1,49 +1,59 @@
 <!--
   市住更局 —— 指标项结果 show 页(容器)
 
-  规划路由(RESTful,后端隐藏菜单,已注册):
-   - 链接地址:/urban-health-check/urban/indicator-result/{id}(show 页;与 /list 静态段不冲突)
-   - 组件位置:/urban-health-check/urban/indicator-result/_id/list(与链接地址不一致,菜单里已显式填写)
-   - 是否可见:隐藏;上级菜单挂「指标项结果管理」以点亮侧边栏
-  页面结构:Card(体系信息+进度+提交发布) → Tabs(一级维度 dim-table / 指标项 indicator-table)。
-  接口已接入：indicatorResultStatInfo（进度卡统计）+ indicatorResultSubmitSet（体系级提交发布）。
+  路由(RESTful,后端隐藏菜单,已注册):
+   - 链接地址:/urban-health-check/urban/indicator-result/{id}({id}=体系主键)
+   - 组件位置:/urban-health-check/urban/indicator-result/_id/list
+  页面结构:Card(体检年份+填报进度+预警数+提交指标结果) → Tabs(一级维度 dim-table / 指标项 indicator-table)。
+  接口已接入：indicatorResultStatById（头部统计卡）+ indicatorListBySet（联表2 补维度/数据来源）+
+  indicatorResultSubmit（逐行提交，头部「提交指标结果」批量驱动）。
+  「提交指标结果」= 提交该体系全部未提交的结果行；未填写完整的行后端校验报错并逐条提示。
 -->
 <template>
   <PageWrapper>
-    <Card class="mb-3" :title="system?.indicatorName || systemId">
+    <Card class="mb-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center">
-          <span class="text-gray-500">{{ system?.year ?? '-' }} 年</span>
+          <span class="mr-3 text-base font-medium">{{ system?.indicatorName || '指标项结果' }}</span>
+          <span class="text-gray-500">体检年份：{{ system?.year ?? '-' }}年</span>
           <Progress
-            class="ml-6 w-72"
+            class="ml-6 w-80"
             :percent="filledPercent"
-            :format="() => `已填报结果指标项 ${system?.filledCount ?? 0} / 指标数量 ${system?.indicatorCount ?? 0} 项`"
+            :format="
+              () => `已填报指标项 ${system?.filledCount ?? 0} 项 / 系统指标项 ${system?.indicatorCount ?? 0} 项`
+            "
           />
+          <span class="ml-6">
+            预警指标项：<span class="font-medium" style="color: #cf1322">{{ system?.warningCount ?? 0 }}项</span>
+          </span>
         </div>
-        <a-button type="primary" :loading="submitting" @click="handleSubmitPublish">提交发布</a-button>
+        <a-button type="primary" :loading="submitting" @click="handleSubmitAll">提交指标结果</a-button>
       </div>
     </Card>
     <Tabs type="card">
       <Tabs.TabPane key="dim" tab="一级维度">
-        <DimTable />
+        <DimTable :set-id="systemId" />
       </Tabs.TabPane>
       <Tabs.TabPane key="indicator" tab="指标项">
-        <IndicatorTable :system="system" />
+        <IndicatorTable ref="indicatorTableRef" :set-id="systemId" :items-map="itemsMap" @refresh-stat="loadStat" />
       </Tabs.TabPane>
     </Tabs>
   </PageWrapper>
 </template>
 <script lang="ts" setup name="UhcSharedIndicatorResultIdList">
-  import { computed, onMounted, ref, unref } from 'vue';
-  import { Card, Progress, Tabs } from 'antdv-next';
+  import { computed, h, onMounted, ref, unref } from 'vue';
+  import { Card, Modal, Progress, Tabs } from 'antdv-next';
   import { router } from '@jeesite/core/router';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useTabs } from '@jeesite/core/hooks/web/useTabs';
-  import type { IndicatorResult } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
+  import type { Indicator } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
+  import { indicatorListBySet } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator';
+  import type { IndicatorResult, IndicatorResultRow } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
   import {
-    indicatorResultStatInfo,
-    indicatorResultSubmitSet,
+    indicatorResultStatById,
+    indicatorResultListBySet,
+    indicatorResultSubmit,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-result';
   import DimTable from './dim-table.vue';
   import IndicatorTable from './indicator-table.vue';
@@ -52,23 +62,44 @@
   // 兼容菜单链接地址占位符写 {id} 或 {code}:路由参数名与占位符一致
   const systemId = ((params.id ?? params.code) as string) || '';
 
-  const { showMessage } = useMessage();
+  const { showMessage, createMessage } = useMessage();
+  const { setTitle } = useTabs(router);
 
-  /** 体系结果统计（按 code 取单行：filledCount/indicatorCount 驱动进度卡） */
+  /** 体系结果统计（按体系主键取单行：filledCount/indicatorCount 驱动进度卡） */
   const system = ref<IndicatorResult | undefined>();
 
-  /** 页签标题默认取菜单名,这里改为体系名称 */
-  const { setTitle } = useTabs(router);
+  /**
+   * 表2 指标项联表映射（item_no → 指标项）：结果分页接口不返维度/数据来源列，
+   * 指标项 tab 与编辑抽屉展示用（dims/dataSource 只读信息）
+   */
+  const itemsMap = ref(new Map<number, Indicator>());
+
+  /** 指标项 tab 组件引用（批量提交后刷新列表） */
+  const indicatorTableRef = ref<InstanceType<typeof IndicatorTable>>();
+
   onMounted(async () => {
+    await Promise.all([loadStat(), loadItems()]);
+  });
+
+  async function loadStat() {
     try {
-      system.value = await indicatorResultStatInfo(systemId);
+      system.value = await indicatorResultStatById(systemId);
       if (system.value?.indicatorName) {
-        setTitle(`指标项结果-${system.value.indicatorName}`);
+        setTitle(`编辑 · ${system.value.indicatorName}`);
       }
     } catch (e: any) {
       showMessage(e?.message || '加载统计信息失败', 'error');
     }
-  });
+  }
+
+  async function loadItems() {
+    try {
+      const items = await indicatorListBySet(systemId);
+      itemsMap.value = new Map(items.filter((i) => i.code != null).map((i) => [Number(i.code), i]));
+    } catch {
+      /* 联表信息缺失不阻塞主流程，抽屉/表格降级显示空 */
+    }
+  }
 
   /** 填报进度:已填报结果指标数 / 指标数量 */
   const filledPercent = computed(() => {
@@ -77,16 +108,53 @@
     return Math.min(100, Math.round(((system.value?.filledCount ?? 0) / total) * 10000) / 100);
   });
 
-  /** 提交发布:提交该体系全部已填报完整的结果行（渐进式快照，未填完的可补填后再提交） */
+  /** 提交指标结果：遍历提交该体系全部未提交的结果行（后端逐行校验指标值/评估结果） */
   const submitting = ref(false);
-  async function handleSubmitPublish() {
+  function handleSubmitAll() {
+    Modal.confirm({
+      title: '提交指标结果',
+      content: '将提交该体系全部未提交的指标项结果，未填写完整的项会提交失败并提示原因。确定提交吗？',
+      onOk: () => doSubmitAll(),
+    });
+  }
+
+  async function doSubmitAll() {
     submitting.value = true;
     try {
-      const { submitCount } = await indicatorResultSubmitSet(systemId);
-      showMessage(`提交发布成功（本次提交 ${submitCount} 项）`);
-      system.value = await indicatorResultStatInfo(systemId);
-    } catch (e: any) {
-      showMessage(e?.message || '提交失败', 'error');
+      const rows = (await indicatorResultListBySet(systemId)) as (IndicatorResultRow & Recordable)[];
+      const pending = rows.filter((r) => r.submitStatus !== 1);
+      if (!pending.length) {
+        createMessage.info('没有待提交的指标项结果');
+        return;
+      }
+      const errors: string[] = [];
+      let ok = 0;
+      for (const row of pending) {
+        try {
+          await indicatorResultSubmit(row.id);
+          ok++;
+        } catch (e: any) {
+          errors.push(`「${row.indicatorName}」${e?.message || '提交失败'}`);
+        }
+      }
+      if (errors.length) {
+        createMessage.warning(
+          {
+            content: h('div', [
+              h('div', `提交成功 ${ok} 项，失败 ${errors.length} 项：`),
+              h(
+                'ul',
+                { style: 'max-height:180px;overflow:auto;margin:4px 0 0;padding-left:18px' },
+                errors.slice(0, 20).map((t) => h('li', t)),
+              ),
+            ]),
+            duration: 6,
+          },
+        );
+      } else {
+        showMessage(`提交成功（共 ${ok} 项）`);
+      }
+      await Promise.all([loadStat(), indicatorTableRef.value?.reload()]);
     } finally {
       submitting.value = false;
     }

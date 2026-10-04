@@ -25,7 +25,8 @@ import {
 import { RatingResult, type RatingDatum } from './rating-result';
 import { SatisfactionSurvey, type SatisfactionItem } from './satisfaction-survey';
 import { TopFilter } from './top-filter';
-import { CityCheckMapLayers } from './map-layers';
+import { CityCheckMapLayers, type SpaceFeatureClick } from './map-layers';
+import { FeatureInfoModal } from './feature-info-modal';
 
 /**
  * 评估结果五档（后端字典：很好 / 较好 / 一般 / 不足 / 无标准）：
@@ -289,7 +290,11 @@ export default defineComponent({
       return groups.map((g) => ({ ...g, badgeValue: g.items.length }));
     });
 
+    // —— 地图图斑信息弹窗（点击基础/叠加图斑弹出属性）——
+    const featureInfo = ref<SpaceFeatureClick | null>(null);
+
     return () => (
+      <>
       <DisplayPageLayout collapsible={false}>
         {{
           left: () => (
@@ -371,12 +376,20 @@ export default defineComponent({
                   空间图层逻辑组件在 VMap 插槽内（useMap 依赖注入）：基础图层随 tab、叠加随指标行点击 */}
               <VMap reuseMaps style={basemapStyle} options={basemapMapOptions}>
                 <VMapControls class="absolute right-24px bottom-24px z-10" />
-                <CityCheckMapLayers base={baseLayer.value} overlay={overlayLayer.value} />
+                <CityCheckMapLayers
+                  base={baseLayer.value}
+                  overlay={overlayLayer.value}
+                  onFeatureClick={(info) => (featureInfo.value = info)}
+                />
               </VMap>
             </>
           ),
         }}
       </DisplayPageLayout>
+
+      {/* 图斑信息弹窗：点击地图图斑弹出属性（基础层=对象信息，叠加层=问题图斑信息） */}
+      <FeatureInfoModal info={featureInfo.value} onClose={() => (featureInfo.value = null)} />
+      </>
     );
   },
 });

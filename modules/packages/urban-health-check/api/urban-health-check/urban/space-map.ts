@@ -27,7 +27,7 @@ export type SpaceFeature = {
     id?: string;
     /** 基础图层：district/street/community/building/village */
     objectType?: string;
-    /** 基础图层：对象名（区划/街道/社区/楼栋/村名） */
+    /** 基础图层：对象名（区划/街道/社区/楼栋号/村名） */
     objectName?: string;
     /** 指标叠加：数据名称 */
     dataName?: string;
@@ -36,6 +36,8 @@ export type SpaceFeature = {
     address?: string | null;
     lon?: number | null;
     lat?: number | null;
+    /** 库内 attributes_json 原样解析（建筑楼栋属性 / 房屋清册编号等，点击弹窗展示用） */
+    attributes?: Record<string, unknown>;
   };
   geometry: SpaceGeometry;
 };

@@ -13,9 +13,9 @@
 import { defHttp } from '@jeesite/core/utils/http/axios';
 import { CHECK_API, unwrap } from '../common';
 
-/** 评估结果 */
+/** 评估结果（后端 IndicatorResultService.EVALUATE_RESULTS 定值：不足 非 较差） */
 export const EVAL_RESULT = {
-  POOR: '较差',
+  POOR: '不足',
   FAIR: '一般',
   GOOD: '较好',
   GREAT: '很好',
@@ -42,7 +42,7 @@ export type Indicator = {
   unit?: string; // 指标单位(项 / % / 平方米 / 万元 …)
   indicatorValue?: number; // 指标值(填报结果,数字；仅结果表有)
   standardValue?: number; // 标准值/目标值(数字;无标准的指标为空)
-  evalResult?: string; // 评估结果(较差 / 一般 / 较好 / 很好 / 无标准)
+  evalResult?: string; // 评估结果(不足 / 一般 / 较好 / 很好 / 无标准)
   warningStatus?: string; // 预警状态(红色预警 / 黄色预警 / 正常 / 无；自动计算)
   indicatorSource?: string; // 指标来源((住建部)国家指标 / (省政府)省级指标 / (市政府)市级指标)
   dataSource?: string; // 数据来源((市XX局)部门报送 / 统计年鉴 / 城市体检信息平台)
