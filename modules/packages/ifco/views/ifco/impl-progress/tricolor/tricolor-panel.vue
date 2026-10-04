@@ -17,7 +17,7 @@
         <a-button @click="handleTodo('一键导出表格')"> 一键导出表格 </a-button>
         <a-button @click="handleExportAttachment"> 一键导出附件 </a-button>
       </template>
-      <template #renewalAreaBatch="{ record }">{{ renewalAreaBatchLabel(record.renewalAreaBatch) }}</template>
+      <template #batch="{ record }">{{ batchLabel(record.batch) }}</template>
       <template #orientationList="{ record }">
         {{ record.orientationList.map(orientationLabel).join('、') || '/' }}
       </template>
@@ -87,13 +87,13 @@
     fetchTricolorAreas,
     filterAreas,
     orientationLabel,
-    renewalAreaBatchLabel,
+    batchLabel,
     saveTricolorArea,
     triColorTagProps,
     type AreaTricolorItem,
     type TriColorStatus,
   } from '@jeesite/ifco/api/ifco/impl-progress';
-  import { RENEWAL_AREA_BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
   import { useDistrictOptions } from '../../shared/ifco-dicts';
   import { exportTricolorDocx } from './tricolor-export';
 
@@ -108,7 +108,7 @@
   const columns: BasicColumn[] = [
     { title: '片区编号', dataIndex: 'areaCode', width: 100, fixed: 'left' },
     { title: '片区名称', dataIndex: 'areaName', width: 110, fixed: 'left' },
-    { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
+    { title: '片区批次', dataIndex: 'batch', width: 90, slot: 'batch' },
     { title: '行政区', dataIndex: 'district', width: 110 },
     { title: '片区功能定位', dataIndex: 'orientationList', width: 220, slot: 'orientationList' },
     { title: '总体投资估算（亿元）', dataIndex: 'totalInvestEstimate', width: 130, align: 'right' },
@@ -223,9 +223,9 @@
         { label: '片区名称', field: 'areaName', component: 'Input', componentProps: { placeholder: '请输入片区名称' } },
         {
           label: '片区批次',
-          field: 'renewalAreaBatch',
+          field: 'batch',
           component: 'Select',
-          componentProps: { options: [...RENEWAL_AREA_BATCH_OPTIONS], allowClear: true },
+          componentProps: { options: [...BATCH_OPTIONS], allowClear: true },
         },
         {
           label: '三色图状态',

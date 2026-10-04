@@ -94,7 +94,7 @@
         <template #toolbar>
           <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
         </template>
-        <template #renewalAreaBatch="{ record }">{{ renewalAreaBatchLabel(record.renewalAreaBatch) }}</template>
+        <template #batch="{ record }">{{ batchLabel(record.batch) }}</template>
         <template #yearProgressRate="{ record }">
           <Progress :percent="record.yearProgressRate" size="small" style="max-width: 110px" />
         </template>
@@ -110,7 +110,7 @@
         <template #toolbar>
           <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
         </template>
-        <template #renewalAreaBatch="{ record }">{{ renewalAreaBatchLabel(record.renewalAreaBatch) }}</template>
+        <template #batch="{ record }">{{ batchLabel(record.batch) }}</template>
         <template #fiveReformType="{ record }">{{ fiveReformLabel(record.fiveReformType) }}</template>
         <template #projectAffiliation="{ record }">{{ projectAffiliationLabel(record.projectAffiliation) }}</template>
         <template #yearProgressRate="{ record }">
@@ -138,7 +138,7 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { useECharts } from '@jeesite/core/hooks/web/useECharts';
-  import { RENEWAL_AREA_BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
   import { useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
     DISTRICT_FUND_ROWS,
@@ -150,7 +150,7 @@
     fetchProjectFundStats,
     fiveReformLabel,
     projectAffiliationLabel,
-    renewalAreaBatchLabel,
+    batchLabel,
     type FundMode,
   } from '@jeesite/ifco/api/ifco/finance';
 
@@ -229,7 +229,7 @@
     { label: '按资金到位', value: 'arrival' },
   ];
   const affiliationOptions = useProjectAffiliationOptions();
-  const batchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
+  const batchOptions = [...BATCH_OPTIONS];
   const fiveReformOptions = useFiveReformTypeOptions();
 
   // ── 区划形态（真实口径统计：实施库 ∩ 年度计划已采纳；列口径见文件头注释） ──
@@ -334,8 +334,8 @@
   const areaColumns: BasicColumn[] = [
     { title: '片区编号', dataIndex: 'areaCode', width: 100, fixed: 'left' },
     { title: '行政区', dataIndex: 'district', width: 90 },
-    { title: '片区名称', dataIndex: 'renewalAreaName', width: 110, fixed: 'left' },
-    { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
+    { title: '片区名称', dataIndex: 'areaName', width: 110, fixed: 'left' },
+    { title: '片区批次', dataIndex: 'batch', width: 90, slot: 'batch' },
     { title: '片区功能定位', dataIndex: 'orientation', width: 130 },
     { title: '项目数量(个)', dataIndex: 'projectCount', width: 100, align: 'right' },
     { title: '片区总体投资估算（亿元）', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
@@ -386,7 +386,7 @@
           component: 'Select',
           componentProps: { options: districtFilterOptions, allowClear: true },
         },
-        { label: '片区名称', field: 'renewalAreaName', component: 'Input' },
+        { label: '片区名称', field: 'areaName', component: 'Input' },
         {
           label: '统计类型',
           field: 'statisticType',
@@ -412,11 +412,11 @@
       setAreaData([]);
       return;
     }
-    const keyword = String(params.renewalAreaName ?? '').trim();
+    const keyword = String(params.areaName ?? '').trim();
     setAreaData(
       rows.filter(
         (row) =>
-          (!params.district || row.district === params.district) && (!keyword || row.renewalAreaName.includes(keyword)),
+          (!params.district || row.district === params.district) && (!keyword || row.areaName.includes(keyword)),
       ),
     );
   }
@@ -426,8 +426,8 @@
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
     { title: '项目名称', dataIndex: 'projectName', width: 210, fixed: 'left', ellipsis: true },
     { title: '行政区', dataIndex: 'district', width: 90 },
-    { title: '片区名称', dataIndex: 'renewalAreaName', width: 100 },
-    { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
+    { title: '片区名称', dataIndex: 'areaName', width: 100 },
+    { title: '片区批次', dataIndex: 'batch', width: 90, slot: 'batch' },
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '片区总体投资估算（亿元）', dataIndex: 'areaTotalInvest', width: 160, align: 'right' },
@@ -480,7 +480,7 @@
           component: 'Select',
           componentProps: { options: districtFilterOptions, allowClear: true },
         },
-        { label: '片区名称', field: 'renewalAreaName', component: 'Input' },
+        { label: '片区名称', field: 'areaName', component: 'Input' },
         { label: '项目名称', field: 'projectName', component: 'Input' },
         {
           label: '项目归属',
@@ -490,7 +490,7 @@
         },
         {
           label: '片区批次',
-          field: 'renewalAreaBatch',
+          field: 'batch',
           component: 'Select',
           componentProps: { options: batchOptions, allowClear: true },
         },
@@ -519,16 +519,16 @@
       setProjectData([]);
       return;
     }
-    const areaKeyword = String(params.renewalAreaName ?? '').trim();
+    const areaKeyword = String(params.areaName ?? '').trim();
     const nameKeyword = String(params.projectName ?? '').trim();
     setProjectData(
       rows.filter(
         (row) =>
           (!params.district || row.district === params.district) &&
-          (!areaKeyword || row.renewalAreaName.includes(areaKeyword)) &&
+          (!areaKeyword || row.areaName.includes(areaKeyword)) &&
           (!nameKeyword || row.projectName.includes(nameKeyword)) &&
           (!params.projectAffiliation || row.projectAffiliation === params.projectAffiliation) &&
-          (!params.renewalAreaBatch || row.renewalAreaBatch === params.renewalAreaBatch) &&
+          (!params.batch || row.batch === params.batch) &&
           (!params.fiveReformType || row.fiveReformType === params.fiveReformType),
       ),
     );

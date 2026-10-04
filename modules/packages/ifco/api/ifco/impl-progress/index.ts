@@ -36,7 +36,7 @@ import {
   DISTRICTS,
   FIVE_REFORM_TYPE_LABEL,
   PROJECT_AFFILIATION_LABEL,
-  RENEWAL_AREA_BATCH_LABEL,
+  BATCH_LABEL,
 } from '@jeesite/ifco/api/ifco/project-library';
 
 /** 填报页卡片（点选切换 = 表格筛选维度，经路由 ?card= 持久化） */
@@ -181,8 +181,8 @@ export type ScheduleItem = {
   projectCode: string;
   projectName: string;
   district: string;
-  renewalAreaName: string;
-  renewalAreaBatch: string;
+  areaName: string;
+  batch: string;
   fiveReformType: string;
   projectAffiliation: string;
   /** 项目投资估算（亿元） */
@@ -239,8 +239,8 @@ export type MonthlyItem = {
   projectCode: string;
   projectName: string;
   district: string;
-  renewalAreaName: string;
-  renewalAreaBatch: string;
+  areaName: string;
+  batch: string;
   fiveReformType: string;
   projectAffiliation: string;
   /** 当前形象进度（当月快照，列表「当前形象进度」列；逐月值在 monthEntries） */
@@ -513,7 +513,7 @@ export type AreaTricolorItem = {
   areaCode: string;
   district: string;
   areaName: string;
-  renewalAreaBatch: string;
+  batch: string;
   /** 片区功能定位（代码列表，展示经 orientationLabel 转中英文后顿号拼接） */
   orientationList: string[];
   /** 总体投资估算（亿元） */
@@ -541,8 +541,9 @@ export const AREAS_TRICOLOR: AreaTricolorItem[] = [];
 export type ImplProgressQuery = {
   projectName?: string;
   fiveReformType?: string;
-  renewalAreaName?: string;
-  renewalAreaBatch?: string;
+  /** 片区名称（含三色图列表筛选项） */
+  areaName?: string;
+  batch?: string;
   projectAffiliation?: string;
   fillStatus?: string;
   constructionStage?: string;
@@ -557,8 +558,6 @@ export type ImplProgressQuery = {
   district?: string;
   /** 下发状态（市级督办列表筛选项） */
   dispatchStatus?: string;
-  /** 片区名称（三色图列表筛选项） */
-  areaName?: string;
   /** 三色图状态（红/黄/绿；三色图列表筛选项） */
   triColorStatus?: string;
   /** 评估状态（待评估/已评估；三色图列表筛选项） */
@@ -579,8 +578,8 @@ function matchProject(
   item: {
     projectName: string;
     fiveReformType: string;
-    renewalAreaName: string;
-    renewalAreaBatch: string;
+    areaName: string;
+    batch: string;
     projectAffiliation: string;
   },
   params: ImplProgressQuery,
@@ -589,8 +588,8 @@ function matchProject(
   return (
     (!keyword || item.projectName.includes(keyword)) &&
     (!params.fiveReformType || item.fiveReformType === params.fiveReformType) &&
-    (!params.renewalAreaName || item.renewalAreaName === params.renewalAreaName) &&
-    (!params.renewalAreaBatch || item.renewalAreaBatch === params.renewalAreaBatch) &&
+    (!params.areaName || item.areaName === params.areaName) &&
+    (!params.batch || item.batch === params.batch) &&
     (!params.projectAffiliation || item.projectAffiliation === params.projectAffiliation)
   );
 }
@@ -760,7 +759,7 @@ export function filterAreas(params: ImplProgressQuery): AreaTricolorItem[] {
     (item) =>
       (!areaName || item.areaName.includes(areaName)) &&
       (!params.district || item.district === params.district) &&
-      (!params.renewalAreaBatch || item.renewalAreaBatch === params.renewalAreaBatch) &&
+      (!params.batch || item.batch === params.batch) &&
       (!params.triColorStatus || item.triColor === params.triColorStatus) &&
       (!params.evalStatus || (params.evalStatus === '待评估' ? item.triColor === '' : item.triColor !== '')) &&
       matchQuarter(item.evaluatePeriod, params),
@@ -790,8 +789,8 @@ export function fiveReformLabel(value: string): string {
 }
 
 /** 片区批次列显示（value → 中文，空显示 /） */
-export function renewalAreaBatchLabel(value: string): string {
-  return value ? (RENEWAL_AREA_BATCH_LABEL[value] ?? value) : '/';
+export function batchLabel(value: string): string {
+  return value ? (BATCH_LABEL[value] ?? value) : '/';
 }
 
 /** 项目归属列显示（value → 中文） */

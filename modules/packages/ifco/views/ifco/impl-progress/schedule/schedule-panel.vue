@@ -21,7 +21,7 @@
       <template #toolbar>
         <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
       </template>
-      <template #renewalAreaBatch="{ record }">{{ renewalAreaBatchLabel(record.renewalAreaBatch) }}</template>
+      <template #batch="{ record }">{{ batchLabel(record.batch) }}</template>
       <template #fiveReformType="{ record }">{{ fiveReformLabel(record.fiveReformType) }}</template>
       <template #projectAffiliation="{ record }">{{ projectAffiliationLabel(record.projectAffiliation) }}</template>
       <template #projectStatus="{ record }">
@@ -49,9 +49,9 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { match } from 'ts-pattern';
   import {
-    CITY_RENEWAL_AREA_LIST,
-    DISTRICT_RENEWAL_AREA_LIST,
-    RENEWAL_AREA_BATCH_OPTIONS,
+    CITY_AREA_LIST,
+    DISTRICT_AREA_LIST,
+    BATCH_OPTIONS,
   } from '@jeesite/ifco/api/ifco/project-library';
   import { useDistrictOptions, useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
@@ -61,7 +61,7 @@
     filterSchedules,
     fiveReformLabel,
     projectAffiliationLabel,
-    renewalAreaBatchLabel,
+    batchLabel,
     type FillStatus,
     type ScheduleItem,
   } from '@jeesite/ifco/api/ifco/impl-progress';
@@ -82,8 +82,8 @@
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
     { title: '项目名称', dataIndex: 'projectName', width: 220, fixed: 'left', ellipsis: true },
     { title: '行政区', dataIndex: 'district', width: 90 },
-    { title: '片区名称', dataIndex: 'renewalAreaName', width: 100 },
-    { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
+    { title: '片区名称', dataIndex: 'areaName', width: 100 },
+    { title: '片区批次', dataIndex: 'batch', width: 90, slot: 'batch' },
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '项目投资估算（亿元）', dataIndex: 'investEstimate', width: 130, align: 'right' },
@@ -155,9 +155,9 @@
       value: name,
     })),
   );
-  const renewalAreaOptions = [
-    ...CITY_RENEWAL_AREA_LIST.map((area) => ({ label: area.name, value: area.name })),
-    ...DISTRICT_RENEWAL_AREA_LIST.map((name) => ({ label: name, value: name })),
+  const areaOptions = [
+    ...CITY_AREA_LIST.map((area) => ({ label: area.name, value: area.name })),
+    ...DISTRICT_AREA_LIST.map((name) => ({ label: name, value: name })),
   ];
   const fillStatusOptions = FILL_STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
 
@@ -183,15 +183,15 @@
   };
   const areaNameSchema: FormSchema = {
     label: '片区名称',
-    field: 'renewalAreaName',
+    field: 'areaName',
     component: 'Select',
-    componentProps: { options: renewalAreaOptions, allowClear: true },
+    componentProps: { options: areaOptions, allowClear: true },
   };
   const batchSchema: FormSchema = {
     label: '片区批次',
-    field: 'renewalAreaBatch',
+    field: 'batch',
     component: 'Select',
-    componentProps: { options: [...RENEWAL_AREA_BATCH_OPTIONS], allowClear: true },
+    componentProps: { options: [...BATCH_OPTIONS], allowClear: true },
   };
   const fiveReformSchema: FormSchema = {
     label: '五改类型',

@@ -13,11 +13,11 @@ import dayjs from 'dayjs';
 import { defHttp } from '@jeesite/core/utils/http/axios';
 import { useGlobSetting } from '@jeesite/core/hooks/setting';
 import {
-  CITY_RENEWAL_AREA_LIST,
+  CITY_AREA_LIST,
   DISTRICTS,
   FIVE_REFORM_TYPE_OPTIONS,
   PROJECT_AFFILIATION_LABEL,
-  RENEWAL_AREA_BATCH_LABEL,
+  BATCH_LABEL,
   fetchLibPage,
   type ProjectRow,
 } from '@jeesite/ifco/api/ifco/project-library';
@@ -185,8 +185,8 @@ export type FundItem = {
   projectCode: string;
   projectName: string;
   district: string;
-  renewalAreaName: string;
-  renewalAreaBatch: string;
+  areaName: string;
+  batch: string;
   fiveReformType: string;
   projectAffiliation: string;
   investEstimate: number;
@@ -272,8 +272,8 @@ function toFundItem(
     | 'projectCode'
     | 'projectName'
     | 'district'
-    | 'renewalAreaName'
-    | 'renewalAreaBatch'
+    | 'areaName'
+    | 'batch'
     | 'fiveReformType'
     | 'projectAffiliation'
     | 'investEstimate'
@@ -319,8 +319,8 @@ export async function fetchFundItems(): Promise<FundItem[]> {
         projectCode: String(row.lib_project_code ?? ''),
         projectName: String(row.pj_name ?? ''),
         district: String(row.dist ?? ''),
-        renewalAreaName: String(row.area_name ?? ''),
-        renewalAreaBatch: String(row.batch ?? ''),
+        areaName: String(row.area_name ?? ''),
+        batch: String(row.batch ?? ''),
         fiveReformType: String(row.wg_big ?? ''),
         projectAffiliation: String(row.project_affiliation ?? ''),
         investEstimate: Number(row.inv_bil ?? 0),
@@ -339,8 +339,8 @@ export async function fetchFundItems(): Promise<FundItem[]> {
           projectCode: row.projectCode,
           projectName: row.projectName,
           district: row.district,
-          renewalAreaName: row.renewalAreaName,
-          renewalAreaBatch: '',
+          areaName: row.areaName,
+          batch: '',
           fiveReformType: row.fiveReformType,
           projectAffiliation: row.projectAffiliation,
           investEstimate: Number(row.investEstimate ?? 0),
@@ -368,9 +368,9 @@ export type PortfolioProject = {
   projectName: string;
   district: string;
   /** 片区名称（实施库 area_name；空=片区外零星项目，不进片区汇总） */
-  renewalAreaName: string;
+  areaName: string;
   /** 片区批次（实施库 batch；片区行元数据兜底用，优先取策划方案） */
-  renewalAreaBatch: string;
+  batch: string;
   /** 五改分类（实施库 wg_big 代码，展示经 fiveReformLabel 转中文） */
   fiveReformType: string;
   /** 项目归属（实施库 project_affiliation 代码 market/district/scattered） */
@@ -462,8 +462,8 @@ async function fetchPortfolioProjects(): Promise<PortfolioProject[]> {
         projectCode: String(row.lib_project_code ?? ''),
         projectName: String(row.pj_name ?? ''),
         district: String(row.dist ?? ''),
-        renewalAreaName: String(row.area_name ?? ''),
-        renewalAreaBatch: String(row.batch ?? ''),
+        areaName: String(row.area_name ?? ''),
+        batch: String(row.batch ?? ''),
         fiveReformType: String(row.wg_big ?? ''),
         projectAffiliation: String(row.project_affiliation ?? ''),
         investEstimate: Number(row.inv_bil ?? 0),
@@ -597,8 +597,8 @@ export type AreaFundStatRow = {
   /** 片区编号（策划方案 code；无方案为空） */
   areaCode: string;
   district: string;
-  renewalAreaName: string;
-  renewalAreaBatch: string;
+  areaName: string;
+  batch: string;
   /** 片区功能定位（方案代码经 orientationLabel 转中文顿号拼接；无方案为空） */
   orientation: string;
   /** 项目数量（随统计期变化：片区内入库月 ≤ 结束月的项目数） */
@@ -626,10 +626,10 @@ export async function fetchAreaFundStats(startMonth: string, endMonth: string): 
 
   const groups = new Map<string, PortfolioProject[]>();
   for (const project of projects) {
-    if (!project.renewalAreaName) continue;
-    const list = groups.get(project.renewalAreaName) ?? [];
+    if (!project.areaName) continue;
+    const list = groups.get(project.areaName) ?? [];
     list.push(project);
-    groups.set(project.renewalAreaName, list);
+    groups.set(project.areaName, list);
   }
   return [...groups.entries()]
     .map(([areaName, list]) => {
@@ -638,8 +638,8 @@ export async function fetchAreaFundStats(startMonth: string, endMonth: string): 
       return {
         areaCode: scheme?.code ?? '',
         district: scheme?.district || fallbackDistrict,
-        renewalAreaName: areaName,
-        renewalAreaBatch: scheme?.batch || list[0]?.renewalAreaBatch || '',
+        areaName: areaName,
+        batch: scheme?.batch || list[0]?.batch || '',
         orientation: (scheme?.funcTypes ?? []).map((type) => orientationLabel(type)).join('、'),
         projectCount: projectCountInPeriod(list, end),
         areaTotalInvest: Number(scheme?.invest ?? 0),
@@ -657,8 +657,8 @@ export type ProjectFundStatRow = {
   projectCode: string;
   projectName: string;
   district: string;
-  renewalAreaName: string;
-  renewalAreaBatch: string;
+  areaName: string;
+  batch: string;
   fiveReformType: string;
   projectAffiliation: string;
   /** 片区总体投资估算（亿元，项目所属片区的策划方案 invest；无片区/无方案为 0） */
@@ -685,14 +685,14 @@ export async function fetchProjectFundStats(startMonth: string, endMonth: string
   const schemeByName = new Map(schemes.map((scheme) => [scheme.name, scheme]));
   return projects
     .map((project) => {
-      const scheme = project.renewalAreaName ? schemeByName.get(project.renewalAreaName) : undefined;
+      const scheme = project.areaName ? schemeByName.get(project.areaName) : undefined;
       return {
         pUid: project.pUid,
         projectCode: project.projectCode,
         projectName: project.projectName,
         district: project.district,
-        renewalAreaName: project.renewalAreaName,
-        renewalAreaBatch: scheme?.batch || project.renewalAreaBatch || '',
+        areaName: project.areaName,
+        batch: scheme?.batch || project.batch || '',
         fiveReformType: project.fiveReformType,
         projectAffiliation: project.projectAffiliation,
         areaTotalInvest: Number(scheme?.invest ?? 0),
@@ -976,8 +976,8 @@ export const DISTRICT_FUND_ROWS: DistrictFundRow[] = [
 export type AreaFundRow = {
   areaCode: string;
   district: string;
-  renewalAreaName: string;
-  renewalAreaBatch: string;
+  areaName: string;
+  batch: string;
   orientation: string;
   projectCount: number;
   areaTotalInvest: number;
@@ -993,8 +993,8 @@ export const AREA_FUND_ROWS: AreaFundRow[] = [
   {
     areaCode: 'PQ-001',
     district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
+    areaName: '一元片',
+    batch: 'first',
     orientation: 'TOD',
     projectCount: 32,
     areaTotalInvest: 128.0,
@@ -1008,8 +1008,8 @@ export const AREA_FUND_ROWS: AreaFundRow[] = [
   {
     areaCode: 'PQ-002',
     district: '江岸区',
-    renewalAreaName: '二七沿江片',
-    renewalAreaBatch: 'first',
+    areaName: '二七沿江片',
+    batch: 'first',
     orientation: 'HOD',
     projectCount: 26,
     areaTotalInvest: 96.0,
@@ -1023,8 +1023,8 @@ export const AREA_FUND_ROWS: AreaFundRow[] = [
   {
     areaCode: 'PQ-003',
     district: '江汉区',
-    renewalAreaName: '新兴街片',
-    renewalAreaBatch: 'first',
+    areaName: '新兴街片',
+    batch: 'first',
     orientation: 'COD',
     projectCount: 22,
     areaTotalInvest: 78.0,
@@ -1038,8 +1038,8 @@ export const AREA_FUND_ROWS: AreaFundRow[] = [
   {
     areaCode: 'PQ-004',
     district: '硚口区',
-    renewalAreaName: '四马片',
-    renewalAreaBatch: 'second',
+    areaName: '四马片',
+    batch: 'second',
     orientation: 'COD',
     projectCount: 18,
     areaTotalInvest: 66.0,
@@ -1053,8 +1053,8 @@ export const AREA_FUND_ROWS: AreaFundRow[] = [
   {
     areaCode: 'PQ-005',
     district: '江岸区',
-    renewalAreaName: '黑泥湖片',
-    renewalAreaBatch: 'second',
+    areaName: '黑泥湖片',
+    batch: 'second',
     orientation: 'SOD',
     projectCount: 15,
     areaTotalInvest: 52.0,
@@ -1068,8 +1068,8 @@ export const AREA_FUND_ROWS: AreaFundRow[] = [
   {
     areaCode: 'PQ-006',
     district: '青山区',
-    renewalAreaName: '红钢城片',
-    renewalAreaBatch: 'first',
+    areaName: '红钢城片',
+    batch: 'first',
     orientation: 'EOD',
     projectCount: 28,
     areaTotalInvest: 110.0,
@@ -1087,8 +1087,8 @@ export type ProjectFundRow = {
   projectCode: string;
   projectName: string;
   district: string;
-  renewalAreaName: string;
-  renewalAreaBatch: string;
+  areaName: string;
+  batch: string;
   fiveReformType: string;
   projectAffiliation: string;
   areaTotalInvest: number;
@@ -1105,8 +1105,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263600',
     projectName: '三阳设计之都项目（一元片）',
     district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
+    areaName: '一元片',
+    batch: 'first',
     fiveReformType: '老旧街区改造',
     projectAffiliation: 'city-area',
     areaTotalInvest: 128.0,
@@ -1121,8 +1121,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263559',
     projectName: '胜利街（二曜路—三阳路）道路改造项目',
     district: '江岸区',
-    renewalAreaName: '一元片',
-    renewalAreaBatch: 'first',
+    areaName: '一元片',
+    batch: 'first',
     fiveReformType: '老旧街区改造',
     projectAffiliation: 'city-area',
     areaTotalInvest: 128.0,
@@ -1137,8 +1137,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263558',
     projectName: '西马片房地产新模式试点项目',
     district: '江岸区',
-    renewalAreaName: '西马片',
-    renewalAreaBatch: 'second',
+    areaName: '西马片',
+    batch: 'second',
     fiveReformType: '老旧街区改造',
     projectAffiliation: 'city-area',
     areaTotalInvest: 88.0,
@@ -1153,8 +1153,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263412',
     projectName: '黑泥湖片完整社区建设项目',
     district: '江岸区',
-    renewalAreaName: '黑泥湖片',
-    renewalAreaBatch: 'second',
+    areaName: '黑泥湖片',
+    batch: 'second',
     fiveReformType: '老旧小区改造',
     projectAffiliation: 'city-area',
     areaTotalInvest: 52.0,
@@ -1169,8 +1169,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263388',
     projectName: '红钢城片工业遗产保护利用项目',
     district: '青山区',
-    renewalAreaName: '红钢城片',
-    renewalAreaBatch: 'first',
+    areaName: '红钢城片',
+    batch: 'first',
     fiveReformType: '老旧厂区改造',
     projectAffiliation: 'district-area',
     areaTotalInvest: 110.0,
@@ -1185,8 +1185,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263215',
     projectName: '街道口片环大学片区更新项目',
     district: '洪山区',
-    renewalAreaName: '街道口片',
-    renewalAreaBatch: 'second',
+    areaName: '街道口片',
+    batch: 'second',
     fiveReformType: '老旧街区改造',
     projectAffiliation: 'district-area',
     areaTotalInvest: 96.0,
@@ -1201,8 +1201,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263107',
     projectName: '吴家山片老旧厂区改造项目',
     district: '东西湖区',
-    renewalAreaName: '吴家山片',
-    renewalAreaBatch: 'first',
+    areaName: '吴家山片',
+    batch: 'first',
     fiveReformType: '老旧厂区改造',
     projectAffiliation: 'district-area',
     areaTotalInvest: 76.0,
@@ -1217,8 +1217,8 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
     projectCode: '20263066',
     projectName: '汉阳古城历史风貌区改造项目',
     district: '汉阳区',
-    renewalAreaName: '汉阳古城片',
-    renewalAreaBatch: 'first',
+    areaName: '汉阳古城片',
+    batch: 'first',
     fiveReformType: '老旧街区改造',
     projectAffiliation: 'district-area',
     areaTotalInvest: 120.0,
@@ -1233,10 +1233,10 @@ export const PROJECT_FUND_ROWS: ProjectFundRow[] = [
 
 export type FundModeQuery = {
   district?: string;
-  renewalAreaName?: string;
+  areaName?: string;
   projectName?: string;
   projectAffiliation?: string;
-  renewalAreaBatch?: string;
+  batch?: string;
   fiveReformType?: string;
 };
 
@@ -1249,7 +1249,7 @@ export function filterDistrictFundRows(params: FundModeQuery): DistrictFundRow[]
 export function filterAreaFundRows(params: FundModeQuery): AreaFundRow[] {
   return AREA_FUND_ROWS.filter(
     (row) =>
-      (!params.district || row.district === params.district) && matchText(row.renewalAreaName, params.renewalAreaName),
+      (!params.district || row.district === params.district) && matchText(row.areaName, params.areaName),
   );
 }
 
@@ -1257,10 +1257,10 @@ export function filterProjectFundRows(params: FundModeQuery): ProjectFundRow[] {
   return PROJECT_FUND_ROWS.filter(
     (row) =>
       (!params.district || row.district === params.district) &&
-      matchText(row.renewalAreaName, params.renewalAreaName) &&
+      matchText(row.areaName, params.areaName) &&
       matchText(row.projectName, params.projectName) &&
       (!params.projectAffiliation || row.projectAffiliation === params.projectAffiliation) &&
-      (!params.renewalAreaBatch || row.renewalAreaBatch === params.renewalAreaBatch) &&
+      (!params.batch || row.batch === params.batch) &&
       (!params.fiveReformType || row.fiveReformType === params.fiveReformType),
   );
 }
@@ -1285,8 +1285,8 @@ export function fiveReformLabel(value: string): string {
   return FIVE_REFORM_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
-export function renewalAreaBatchLabel(value: string): string {
-  return RENEWAL_AREA_BATCH_LABEL[value] ?? value;
+export function batchLabel(value: string): string {
+  return BATCH_LABEL[value] ?? value;
 }
 
 export function projectAffiliationLabel(value: string): string {
@@ -1300,4 +1300,4 @@ export const DISTRICT_OPTIONS = [
 ];
 
 /** 片区名称选项（片区/项目形态搜索：市级+区级片区） */
-export const RENEWAL_AREA_OPTIONS = [...CITY_RENEWAL_AREA_LIST.map((area) => ({ label: area.name, value: area.name }))];
+export const AREA_OPTIONS = [...CITY_AREA_LIST.map((area) => ({ label: area.name, value: area.name }))];

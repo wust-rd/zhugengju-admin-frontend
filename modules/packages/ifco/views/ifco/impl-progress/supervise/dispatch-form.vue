@@ -223,7 +223,7 @@
     const grouped = new Map<string, string[]>();
     for (const row of candidateRows.value) {
       if (row.district !== district.value) continue;
-      const area = row.renewalAreaName || '其他';
+      const area = row.areaName || '其他';
       const names = grouped.get(area) ?? [];
       if (!names.includes(row.projectName)) names.push(row.projectName);
       grouped.set(area, names);
@@ -434,7 +434,7 @@
   function buildAreaItems() {
     const grouped = new Map<string, string[]>();
     for (const name of selectedProjectNames.value) {
-      const area = candidateRows.value.find((row) => row.projectName === name)?.renewalAreaName || '其他';
+      const area = candidateRows.value.find((row) => row.projectName === name)?.areaName || '其他';
       const names = grouped.get(area) ?? [];
       names.push(name);
       grouped.set(area, names);

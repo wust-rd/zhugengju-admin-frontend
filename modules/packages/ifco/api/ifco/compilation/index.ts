@@ -70,7 +70,7 @@ export type WorkbenchProject = {
   projectCode: string;
   projectName: string;
   district: string;
-  renewalAreaName: string;
+  areaName: string;
   fiveReformType: string;
   /** 投资估算（亿元） */
   investEstimate?: number;

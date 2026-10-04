@@ -18,7 +18,7 @@
   <PageWrapper>
     <BasicTable @register="registerTable">
       <template #areaName="{ record }">{{ withSlash(record.area_name) }}</template>
-      <template #batch="{ record }">{{ withSlash(RENEWAL_AREA_BATCH_LABEL[record.batch] ?? record.batch) }}</template>
+      <template #batch="{ record }">{{ withSlash(BATCH_LABEL[record.batch] ?? record.batch) }}</template>
       <template #wgBig="{ record }">{{ withSlash(FIVE_REFORM_TYPE_LABEL[record.wg_big] ?? record.wg_big) }}</template>
       <template #projectAffiliation="{ record }">
         {{ withSlash(PROJECT_AFFILIATION_LABEL[record.project_affiliation] ?? record.project_affiliation) }}
@@ -42,9 +42,9 @@
   import {
     FIVE_REFORM_TYPE_LABEL,
     PROJECT_AFFILIATION_LABEL,
-    RENEWAL_AREA_BATCH_LABEL,
-    RENEWAL_AREA_BATCH_OPTIONS,
-    RENEWAL_AREA_NAME_LIST,
+    BATCH_LABEL,
+    BATCH_OPTIONS,
+    AREA_NAME_LIST,
     STATUS_LABEL,
     fetchLibPage,
     statusTagProps,
@@ -87,8 +87,8 @@
   }
 
   const districtOptions = useDistrictOptions();
-  const renewalAreaNameOptions = RENEWAL_AREA_NAME_LIST.map((name) => ({ label: name, value: name }));
-  const renewalAreaBatchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
+  const areaNameOptions = AREA_NAME_LIST.map((name) => ({ label: name, value: name }));
+  const batchOptions = [...BATCH_OPTIONS];
   const fiveReformTypeOptions = useFiveReformTypeOptions();
 
   const [registerTable] = useTable({
@@ -121,13 +121,13 @@
           label: '片区名称',
           field: 'areaName',
           component: 'Select',
-          componentProps: { options: renewalAreaNameOptions, allowClear: true },
+          componentProps: { options: areaNameOptions, allowClear: true },
         },
         {
           label: '片区批次',
           field: 'batch',
           component: 'Select',
-          componentProps: { options: renewalAreaBatchOptions, allowClear: true },
+          componentProps: { options: batchOptions, allowClear: true },
         },
         {
           label: '五改类别',

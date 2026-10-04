@@ -64,7 +64,7 @@
           <a-button type="primary" :disabled="planLocked" @click="handleAdoptAll"> 一键采纳 </a-button>
           <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
         </template>
-        <template #renewalAreaName="{ record }">{{ record.renewalAreaName || '/' }}</template>
+        <template #areaName="{ record }">{{ record.areaName || '/' }}</template>
         <template #fiveReformType="{ record }">
           {{ record.fiveReformType ? FIVE_REFORM_TYPE_LABEL[record.fiveReformType] : '/' }}
         </template>
@@ -178,7 +178,7 @@
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
     { title: '项目名称', dataIndex: 'projectName', width: 220, fixed: 'left', ellipsis: true },
     { title: '行政区', dataIndex: 'district', width: 90 },
-    { title: '更新片区', dataIndex: 'renewalAreaName', width: 110, slot: 'renewalAreaName' },
+    { title: '更新片区', dataIndex: 'areaName', width: 110, slot: 'areaName' },
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '投资估算（亿元）', dataIndex: 'investEstimate', width: 120, align: 'right' },
     {

@@ -17,7 +17,7 @@
       <template #toolbar>
         <a-button @click="handleTodo('一键导出')"> 一键导出 </a-button>
       </template>
-      <template #renewalAreaBatch="{ record }">{{ renewalAreaBatchLabel(record.renewalAreaBatch) }}</template>
+      <template #batch="{ record }">{{ batchLabel(record.batch) }}</template>
       <template #fiveReformType="{ record }">{{ fiveReformLabel(record.fiveReformType) }}</template>
       <template #projectAffiliation="{ record }">{{ projectAffiliationLabel(record.projectAffiliation) }}</template>
       <template #monthPlan="{ record }">
@@ -51,7 +51,7 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { buildYearItems } from '@jeesite/core/libs/year';
   import { match } from 'ts-pattern';
-  import { RENEWAL_AREA_BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
   import { useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
     CONSTRUCTION_STAGE_OPTIONS,
@@ -65,7 +65,7 @@
     progressReminderOf,
     progressReminderTagProps,
     projectAffiliationLabel,
-    renewalAreaBatchLabel,
+    batchLabel,
     yearProgressPercent,
     type FillStatus,
     type MonthlyItem,
@@ -82,8 +82,8 @@
     { title: '项目编号', dataIndex: 'projectCode', width: 100, fixed: 'left' },
     { title: '项目名称', dataIndex: 'projectName', width: 200, fixed: 'left' },
     { title: '行政区', dataIndex: 'district', width: 90, fixed: 'left' },
-    { title: '片区名称', dataIndex: 'renewalAreaName', width: 100 },
-    { title: '片区批次', dataIndex: 'renewalAreaBatch', width: 90, slot: 'renewalAreaBatch' },
+    { title: '片区名称', dataIndex: 'areaName', width: 100 },
+    { title: '片区批次', dataIndex: 'batch', width: 90, slot: 'batch' },
     { title: '五改分类', dataIndex: 'fiveReformType', width: 110, slot: 'fiveReformType' },
     { title: '项目归属', dataIndex: 'projectAffiliation', width: 130, slot: 'projectAffiliation' },
     { title: '当前形象进度', dataIndex: 'currentProgress', width: 140 },
@@ -171,9 +171,9 @@
         },
         {
           label: '片区批次',
-          field: 'renewalAreaBatch',
+          field: 'batch',
           component: 'Select',
-          componentProps: { options: [...RENEWAL_AREA_BATCH_OPTIONS], allowClear: true },
+          componentProps: { options: [...BATCH_OPTIONS], allowClear: true },
         },
         {
           label: '项目归属',
