@@ -24,6 +24,8 @@
         <span class="shrink-0 text-12px text-gray-400">该字段为系统自动生成</span>
       </div>
     </template>
+    <!-- 片区槽位占位：未选归属/片区外零星时保住项目归属右侧半行的栅格位（悬空，无控件） -->
+    <template #areaPlaceholder><div /></template>
     <template #inLibraryDate="{ model, field }">
       <div class="flex w-full items-center gap-8px">
         <Input :value="model[field]" disabled placeholder="入库后自动生成" class="flex-1" />
@@ -88,7 +90,6 @@
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import type { FormActionType } from '@jeesite/core/components/Form/src/types/form';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { match } from 'ts-pattern';
   import {
     useDistrictOptions,
     useFiveReformSubTypeMap,
@@ -98,15 +99,13 @@
     useSixBeltTypeOptions,
   } from './ifco-dicts';
   import {
-    CITY_RENEWAL_AREA_LIST,
-    DISTRICT_RENEWAL_AREA_LIST,
-    FUNCTION_ORIENTATION_OPTIONS,
-    RENEWAL_AREA_BATCH_OPTIONS,
     createReportOrgCompany,
+    fetchAreaOptions,
     fetchIndustryDeptOptions,
     fetchLibDetail,
     fetchReportOrgOptions,
     splitList,
+    type LibAreaOption,
     type LibDetail,
     type ProjectAffiliation,
   } from '@jeesite/ifco/api/ifco/project-library';
@@ -130,6 +129,8 @@
   // ── 选项状态（编辑态自加载；只读态不依赖选项，直接填展示值） ──────────
   const industryDeptOptions = ref<{ code: string; name: string }[]>([]);
   const reportOrgOptions = ref<{ refType: 'office' | 'company'; code: string; name: string }[]>([]);
+  // 市级片区选项（ESP_MAP_AREA 实时拉取；批次/功能定位按原文带出，选片区后写 aUid 关联）
+  const areaOptions = ref<LibAreaOption[]>([]);
   // 六类业务字典统一走 ifco-dicts 中心（字典管理加载+静态兜底；口径见 @jeesite/shared/dict）
   const fiveReformTypeOptions = useFiveReformTypeOptions();
   const fiveReformSubTypeMap = useFiveReformSubTypeMap();
@@ -147,9 +148,15 @@
   const reportOrgOptionMap = computed(() => new Map(reportOrgOptions.value.map((i) => [`${i.refType}:${i.code}`, i])));
 
   async function loadOptions() {
-    const [industryDepts, reportOrgs] = await Promise.all([fetchIndustryDeptOptions(), fetchReportOrgOptions()]);
-    industryDeptOptions.value = industryDepts ?? [];
-    reportOrgOptions.value = reportOrgs ?? [];
+    // allSettled 隔离失败：任一选项接口异常（如后端未部署新端点）不影响其余下拉
+    const [industryDepts, reportOrgs, areas] = await Promise.allSettled([
+      fetchIndustryDeptOptions(),
+      fetchReportOrgOptions(),
+      fetchAreaOptions(),
+    ]);
+    if (industryDepts.status === 'fulfilled') industryDeptOptions.value = industryDepts.value ?? [];
+    if (reportOrgs.status === 'fulfilled') reportOrgOptions.value = reportOrgs.value ?? [];
+    if (areas.status === 'fulfilled') areaOptions.value = areas.value ?? [];
   }
 
   // ── 现场新建外部公司（Modal，仅编辑态） ─────────────────────────────
@@ -188,19 +195,6 @@
   // ── 联动（编辑态：片区带出批次/功能定位、切归属清空三件套） ───────────
   const currentAffiliation = ref<ProjectAffiliation | ''>('');
 
-  function showRenewalAreaFields(affiliation: ProjectAffiliation | ''): boolean {
-    return match(affiliation)
-      .with('market', 'district', () => true)
-      .with('scattered', '', () => false)
-      .exhaustive();
-  }
-
-  function renewalAreaNameOptions(affiliation: ProjectAffiliation | ''): string[] {
-    return match(affiliation)
-      .with('market', () => CITY_RENEWAL_AREA_LIST.map((area) => area.name))
-      .with('district', 'scattered', '', () => DISTRICT_RENEWAL_AREA_LIST)
-      .exhaustive();
-  }
 
   /** 市级更新片区内必填（否则不必填）的分情况校验 */
   function requiredWhenCityArea(message: string) {
@@ -213,17 +207,33 @@
     };
   }
 
-  function handleRenewalAreaChange(value: unknown) {
-    const area = CITY_RENEWAL_AREA_LIST.find((item) => item.name === value);
+  /** 市级片区选中：批次/功能定位按片区表原文带出，并登记片区唯一号（提交组装用） */
+  function handleAreaChange(value: unknown) {
+    const area = areaOptions.value.find((item) => item.name === value);
     formActions?.setFieldsValue({
-      renewalAreaBatch: area?.batch ?? '',
-      functionOrientationList: area ? [...area.orientationList] : [],
+      batch: area?.batch ?? '',
+      functionOrientationList: area ? splitList(area.funcTypeName) : [],
+    });
+  }
+
+  /** 行政区切换：片区随区走，清空片区三件套（避免留下不属于新区的片区值） */
+  function handleDistrictChange() {
+    formActions?.setFieldsValue({
+      areaName: '',
+      areaNameText: '',
+      batch: '',
+      functionOrientationList: [],
     });
   }
 
   function handleAffiliationChange(value: unknown) {
     currentAffiliation.value = (value as ProjectAffiliation) ?? '';
-    formActions?.setFieldsValue({ renewalAreaName: '', renewalAreaBatch: '', functionOrientationList: [] });
+    formActions?.setFieldsValue({
+      areaName: '',
+      areaNameText: '',
+      batch: '',
+      functionOrientationList: [],
+    });
   }
 
   // ── 表单（三分区：项目基本信息 / 投资与资金 / 主体信息 + 只读态实施条件） ──
@@ -261,6 +271,7 @@
         options: districtOptions.value,
         allowClear: true,
         placeholder: '请选择行政区',
+        onChange: handleDistrictChange,
       }),
       rules: [{ required: true, message: '请选择行政区' }],
       dynamicDisabled: () => props.disabled || props.identityLocked,
@@ -280,35 +291,53 @@
     },
     {
       label: '片区名称',
-      field: 'renewalAreaName',
+      field: 'areaName',
       component: 'Select' as const,
       componentProps: ({ formModel }) => ({
-        options: toOptions(renewalAreaNameOptions((formModel.projectAffiliation as ProjectAffiliation) ?? '')),
+        // 与行政区级联：已选行政区只列该区片区（dist 已由后端归一为字典定案名），未选列全量
+        options: areaOptions.value
+          .filter((item) => !formModel.district || item.dist === formModel.district)
+          .map((item) => ({ label: item.name, value: item.name })),
+        showSearch: true,
+        optionFilterProp: 'label',
         allowClear: true,
-        placeholder: '请选择片区',
-        onChange: handleRenewalAreaChange,
+        placeholder: formModel.district ? '请选择片区' : '请先选择行政区（未选时列出全部片区）',
+        onChange: handleAreaChange,
       }),
-      ifShow: ({ values }) => showRenewalAreaFields((values.projectAffiliation as ProjectAffiliation) ?? ''),
-      rules: [requiredWhenCityArea('市级更新片区内项目必选片区名称')],
+      ifShow: ({ values }) => values.projectAffiliation === 'market',
+      rules: [{ required: true, message: '请选择片区名称' }],
       dynamicDisabled: () => props.disabled || props.identityLocked,
+    },
+    {
+      label: '片区名称',
+      field: 'areaNameText',
+      component: 'Input',
+      componentProps: { maxlength: 50, placeholder: '请输入片区名称（纯文本）' },
+      ifShow: ({ values }) => values.projectAffiliation === 'district',
+      dynamicDisabled: () => props.disabled || props.identityLocked,
+    },
+    {
+      label: '　', // 全角空格=JeeSite 约定的无标签写法（FormItem 对 '　' 不追加冒号）
+      field: 'areaPlaceholder',
+      component: 'Input',
+      slot: 'areaPlaceholder',
+      // 与片区名称双形态互补：归属未选/片区外零星时占住右半行槽位，五改类别稳定行首
+      ifShow: ({ values }) => values.projectAffiliation !== 'market' && values.projectAffiliation !== 'district',
     },
     {
       label: '片区功能定位',
       field: 'functionOrientationList',
       component: 'Select' as const,
-      componentProps: {
-        mode: 'multiple',
-        options: [...FUNCTION_ORIENTATION_OPTIONS],
-        placeholder: '选择片区后自动带出',
-      },
+      // 只读带出：值为片区表 func_type_name 拆分（无选项枚举，直接展示原文）
+      componentProps: { mode: 'multiple', placeholder: '选择片区后自动带出' },
       ifShow: ({ values }) => values.projectAffiliation === 'market',
       dynamicDisabled: () => true,
     },
     {
       label: '片区批次',
-      field: 'renewalAreaBatch',
-      component: 'Select' as const,
-      componentProps: { options: [...RENEWAL_AREA_BATCH_OPTIONS], placeholder: '选择片区后自动带出' },
+      field: 'batch',
+      component: 'Input',
+      componentProps: { placeholder: '选择片区后自动带出' },
       ifShow: ({ values }) => values.projectAffiliation === 'market',
       dynamicDisabled: () => true,
     },
@@ -528,8 +557,9 @@
         projectApprovalCode: detail.project_approval_code || '/',
         district: detail.dist || '/',
         projectAffiliation: detail.project_affiliation || '/',
-        renewalAreaName: detail.area_name || '/',
-        renewalAreaBatch: detail.batch || '/',
+        areaName: detail.area_name || '/',
+        areaNameText: detail.area_name || '/',
+        batch: detail.batch || '/',
         functionOrientationList: splitList(detail.func_type_name as string),
         fiveReformType: detail.wg_big || '/',
         fiveReformSubType: detail.wg_sub || '/',
@@ -580,5 +610,6 @@
       industryDeptOptionMap: industryDeptOptionMap.value,
       reportOrgOptionMap: reportOrgOptionMap.value,
     }),
+    areaUidOf: (name: string) => areaOptions.value.find((item) => item.name === name)?.aUid,
   });
 </script>

@@ -858,9 +858,10 @@
       projectApprovalCode: row.project_approval_code ?? '',
       district: row.dist ?? '',
       projectAffiliation: row.project_affiliation ?? '',
-      renewalAreaName: row.area_name ?? '',
+      areaName: row.area_name ?? '',
+      areaNameText: row.area_name ?? '',
       functionOrientationList: splitList(row.func_type_name),
-      renewalAreaBatch: row.batch ?? '',
+      batch: row.batch ?? '',
       fiveReformType: row.wg_big ?? '',
       fiveReformSubType: row.wg_sub ?? '',
       sixBringTypeList: splitList(row.six_bring_type_list),
@@ -904,9 +905,13 @@
       projectApprovalCode: values.projectApprovalCode ?? '',
       district: values.district,
       projectAffiliation: values.projectAffiliation,
-      renewalAreaName: values.renewalAreaName ?? '',
-      areaUid: '',
-      renewalAreaBatch: values.renewalAreaBatch ?? '',
+      areaName:
+        values.projectAffiliation === 'district' ? (values.areaNameText ?? '') : (values.areaName ?? ''),
+      areaUid:
+        values.projectAffiliation === 'market' && values.areaName
+          ? (basicFormRef.value?.areaUidOf(String(values.areaName)) ?? '')
+          : '',
+      batch: values.batch ?? '',
       functionOrientations: (values.functionOrientationList ?? []).join('、'),
       fiveReformType: values.fiveReformType ?? '',
       fiveReformSubType: values.fiveReformSubType ?? '',

@@ -107,9 +107,10 @@
     ACTIONS_BY_STATUS_ROLE,
     LIBRARY_CARDS,
     PROJECT_AFFILIATION_LABEL,
-    RENEWAL_AREA_BATCH_OPTIONS,
-    RENEWAL_AREA_NAME_LIST,
+    BATCH_OPTIONS,
+
     STATUS_OPTIONS,
+    fetchAreaOptions,
     fetchLibPage,
     fetchLibStats,
     splitList,
@@ -265,8 +266,9 @@
 
   // 行政区/五改类别/项目归属：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
   const districtOptions = useDistrictOptions();
-  const renewalAreaNameOptions = RENEWAL_AREA_NAME_LIST.map((name) => ({ label: name, value: name }));
-  const renewalAreaBatchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
+  // 片区名称搜索下拉：ESP_MAP_AREA 实时拉取（全量为市级片区；选项带 dist 供与行政区级联过滤）
+  const areaNameOptions = ref<{ label: string; value: string; dist: string }[]>([]);
+  const batchOptions = [...BATCH_OPTIONS];
   const fiveReformTypeOptions = useFiveReformTypeOptions();
   const affiliationOptions = useProjectAffiliationOptions();
   const yearOptions = (buildYearItems(3) as { key: string; label: string }[]).map((item) => ({
@@ -312,13 +314,19 @@
           label: '片区名称',
           field: 'areaName',
           component: 'Select',
-          componentProps: { options: renewalAreaNameOptions, allowClear: true },
+          componentProps: ({ formModel }) => ({
+            // 与行政区级联：已选行政区只列该区片区（dist 已由后端归一为字典定案名）
+            options: areaNameOptions.value.filter((option) => !formModel.district || option.dist === formModel.district),
+            allowClear: true,
+            showSearch: true,
+            optionFilterProp: 'label',
+          }),
         },
         {
           label: '片区批次',
           field: 'batch',
           component: 'Select',
-          componentProps: { options: renewalAreaBatchOptions, allowClear: true },
+          componentProps: { options: batchOptions, allowClear: true },
         },
         {
           label: '五改类别',
@@ -373,6 +381,13 @@
   /** 进入页面：加载统计卡；URL 带了行政区时回填搜索表单（请求参数经 beforeFetch 合入） */
   onMounted(() => {
     loadStats();
+    fetchAreaOptions().then((areas) => {
+      areaNameOptions.value = (areas ?? []).map((item) => ({
+        label: item.name,
+        value: item.name,
+        dist: item.dist,
+      }));
+    });
     const { district } = urlParams();
     if (district) getForm().setFieldsValue({ district });
   });

@@ -169,14 +169,15 @@ export const PROJECT_AFFILIATION_LABEL: Record<string, string> = {
   scattered: '片区外零星项目',
 };
 
-/** 市级更新片区（前期规划已入库片区静态清单：选择片区后带出批次/功能定位，二者不可改） */
-export type CityRenewalArea = {
+/** 市级更新片区静态清单（库管理表单已改接 /ifco/lib/dict/areaOptions 实时拉取 ESP_MAP_AREA，
+ *  此清单仅作旧演示数据兜底，不再维护） */
+export type CityArea = {
   name: string;
   batch: string;
   orientationList: string[];
 };
 
-export const CITY_RENEWAL_AREA_LIST: CityRenewalArea[] = [
+export const CITY_AREA_LIST: CityArea[] = [
   { name: '新兴街片', batch: '第一批', orientationList: ['交通导向（TOD）', '文旅导向（COD）'] },
   { name: '一元片', batch: '第一批', orientationList: ['交通导向（TOD）', '公服导向（SOD）'] },
   { name: '二七沿江片', batch: '第一批', orientationList: ['交通导向（TOD）', '康养导向（HOD）'] },
@@ -186,32 +187,22 @@ export const CITY_RENEWAL_AREA_LIST: CityRenewalArea[] = [
 ];
 
 /** 区级更新片区（区级片区不在前期规划库，仅有名称） */
-export const DISTRICT_RENEWAL_AREA_LIST = ['红钢城片', '街道口片', '吴家山片', '纸坊片', '前川片'];
+export const DISTRICT_AREA_LIST = ['红钢城片', '街道口片', '吴家山片', '纸坊片', '前川片'];
 
 /** 全部片区名称（市级 + 区级合集；搜索表单选项） */
-export const RENEWAL_AREA_NAME_LIST = [
-  ...CITY_RENEWAL_AREA_LIST.map((area) => area.name),
-  ...DISTRICT_RENEWAL_AREA_LIST,
+export const AREA_NAME_LIST = [
+  ...CITY_AREA_LIST.map((area) => area.name),
+  ...DISTRICT_AREA_LIST,
 ];
 
-/** 片区功能定位（多选；中文值=后端主表 func_type_name 顿号分隔口径） */
-export const FUNCTION_ORIENTATION_OPTIONS = [
-  { label: '交通导向（TOD）', value: '交通导向（TOD）' },
-  { label: '文旅导向（COD）', value: '文旅导向（COD）' },
-  { label: '公服导向（SOD）', value: '公服导向（SOD）' },
-  { label: '生态导向（EOD）', value: '生态导向（EOD）' },
-  { label: '产业导向（IOD）', value: '产业导向（IOD）' },
-  { label: '康养导向（HOD）', value: '康养导向（HOD）' },
-] as const;
-
 /** 片区批次（中文值=后端主表 batch 口径） */
-export const RENEWAL_AREA_BATCH_OPTIONS = [
+export const BATCH_OPTIONS = [
   { label: '第一批', value: '第一批' },
   { label: '第二批', value: '第二批' },
 ] as const;
 
 /** 片区批次展示映射（旧英文值 → 中文；其他模块存量假数据兼容） */
-export const RENEWAL_AREA_BATCH_LABEL: Record<string, string> = {
+export const BATCH_LABEL: Record<string, string> = {
   first: '第一批',
   second: '第二批',
 };
@@ -571,6 +562,13 @@ export function fetchReportOrgOptions() {
       url: BASE + '/dict/reportOrgOptions',
     }),
   );
+}
+
+/** 市级片区选项（ESP_MAP_AREA 全量，均为市级片区；选片区后带出批次/功能定位/aUid） */
+export type LibAreaOption = { aUid: string; name: string; batch: string; funcTypeName: string; dist: string };
+
+export function fetchAreaOptions() {
+  return unwrap<LibAreaOption[]>(defHttp.get({ url: BASE + '/dict/areaOptions' }));
 }
 
 /** 现场新建外部公司（公司编码=中文名；公司表/机构表重名或超 21 字返回 400） */
