@@ -101,6 +101,7 @@
   import { Icon } from '@jeesite/core/components/Icon';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { buildYearItems } from '@jeesite/core/libs/year';
+  import { DICT_TYPE, useDictOptions } from '@jeesite/shared/dict';
   import { match } from 'ts-pattern';
   import {
     ACTIONS_BY_STATUS_ROLE,
@@ -268,7 +269,8 @@
   const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
   const renewalAreaNameOptions = RENEWAL_AREA_NAME_LIST.map((name) => ({ label: name, value: name }));
   const renewalAreaBatchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
-  const fiveReformTypeOptions = [...FIVE_REFORM_TYPE_OPTIONS];
+  // 五改类别：字典管理（five_change_type）按需加载，静态清单兜底（口径说明见 @jeesite/shared/dict）
+  const fiveReformTypeOptions = useDictOptions(DICT_TYPE.fiveChangeType, [...FIVE_REFORM_TYPE_OPTIONS]);
   const affiliationOptions = [...PROJECT_AFFILIATION_OPTIONS];
   const yearOptions = (buildYearItems(3) as { key: string; label: string }[]).map((item) => ({
     label: item.label,
@@ -325,7 +327,7 @@
           label: '五改类别',
           field: 'wgBig',
           component: 'Select',
-          componentProps: { options: fiveReformTypeOptions, allowClear: true },
+          componentProps: () => ({ options: fiveReformTypeOptions.value, allowClear: true }),
         },
         {
           label: '入库年份',
