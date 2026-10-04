@@ -2,7 +2,8 @@
  * ifco —— 投融资管理（接口层）
  *
  * 菜单三级：资金分类管理（列表+填报抽屉）/ 项目资金管理（区划·片区·项目三形态汇总）/
- * 资金统计分析（七图表）。资金分类行集 = 实施库项目 ∪ 最新年度任务已采纳项目
+ * 资金统计分析（行政区投资进度·到位率柱线图 + 到位资金分类·五改总投资饼图 +
+ * 资金流向桑基图）。资金分类行集 = 实施库项目 ∪ 最新年度任务已采纳项目
  * （拼装自 project-library/compilation 接口，会话缓存一次）；填报保存走会话内存
  * 登记（资金后端未接入，刷新即恢复）；行政区/五改类别/片区批次/项目归属枚举复用
  * project-library 口径；金额累加走 number-precision。
@@ -702,6 +703,82 @@ export async function fetchProjectFundStats(startMonth: string, endMonth: string
     .sort((a, b) => a.projectCode.localeCompare(b.projectCode));
 }
 
+// ── 资金统计分析（图表聚合；行集与口径同资金分类管理） ──────────────
+
+/**
+ * 到位资金七分类（饼图/资金流向图的资金分类口径；key 对应 FUND_INDICATORS 行键，
+ * 自动行（市级及以下预算资金/社会资本）经 autoValueOf 按子项求和）。
+ */
+export const FUND_CATEGORY_DEFS: { key: string; label: string }[] = [
+  { key: 'r107', label: '中央预算内投资' },
+  { key: 'r111', label: '省级预算资金' },
+  { key: 'r112', label: '市级及以下预算资金' },
+  { key: 'r113', label: '地方政府一般债券' },
+  { key: 'r114', label: '地方政府专项债券' },
+  { key: 'r115', label: '社会资本' },
+  { key: 'r120', label: '其他资金' },
+];
+
+/** 本年度月份键清单（YYYY-MM × 12；到位资金分类统计的加和口径） */
+function currentYearMonths(): string[] {
+  const year = dayjs().format('YYYY');
+  return enumerateMonths(`${year}-01`, `${year}-12`);
+}
+
+/**
+ * 项目本年度实际到位资金分类统计（资金分类管理行集的资金填报逐月值，
+ * 按本年度 12 个月加和；district 空=全市）。返回顺序同 FUND_CATEGORY_DEFS。
+ */
+export async function fetchFundCategoryStats(district: string): Promise<{ label: string; value: number }[]> {
+  const items = (await fetchFundItems()).filter((item) => !district || item.district === district);
+  const yearMonths = currentYearMonths();
+  return FUND_CATEGORY_DEFS.map(({ key, label }) => ({
+    label,
+    value: NP.round(
+      items.reduce(
+        (sum, item) => NP.plus(sum, yearMonths.reduce((s, month) => NP.plus(s, autoValueOf(key, item.values[month] ?? {})), 0)),
+        0,
+      ),
+      2,
+    ),
+  }));
+}
+
+/** 资金流向桑基图连线（source=资金分类，target=五改分类，value=统计期实际到位资金亿元） */
+export type FundFlowLink = { source: string; target: string; value: number };
+
+/**
+ * 资金流向统计：资金分类 → 五改分类 的统计期实际到位资金（startMonth~endMonth 逐月加和；
+ * district 空=全市；仅返回 value>0 的连线，资金分类顺序同 FUND_CATEGORY_DEFS）。
+ */
+export async function fetchFundFlowStats(
+  startMonth: string,
+  endMonth: string,
+  district: string,
+): Promise<FundFlowLink[]> {
+  const items = (await fetchFundItems()).filter((item) => !district || item.district === district);
+  const { periodMonths } = portfolioPeriod(startMonth, endMonth);
+  const byPair = new Map<string, FundFlowLink>();
+  for (const item of items) {
+    const target = fiveReformLabel(item.fiveReformType);
+    for (const { key, label } of FUND_CATEGORY_DEFS) {
+      const value = periodMonths.reduce(
+        (sum, month) => NP.plus(sum, autoValueOf(key, item.values[month] ?? {})),
+        0,
+      );
+      if (!value) continue;
+      const pairKey = `${label}|${target}`;
+      const existed = byPair.get(pairKey);
+      byPair.set(pairKey, {
+        source: label,
+        target,
+        value: NP.round(NP.plus(existed?.value ?? 0, value), 2),
+      });
+    }
+  }
+  return [...byPair.values()];
+}
+
 export type FundQuery = {
   projectName?: string;
   fiveReformType?: string;
@@ -1188,74 +1265,9 @@ export function filterProjectFundRows(params: FundModeQuery): ProjectFundRow[] {
   );
 }
 
-// ══════════════════════ 资金统计分析（七图表数据） ══════════════════════
+// ══════════════════════ 区划汇总趋势图（演示数据） ══════════════════════
 
-/** 各行政区统计区间项目数量（柱状图；照设计稿数值） */
-export const DISTRICT_PROJECT_COUNTS: { district: string; count: number }[] = [
-  { district: '江汉区', count: 40 },
-  { district: '硚口区', count: 39 },
-  { district: '汉阳区', count: 52 },
-  { district: '武昌区', count: 26 },
-  { district: '江岸区', count: 35 },
-  { district: '青山区', count: 41 },
-];
-
-/** 五改项目分类数量（环形图，单位：个） */
-export const FIVE_REFORM_COUNTS: { label: string; value: number }[] = [
-  { label: '老旧小区改造', value: 83 },
-  { label: '既有建筑改造', value: 58 },
-  { label: '城中村改造', value: 48 },
-  { label: '老旧街区改造', value: 43 },
-  { label: '老旧厂区改造', value: 19 },
-];
-
-/** 五改项目分类总投资（环形图，单位：万元） */
-export const FIVE_REFORM_INVESTS: { label: string; value: number }[] = [
-  { label: '老旧小区改造', value: 226922.2 },
-  { label: '既有建筑改造', value: 161992.2 },
-  { label: '城中村改造', value: 114691 },
-  { label: '老旧街区改造', value: 100995.7 },
-  { label: '老旧厂区改造', value: 67339 },
-];
-
-/** 五改 总投资/年度计划投资/统计区间累计完成投资（分组柱状图，单位：万元） */
-export const FIVE_REFORM_GROUPED: { label: string; total: number; yearPlan: number; completed: number }[] =
-  FIVE_REFORM_INVESTS.map((item) => ({
-    label: item.label,
-    total: item.value,
-    yearPlan: Math.round(item.value * 0.45),
-    completed: Math.round(item.value * 0.22),
-  }));
-
-/** 统计区间到位资金全渠道分类（环形图，单位：万元；八渠道） */
-export const FUND_CHANNELS: { label: string; value: number }[] = [
-  { label: '中央预算内资金', value: 20676 },
-  { label: '省级预算内资金', value: 21095 },
-  { label: '区级以下预算资金', value: 30116 },
-  { label: '地方政府一般债券', value: 14739 },
-  { label: '地方政府专项债券', value: 33466 },
-  { label: '政策性银行专项债券', value: 23490 },
-  { label: '社会资本', value: 13469 },
-  { label: '其他资金', value: 8385 },
-];
-
-/** 各行政区 总投资/年度计划/累计完成/到位资金（分组柱状图，单位：万元） */
-export const DISTRICT_FUND_GROUPED: {
-  district: string;
-  total: number;
-  yearPlan: number;
-  completed: number;
-  arrived: number;
-}[] = [
-  { district: '江岸区', total: 92000, yearPlan: 41000, completed: 20600, arrived: 10200 },
-  { district: '江汉区', total: 76000, yearPlan: 34000, completed: 17100, arrived: 8500 },
-  { district: '硚口区', total: 68000, yearPlan: 30000, completed: 15200, arrived: 7400 },
-  { district: '汉阳区', total: 88000, yearPlan: 39000, completed: 19700, arrived: 9600 },
-  { district: '武昌区', total: 82000, yearPlan: 37000, completed: 18400, arrived: 9100 },
-  { district: '青山区', total: 71000, yearPlan: 32000, completed: 15900, arrived: 7900 },
-];
-
-/** 统计区间各月 投资进度/资金到位率/月完成投资额（柱线混合图） */
+/** 统计区间各月 投资进度/资金到位率/月完成投资额（柱线混合图；项目资金管理·查看趋势图） */
 export const MONTHLY_FUND_TREND: {
   month: string;
   monthCompleted: number;
