@@ -8,7 +8,7 @@ import { defineComponent, onMounted, shallowRef, watch } from 'vue';
 /**
  * DistrictChart —— 片区行政区划分布：荧光分段柱状图 + 值分隔格纹层
  *
- * 16 个区划（写法归并后）全量渲染、无滑动；区名去掉「区」字后竖排（rotate 90）；
+ * 16 个区划（写法归并后）全量渲染、无滑动；区名逐字竖排（含「区」字）；
  * 三色渐变柱（浅蓝 → 青 → 金黄，从下往上）+ 横向细分隔条叠加在柱上。
  * 数据来自 area-data.districtAreaCount（接口数据按 DIST 统计片区数量，随批次下拉联动传入）。
  *
@@ -55,16 +55,13 @@ export const DistrictChart = defineComponent({
           xAxis: {
             type: 'category',
             data: names,
-            // 区名去掉「区」字后逐字竖排（每字一行，字身保持正立）；悬停 tooltip 仍显示完整区名
+            // 区名含「区」字逐字竖排（每字一行，字身保持正立）；悬停 tooltip 显示完整区名
             axisLabel: {
               color: '#A2B0B8',
               fontSize: 11,
               interval: 0,
               margin: 10,
-              formatter: (name: string) => {
-                const short = name.endsWith('区') ? name.slice(0, -1) : name;
-                return short.split('').join('\n');
-              },
+              formatter: (name: string) => name.split('').join('\n'),
             },
             axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.4)' } },
             axisTick: {
