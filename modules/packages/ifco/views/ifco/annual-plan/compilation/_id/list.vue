@@ -102,7 +102,6 @@
   import {
     ACTIONS_BY_ADOPT,
     ADOPT_STATUS_OPTIONS,
-    DISTRICTS,
     adoptAnnualPlan,
     adoptAnnualPlanAll,
     adoptStatusTagProps,
@@ -115,12 +114,12 @@
     type WorkbenchProject,
   } from '@jeesite/ifco/api/ifco/compilation';
   import {
-    FIVE_REFORM_TYPE_LABEL,
-    FIVE_REFORM_TYPE_OPTIONS,
-    PROJECT_AFFILIATION_LABEL,
-    PROJECT_AFFILIATION_OPTIONS,
-    STATUS_OPTIONS,
-  } from '@jeesite/ifco/api/ifco/project-library';
+    useDistrictNames,
+    useDistrictOptions,
+    useFiveReformTypeOptions,
+    useProjectAffiliationOptions,
+  } from '../../../shared/ifco-dicts';
+  import { FIVE_REFORM_TYPE_LABEL, PROJECT_AFFILIATION_LABEL, STATUS_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
   import TaskForm from './form.vue';
 
   const { showMessage } = useMessage();
@@ -210,10 +209,12 @@
   };
 
   const adoptStatusOptions = ADOPT_STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
-  const fiveReformTypeOptions = [...FIVE_REFORM_TYPE_OPTIONS];
+  // 行政区/五改类别/项目归属：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
+  const districtOptions = useDistrictOptions();
+  const districtNames = useDistrictNames();
+  const fiveReformTypeOptions = useFiveReformTypeOptions();
   const statusOptions = STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
-  const affiliationOptions = [...PROJECT_AFFILIATION_OPTIONS];
+  const affiliationOptions = useProjectAffiliationOptions();
   const yearOptions = (buildYearItems(3) as { key: string; label: string }[]).map((item) => ({
     label: item.label,
     value: item.key,
@@ -223,7 +224,7 @@
    *  其余机构（市级）看全部项目（生产接机构角色时按角色显隐） */
   const userOfficeName = useUserStore().getUserInfo?.officeName ?? '';
   /** 区级视角：登录机构命中 16 区 → 本区（起止时间用区级编制结束时间、合计只算本区） */
-  const myDistrict = computed(() => DISTRICTS.find((name) => name === userOfficeName));
+  const myDistrict = computed(() => districtNames.value.find((name) => name === userOfficeName));
 
   const [registerTable, { setTableData, getForm, getSelectRows }] = useTable({
     dataSource: [],
@@ -253,13 +254,13 @@
           label: '行政区',
           field: 'district',
           component: 'Select',
-          componentProps: { options: districtOptions, allowClear: true },
+          componentProps: () => ({ options: districtOptions.value, allowClear: true }),
         },
         {
           label: '五改类型',
           field: 'fiveReformType',
           component: 'Select',
-          componentProps: { options: fiveReformTypeOptions, allowClear: true },
+          componentProps: () => ({ options: fiveReformTypeOptions.value, allowClear: true }),
         },
         {
           label: '入库年份',
@@ -277,7 +278,7 @@
           label: '项目归属',
           field: 'projectAffiliation',
           component: 'Select',
-          componentProps: { options: affiliationOptions, allowClear: true },
+          componentProps: () => ({ options: affiliationOptions.value, allowClear: true }),
         },
       ],
     },

@@ -87,20 +87,21 @@
   import { Input, Modal, Select } from 'antdv-next';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import type { FormActionType } from '@jeesite/core/components/Form/src/types/form';
-  import { DICT_TYPE, useDictGroupMap, useDictOptions } from '@jeesite/shared/dict';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { match } from 'ts-pattern';
   import {
+    useDistrictOptions,
+    useFiveReformSubTypeMap,
+    useFiveReformTypeOptions,
+    useFundSourceOptions,
+    useProjectAffiliationOptions,
+    useSixBeltTypeOptions,
+  } from './ifco-dicts';
+  import {
     CITY_RENEWAL_AREA_LIST,
-    DISTRICTS,
     DISTRICT_RENEWAL_AREA_LIST,
-    FIVE_REFORM_SUB_TYPE_MAP,
-    FIVE_REFORM_TYPE_OPTIONS,
-    FUND_SOURCE_OPTIONS,
     FUNCTION_ORIENTATION_OPTIONS,
-    PROJECT_AFFILIATION_OPTIONS,
     RENEWAL_AREA_BATCH_OPTIONS,
-    SIX_BRING_TYPE_OPTIONS,
     createReportOrgCompany,
     fetchIndustryDeptOptions,
     fetchLibDetail,
@@ -129,9 +130,13 @@
   // ── 选项状态（编辑态自加载；只读态不依赖选项，直接填展示值） ──────────
   const industryDeptOptions = ref<{ code: string; name: string }[]>([]);
   const reportOrgOptions = ref<{ refType: 'office' | 'company'; code: string; name: string }[]>([]);
-  // 五改类别/细分类别：字典管理按需加载，静态清单兜底（口径说明见 @jeesite/shared/dict）
-  const fiveReformTypeOptions = useDictOptions(DICT_TYPE.fiveChangeType, [...FIVE_REFORM_TYPE_OPTIONS]);
-  const fiveReformSubTypeMap = useDictGroupMap(DICT_TYPE.fiveChangeSubType, { ...FIVE_REFORM_SUB_TYPE_MAP });
+  // 六类业务字典统一走 ifco-dicts 中心（字典管理加载+静态兜底；口径见 @jeesite/shared/dict）
+  const fiveReformTypeOptions = useFiveReformTypeOptions();
+  const fiveReformSubTypeMap = useFiveReformSubTypeMap();
+  const districtOptions = useDistrictOptions();
+  const sixBeltTypeOptions = useSixBeltTypeOptions();
+  const fundSourceOptions = useFundSourceOptions();
+  const projectAffiliationOptions = useProjectAffiliationOptions();
 
   const reportOrgSelectOptions = computed(() =>
     reportOrgOptions.value.map((item) => ({ label: item.name, value: `${item.refType}:${item.code}` })),
@@ -222,7 +227,6 @@
   }
 
   // ── 表单（三分区：项目基本信息 / 投资与资金 / 主体信息 + 只读态实施条件） ──
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
 
   function toOptions(list: readonly string[]) {
     return list.map((name) => ({ label: name, value: name }));
@@ -253,7 +257,11 @@
       label: '行政区',
       field: 'district',
       component: 'Select' as const,
-      componentProps: { options: districtOptions, allowClear: true, placeholder: '请选择行政区' },
+      componentProps: () => ({
+        options: districtOptions.value,
+        allowClear: true,
+        placeholder: '请选择行政区',
+      }),
       rules: [{ required: true, message: '请选择行政区' }],
       dynamicDisabled: () => props.disabled || props.identityLocked,
     },
@@ -261,12 +269,12 @@
       label: '项目归属',
       field: 'projectAffiliation',
       component: 'Select' as const,
-      componentProps: {
-        options: [...PROJECT_AFFILIATION_OPTIONS],
+      componentProps: () => ({
+        options: projectAffiliationOptions.value,
         allowClear: true,
         placeholder: '请选择项目归属',
         onChange: handleAffiliationChange,
-      },
+      }),
       rules: [{ required: true, message: '请选择项目归属' }],
       dynamicDisabled: () => props.disabled || props.identityLocked,
     },
@@ -331,12 +339,12 @@
       label: '六带类型',
       field: 'sixBringTypeList',
       component: 'Select' as const,
-      componentProps: {
+      componentProps: () => ({
         mode: 'multiple',
-        options: toOptions(SIX_BRING_TYPE_OPTIONS),
+        options: sixBeltTypeOptions.value,
         allowClear: true,
         placeholder: '请选择六带类型',
-      },
+      }),
       dynamicDisabled: () => props.disabled || props.identityLocked,
     },
     {
@@ -380,12 +388,12 @@
       label: '资金来源',
       field: 'fundSourceList',
       component: 'Select' as const,
-      componentProps: {
+      componentProps: () => ({
         mode: 'multiple',
-        options: FUND_SOURCE_OPTIONS,
+        options: fundSourceOptions.value,
         allowClear: true,
         placeholder: '请选择资金来源',
-      },
+      }),
       rules: [{ required: true, message: '请选择资金来源' }],
     },
     {

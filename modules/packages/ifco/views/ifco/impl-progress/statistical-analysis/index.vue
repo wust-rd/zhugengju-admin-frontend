@@ -156,20 +156,23 @@
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { useECharts } from '@jeesite/core/hooks/web/useECharts';
-  import { DISTRICTS, FIVE_REFORM_TYPE_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useDistrictOptions, useFiveReformTypeOptions } from '../../shared/ifco-dicts';
 
   const { showMessage } = useMessage();
 
   // ── 筛选 ────────────────────────────────────────────────────────────
   const yearOptions = [{ label: '2026 年度', value: '2026' }];
-  const districtFilterOptions = [
+  // 行政区/五改类别：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
+  const districtOptions = useDistrictOptions();
+  const fiveReformOptions = useFiveReformTypeOptions();
+  const districtFilterOptions = computed(() => [
     { label: '全市', value: '全市' },
-    ...DISTRICTS.map((name) => ({ label: name, value: name })),
-  ];
-  const fiveReformFilterOptions = [
+    ...districtOptions.value,
+  ]);
+  const fiveReformFilterOptions = computed(() => [
     { label: '全部', value: '' },
-    ...FIVE_REFORM_TYPE_OPTIONS.map((item) => ({ label: item.label, value: item.value })),
-  ];
+    ...fiveReformOptions.value,
+  ]);
 
   const filterYear = ref('2026');
   const filterDistrict = ref('全市');

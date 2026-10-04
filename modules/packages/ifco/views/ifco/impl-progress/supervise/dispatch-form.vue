@@ -141,7 +141,7 @@
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
   import { Button } from '@jeesite/core/components/Button';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { DISTRICTS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useDistrictOptions } from '../../shared/ifco-dicts';
   import {
     SCHEDULES,
     districtSubmitSupervise,
@@ -179,7 +179,7 @@
     return `编辑${(record.value.superviseType ?? '督办') === '督办' ? '督办单' : '工作提示单'}`;
   });
 
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
+  const districtOptions = useDistrictOptions();
   const URBAN_CONFIRM_OPTIONS = ['同意处理结果', '不同意处理结果'].map((name) => ({ label: name, value: name }));
 
   /** 片区/项目候选行（首次打开抽屉拉实施库项目，失败回退内存假数据；本实例内只拉一次） */

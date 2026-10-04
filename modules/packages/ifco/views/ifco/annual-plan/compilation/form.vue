@@ -118,6 +118,7 @@
       colProps: { md: 24, lg: 24 },
       rules: [{ required: true, message: '请选择区级编制结束时间' }],
     },
+    // 16 区目标字段为定案固定清单（与字典 district 同源）：schema 一次性构建、不响应异步字典，保持静态
     ...DISTRICTS.map((name) => ({
       label: `${name}年度刚性投资目标（亿元）`,
       field: districtTargetField(name),

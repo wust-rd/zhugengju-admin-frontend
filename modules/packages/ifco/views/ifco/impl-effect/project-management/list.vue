@@ -41,7 +41,7 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { FIVE_REFORM_TYPE_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useFiveReformTypeOptions } from '../../shared/ifco-dicts';
   import {
     EVALUATE_STATUS_LABELS,
     EVALUATE_STATUS_OPTIONS,
@@ -93,7 +93,7 @@
     openDrawer(true, { ...record, isView });
   }
 
-  const fiveReformOptions = [...FIVE_REFORM_TYPE_OPTIONS];
+  const fiveReformOptions = useFiveReformTypeOptions();
   const fourGoodGoalOptions = FOUR_GOOD_GOAL_OPTIONS.map((name) => ({ label: name, value: name }));
 
   const [registerTable, { reload }] = useTable({
@@ -116,7 +116,7 @@
           label: '五改类型',
           field: 'fiveReformType',
           component: 'Select',
-          componentProps: { options: fiveReformOptions, allowClear: true },
+          componentProps: () => ({ options: fiveReformOptions.value, allowClear: true }),
         },
         {
           label: '四好目标',

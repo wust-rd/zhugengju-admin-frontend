@@ -40,9 +40,7 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import {
-    DISTRICTS,
     FIVE_REFORM_TYPE_LABEL,
-    FIVE_REFORM_TYPE_OPTIONS,
     PROJECT_AFFILIATION_LABEL,
     RENEWAL_AREA_BATCH_LABEL,
     RENEWAL_AREA_BATCH_OPTIONS,
@@ -52,6 +50,7 @@
     statusTagProps,
     type ProjectStatus,
   } from '@jeesite/ifco/api/ifco/project-library';
+  import { useDistrictOptions, useFiveReformTypeOptions } from '../shared/ifco-dicts';
   import CollectForm from './collect-form.vue';
 
   /** 空值显示 /（与在库项目管理同款） */
@@ -87,10 +86,10 @@
     openDrawer(true, { pUid: record.p_uid, projectName: record.pj_name });
   }
 
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
+  const districtOptions = useDistrictOptions();
   const renewalAreaNameOptions = RENEWAL_AREA_NAME_LIST.map((name) => ({ label: name, value: name }));
   const renewalAreaBatchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
-  const fiveReformTypeOptions = [...FIVE_REFORM_TYPE_OPTIONS];
+  const fiveReformTypeOptions = useFiveReformTypeOptions();
 
   const [registerTable] = useTable({
     api: fetchLibPage,
@@ -116,7 +115,7 @@
           label: '行政区',
           field: 'district',
           component: 'Select',
-          componentProps: { options: districtOptions, allowClear: true },
+          componentProps: () => ({ options: districtOptions.value, allowClear: true }),
         },
         {
           label: '片区名称',
@@ -134,7 +133,7 @@
           label: '五改类别',
           field: 'wgBig',
           component: 'Select',
-          componentProps: { options: fiveReformTypeOptions, allowClear: true },
+          componentProps: () => ({ options: fiveReformTypeOptions.value, allowClear: true }),
         },
       ],
     },

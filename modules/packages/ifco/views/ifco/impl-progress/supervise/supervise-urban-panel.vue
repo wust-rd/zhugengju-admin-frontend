@@ -43,7 +43,7 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { buildYearItems } from '@jeesite/core/libs/year';
   import { match, P } from 'ts-pattern';
-  import { DISTRICTS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useDistrictOptions } from '../../shared/ifco-dicts';
   import {
     DISPATCH_STATUS_OPTIONS,
     HANDLE_STATUS_OPTIONS,
@@ -140,7 +140,7 @@
     await refresh();
   }
 
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
+  const districtOptions = useDistrictOptions();
   const dispatchStatusOptions = DISPATCH_STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
   /** 市级处理状态含待下发（提交后未下发）；其余选项与填报/区级端共用 */
   const handleStatusOptions = ['待下发', ...HANDLE_STATUS_OPTIONS].map((name) => ({ label: name, value: name }));
@@ -189,7 +189,7 @@
           label: '选择行政区',
           field: 'district',
           component: 'Select',
-          componentProps: { options: districtOptions, allowClear: true },
+          componentProps: () => ({ options: districtOptions.value, allowClear: true }),
         },
         {
           label: '下发编号',

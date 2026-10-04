@@ -138,11 +138,8 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { useECharts } from '@jeesite/core/hooks/web/useECharts';
-  import {
-    FIVE_REFORM_TYPE_OPTIONS,
-    PROJECT_AFFILIATION_OPTIONS,
-    RENEWAL_AREA_BATCH_OPTIONS,
-  } from '@jeesite/ifco/api/ifco/project-library';
+  import { RENEWAL_AREA_BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
     DISTRICT_FUND_ROWS,
     FUND_MODE_CARDS,
@@ -231,9 +228,9 @@
     { label: '按投资进度', value: 'invest' },
     { label: '按资金到位', value: 'arrival' },
   ];
-  const affiliationOptions = [...PROJECT_AFFILIATION_OPTIONS];
+  const affiliationOptions = useProjectAffiliationOptions();
   const batchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
-  const fiveReformOptions = [...FIVE_REFORM_TYPE_OPTIONS];
+  const fiveReformOptions = useFiveReformTypeOptions();
 
   // ── 区划形态（真实口径统计：实施库 ∩ 年度计划已采纳；列口径见文件头注释） ──
   const districtColumns: BasicColumn[] = [
@@ -489,7 +486,7 @@
           label: '项目归属',
           field: 'projectAffiliation',
           component: 'Select',
-          componentProps: { options: affiliationOptions, allowClear: true },
+          componentProps: () => ({ options: affiliationOptions.value, allowClear: true }),
         },
         {
           label: '片区批次',
@@ -501,7 +498,7 @@
           label: '五改分类',
           field: 'fiveReformType',
           component: 'Select',
-          componentProps: { options: fiveReformOptions, allowClear: true },
+          componentProps: () => ({ options: fiveReformOptions.value, allowClear: true }),
         },
       ],
     },

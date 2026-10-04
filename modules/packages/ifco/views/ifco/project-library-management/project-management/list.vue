@@ -101,15 +101,12 @@
   import { Icon } from '@jeesite/core/components/Icon';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { buildYearItems } from '@jeesite/core/libs/year';
-  import { DICT_TYPE, useDictOptions } from '@jeesite/shared/dict';
   import { match } from 'ts-pattern';
+  import { useDistrictOptions, useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
     ACTIONS_BY_STATUS_ROLE,
-    DISTRICTS,
-    FIVE_REFORM_TYPE_OPTIONS,
     LIBRARY_CARDS,
     PROJECT_AFFILIATION_LABEL,
-    PROJECT_AFFILIATION_OPTIONS,
     RENEWAL_AREA_BATCH_OPTIONS,
     RENEWAL_AREA_NAME_LIST,
     STATUS_OPTIONS,
@@ -266,12 +263,12 @@
       .exhaustive();
   }
 
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
+  // 行政区/五改类别/项目归属：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
+  const districtOptions = useDistrictOptions();
   const renewalAreaNameOptions = RENEWAL_AREA_NAME_LIST.map((name) => ({ label: name, value: name }));
   const renewalAreaBatchOptions = [...RENEWAL_AREA_BATCH_OPTIONS];
-  // 五改类别：字典管理（five_change_type）按需加载，静态清单兜底（口径说明见 @jeesite/shared/dict）
-  const fiveReformTypeOptions = useDictOptions(DICT_TYPE.fiveChangeType, [...FIVE_REFORM_TYPE_OPTIONS]);
-  const affiliationOptions = [...PROJECT_AFFILIATION_OPTIONS];
+  const fiveReformTypeOptions = useFiveReformTypeOptions();
+  const affiliationOptions = useProjectAffiliationOptions();
   const yearOptions = (buildYearItems(3) as { key: string; label: string }[]).map((item) => ({
     label: item.label,
     value: item.key,
@@ -309,7 +306,7 @@
           label: '行政区',
           field: 'district',
           component: 'Select',
-          componentProps: { options: districtOptions, allowClear: true },
+          componentProps: () => ({ options: districtOptions.value, allowClear: true }),
         },
         {
           label: '片区名称',
@@ -345,7 +342,7 @@
           label: '项目归属',
           field: 'affiliation',
           component: 'Select',
-          componentProps: { options: affiliationOptions, allowClear: true },
+          componentProps: () => ({ options: affiliationOptions.value, allowClear: true }),
         },
       ],
     },

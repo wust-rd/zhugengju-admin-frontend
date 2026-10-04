@@ -50,12 +50,10 @@
   import { match } from 'ts-pattern';
   import {
     CITY_RENEWAL_AREA_LIST,
-    DISTRICTS,
     DISTRICT_RENEWAL_AREA_LIST,
-    FIVE_REFORM_TYPE_OPTIONS,
-    PROJECT_AFFILIATION_OPTIONS,
     RENEWAL_AREA_BATCH_OPTIONS,
   } from '@jeesite/ifco/api/ifco/project-library';
+  import { useDistrictOptions, useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
     FILL_STATUS_OPTIONS,
     fetchScheduleRows,
@@ -75,6 +73,9 @@
   }>();
 
   const { showMessage } = useMessage();
+  // 五改类别/项目归属：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
+  const fiveReformOptions = useFiveReformTypeOptions();
+  const affiliationOptions = useProjectAffiliationOptions();
 
   /** 项目编号/项目名称固定左侧，流程状态/操作固定右侧；流程状态前列 指定填报主体/当前项目状态 两列 */
   const columns: BasicColumn[] = [
@@ -144,7 +145,7 @@
       .exhaustive();
   }
 
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
+  const districtOptions = useDistrictOptions();
   /** 实施库行基线（项目库 page 接口 library=implementing 合并内存工作流态） */
   const baseRows = ref<ScheduleItem[]>([]);
   /** 指定填报主体选项：按已加载行去重（与「指定填报主体」列同源；函数式取值保响应） */
@@ -178,7 +179,7 @@
     label: '行政区',
     field: 'district',
     component: 'Select',
-    componentProps: { options: districtOptions, allowClear: true },
+    componentProps: () => ({ options: districtOptions.value, allowClear: true }),
   };
   const areaNameSchema: FormSchema = {
     label: '片区名称',
@@ -196,13 +197,13 @@
     label: '五改类型',
     field: 'fiveReformType',
     component: 'Select',
-    componentProps: { options: [...FIVE_REFORM_TYPE_OPTIONS], allowClear: true },
+    componentProps: () => ({ options: fiveReformOptions.value, allowClear: true }),
   };
   const affiliationSchema: FormSchema = {
     label: '项目归属',
     field: 'projectAffiliation',
     component: 'Select',
-    componentProps: { options: [...PROJECT_AFFILIATION_OPTIONS], allowClear: true },
+    componentProps: () => ({ options: affiliationOptions.value, allowClear: true }),
   };
   const statusSchema: FormSchema = {
     label: '流程状态',

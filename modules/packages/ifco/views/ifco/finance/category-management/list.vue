@@ -75,7 +75,7 @@
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import { FIVE_REFORM_TYPE_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useFiveReformTypeOptions } from '../../shared/ifco-dicts';
   import {
     CONSTRUCTION_STAGE_OPTIONS,
     FUND_FILL_PERIOD,
@@ -157,7 +157,7 @@
     openDrawer(true, { ...record, isView });
   }
 
-  const fiveReformOptions = [...FIVE_REFORM_TYPE_OPTIONS];
+  const fiveReformOptions = useFiveReformTypeOptions();
   const stageOptions = CONSTRUCTION_STAGE_OPTIONS.map((name) => ({ label: name, value: name }));
   const statusOptions = FUND_FILL_STATUS_OPTIONS.map((name) => ({ label: name, value: name }));
 
@@ -180,7 +180,7 @@
           label: '五改分类',
           field: 'fiveReformType',
           component: 'Select',
-          componentProps: { options: fiveReformOptions, allowClear: true },
+          componentProps: () => ({ options: fiveReformOptions.value, allowClear: true }),
         },
         {
           label: '当前建设阶段',

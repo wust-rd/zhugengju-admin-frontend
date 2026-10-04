@@ -133,7 +133,7 @@
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsIfcoFinanceStatisticalAnalysisIndex">
-  import { onMounted, ref, shallowRef } from 'vue';
+  import { computed, onMounted, ref, shallowRef } from 'vue';
   import type { Ref } from 'vue';
   import dayjs from 'dayjs';
   import NP from 'number-precision';
@@ -141,7 +141,7 @@
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { useECharts } from '@jeesite/core/hooks/web/useECharts';
-  import { DISTRICTS, FIVE_REFORM_TYPE_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useDistrictOptions, useFiveReformTypeOptions } from '../../shared/ifco-dicts';
   import {
     PORTFOLIO_START_MONTH,
     fetchDistrictFundStats,
@@ -167,8 +167,12 @@
     return current.isBefore(dayjs(`${PORTFOLIO_START_MONTH}-01`), 'month');
   }
 
+  // 行政区/五改类别：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
+  const districtOptions = useDistrictOptions();
+  const fiveReformOptions = useFiveReformTypeOptions();
+
   /** 卡头行政区选项（③④⑤；''=全市） */
-  const districtCardOptions = [{ label: '全市', value: '' }, ...DISTRICTS.map((name) => ({ label: name, value: name }))];
+  const districtCardOptions = computed(() => [{ label: '全市', value: '' }, ...districtOptions.value]);
   const fundDistrict = ref('');
   const investDistrict = ref('');
   const flowDistrict = ref('');
@@ -290,7 +294,7 @@
       name,
       itemStyle: { color: PALETTE[index % PALETTE.length] },
     }));
-    const fiveOrder: string[] = FIVE_REFORM_TYPE_OPTIONS.map((option) => option.label);
+    const fiveOrder: string[] = fiveReformOptions.value.map((option) => option.label);
     const targetNodes = [...new Set(links.map((link) => link.target))]
       .sort((a, b) => {
         const indexA = fiveOrder.indexOf(a);
@@ -371,7 +375,7 @@
       if (!label) continue;
       byType.set(label, NP.round(NP.plus(byType.get(label) ?? 0, row.projectInvestEstimate), 2));
     }
-    const order: string[] = FIVE_REFORM_TYPE_OPTIONS.map((option) => option.label);
+    const order: string[] = fiveReformOptions.value.map((option) => option.label);
     const data = [...byType.entries()]
       .filter(([, value]) => value > 0)
       .sort((a, b) => {

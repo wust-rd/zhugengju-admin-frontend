@@ -54,10 +54,9 @@
   import {
     CITY_RENEWAL_AREA_LIST,
     DISTRICT_RENEWAL_AREA_LIST,
-    FIVE_REFORM_TYPE_OPTIONS,
-    PROJECT_AFFILIATION_OPTIONS,
     RENEWAL_AREA_BATCH_OPTIONS,
   } from '@jeesite/ifco/api/ifco/project-library';
+  import { useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
     FILL_STATUS_OPTIONS,
     MONTH_OPTIONS,
@@ -77,6 +76,9 @@
   import MonthlyForm from './monthly-form.vue';
 
   const { showMessage } = useMessage();
+  // 五改类别/项目归属：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
+  const fiveReformOptions = useFiveReformTypeOptions();
+  const affiliationOptions = useProjectAffiliationOptions();
 
   /** 视角：区级=待区级审查环节出审查按钮（区级=项目所在行政区住更局审查）；
    *  市级=待市级审查环节出审查按钮（市级=项目推进组审查） */
@@ -206,13 +208,13 @@
           label: '五改类型',
           field: 'fiveReformType',
           component: 'Select',
-          componentProps: { options: [...FIVE_REFORM_TYPE_OPTIONS], allowClear: true },
+          componentProps: () => ({ options: fiveReformOptions.value, allowClear: true }),
         },
         {
           label: '项目归属',
           field: 'projectAffiliation',
           component: 'Select',
-          componentProps: { options: [...PROJECT_AFFILIATION_OPTIONS], allowClear: true },
+          componentProps: () => ({ options: affiliationOptions.value, allowClear: true }),
         },
         {
           label: '流程状态',

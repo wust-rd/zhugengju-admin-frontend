@@ -51,11 +51,8 @@
   import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { buildYearItems } from '@jeesite/core/libs/year';
   import { match } from 'ts-pattern';
-  import {
-    FIVE_REFORM_TYPE_OPTIONS,
-    PROJECT_AFFILIATION_OPTIONS,
-    RENEWAL_AREA_BATCH_OPTIONS,
-  } from '@jeesite/ifco/api/ifco/project-library';
+  import { RENEWAL_AREA_BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useFiveReformTypeOptions, useProjectAffiliationOptions } from '../../shared/ifco-dicts';
   import {
     CONSTRUCTION_STAGE_OPTIONS,
     FILL_STATUS_OPTIONS,
@@ -76,6 +73,9 @@
   import MonthlyForm from './monthly-form.vue';
 
   const { showMessage } = useMessage();
+  // 五改类别/项目归属：字典管理按需加载，静态清单兜底（ifco-dicts 中心）
+  const fiveReformOptions = useFiveReformTypeOptions();
+  const affiliationOptions = useProjectAffiliationOptions();
 
   /** 前三列（项目编号/项目名称/行政区）固定左侧；末四列（项目进度提醒/当前建设阶段/流程状态/操作）固定右侧；金额四列右对齐、表头换行 */
   const columns: BasicColumn[] = [
@@ -167,7 +167,7 @@
           label: '五改类型',
           field: 'fiveReformType',
           component: 'Select',
-          componentProps: { options: [...FIVE_REFORM_TYPE_OPTIONS], allowClear: true },
+          componentProps: () => ({ options: fiveReformOptions.value, allowClear: true }),
         },
         {
           label: '片区批次',
@@ -179,7 +179,7 @@
           label: '项目归属',
           field: 'projectAffiliation',
           component: 'Select',
-          componentProps: { options: [...PROJECT_AFFILIATION_OPTIONS], allowClear: true },
+          componentProps: () => ({ options: affiliationOptions.value, allowClear: true }),
         },
         {
           label: '当前建设阶段',

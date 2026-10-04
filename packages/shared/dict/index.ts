@@ -65,6 +65,25 @@ export function useDictOptions(dictType: string, fallback: DictOption[] = []): R
   return options;
 }
 
+/** 按需加载「值=编码」单层字典选项（组合式；value=dict_value 编码、label=dict_label）。
+ *  适用业务表存英文码的字典（如项目归属 market/district/scattered）：字典的 dict_value
+ *  存编码、dict_label 存中文，取值用编码——与 useDictOptions（值=中文标签）口径相反，勿混用 */
+export function useDictCodeOptions(dictType: string, fallback: DictOption[] = []): Ref<DictOption[]> {
+  const options = ref<DictOption[]>([...fallback]);
+  const { initDict, getDictList } = useDict();
+  initDict([dictType])
+    .then(() => {
+      const list = getDictList(dictType)
+        .filter((item) => item?.pId == '0' && item.name && item.value)
+        .map((item) => ({ label: String(item.name), value: String(item.value) }));
+      if (list.length) options.value = list;
+    })
+    .catch(() => {
+      // 加载失败保留兜底清单，不中断页面
+    });
+  return options;
+}
+
 /** 按需加载两级字典分组映射（组合式；字典为空/失败时保留 fallback） */
 export function useDictGroupMap(
   dictType: string,

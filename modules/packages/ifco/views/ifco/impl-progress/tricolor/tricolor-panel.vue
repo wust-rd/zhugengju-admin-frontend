@@ -93,7 +93,8 @@
     type AreaTricolorItem,
     type TriColorStatus,
   } from '@jeesite/ifco/api/ifco/impl-progress';
-  import { DISTRICTS, RENEWAL_AREA_BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { RENEWAL_AREA_BATCH_OPTIONS } from '@jeesite/ifco/api/ifco/project-library';
+  import { useDistrictOptions } from '../../shared/ifco-dicts';
   import { exportTricolorDocx } from './tricolor-export';
 
   /** 视角：区级=纯查看列表（无操作列）；市级=操作列编辑（三色图评估） */
@@ -191,7 +192,7 @@
     openHistory(true);
   }
 
-  const districtOptions = DISTRICTS.map((name) => ({ label: name, value: name }));
+  const districtOptions = useDistrictOptions();
 
   const [registerTable, { setTableData, getForm }] = useTable({
     dataSource: [],
@@ -217,7 +218,7 @@
           label: '行政区',
           field: 'district',
           component: 'Select',
-          componentProps: { options: districtOptions, allowClear: true },
+          componentProps: () => ({ options: districtOptions.value, allowClear: true }),
         },
         { label: '片区名称', field: 'areaName', component: 'Input', componentProps: { placeholder: '请输入片区名称' } },
         {
