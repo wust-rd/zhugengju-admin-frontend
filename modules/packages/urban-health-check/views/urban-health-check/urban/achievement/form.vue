@@ -1,11 +1,14 @@
 <!--
-  市住更局 —— 体检成果 新增/编辑/查看 表单抽屉
+  市住更局 —— 体检成果 新增表单抽屉
 
-  组件格式对齐 satisfaction-survey/form.vue；接口已接入 achievementSave。
-  体检成果目录为固定五类清单（Select）；提交状态由"提交发布"动作驱动，表单只读展示。
+  仅用于新增成果目录（表10）：体检年份/成果类型（仅问题清单+资源清单，用户决策）/
+  关联指标体系（问题/资源清单必填，后端校验体系年份须与成果年份一致，用于自动代入
+  与关联指标项校验）/填报单位/备注。
+  填报时间由后端自动记录、明细数量随明细自动同步、提交状态由编辑页「提交结果」驱动。
+  编辑入口不走本抽屉 —— 列表「编辑」直接下钻 RESTful 编辑页。
 -->
 <template>
-  <BasicDrawer v-bind="$attrs" force-render width="70%" @register="registerDrawer" @ok="handleSubmit">
+  <BasicDrawer v-bind="$attrs" force-render width="35%" @register="registerDrawer" @ok="handleSubmit">
     <template #title>
       <Icon :icon="getTitle.icon" class="m-1 pr-1" />
       <span> {{ getTitle.value }} </span>
@@ -20,108 +23,119 @@
   import { Icon } from '@jeesite/core/components/Icon';
   import { BasicForm, FormSchema, useForm } from '@jeesite/core/components/Form';
   import { BasicDrawer, useDrawerInner } from '@jeesite/core/components/Drawer';
-  import type { Achievement } from '@jeesite/urban-health-check/api/urban-health-check/urban/achievement';
   import {
-    ACHIEVEMENT_CATALOGS,
+    ACHIEVEMENT_TYPE_OPTIONS,
     achievementSave,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/achievement';
   import {
-    SUBMIT_STATUS,
+    indicatorSystemPage,
     YEAR_OPTIONS,
   } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
-  import { toOptions } from '@jeesite/urban-health-check/api/urban-health-check/common';
 
   const emit = defineEmits(['success', 'register']);
 
   const { showMessage } = useMessage();
   const { meta } = unref(router.currentRoute);
 
-  const isView = ref(false);
-  const record = ref<Achievement & { isNewRecord?: boolean }>({} as Achievement & { isNewRecord?: boolean });
-
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:book-outlined',
-    value: isView.value ? '查看体检成果' : record.value.isNewRecord ? '新增体检成果' : '编辑体检成果',
+    value: '新增体检成果',
   }));
+
+  /** 关联指标体系下拉（随体检年份联动加载；后端要求体系年份=成果年份） */
+  const setOptions = ref<{ label: string; value: string }[]>([]);
+
+  async function loadSets(year?: string) {
+    setOptions.value = [];
+    if (!year) return;
+    try {
+      const page = await indicatorSystemPage({ year, pageNo: 1, pageSize: 20 });
+      setOptions.value = page.list.map((set: any) => ({
+        label: `${set.indicatorName ?? set.name ?? set.id}（${set.indicatorCount ?? 0}项）`,
+        value: set.id as string,
+      }));
+    } catch (e: any) {
+      showMessage(e?.message || '指标体系列表加载失败', 'error');
+    }
+  }
 
   const inputFormSchemas: FormSchema[] = [
     {
       label: '基本信息',
       field: 'basicInfo',
       component: 'FormGroup',
-      colProps: { md: 24, lg: 24 },
+      colProps: { xs: 24, sm: 24, md: 24, lg: 24 },
     },
     {
       label: '体检年份',
-      field: 'year',
+      field: 'setYear',
       component: 'Select',
-      componentProps: { options: YEAR_OPTIONS, allowClear: true },
+      componentProps: {
+        options: YEAR_OPTIONS,
+        allowClear: true,
+        onChange: (year: string) => {
+          // 年份切换后原体系不再可选（后端校验年度一致）
+          setFieldsValue({ indicatorSetId: undefined });
+          loadSets(year);
+        },
+      },
       rules: [{ type: 'string', required: true, message: '请选择体检年份' }],
     },
     {
-      label: '体检成果目录',
-      field: 'catalog',
+      label: '成果类型',
+      field: 'achievementType',
       component: 'Select',
-      componentProps: { options: toOptions(ACHIEVEMENT_CATALOGS), allowClear: true },
-      rules: [{ required: true, message: '请选择体检成果目录' }],
+      componentProps: { options: ACHIEVEMENT_TYPE_OPTIONS, allowClear: true },
+      rules: [{ type: 'string', required: true, message: '请选择成果类型' }],
+      helpMessage: '本期开放问题清单/资源清单；明细表头按成果类型自动适配',
     },
     {
-      label: '填报时间',
-      field: 'reportDate',
-      component: 'DatePicker',
-      componentProps: { valueFormat: 'YYYY-MM-DD', style: 'width: 100%' },
-      rules: [{ type: 'string', required: true, message: '请选择填报时间' }],
+      label: '关联指标体系',
+      field: 'indicatorSetId',
+      component: 'Select',
+      componentProps: () => ({
+        options: setOptions.value,
+        showSearch: true,
+        optionFilterProp: 'label',
+        allowClear: true,
+        placeholder: '请先选择体检年份',
+      }),
+      rules: [{ type: 'string', required: true, message: '请选择关联指标体系' }],
+      helpMessage: '用于自动代入指标项结果与关联指标项校验；体系年份须与体检年份一致',
     },
     {
-      label: '提交状态',
-      field: 'submitStatus',
-      component: 'Select',
-      componentProps: {
-        options: [
-          { label: '待提交', value: SUBMIT_STATUS.PENDING },
-          { label: '已提交', value: SUBMIT_STATUS.SUBMITTED },
-        ],
-      },
-      helpMessage: '提交状态由"提交发布"动作驱动：保存=待提交，提交后成果只读',
-      dynamicDisabled: true,
+      label: '填报单位',
+      field: 'fillUnit',
+      component: 'Input',
+      componentProps: { maxlength: 100 },
     },
     {
       label: '备注',
       field: 'remarks',
       component: 'InputTextArea',
-      componentProps: { maxlength: 500, rows: 3 },
-      colProps: { md: 24, lg: 24 },
+      componentProps: { maxlength: 500, showCount: true, rows: 3 },
+      colProps: { xs: 24, sm: 24, md: 24, lg: 24 },
     },
   ];
 
   const [registerForm, { resetFields, setFieldsValue, validate, setProps }] = useForm({
-    labelWidth: 120,
+    labelWidth: 140,
     schemas: inputFormSchemas,
-    baseColProps: { md: 24, lg: 12 },
+    baseColProps: { xs: 24, sm: 24, md: 24, lg: 24 },
   });
 
   const [registerDrawer, { setDrawerProps, closeDrawer }] = useDrawerInner(async (data: any) => {
     setDrawerProps({ loading: true });
-    await resetFields();
-    isView.value = !!data?.isView;
-    record.value = (data || {}) as Achievement;
-    record.value.isNewRecord = data?.isNewRecord ?? data?.code == null;
-    await setFieldsValue({
-      year: record.value.year ?? YEAR_OPTIONS[0].value,
-      catalog: record.value.catalog ?? '',
-      reportDate: record.value.reportDate ?? '',
-      submitStatus: record.value.submitStatus ?? SUBMIT_STATUS.PENDING,
-      remarks: record.value.remarks ?? '',
-    });
-    await setProps({ disabled: isView.value });
-    setDrawerProps({ loading: false });
+    // resetFields 可能因表单未挂载不 resolve，超时兜底（历史坑）
+    await Promise.race([resetFields().catch(() => undefined), new Promise((r) => setTimeout(r, 2000))]);
+    setOptions.value = [];
+    await setFieldsValue({ setYear: YEAR_OPTIONS[0]?.value });
+    await loadSets(YEAR_OPTIONS[0]?.value);
+    await setProps({ disabled: false });
+    setDrawerProps({ loading: false, showFooter: true });
   });
 
   async function handleSubmit() {
-    if (isView.value) {
-      closeDrawer();
-      return;
-    }
     let data: any;
     try {
       data = await validate();
@@ -134,10 +148,13 @@
     setDrawerProps({ loading: true });
     try {
       await achievementSave({
-        ...data,
-        id: record.value.isNewRecord ? undefined : record.value.id,
+        setYear: data.setYear,
+        achievementType: data.achievementType,
+        indicatorSetId: data.indicatorSetId,
+        fillUnit: data.fillUnit,
+        remarks: data.remarks,
       });
-      showMessage('保存成功');
+      showMessage('保存成功，请进入编辑页维护清单明细');
       setTimeout(closeDrawer);
       emit('success', data);
     } catch (e: any) {
