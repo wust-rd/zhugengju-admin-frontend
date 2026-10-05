@@ -2,7 +2,10 @@
  * 市住更局 —— 名城保护 · 优保建筑展示口径（页面共用）
  *
  * 后端已把 '1.0' 形态数值列归一化为 '1'，这里只做标签映射与时间格式化。
+ * 时间格式化统一经 dayjs（@jeesite/core/utils/dateUtil），不直接用原生 Date。
  */
+
+import { dateUtil } from '@jeesite/core/utils/dateUtil';
 
 /** 保护等级选项（PROTECTLEVE：1=一级 2=二级） */
 export const PROTECT_LEVEL_OPTIONS = [
@@ -44,17 +47,9 @@ function format(value: number | string | Date | null | undefined, withTime: bool
   if (value === null || value === undefined || value === '') {
     return '';
   }
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const date = dateUtil(value);
+  if (!date.isValid()) {
     return String(value);
   }
-  const y = date.getFullYear();
-  const m = `${date.getMonth() + 1}`.padStart(2, '0');
-  const d = `${date.getDate()}`.padStart(2, '0');
-  if (!withTime) {
-    return `${y}-${m}-${d}`;
-  }
-  const hh = `${date.getHours()}`.padStart(2, '0');
-  const mm = `${date.getMinutes()}`.padStart(2, '0');
-  return `${y}-${m}-${d} ${hh}:${mm}`;
+  return date.format(withTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD');
 }

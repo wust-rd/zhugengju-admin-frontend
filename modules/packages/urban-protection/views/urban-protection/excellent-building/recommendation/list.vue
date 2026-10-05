@@ -3,7 +3,7 @@
 
   数据：WHFW_AQJD_EXCELLENT_TJ（新表，老系统推荐数据源无对应表，落地为本表）。
   列对齐老系统：序号/建筑位置/建筑名称/推荐人姓名/手机号码/推荐时间/推荐理由 +
-  操作（查看详情）；老系统另有「导出EXCEL」，待统一导出方案后补。
+  操作（查看详情，纯查询页：无新增/修改/删除，老系统「导出EXCEL」待统一导出方案后补）。
 -->
 <template>
   <PageWrapper>
@@ -11,12 +11,6 @@
       <template #tableTitle>
         <Icon :icon="getTitle.icon" class="m-1 pr-1" />
         <span> {{ getTitle.value }} </span>
-      </template>
-
-      <template #toolbar>
-        <a-button type="primary" @click="handleForm({ isNewRecord: true })">
-          <Icon icon="i-fluent:add-12-filled" /> 新增
-        </a-button>
       </template>
 
       <template #firstColumn="{ record }">
@@ -27,7 +21,6 @@
     </BasicTable>
 
     <DetailDrawer @register="registerDetailDrawer" />
-    <InputForm @register="registerFormDrawer" @success="reload" />
   </PageWrapper>
 </template>
 <script lang="ts" setup name="ViewsUrbanProtectionExcellentBuildingRecommendationList">
@@ -37,18 +30,11 @@
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
-  import { useMessage } from '@jeesite/core/hooks/web/useMessage';
-  import {
-    fetchRecommendPage,
-    deleteRecommend,
-    RecommendRow,
-  } from '@jeesite/urban-protection/api/urban-protection/recommend';
+  import { fetchRecommendPage, RecommendRow } from '@jeesite/urban-protection/api/urban-protection/recommend';
   import { fmtDate } from '../../shared/excellent-format';
   import DetailDrawer from './detail-drawer.vue';
-  import InputForm from './form.vue';
 
   const { meta } = unref(router.currentRoute);
-  const { showMessage } = useMessage();
 
   const getTitle = computed(() => ({
     icon: meta.icon || 'ant-design:like-outlined',
@@ -65,25 +51,15 @@
   ];
 
   const actionColumn: BasicColumn = {
-    width: 200,
+    width: 100,
     actions: (record: Recordable) => [
       { label: '查看详情', onClick: () => openDetail(record as RecommendRow) },
-      { label: '修改', onClick: () => handleForm(record) },
-      {
-        label: '删除',
-        color: 'error',
-        popConfirm: {
-          title: `是否确认删除「${record.jzmc}」的推荐记录？`,
-          confirm: () => handleDelete(record as RecommendRow),
-        },
-      },
     ],
   };
 
   const [registerDetailDrawer, { openDrawer: openDetailDrawer }] = useDrawer();
-  const [registerFormDrawer, { openDrawer: openFormDrawer }] = useDrawer();
 
-  const [registerTable, { reload }] = useTable({
+  const [registerTable] = useTable({
     api: fetchRecommendPage,
     beforeFetch: (params: Recordable) => {
       const { pageNo, pageSize, ...rest } = params;
@@ -108,16 +84,7 @@
   });
 
   function openDetail(record: RecommendRow) {
-    openDetailDrawer(true, { id: record.id });
-  }
-
-  /** 打开表单抽屉（先回填后掀开） */
-  function handleForm(record: Recordable) {
-    openFormDrawer(true, { ...record, _isNew: !!record.isNewRecord });
-  }
-
-  async function handleDelete(record: RecommendRow) {
-    await deleteRecommend(record.id);
-    showMessage('删除成功');
+    // 只传数据不掀开，抽屉回填完成后自行 setDrawerProps({ open: true })
+    openDetailDrawer(false, { id: record.id });
   }
 </script>

@@ -5,7 +5,7 @@
  * 与加粗行（如合计行）。复杂导出（冻结窗格/多排表头）仍走 ifco/shared/excel.ts 那套。
  */
 import { utils, write } from 'xlsx-js-style';
-import type { CellObject, WorkBook, WorkSheet } from 'xlsx-js-style';
+import type { CellObject, Range, WorkBook, WorkSheet } from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 
 const THIN = { style: 'thin', color: { rgb: '000000' } };
@@ -20,6 +20,8 @@ export type SimpleSheetOptions = {
   boldRows?: number[];
   /** 各行行高（pt），按行号索引 */
   rowHeights?: Record<number, number>;
+  /** 追加合并区域（多级表头用，0 起绝对行号含标题行偏移；标题行合并会自动追加） */
+  merges?: Range[];
   /** 工作表名（默认「统计报表」） */
   sheetName?: string;
 };
@@ -39,8 +41,11 @@ export function exportBorderedSheet(
 ): void {
   const sheet: WorkSheet = utils.aoa_to_sheet(rows);
   sheet['!cols'] = colWidths;
-  if (options.title) {
-    sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: colWidths.length - 1 } }];
+  if (options.title || options.merges) {
+    sheet['!merges'] = [
+      ...(options.title ? [{ s: { r: 0, c: 0 }, e: { r: 0, c: colWidths.length - 1 } }] : []),
+      ...(options.merges ?? []),
+    ];
   }
   if (options.rowHeights) {
     sheet['!rows'] = Object.entries(options.rowHeights).map(([r, hpt]) => ({ r: Number(r), hpt }));
