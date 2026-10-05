@@ -1,14 +1,12 @@
 <!--
-  市住更局 —— 区级体检成果管理（列表页）
+  市住更局 —— 区级体检成果管理（列表页，原型图1）
 
-  与市级的区别(转置关系):市级「一年一行、目录为单列」;区级「五类成果清单展开为五列」,
-  列:序号/体检年份/体检片区/行政区划/功能定位/五类清单(各为提交状态)/填报单位/操作。
-  菜单注册(菜单名称「区级体检成果管理」或同类):
+  菜单注册:
    - 链接地址:/urban-health-check/district/achievement/list
-   - 组件位置:/urban-health-check/district/achievement/list(与链接地址一致)
-   - 是否可见:显示
-  当前后端尚未介入，页面为纯 UI：不发起任何接口请求；
-  字段与假数据定义见 @jeesite/urban-health-check/api/urban-health-check/district/achievement。
+   - 组件位置:/urban-health-check/district/achievement/list;是否可见:显示
+  与市级的区别：区级「一成果目录挂五类清单」，列表行直接展示五类清单计数；
+  查看/编辑下钻 RESTful 页面 /district/achievement/{id}（编辑页=五页签）。
+  接口：districtAchievementPage / Delete。
 -->
 <template>
   <PageWrapper>
@@ -23,17 +21,11 @@
         </a-button>
       </template>
       <template #firstColumn="{ record }">
-        <a @click="handleForm({ ...record, isNewRecord: false, isView: true })" :title="record.surveyArea">
-          {{ record.surveyArea }}
-        </a>
+        <a @click="handleDetail(record)" :title="record.areaName">{{ record.areaName }}</a>
       </template>
-      <template #functionPosition="{ record }">
-        {{ (record.functionPosition || []).join('、') }}
-      </template>
-      <template #catalogStatus="{ record, column }">
-        <Tag :color="'blue'" :variant="record[column.dataIndex] === '已提交' ? 'solid' : 'outlined'" style="border-radius: 10px">
-          {{ record[column.dataIndex] }}
-        </Tag>
+      <template #submitStatus="{ record }">
+        <Tag v-if="String(record.submitStatus) === '1'" color="blue" variant="solid" style="border-radius: 10px">已提交</Tag>
+        <Tag v-else color="orange" variant="solid" style="border-radius: 10px">待提交</Tag>
       </template>
     </BasicTable>
 
@@ -44,23 +36,30 @@
   import { unref } from 'vue';
   import { Tag } from 'antdv-next';
   import { router } from '@jeesite/core/router';
+  import { useGo } from '@jeesite/core/hooks/web/usePage';
+  import { useMessage } from '@jeesite/core/hooks/web/useMessage';
   import { Icon } from '@jeesite/core/components/Icon';
   import { PageWrapper } from '@jeesite/core/components/Page';
   import { BasicTable, BasicColumn, useTable } from '@jeesite/core/components/Table';
   import { useDrawer } from '@jeesite/core/components/Drawer';
   import { FormProps } from '@jeesite/core/components/Form';
-  import type { DistrictAchievement } from '@jeesite/urban-health-check/api/urban-health-check/district/achievement';
-  import { MOCK_LIST } from '@jeesite/urban-health-check/api/urban-health-check/district/achievement';
+  import type { DistrictAchievement } from '@jeesite/urban-health-check/api/urban-health-check/district/district-achievement';
   import {
-    DISTRICTS,
-    FUNCTION_POSITIONS,
-    SURVEY_AREAS,
-    toOptions,
-  } from '@jeesite/urban-health-check/api/urban-health-check/common';
-  import { YEAR_OPTIONS } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
+    districtAchievementDelete,
+    districtAchievementPage,
+  } from '@jeesite/urban-health-check/api/urban-health-check/district/district-achievement';
+  import {
+    YEAR_OPTIONS,
+  } from '@jeesite/urban-health-check/api/urban-health-check/urban/indicator-system';
+  import { DISTRICTS, toOptions } from '@jeesite/urban-health-check/api/urban-health-check/common';
   import InputForm from './form.vue';
 
+  /** 下钻路由基址（编辑页=五页签） */
+  const ROUTE_BASE = '/urban-health-check/district/achievement';
+
   const { meta } = unref(router.currentRoute);
+  const go = useGo();
+  const { showMessage } = useMessage();
   const getTitle = {
     icon: meta.icon || 'ant-design:book-outlined',
     value: meta.title || '区级体检成果管理',
@@ -74,68 +73,64 @@
       {
         label: '体检年份',
         field: 'year',
-        component: 'Select' as const,
+        component: 'Select',
         componentProps: { options: YEAR_OPTIONS, allowClear: true },
       },
       {
-        label: '体检片区',
-        field: 'surveyArea',
-        component: 'Select' as const,
-        componentProps: { options: toOptions(SURVEY_AREAS), allowClear: true },
-      },
-      {
         label: '行政区划',
-        field: 'adminDivision',
-        component: 'Select' as const,
+        field: 'districtName',
+        component: 'Select',
         componentProps: { options: toOptions(DISTRICTS), allowClear: true },
       },
-      {
-        label: '功能定位',
-        field: 'functionPosition',
-        component: 'Select' as const,
-        componentProps: { mode: 'multiple', options: toOptions(FUNCTION_POSITIONS), allowClear: true },
-      },
+      { label: '体检片区', field: 'area', component: 'Input' },
     ],
   };
 
-  /** 表格列 */
+  /** 表格列（五类清单计数展开为列） */
   const tableColumns: BasicColumn[] = [
-    { title: '序号', dataIndex: 'code', width: 70, align: 'center' as const },
-    { title: '体检年份', dataIndex: 'year', width: 100, align: 'center' as const },
-    { title: '体检片区', dataIndex: 'surveyArea', width: 110, align: 'center' as const, slot: 'firstColumn' },
-    { title: '行政区划', dataIndex: 'adminDivision', width: 100, align: 'center' as const },
-    { title: '功能定位', dataIndex: 'functionPosition', width: 120, align: 'center' as const, slot: 'functionPosition' },
-    { title: '问题整治清单', dataIndex: 'problemListStatus', width: 110, align: 'center' as const, slot: 'catalogStatus' },
-    { title: '发展机遇清单', dataIndex: 'opportunityListStatus', width: 110, align: 'center' as const, slot: 'catalogStatus' },
-    { title: '更新诉求清单', dataIndex: 'demandListStatus', width: 110, align: 'center' as const, slot: 'catalogStatus' },
-    { title: '基础资料库', dataIndex: 'baseLibraryStatus', width: 110, align: 'center' as const, slot: 'catalogStatus' },
-    { title: '更新项目储备建议库', dataIndex: 'reserveLibraryStatus', width: 110, align: 'center' as const, slot: 'catalogStatus' },
-    { title: '填报单位', dataIndex: 'reportUnit', width: 120 },
+    { title: '体检年份', dataIndex: 'setYear', width: 90, align: 'center' },
+    { title: '行政区划', dataIndex: 'district', width: 90, align: 'center' },
+    { title: '体检片区', dataIndex: 'areaName', slot: 'firstColumn', width: 150 },
+    { title: '填报单位', dataIndex: 'fillUnit', width: 130, ellipsis: true },
+    { title: '问题整治', dataIndex: 'problemCount', width: 90, align: 'center' },
+    { title: '发展机遇', dataIndex: 'opportunityCount', width: 90, align: 'center' },
+    { title: '更新诉求', dataIndex: 'demandCount', width: 90, align: 'center' },
+    { title: '基础资料', dataIndex: 'baseCount', width: 90, align: 'center' },
+    { title: '储备项目', dataIndex: 'stockCount', width: 90, align: 'center' },
+    {
+      title: '填报时间',
+      dataIndex: 'fillDate',
+      width: 110,
+      align: 'center',
+      format: (v: any) => (v == null || v === '' ? '-' : String(v).slice(0, 10)),
+    },
+    { title: '提交状态', dataIndex: 'submitStatus', width: 95, align: 'center', slot: 'submitStatus' },
   ];
 
-  /** 操作列 */
   const actionColumn: BasicColumn = {
-    width: 150,
+    width: 160,
     actions: (record: Recordable) => [
       {
         label: '查看',
-        onClick: () => handleForm({ ...record, isNewRecord: false, isView: true }),
+        onClick: () => handleDetail(record),
       },
       {
         label: '编辑',
-        onClick: () => handleForm({ ...record, isNewRecord: false }),
+        ifShow: () => String(record.submitStatus) !== '1',
+        onClick: () => handleDetail(record),
       },
       {
         label: '删除',
         color: 'error',
-        popConfirm: { title: '是否确认删除该成果记录？', confirm: () => handleDelete(record) },
+        ifShow: () => String(record.submitStatus) !== '1',
+        popConfirm: { title: '删除后五类清单明细将一并删除，是否确认？', confirm: () => handleDelete(record) },
       },
     ],
   };
 
-  const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
-  const [registerTable] = useTable({
-    dataSource: MOCK_LIST,
+  const [registerDrawer, { openDrawer }] = useDrawer();
+  const [registerTable, { reload }] = useTable({
+    api: districtAchievementPage,
     columns: tableColumns,
     actionColumn: actionColumn,
     formConfig: searchForm,
@@ -147,18 +142,24 @@
   });
 
   function handleForm(record: Recordable) {
-    // 打开前先按查看/编辑设好 showFooter(抽屉级);打开动画期间翻转会导致首次不弹(见 form.vue 头注释)
-    setDrawerProps({ showFooter: !record.isView });
     openDrawer(true, record);
   }
 
-  /** 删除 */
-  function handleDelete(_record: DistrictAchievement) {
-    // TODO: 后端接入后调用删除接口并刷新列表
+  function handleDetail(record: Recordable) {
+    go(`${ROUTE_BASE}/${record.id}`);
   }
 
-  /** 表单保存成功回调（后端接入后在此 reload 列表） */
+  async function handleDelete(record: DistrictAchievement) {
+    try {
+      await districtAchievementDelete([record.id!]);
+      showMessage('删除成功');
+      reload();
+    } catch (e: any) {
+      showMessage(e?.message || '删除失败', 'error');
+    }
+  }
+
   function handleSuccess() {
-    // TODO: 后端接入后刷新列表
+    reload();
   }
 </script>
