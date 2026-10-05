@@ -228,11 +228,13 @@
       ),
   };
 
-  const [registerDrawer, { openDrawer }] = useDrawer();
+  const [registerDrawer, { openDrawer, setDrawerProps: setFormDrawerProps }] = useDrawer();
   const [registerExitDrawer, { openDrawer: openExitDrawer, setDrawerProps: setExitDrawerProps }] = useDrawer();
 
   /** 打开表单抽屉：view=只读、edit=编辑（页脚 取消/暂存/申请转库）、review=审核（页脚 取消/保存审查） */
   function handleForm(record: Recordable) {
+    // 页脚（取消/暂存或保存审查）显式预设：showFooter 默认关，打开前设置防首击失灵（硬性规则）
+    setFormDrawerProps({ showFooter: true });
     openDrawer(true, record);
   }
 

@@ -887,6 +887,14 @@
   });
 
   // ── 组装提交 ───────────────────────────────────────────────────────
+  /** 多选字段值三态归一：数组原样；字符串按逗号/顿号拆分（JeeSite 表单多选契约——
+   *  useRuleFormItem 的 setter 把多选值 join(',') 后写入表单模型，getFieldsValue 拿到的是串）；空值 [] */
+  function toList(value: unknown): string[] {
+    if (Array.isArray(value)) return value.filter((item) => item !== null && item !== undefined).map(String);
+    if (typeof value === 'string') return splitList(value);
+    return value == null ? [] : [String(value)];
+  }
+
   /** 步骤①表单值 → save.base 组（主体字段：行业主管部门/责任部门→{code,name} 数组，
    *  指定填报主体→{refType,code,name}；统筹/实施主体为单值字符串） */
   function buildBase(values: Recordable): Recordable {
@@ -912,16 +920,16 @@
           ? (basicFormRef.value?.areaUidOf(String(values.areaName)) ?? '')
           : '',
       batch: values.batch ?? '',
-      functionOrientations: (values.functionOrientationList ?? []).join('、'),
+      functionOrientations: toList(values.functionOrientationList).join('、'),
       fiveReformType: values.fiveReformType ?? '',
       fiveReformSubType: values.fiveReformSubType ?? '',
-      sixBringTypes: (values.sixBringTypeList ?? []).join(','),
+      sixBringTypes: toList(values.sixBringTypeList).join(','),
       constructionSite: values.constructionSite ?? '',
       mainConstructionContent: values.mainConstructionContent,
       investEstimate: values.investEstimate,
-      fundSources: (values.fundSourceList ?? []).join(','),
+      fundSources: toList(values.fundSourceList).join(','),
       fundSituationRemark: values.fundSituationRemark ?? '',
-      industryDepts: (values.industrySupervisionDeptList ?? []).map(industryDeptOf),
+      industryDepts: toList(values.industrySupervisionDeptList).map(industryDeptOf),
       responsibleDept: values.responsibleDept ? industryDeptOf(values.responsibleDept) : null,
       coordinateOrg: values.coordinateOrg ?? '',
       implementOrg: values.implementOrg ?? '',
@@ -988,10 +996,20 @@
     };
   }
 
+  /** 流程测试钩子：提交时打印表单值——输出可直接整块复制的 JSON 文本，
+   *  粘贴到 shared/fake-data.ts 的 FAKE_FORM_SNAPSHOT.values 即完成固化
+   *  （原始值形态，多选字段为 JeeSite 逗号串契约） */
+  function logFormValues(scene: string, values: Recordable) {
+    const plain = JSON.parse(JSON.stringify(values));
+    console.log(`[策划库入库] ${scene} 表单值（复制下方 JSON 到 shared/fake-data.ts）：`);
+    console.log(JSON.stringify(plain, null, 2));
+  }
+
   /** 暂存：校验通过 → save 接口（新建/更新合一）→ 关抽屉刷新 */
   async function handleSaveDraft() {
     const values = await validateOrNotify();
     if (values === undefined) return;
+    logFormValues('暂存', values);
     submitting.value = true;
     try {
       await saveLibProject(buildSaveReq(values));
@@ -1009,6 +1027,7 @@
     const isNew = record.value.isNewRecord;
     const values = await validateOrNotify();
     if (values === undefined) return;
+    logFormValues(isNew ? '提交' : '申请转库', values);
     Modal.confirm({
       title: isNew ? '提交' : '申请转库',
       content: isNew
