@@ -182,3 +182,23 @@
       m=[x for x in sorted(tags) if x not in named|default]
       m and print(p,m)"
   ```
+
+## 开发环境自取登录态做接口测试
+
+需要调鉴权接口时**自己登录拿 session，不要向用户要 token**（已实测可用）：
+
+```bash
+# 1) 登录：账号 xushicheng / 密码 xushicheng（DEV 超管，dev server 须在 3100 运行，pnpm dev）
+B64=$(printf 'xushicheng' | base64)   # eHVzaGljaGVuZw==，表单值直接用它（== 无需再编码）
+SID=$(curl -s -i 'http://localhost:3100/js/a/login' \
+  -H 'Content-Type: application/x-www-form-urlencoded;charset=UTF-8' \
+  -H 'x-ajax: json' -H 'x-requested-with: XMLHttpRequest' \
+  --data-raw "password=$B64&username=$B64&rememberMe=false" \
+  | grep -oE 'jeesite\.session\.id=[a-f0-9]+' | head -1 | cut -d= -f2)
+
+# 2) 调任意鉴权接口：cookie + x-token 都带（同一个 SID；jeesite.vue.session.id 不需要）
+curl -s 'http://localhost:3100/js/a/ifco/lib/dict/dutyDeptOptions' \
+  -H "x-token: $SID" -H 'x-ajax: json' -b "jeesite.session.id=$SID"
+```
+
+要点：登录走 urlencoded 表单、用户名/密码是账号的 **base64**；响应体 `sessionid` 与 Set-Cookie `jeesite.session.id` 同值即 x-token；JSON 接口需 `x-ajax: json`。接口前缀 `/js/a/...`（经 3100 dev 代理，后端本体 8000）。
