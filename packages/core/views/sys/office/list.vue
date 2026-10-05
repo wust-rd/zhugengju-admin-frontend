@@ -166,6 +166,12 @@
       align: 'center',
     },
     {
+      title: t('关联角色'),
+      dataIndex: 'roleNames',
+      width: 160,
+      align: 'center',
+    },
+    {
       title: t('负责人'),
       dataIndex: 'leader',
       width: 130,
