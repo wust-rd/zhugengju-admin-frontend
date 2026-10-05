@@ -68,9 +68,7 @@
     @ok="handleCompanyCreate"
   >
     <div class="py-16px">
-      <div class="mb-8px text-14px text-gray-600">
-        输入公司中文名称（建入公司表，编码=名称，最多 21 个字；创建后自动选中）
-      </div>
+      <div class="mb-8px text-14px text-gray-600"> 输入公司中文名称（创建后自动选中） </div>
       <Input
         v-model:value="companyName"
         :maxlength="21"
@@ -101,6 +99,7 @@
   import {
     createReportOrgCompany,
     fetchAreaOptions,
+    fetchDutyDeptOptions,
     fetchIndustryDeptOptions,
     fetchLibDetail,
     fetchReportOrgOptions,
@@ -128,7 +127,9 @@
 
   // ── 选项状态（编辑态自加载；只读态不依赖选项，直接填展示值） ──────────
   const industryDeptOptions = ref<{ code: string; name: string }[]>([]);
-  const reportOrgOptions = ref<{ refType: 'office' | 'company'; code: string; name: string }[]>([]);
+  const reportOrgOptions = ref<{ refType: 'office' | 'user'; code: string; name: string }[]>([]);
+  // 责任部门候选：SZGJ∪QZGJ 机构（与行业主管部门来源分离）
+  const dutyDeptOptions = ref<{ code: string; name: string }[]>([]);
   // 市级片区选项（ESP_MAP_AREA 实时拉取；批次/功能定位按原文带出，选片区后写 aUid 关联）
   const areaOptions = ref<LibAreaOption[]>([]);
   // 六类业务字典统一走 ifco-dicts 中心（字典管理加载+静态兜底；口径见 @jeesite/shared/dict）
@@ -149,12 +150,14 @@
 
   async function loadOptions() {
     // allSettled 隔离失败：任一选项接口异常（如后端未部署新端点）不影响其余下拉
-    const [industryDepts, reportOrgs, areas] = await Promise.allSettled([
+    const [industryDepts, dutyDepts, reportOrgs, areas] = await Promise.allSettled([
       fetchIndustryDeptOptions(),
+      fetchDutyDeptOptions(),
       fetchReportOrgOptions(),
       fetchAreaOptions(),
     ]);
     if (industryDepts.status === 'fulfilled') industryDeptOptions.value = industryDepts.value ?? [];
+    if (dutyDepts.status === 'fulfilled') dutyDeptOptions.value = dutyDepts.value ?? [];
     if (reportOrgs.status === 'fulfilled') reportOrgOptions.value = reportOrgs.value ?? [];
     if (areas.status === 'fulfilled') areaOptions.value = areas.value ?? [];
   }
@@ -184,7 +187,7 @@
       reportOrgOptions.value = [created, ...reportOrgOptions.value];
       formActions?.setFieldsValue({ reportOrg: `${created.refType}:${created.code}` });
       companyModalOpen.value = false;
-      showMessage(`已创建公司「${created.name}」并选中`);
+      showMessage(`已开通填报主体账号「${created.name}」并选中`);
     } catch (e) {
       companyError.value = (e as Error)?.message ?? '创建失败';
     } finally {
@@ -194,7 +197,6 @@
 
   // ── 联动（编辑态：片区带出批次/功能定位、切归属清空三件套） ───────────
   const currentAffiliation = ref<ProjectAffiliation | ''>('');
-
 
   /** 市级更新片区内必填（否则不必填）的分情况校验 */
   function requiredWhenCityArea(message: string) {
@@ -216,14 +218,21 @@
     });
   }
 
-  /** 行政区切换：片区随区走，清空片区三件套（避免留下不属于新区的片区值） */
-  function handleDistrictChange() {
+  /** 行政区切换：片区随区走清空三件套；责任部门默认联动选中同名区机构
+   *  （行政区与区住更局机构同名，如 江岸区↔机构"江岸区"；市住更局不对应任何行政区、
+   *  清空行政区或无同名机构时不改动责任部门，保留手工选择；回填走 setFieldsValue
+   *  不触发 onChange，不会覆盖编辑态已有值） */
+  function handleDistrictChange(value: unknown) {
     formActions?.setFieldsValue({
       areaName: '',
       areaNameText: '',
       batch: '',
       functionOrientationList: [],
     });
+    const matched = dutyDeptOptions.value.find((item) => item.name === String(value ?? ''));
+    if (matched) {
+      formActions?.setFieldsValue({ responsibleDept: matched.code });
+    }
   }
 
   function handleAffiliationChange(value: unknown) {
@@ -452,7 +461,7 @@
       field: 'responsibleDept',
       component: 'Select' as const,
       componentProps: () => ({
-        options: industryDeptOptions.value.map((item) => ({ label: item.name, value: item.code })),
+        options: dutyDeptOptions.value.map((item) => ({ label: item.name, value: item.code })),
         allowClear: true,
         placeholder: '请选择责任部门',
       }),
