@@ -292,7 +292,7 @@ export function fetchImplEvalDetail(pUid: string) {
 
 /** 保存评估（submit=true 提交转已完成；false 暂存保持待评估） */
 export function saveImplEval(data: ImplEvalSaveReq) {
-  return unwrap<{ pUid: string; evaluateStatus: EvaluateStatus }>(defHttp.post({ url: BASE + '/save', data }));
+  return unwrap<{ pUid: string; evaluateStatus: EvaluateStatus }>(defHttp.postJson({ url: BASE + '/save', data }));
 }
 
 /** 模拟后端解析：上传 shp/dwg → 后端解析返回 GeoJSON（接口就绪后替换） */

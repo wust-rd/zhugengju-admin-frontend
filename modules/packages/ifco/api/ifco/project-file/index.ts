@@ -2,7 +2,7 @@
  * ifco —— 项目资料管理（接口层）
  *
  * 对接后端 /a/ifco/projectfile/*（modules/ifco projectfile 包，接口文档-项目资料管理.md）。
- * 目录：固定目录（策划库资料/实施库资料——服务端读 ESP_PROJECT_EXTRA 转库附件实时
+ * 目录：固定目录（策划库资料/实施库资料——服务端读 IFCO_PROJECT_EXTRA 转库附件实时
  * 派生，只读）+ 用户目录（IFCO_PROJECT_FILE_DIR，项目内目录名唯一）。文件为 JSON
  * 数组串（与项目库附件同构 {name,url,objectKey,size,uploadDate}），上传/删除/
  * 重命名均整替提交；文件本体走 esp 通用上传 /a/esp/file/upload（MinIO 永久直链）。
